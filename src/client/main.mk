@@ -4,6 +4,8 @@
 # build the xsync-client application by itself by running "make" from
 # within the "client" subdirectory.
 
+INCDIRS := ../../libs/include
+
 BUILD_DIR  := ../../build
 TARGET_DIR := ../../target
 

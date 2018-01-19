@@ -4,6 +4,8 @@
 # build the xsync-server application by itself by running "make" from
 # within the "server" subdirectory.
 
+INCDIRS := ../../libs/include
+
 BUILD_DIR  := ../../build
 TARGET_DIR := ../../target
 
