@@ -52,6 +52,7 @@ Mkfile.old
 dkms.conf
 
 # temp dirs
+libs/
 boilermake/
 build/
 target/
