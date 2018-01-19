@@ -1,8 +1,14 @@
 TARGET := xsync-server
 
+LIB_PREFIX := ${TARGET_DIR}/../libs/lib
+
 TGT_LDFLAGS := -L${TARGET_DIR}
-TGT_LDLIBS  := -lcommon
+
+TGT_LDLIBS  := -lcommon \
+	${LIB_PREFIX}/liblog4c.a
+
 TGT_PREREQS := libcommon.a
+
 
 SOURCES := \
     server.c

@@ -6,6 +6,8 @@
 
 INCDIRS := ../../libs/include
 
+TGT_LDLIBS :=
+
 BUILD_DIR  := ../../build
 TARGET_DIR := ../../target
 
