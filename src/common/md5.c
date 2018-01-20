@@ -30,7 +30,7 @@
  ** documentation and/or software.                                   **
  **********************************************************************
  */
-
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -324,14 +324,3 @@ const char* MD5HashFile (const char *fn , unsigned int seed, char hash[MD5_HASH_
     return 0;
 }
 
-
-const char* MD5HashFileDes (int fd, unsigned int seed , char hash[MD5_HASH_SIZE])
-{
-    FILE * fp = fdopen (fd, "rb");
-    if ( fp ) {
-        const char * md5sum = internalMD5HashFile (fp, seed, hash);
-        fclose (fp);
-        return md5sum;
-    }
-    return 0;
-}

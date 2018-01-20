@@ -54,23 +54,23 @@ DESCRIPTION:
                 Decoding is the process in reverse.  A 'decode' lookup
                 table has been created to avoid string scans.
 
-DESIGN GOALS:	Specifically:
-		Code is a stand-alone utility to perform base64 
-		encoding/decoding. It should be genuinely useful 
-		when the need arises and it meets a need that is 
-		likely to occur for some users.  
-		Code acts as sample code to show the author's 
-		design and coding style.  
+DESIGN GOALS:   Specifically:
+        Code is a stand-alone utility to perform base64
+        encoding/decoding. It should be genuinely useful
+        when the need arises and it meets a need that is
+        likely to occur for some users.
+        Code acts as sample code to show the author's
+        design and coding style.
 
-		Generally: 
-		This program is designed to survive:
-		Everything you need is in a single source file.
-		It compiles cleanly using a vanilla ANSI C compiler.
-		It does its job correctly with a minimum of fuss.  
-		The code is not overly clever, not overly simplistic 
-		and not overly verbose. 
-		Access is 'cut and paste' from a web page.  
-		Terms of use are reasonable.  
+        Generally:
+        This program is designed to survive:
+        Everything you need is in a single source file.
+        It compiles cleanly using a vanilla ANSI C compiler.
+        It does its job correctly with a minimum of fuss.
+        The code is not overly clever, not overly simplistic
+        and not overly verbose.
+        Access is 'cut and paste' from a web page.
+        Terms of use are reasonable.
 
 VALIDATION:     Non-trivial code is never without errors.  This
                 file likely has some problems, since it has only
@@ -266,15 +266,15 @@ static void b64_encode_stream( FILE *infile, FILE *outfile, int linesize )
             }
             blocksout++;
         }
-		
-		if (linesize){
-			if( blocksout >= (linesize/4) || feof( infile ) ) {
-				if( blocksout ) {
-					fprintf( outfile, "\r\n" );
-				}
-				blocksout = 0;
-			}
-		}
+
+        if (linesize){
+            if( blocksout >= (linesize/4) || feof( infile ) ) {
+                if( blocksout ) {
+                    fprintf( outfile, "\r\n" );
+                }
+                blocksout = 0;
+            }
+        }
     }
 }
 
@@ -291,63 +291,63 @@ static int b64_encode_string( const unsigned char *instr, int inlen, unsigned ch
     unsigned char in[3], out[4];
     int inc=0, outc=0, i, len, blocksout = 0;
 
-	/* only size of buffer required */
-	if (!outstr){
-		if (linesize==0)
-			return (inlen%3==0)? ((inlen/3)*4):((inlen/3+1)*4);
+    /* only size of buffer required */
+    if (!outstr){
+        if (linesize==0)
+            return (inlen%3==0)? ((inlen/3)*4):((inlen/3+1)*4);
 
-		while(inc < inlen) {
-			len = 0;        
-			for( i = 0; i < 3; i++ ) {
-				if (inc < inlen){
-					len++;
-					inc++;
-				}
-			}
-			if( len ) {
-				outc += 4;
-				blocksout++;
-			}
-			if( blocksout >= (linesize/4) || inc==inlen ) {
-				if( blocksout ) {
-					outc += 2;
-				}
-				blocksout = 0;
-			}
-		}
-		return outc;
-	}
+        while(inc < inlen) {
+            len = 0;
+            for( i = 0; i < 3; i++ ) {
+                if (inc < inlen){
+                    len++;
+                    inc++;
+                }
+            }
+            if( len ) {
+                outc += 4;
+                blocksout++;
+            }
+            if( blocksout >= (linesize/4) || inc==inlen ) {
+                if( blocksout ) {
+                    outc += 2;
+                }
+                blocksout = 0;
+            }
+        }
+        return outc;
+    }
 
     while(inc < inlen) {
-        len = 0;        
-		for( i = 0; i < 3; i++ ) {
-			if (inc < inlen){
-				len++;
-				in[i] = instr[inc++];
-			}
-			else{
-				in[i] = 0;  // padding with zero
-			}
-		}
-		if( len ) {
+        len = 0;
+        for( i = 0; i < 3; i++ ) {
+            if (inc < inlen){
+                len++;
+                in[i] = instr[inc++];
+            }
+            else{
+                in[i] = 0;  // padding with zero
+            }
+        }
+        if( len ) {
             encodeblock( in, out, len );
             for( i = 0; i < 4; i++ ) {
-				outstr[outc++] = out[i];
+                outstr[outc++] = out[i];
             }
-			blocksout++;
+            blocksout++;
         }
 
-		if (linesize){
-			if( blocksout >= (linesize/4) || inc==inlen ) {
-				if( blocksout ) {
-					outstr[outc++] = '\r';
-					outstr[outc++] = '\n';
-				}
-				blocksout = 0;
-			}
-		}
+        if (linesize){
+            if( blocksout >= (linesize/4) || inc==inlen ) {
+                if( blocksout ) {
+                    outstr[outc++] = '\r';
+                    outstr[outc++] = '\n';
+                }
+                blocksout = 0;
+            }
+        }
     }
-	return outc;
+    return outc;
 }
 
 /*
@@ -356,7 +356,7 @@ static int b64_encode_string( const unsigned char *instr, int inlen, unsigned ch
 ** decode 4 '6-bit' characters into 3 8-bit binary bytes
 */
 static void decodeblock( unsigned char in[4], unsigned char out[3] )
-{   
+{
     out[ 0 ] = (unsigned char ) (in[0] << 2 | in[1] >> 4);
     out[ 1 ] = (unsigned char ) (in[1] << 4 | in[2] >> 2);
     out[ 2 ] = (unsigned char ) (((in[2] << 6) & 0xc0) | in[3]);
@@ -410,44 +410,44 @@ static int b64_decode_string( const unsigned char *instr, int inlen, unsigned ch
     unsigned char in[4], out[3], v;
     int inc=0, outc=0, i, len;
 
-	/* only size of buffer required */
-	if (!outstr){
-		while( inc < inlen ) {
-			for( len = 0, i = 0; i < 4 && inc<inlen; i++ ) {
-				v = 0;
-				while( (inc<=inlen) && (v==0) ) {
-					v = (inc < inlen)? instr[inc] : 0;
-					inc++;
+    /* only size of buffer required */
+    if (!outstr){
+        while( inc < inlen ) {
+            for( len = 0, i = 0; i < 4 && inc<inlen; i++ ) {
+                v = 0;
+                while( (inc<=inlen) && (v==0) ) {
+                    v = (inc < inlen)? instr[inc] : 0;
+                    inc++;
 
-					v = (unsigned char) ((v < 43 || v > 122) ? 0 : cd64[ v - 43 ]);
-					if( v ) {
-						v = (unsigned char) ((v == '$') ? 0 : v - 61);
-					}
-				}
-				if( inc<=inlen ) {
-					len++;
-				}
-			}
-			if( len>1 ) {
-				outc += (len-1);
-			}
-		}
-		return outc;
-	}
-	
+                    v = (unsigned char) ((v < 43 || v > 122) ? 0 : cd64[ v - 43 ]);
+                    if( v ) {
+                        v = (unsigned char) ((v == '$') ? 0 : v - 61);
+                    }
+                }
+                if( inc<=inlen ) {
+                    len++;
+                }
+            }
+            if( len>1 ) {
+                outc += (len-1);
+            }
+        }
+        return outc;
+    }
+
     while( inc < inlen ) {
         for( len = 0, i = 0; i < 4 && inc<inlen; i++ ) {
             v = 0;
             while( (inc<=inlen) && (v==0) ) {
-				v = (inc < inlen)? instr[inc] : 0;
-				inc++;
+                v = (inc < inlen)? instr[inc] : 0;
+                inc++;
 
                 v = (unsigned char) ((v < 43 || v > 122) ? 0 : cd64[ v - 43 ]);
                 if( v ) {
                     v = (unsigned char) ((v == '$') ? 0 : v - 61);
                 }
             }
-			if( inc<=inlen ) {
+            if( inc<=inlen ) {
                 len++;
                 if( v ) {
                     in[ i ] = (unsigned char) (v - 1);
@@ -460,11 +460,11 @@ static int b64_decode_string( const unsigned char *instr, int inlen, unsigned ch
         if( len ) {
             decodeblock( in, out );
             for( i = 0; i < len - 1; i++ ) {
-				outstr[outc++] = out[i];
+                outstr[outc++] = out[i];
             }
         }
-    }	
-	return outc;
+    }
+    return outc;
 }
 
 
@@ -477,44 +477,44 @@ static int b64_decode_wstring( const wchar_t *instr, int inlen, unsigned char *o
     unsigned char in[4], out[3], v;
     int inc=0, outc=0, i, len;
 
-	/* only size of buffer required */
-	if (!outstr){
-		while( inc < inlen ) {
-			for( len = 0, i = 0; i < 4 && inc<inlen; i++ ) {
-				v = 0;
-				while( (inc<=inlen) && (v==0) ) {
-					v = (inc < inlen)? (unsigned char)instr[inc] : 0;
-					inc++;
+    /* only size of buffer required */
+    if (!outstr){
+        while( inc < inlen ) {
+            for( len = 0, i = 0; i < 4 && inc<inlen; i++ ) {
+                v = 0;
+                while( (inc<=inlen) && (v==0) ) {
+                    v = (inc < inlen)? (unsigned char)instr[inc] : 0;
+                    inc++;
 
-					v = (unsigned char) ((v < 43 || v > 122) ? 0 : cd64[ v - 43 ]);
-					if( v ) {
-						v = (unsigned char) ((v == '$') ? 0 : v - 61);
-					}
-				}
-				if( inc<=inlen ) {
-					len++;
-				}
-			}
-			if( len>1 ) {
-				outc += (len-1);
-			}
-		}
-		return outc;
-	}
-	
+                    v = (unsigned char) ((v < 43 || v > 122) ? 0 : cd64[ v - 43 ]);
+                    if( v ) {
+                        v = (unsigned char) ((v == '$') ? 0 : v - 61);
+                    }
+                }
+                if( inc<=inlen ) {
+                    len++;
+                }
+            }
+            if( len>1 ) {
+                outc += (len-1);
+            }
+        }
+        return outc;
+    }
+
     while( inc < inlen ) {
         for( len = 0, i = 0; i < 4 && inc<inlen; i++ ) {
             v = 0;
             while( (inc<=inlen) && (v==0) ) {
-				v = (inc < inlen)? (unsigned char)instr[inc] : 0;
-				inc++;
+                v = (inc < inlen)? (unsigned char)instr[inc] : 0;
+                inc++;
 
                 v = (unsigned char) ((v < 43 || v > 122) ? 0 : cd64[ v - 43 ]);
                 if( v ) {
                     v = (unsigned char) ((v == '$') ? 0 : v - 61);
                 }
             }
-			if( inc<=inlen ) {
+            if( inc<=inlen ) {
                 len++;
                 if( v ) {
                     in[ i ] = (unsigned char) (v - 1);
@@ -527,11 +527,11 @@ static int b64_decode_wstring( const wchar_t *instr, int inlen, unsigned char *o
         if( len ) {
             decodeblock( in, out );
             for( i = 0; i < len - 1; i++ ) {
-				outstr[outc++] = out[i];
+                outstr[outc++] = out[i];
             }
         }
-    }	
-	return outc;
+    }
+    return outc;
 }
 
 /*
@@ -552,11 +552,11 @@ static int b64_decode_wstring( const wchar_t *instr, int inlen, unsigned char *o
 ** Gather text messages in one place.
 **
 */
-static char *b64_message( int errcode )
+__attribute__((unused)) static char * b64_message( int errcode )
 {
 #define B64_MAX_MESSAGES 6
-    
-	char *msgs[ B64_MAX_MESSAGES ] = {
+
+    static char * msgs[ B64_MAX_MESSAGES ] = {
             "b64:000:Invalid Message Code.",
             "b64:001:Syntax Error -- check help for usage.",
             "b64:002:File Error Opening/Creating Files.",
@@ -564,7 +564,8 @@ static char *b64_message( int errcode )
             "b64:004:Error on output file close.",
             "b64:004:linesize set to minimum."
     };
-    char *msg = msgs[ 0 ];
+
+    char * msg = msgs[ 0 ];
 
     if( errcode > 0 && errcode < B64_MAX_MESSAGES ) {
         msg = msgs[ errcode ];
@@ -573,40 +574,41 @@ static char *b64_message( int errcode )
     return( msg );
 }
 
+
 #endif // _B64_H_INCLUDED
 
-/* 
+/*
  * Example by cheungmine
  *
 
 int main()
 {
-	int   size_out;
-	int   size_ret;
-	char  *b64_out;
-	char  *b64_outB;
+    int   size_out;
+    int   size_ret;
+    char  *b64_out;
+    char  *b64_outB;
 
-	char  b64_in[] = "hello world shanghai";
+    char  b64_in[] = "hello world shanghai";
 
-	// Base64 ±àÂë×Ö·û´®
-	size_out = b64_encode_string((const unsigned char*)b64_in, (int)strlen(b64_in), 0, 0);
-	b64_out = (char*) malloc(size_out+1);
-	size_ret = b64_encode_string((const unsigned char*)b64_in, (int)strlen(b64_in), (unsigned char*)b64_out, 0);
-	b64_out[size_ret] = 0;
-	assert(size_ret==size_out);
+    // Base64 ±àÂë×Ö·û´®
+    size_out = b64_encode_string((const unsigned char*)b64_in, (int)strlen(b64_in), 0, 0);
+    b64_out = (char*) malloc(size_out+1);
+    size_ret = b64_encode_string((const unsigned char*)b64_in, (int)strlen(b64_in), (unsigned char*)b64_out, 0);
+    b64_out[size_ret] = 0;
+    assert(size_ret==size_out);
 
-	// Base64 ½âÂë×Ö·û´®
-	size_out = b64_decode_string((const unsigned char*)b64_out, size_ret, 0);
-	b64_outB = (char*) malloc(size_out+1);
-	size_ret = b64_decode_string((const unsigned char*)b64_out, size_ret, (unsigned char*)b64_outB);
-	b64_outB[size_ret] = 0;
-	assert(size_ret==size_out);
+    // Base64 ½âÂë×Ö·û´®
+    size_out = b64_decode_string((const unsigned char*)b64_out, size_ret, 0);
+    b64_outB = (char*) malloc(size_out+1);
+    size_ret = b64_decode_string((const unsigned char*)b64_out, size_ret, (unsigned char*)b64_outB);
+    b64_outB[size_ret] = 0;
+    assert(size_ret==size_out);
 
-	assert(strcmp(b64_outB, b64_in)==0);
-	
-	free(b64_out);
-	free(b64_outB);
+    assert(strcmp(b64_outB, b64_in)==0);
 
-	return 0;
+    free(b64_out);
+    free(b64_outB);
+
+    return 0;
 }
 */

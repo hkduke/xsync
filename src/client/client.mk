@@ -1,23 +1,33 @@
+# see "client.mk.another" for another style of client.mk
+#
 TARGET := xsync-client
 
 LIB_PREFIX := ${TARGET_DIR}/../libs/lib
 
 TGT_LDFLAGS := -L${TARGET_DIR}
 
-TGT_LDLIBS  := -lcommon \
-	${LIB_PREFIX}/liblog4c.a
-
-TGT_PREREQS := libcommon.a
+TGT_LDLIBS  := \
+	${LIB_PREFIX}/libcommon.a \
+	${LIB_PREFIX}/liblog4c.a \
+	${LIB_PREFIX}/libexpat.a \
+	${LIB_PREFIX}/libsqlite3.a \
+	${LIB_PREFIX}/libjemalloc.a \
+	${LIB_PREFIX}/libmxml.a \
+	${LIB_PREFIX}/libcrypto.a \
+	${LIB_PREFIX}/libssl.a \
+	-lrt \
+	-ldl \
+	-lpthread
 
 SOURCES := \
     client.c
 
-SRC_DEFS := DEBUG
+
+SRC_DEFS := DEBUG \
+	APP_NAME='"${TARGET}"'
+
 
 SRC_INCDIRS := \
+    . \
 	.. \
 	../common
-
-# xsync-client has its own submakefile because it has a dependency on
-# libcommon.a
-SUBMAKEFILES := ../common/common.mk

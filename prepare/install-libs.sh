@@ -54,4 +54,12 @@ make && make install
 rm -rf ${_cdir}/sqlite-autoconf-3130000
 cd ${_cdir}
 
-echo "all packages installed at: ${INSTALLDIR}"
+echo "---- build and install <openssl-1.0.2e> ..."
+tar -zxf ${_cdir}/openssl-1.0.2e.tgz
+cd ${_cdir}/openssl-1.0.2e/
+./config --prefix=${INSTALLDIR}
+make && make install
+rm -rf ${_cdir}/openssl-1.0.2e
+cd ${_cdir}
+
+echo "[success] all packages installed at: ${INSTALLDIR}"

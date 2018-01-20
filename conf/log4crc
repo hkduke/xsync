@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE log4c SYSTEM "">
+<log4c version="1.2.4">
+    <!--
+    ****************  README FIRST BEFORE USING PLEASE  ****************
+    Author: master@pepstack.com
+    Date: 2016-07-01
+
+    1) source code from: http://log4c.sourceforge.net/
+
+    2) log4c searches the following files to load its configuration:
+        ${LOG4C_RCPATH}/log4crc
+        ${HOME}/.log4crc
+        ./log4crc
+
+    3) category priority should take from below levels:
+        fatal
+        error - used in stable release stage
+        warn
+        info - used in release stage
+        debug - used in beta test
+        trace - used only in devel
+        unknown - show all details
+    ********************************************************************
+    -->
+
+    <config>
+        <bufsize>0</bufsize>
+        <debug level="0"/>
+        <nocleanup>0</nocleanup>
+    </config>
+
+    <!-- xsync-client category
+    The following line would be updated by command. DO NOT REVISED IT BY HAND !
+    -->
+    <category name="xsync-client" priority="trace" appender="stdout" />
+
+    <!--
+      MUST MAKE SURE:
+        $ mkdir /var/log/xsync/client
+        $ sudo chown runuser:runuser /var/log/xsync/client
+    -->
+    <appender name="xsync-client-appender" logdir="/var/log/xsync/client"
+        type="rollingfile"
+        prefix="client.log"
+        layout="dated_local"
+        rollingpolicy="xsync-client-policy" />
+
+    <rollingpolicy
+        name="xsync-client-policy"
+        type="sizewin"
+        maxsize="1048576"
+        maxnum="10" />
+
+    <!-- xsync-server category
+    The following line would be updated by command. DO NOT REVISED IT BY HAND !
+    -->
+    <category name="xsync-server" priority="trace" appender="xsync-server-appender" />
+
+    <!--
+      MUST MAKE SURE:
+        $ mkdir /var/log/xsync/server
+        $ sudo chown runuser:runuser /var/log/xsync/server
+    -->
+    <appender name="xsync-server-appender" logdir="/var/log/xsync/server"
+        type="rollingfile"
+        prefix="server.log"
+        layout="dated_local"
+        rollingpolicy="xsync-server-policy" />
+
+    <rollingpolicy
+        name="xsync-server-policy"
+        type="sizewin"
+        maxsize="1048576"
+        maxnum="10" />
+
+    <!-- root category -->
+    <category name="root" priority="notice"/>
+
+    <!-- default appenders -->
+    <appender name="stdout" type="stream" layout="basic"/>
+    <appender name="stderr" type="stream" layout="basic"/>
+    <appender name="syslog" type="syslog" layout="basic"/>
+
+    <!-- default layouts -->
+    <layout name="basic" type="basic"/>
+    <layout name="dated" type="dated"/>
+    <layout name="dated_local" type="dated_local"/>
+</log4c>

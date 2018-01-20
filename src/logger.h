@@ -45,7 +45,7 @@
 
 /* #define LOGGER_COLOR_OUTPUT */
 
-static log4c_category_t * logger_get_cat (int priority)
+__attribute__((unused)) static log4c_category_t * logger_get_cat (int priority)
 {
     log4c_category_t * cat = log4c_category_get (LOGGER_CATEGORY_NAME_REAL);
 
@@ -57,14 +57,14 @@ static log4c_category_t * logger_get_cat (int priority)
 }
 
 
-static void logger_write (log4c_category_t *cat, int priority,
+__attribute__((unused)) static void logger_write (log4c_category_t *cat, int priority,
     const char *file, int line, const char *func, const char * msg)
 {
     log4c_category_log (cat, priority, "(%s:%d) <%s> %s", file, line, func, msg);
 }
 
 
-static void LOGGER_INIT ()
+__attribute__((unused)) static void LOGGER_INIT ()
 {
     if (0 != log4c_init()) {
         printf("\n**** log4c_init(%s) failed.\n", LOGGER_CATEGORY_NAME_REAL);
@@ -78,7 +78,7 @@ static void LOGGER_INIT ()
 }
 
 
-static void LOGGER_FINI ()
+__attribute__((unused)) static void LOGGER_FINI ()
 {
     printf("\n* log4c_fini.\n");
     log4c_fini();

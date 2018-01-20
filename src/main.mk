@@ -6,4 +6,4 @@ INCDIRS := ../libs/include
 BUILD_DIR  := ../build
 TARGET_DIR := ../target
 
-SUBMAKEFILES := server/server.mk client/client.mk common/common.mk
+SUBMAKEFILES := common/common.mk server/server.mk client/client.mk

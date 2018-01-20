@@ -3,7 +3,6 @@
 # This main.mk exists solely for the purpose of also allowing users to
 # build the xsync-client application by itself by running "make" from
 # within the "client" subdirectory.
-
 INCDIRS := ../../libs/include
 
 BUILD_DIR  := ../../build

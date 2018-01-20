@@ -88,8 +88,6 @@ extern void MD5HashString(unsigned char *source, unsigned int size, unsigned int
 
 extern const char* MD5HashFile(const char *filename , unsigned int seed , char hash[MD5_HASH_SIZE]);
 
-extern const char* MD5HashFileDes(int fd, unsigned int seed , char hash[MD5_HASH_SIZE]);
-
 #if defined(__cplusplus)
 }
 #endif
