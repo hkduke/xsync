@@ -8,6 +8,6 @@ INCDIRS := ../../libs/include
 BUILD_DIR  := ../../build
 TARGET_DIR := ../../target
 
-CFLAGS := -std=c99 -g -O0 -Wall -pipe
+CFLAGS := -std=gnu99 -g -O0 -Wall -pipe
 
 SUBMAKEFILES := client.mk

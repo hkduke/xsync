@@ -1,5 +1,5 @@
 
-CFLAGS := -g -O0 -Wall -std=c99 -pipe
+CFLAGS := -g -O0 -Wall -std=gnu99 -pipe
 
 INCDIRS := ../libs/include
 

@@ -27,7 +27,14 @@
 int main (int argc, char * argv [])
 {
     int ret;
+
     char buff[4096];
+
+    char xmlconf[256];
+    char log4crc[256];
+
+    char priority[20] = {0};
+    char appender[60] = {0};
 
     __attribute__((unused)) int isdaemon = 0;
     __attribute__((unused)) int verbose = 0;
@@ -38,7 +45,7 @@ int main (int argc, char * argv [])
         {"version", no_argument, 0, 'V'},
         {"verbose", no_argument, 0, 'v'},
         {"config", required_argument, 0, 'C'},
-        {"log4crc", required_argument, 0, 'O'},
+        {"log4c-rcpath", required_argument, 0, 'O'},
         {"priority", required_argument, 0, 'P'},
         {"appender", required_argument, 0, 'A'},
         {"daemon", no_argument, 0, 'D'},
@@ -48,6 +55,27 @@ int main (int argc, char * argv [])
         {"regexp", required_argument, 0, 'r'},
         {0, 0, 0, 0}
     };
+
+    /**
+     * get default real path for xsync-client.conf
+     */
+    ret = getpwd(buff, sizeof(buff));
+    if (! ret) {
+        fprintf(stderr, "\033[31m[error: getpwd]\033[0m %s\n", buff);
+        exit(-1);
+    }
+    *strrchr(buff, '/') = 0;
+    ret = snprintf(xmlconf, sizeof(xmlconf), "%s/conf/%s.conf", buff, APP_NAME);
+    if (ret < 20 || ret >= sizeof(xmlconf)) {
+        fprintf(stderr, "\033[31m[error]\033[0m invalid conf path: %s\n", buff);
+        exit(-1);
+    }
+
+    ret = snprintf(log4crc, sizeof(log4crc), "LOG4C_RCPATH=%s/conf/", buff);
+    if (ret < 20 || ret >= sizeof(log4crc)) {
+        fprintf(stderr, "\033[31m[error]\033[0m invalid log4c path: %s\n", buff);
+        exit(-1);
+    }
 
     /* parse command arguments */
     while ((ret = getopt_long(argc, argv, "DKLhVvC:O:P:A:m:r:", lopts, 0)) != EOF) {
@@ -62,16 +90,59 @@ int main (int argc, char * argv [])
             break;
 
         case 'C':
+            /* overwrite default config file */
+            ret = snprintf(xmlconf, sizeof(xmlconf), "%s", optarg);
+            if (ret < 20 || ret >= sizeof(xmlconf)) {
+                fprintf(stderr, "\033[31m[error]\033[0m specified invalid conf file: %s\n", optarg);
+                exit(-1);
+            }
+
+            if (getfullpath(xmlconf, buff, sizeof(buff)) != 0) {
+                fprintf(stderr, "\033[31m[error]\033[0m %s\n", buff);
+                exit(-1);
+            } else {
+                ret = snprintf(xmlconf, sizeof(xmlconf), "%s", buff);
+                if (ret < 20 || ret >= sizeof(xmlconf)) {
+                    fprintf(stderr, "\033[31m[error]\033[0m invalid conf file: %s\n", buff);
+                    exit(-1);
+                }
+            }
             break;
 
         case 'O':
             /* overwrite default log4crc file */
+            ret = snprintf(log4crc, sizeof(log4crc), "%s", optarg);
+            if (ret < 0 || ret >= sizeof(log4crc)) {
+                fprintf(stderr, "\033[31m[error]\033[0m specified invalid log4c path: \033[31m%s\033[0m\n", optarg);
+                exit(-1);
+            }
+
+            if (getfullpath(log4crc, buff, sizeof(buff)) != 0) {
+                fprintf(stderr, "\033[31m[error]\033[0m %s\n", buff);
+                exit(-1);
+            } else {
+                ret = snprintf(log4crc, sizeof(log4crc), "LOG4C_RCPATH=%s", buff);
+                if (ret < 10 || ret >= sizeof(log4crc)) {
+                    fprintf(stderr, "\033[31m[error]\033[0m invalid log4c path: %s\n", buff);
+                    exit(-1);
+                }
+            }
             break;
 
         case 'P':
+            ret = snprintf(priority, sizeof(priority), "%s", optarg);
+            if (ret < 0 || ret >= sizeof(priority)) {
+                fprintf(stderr, "\033[31m[error]\033[0m specified invalid priority: %s\n", optarg);
+                exit(-1);
+            }
             break;
 
         case 'A':
+            ret = snprintf(appender, sizeof(appender), "%s", optarg);
+            if (ret < 0 || ret >= sizeof(appender)) {
+                fprintf(stderr, "\033[31m[error]\033[0m specified invalid appender: \033[31m%s\033[0m\n", optarg);
+                exit(-1);
+            }
             break;
 
         case 'K':
@@ -114,10 +185,20 @@ int main (int argc, char * argv [])
         }
     }
 
+    fprintf(stdout, "\033[34m* Default conf file  : %s\033[0m\n", xmlconf);
+    fprintf(stdout, "\033[34m* Default log4c path : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
+    fprintf(stdout, "\033[32m* Using conf file    : %s\033[0m\n", xmlconf);
+    fprintf(stdout, "\033[32m* Using log4c path   : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
+
+    config_log4crc(APP_NAME, log4crc, priority, appender, sizeof(appender));
+
     LOGGER_INIT();
+    LOGGER_INFO("%s (v%s) startup ...\n", APP_NAME, APP_VERSION);
 
-    printf("xsync-client startup\n");
+    // TODO:
+    client_conf_init(xmlconf);
 
+    LOGGER_FATAL("%s (v%s) shutdown !\n", APP_NAME, APP_VERSION);
     LOGGER_FINI();
 
     return 0;

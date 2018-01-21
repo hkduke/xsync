@@ -4,6 +4,11 @@
 #ifndef ___BASE64_H___
 #define ___BASE64_H___
 
+#if defined(__cplusplus)
+extern "C"
+{
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,10 +21,7 @@
 #  define BASE64_MIN_LINE_SIZE    4
 #endif
 
-#if defined(__cplusplus)
-extern "C"
-{
-#endif
+
 
 void base64_encode_file( FILE *infile, FILE *outfile, int linesize );
 void base64_decode_file( FILE *infile, FILE *outfile );

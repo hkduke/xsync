@@ -30,9 +30,12 @@
 #ifndef HEADER_H_INCLUDED
 #define HEADER_H_INCLUDED
 
+#include <assert.h>  /* assert */
 #include <string.h>  /* memset */
 #include <stdio.h>   /* printf, perror */
 #include <limits.h>  /* realpath */
+#include <stdbool.h> /* memset */
+#include <ctype.h>
 
 /**
  * MUST include stdlib before jemalloc

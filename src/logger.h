@@ -43,7 +43,12 @@
     #define LOGGER_CATEGORY_NAME_REAL  "root"
 #endif
 
-/* #define LOGGER_COLOR_OUTPUT */
+#ifndef LOGGER_NOCOLOR_OUTPUT
+    #define LOGGER_COLOR_OUTPUT
+#else
+    #undef LOGGER_COLOR_OUTPUT
+#endif
+
 
 __attribute__((unused)) static log4c_category_t * logger_get_cat (int priority)
 {
@@ -255,7 +260,7 @@ __attribute__((unused)) static void LOGGER_FINI ()
             if (cat) { \
                 char buf[LOGGER_BUF_LEN + 1]; \
                 char *psz = buf; \
-                psz = buf + snprintf(psz, 20, "\033[47;31m"); \
+                psz = buf + snprintf(psz, 20, "\033[31m"); \
                 psz = psz + snprintf(psz, LOGGER_BUF_LEN - 20, message, ##args); \
                 snprintf(psz, 20, "\033[0m"); \
                 buf[LOGGER_BUF_LEN] = 0; \

@@ -20,7 +20,8 @@ TGT_LDLIBS  := \
 	-lpthread
 
 SOURCES := \
-    client.c
+    client.c \
+    client_conf.c
 
 
 SRC_DEFS := DEBUG \

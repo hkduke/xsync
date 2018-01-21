@@ -34,6 +34,9 @@ extern "C" {
 #  define APP_VERSION  "0.0.1"
 #endif
 
+#ifndef LOGGER_CATEGORY_NAME
+#  define LOGGER_CATEGORY_NAME  APP_NAME
+#endif
 
 #include <client_conf.h>
 
@@ -54,7 +57,9 @@ extern "C" {
  * "\033[32m GREEN \033[0m"
  * "\033[33m YELLOW \033[0m"
  */
-void print_usage(void)
+
+__attribute__((unused))
+static void print_usage(void)
 {
     printf("\033[47;35m* %s, Version: %s, Build: %s %s\033[0m\n",
         APP_NAME, APP_VERSION, __DATE__, __TIME__);
@@ -65,8 +70,8 @@ void print_usage(void)
         "\t-V, --version               \033[35mprint version information\033[0m\n"
         "\t-v, --verbose               \033[35moutput verbose messages\033[0m\n"
         "\n"
-        "\t-C, --config=XMLFILE        \033[35mspecify config xml path file. './conf/xsync-client.conf' (default)\033[0m\n"
-        "\t-O, --log4crc=PATH          \033[35mspecify dir of log4crc file. './conf' (default)\033[0m\n"
+        "\t-C, --config=PATHFILE       \033[35mspecify path file to conf. '../conf/%s.conf' (default)\033[0m\n"
+        "\t-O, --log4c-rcpath=PATH     \033[35mspecify path of log4crc file. '../conf/' (default)\033[0m\n"
         "\t-P, --priority=<PRIORITY>   \033[35moverwrite priority in log4crc, available PRIORITY:\033[0m\n"
         "\t                                      \033[35m'fatal'\033[0m\n"
         "\t                                      \033[35m'error' - used in stable release stage\033[0m\n"
@@ -87,10 +92,11 @@ void print_usage(void)
         "\t-m, --md5=FILE              \033[35mmd5sum on given FILE\033[0m\n"
         "\t-r, --regexp=PATTERN        \033[35muse pattern for matching on <express>\033[0m\n"
         "\n"
-        "\033[47;35m* COPYRIGHT (c) 2014-2020 PEPSTACK.COM, ALL RIGHTS RESERVED.\033[0m\n");
+        "\033[47;35m* COPYRIGHT (c) 2014-2020 PEPSTACK.COM, ALL RIGHTS RESERVED.\033[0m\n", APP_NAME);
 }
 
 
+__attribute__((unused))
 static int check_file_mode (const char * file, int mode /* R_OK, W_OK */)
 {
     if (0 == access(file, mode)) {
@@ -107,6 +113,7 @@ static int check_file_mode (const char * file, int mode /* R_OK, W_OK */)
  *   $ md5sum $file
  *   $ openssl md5 $file
  */
+__attribute__((unused))
 static int md5sum_file (const char * filename, char * buf, size_t bufsize)
 {
     FILE * fd;
@@ -148,7 +155,6 @@ static int md5sum_file (const char * filename, char * buf, size_t bufsize)
         return err;
     }
 }
-
 
 
 #if defined(__cplusplus)

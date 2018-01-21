@@ -19,22 +19,10 @@
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
 
-#ifndef CLIENT_CONF_H_INCLUDED
-#define CLIENT_CONF_H_INCLUDED
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
-#include <common.h>
+#include <client.h>
 
 
-extern void client_conf_init (const char * xmlconf);
-
-
-
-#if defined(__cplusplus)
+void client_conf_init (const char * xmlconf)
+{
+    LOGGER_TRACE("xmlconf=%s", xmlconf);
 }
-#endif
-
-#endif /* CLIENT_CONF_H_INCLUDED */
