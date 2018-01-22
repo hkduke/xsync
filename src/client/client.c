@@ -23,6 +23,8 @@
 
 #include <getopt.h>          /* getopt_long */
 
+void run_forever (char * xmlconf);
+
 
 int main (int argc, char * argv [])
 {
@@ -193,13 +195,27 @@ int main (int argc, char * argv [])
     config_log4crc(APP_NAME, log4crc, priority, appender, sizeof(appender));
 
     LOGGER_INIT();
-    LOGGER_INFO("%s (v%s) startup ...\n", APP_NAME, APP_VERSION);
+    LOGGER_INFO("%s (v%s) startup ...", APP_NAME, APP_VERSION);
 
-    // TODO:
-    client_conf_init(xmlconf);
+    run_forever(xmlconf);
 
-    LOGGER_FATAL("%s (v%s) shutdown !\n", APP_NAME, APP_VERSION);
+    LOGGER_FATAL("%s (v%s) shutdown !", APP_NAME, APP_VERSION);
     LOGGER_FINI();
 
     return 0;
+}
+
+
+void run_forever (char * xmlconf)
+{
+    int err;
+
+    xsync_client * client = 0;
+
+    err = xsync_client_create(xmlconf, &client);
+    if (err) {
+        return;
+    }
+
+    xsync_client_release(&client);
 }

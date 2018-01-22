@@ -28,9 +28,83 @@ extern "C" {
 
 #include <common.h>
 
+#include "server_opts.h"
 
-extern void client_conf_init (const char * xmlconf);
 
+typedef struct perthread_data
+{
+    int    threadid;
+
+    int    sessions[XSYNC_SERVER_MAXID + 1];
+    int    sockfds[XSYNC_SERVER_MAXID + 1];
+
+    int    bufsize;
+    byte_t buffer[0];
+} perthread_data;
+
+
+/**
+ * xsync_client type
+ */
+typedef struct xsync_client
+{
+    EXTENDS_REFOBJECT_TYPE();
+
+    pthread_cond_t  condition;
+
+    char clientid[XSYNC_CLIENTID_MAXLEN + 1];
+
+    /**
+     * servers_opts[0].servers
+     * total connections in server_conns */
+    xsync_server_opts  servers_opts[XSYNC_SERVER_MAXID + 1];
+
+    /**
+     * number of threads */
+    int threads;
+
+    /**
+     * queue size per thread */
+    int queues;
+
+    /**
+     * buffer size to send data: 8192 (default) */
+    uint16_t bufsize;
+
+    /**
+     * if using linux sendfile() to send data */
+    int sendfile;
+
+    /**
+     * inotify fd */
+    int infd;
+
+    /**
+     * thread pool for handlers */
+    threadpool_t * pool;
+    void        ** thread_args;
+} xsync_client;
+
+
+__attribute__((unused))
+static inline int xsync_client_get_servers (xsync_client * client)
+{
+    return client->servers_opts->servers;
+}
+
+
+__attribute__((unused))
+static inline xsync_server_opts * xsync_client_get_server_by_sid (xsync_client * client, int sid /* 1 based */)
+{
+    assert(sid > 0 && sid <= client->servers_opts->servers);
+
+    return client->servers_opts + sid;
+}
+
+
+extern int xsync_client_create (const char * xmlconf, xsync_client ** outClient);
+
+extern void xsync_client_release (xsync_client ** pclient);
 
 
 #if defined(__cplusplus)

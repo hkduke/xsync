@@ -1,7 +1,8 @@
 /**
  * refobject.h
  *
- * 2017-01-14: last modified by master@pepstack.com
+ * 2017-01-14: first created by master@pepstack.com
+ * 2018-01-21: last modified by master@pepstack.com
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -16,8 +17,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _REF_OBJECT_H_
-#define _REF_OBJECT_H_
+#ifndef _REF_OBJECT_H_INCLUDED
+#define _REF_OBJECT_H_INCLUDED
 
 #if defined(__cplusplus)
 extern "C" {
@@ -31,10 +32,10 @@ typedef struct RefObjectType
 {
     int __refc;                       /* reference count */
     pthread_mutex_t __lock;          /* global thread mutex */
-} * RefObjectHandle;
+} * RefObjectPtr;
 
 
-#define REFOBJECT_TYPE_HEADER() \
+#define EXTENDS_REFOBJECT_TYPE() \
     union { \
         struct { \
             int __refc; \
@@ -44,20 +45,22 @@ typedef struct RefObjectType
     }
 
 
-typedef void (* FinalObjectFunc)(void *);
+typedef void (* FinalizeObjectFunc)(void *);
 
 
-static int RefObjectInit (void *pv)
+__attribute__((unused))
+static inline int RefObjectInit (void *pv)
 {
-    int err = pthread_mutex_init(& ((RefObjectHandle) pv)->__lock, 0);
-    ((RefObjectHandle) pv)->__refc = 1;
+    int err = pthread_mutex_init(& ((RefObjectPtr) pv)->__lock, 0);
+    ((RefObjectPtr) pv)->__refc = 1;
     return err;
 }
 
 
-static RefObjectHandle RefObjectRetain (void **ppv)
+__attribute__((unused))
+static inline RefObjectPtr RefObjectRetain (void **ppv)
 {
-    RefObjectHandle obj = *((RefObjectHandle *) ppv);
+    RefObjectPtr obj = *((RefObjectPtr *) ppv);
 
     if (obj) {
         if (__sync_add_and_fetch(&obj->__refc, 1) > 0) {
@@ -72,9 +75,10 @@ static RefObjectHandle RefObjectRetain (void **ppv)
 }
 
 
-static void RefObjectRelease (void **ppv, FinalObjectFunc pfnFinalObject)
+__attribute__((unused))
+static inline void RefObjectRelease (void **ppv, FinalizeObjectFunc pfnFinalObject)
 {
-    RefObjectHandle obj = *((RefObjectHandle *) ppv);
+    RefObjectPtr obj = *((RefObjectPtr *) ppv);
 
     if (obj) {
         if (0 == __sync_sub_and_fetch(&obj->__refc, 1)) {
@@ -93,4 +97,4 @@ static void RefObjectRelease (void **ppv, FinalObjectFunc pfnFinalObject)
 }
 #endif
 
-#endif /* _REF_OBJECT_H_ */
+#endif /* _REF_OBJECT_H_INCLUDED */

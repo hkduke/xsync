@@ -282,4 +282,8 @@ __attribute__((unused)) static void LOGGER_FINI ()
 #endif
 
 
+#ifndef LOGGER_TRACE0
+#  define LOGGER_TRACE0()    LOGGER_TRACE("-")
+#endif
+
 #endif /* LOGGER_H_INCLUDED */

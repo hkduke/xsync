@@ -85,10 +85,4 @@
   #include <openssl/md5.h>
 #endif
 
-/* common */
-#include "common/byteorder.h"
-#include "common/readconf.h"
-#include "common/threadpool.h"
-
-
 #endif /* HEADER_H_INCLUDED */
