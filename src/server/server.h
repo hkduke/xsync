@@ -19,66 +19,33 @@
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
 
-/**
-* xsyncdef.h
-*   common definitions for xsync-client and xsync-server
-*
-* Last Updated: 2018-01-21
-* Last Updated: 2018-01-21
-*/
-#ifndef XSYNC_DEF_H_
-#define XSYNC_DEF_H_
+#ifndef SERVER_H_INCLUDED
+#define SERVER_H_INCLUDED
 
 #if defined(__cplusplus)
-extern "C"
-{
+extern "C" {
 #endif
 
-
-#ifndef IDS_MAXLEN
-#  define IDS_MAXLEN          40
+#ifndef APP_NAME
+#  define APP_NAME       "xsync-server"
 #endif
 
-
-#ifndef PATHFILE_MAXLEN
-#  define PATHFILE_MAXLEN    0xff
+#ifndef APP_VERSION
+#  define APP_VERSION    "0.0.1"
 #endif
 
-
-#ifndef SERVER_MAXID
-#  define SERVER_MAXID       0xff
+#ifndef LOGGER_CATEGORY_NAME
+#  define LOGGER_CATEGORY_NAME  APP_NAME
 #endif
 
-
-#ifndef HOSTNAME_MAXLEN
-#  define HOSTNAME_MAXLEN    128
-#endif
+#include "xsyncdef.h"
+#include "server_conf.h"
 
 
-#ifndef DHLIST_HASHSIZE
-#  define DHLIST_HASHSIZE    0xff
-#endif
-
-
-/**
- * each client thread has
- */
-
-#define XSYNC_CLIENTID_MAXLEN    IDS_MAXLEN
-
-#define XSYNC_PATHID_MAXLEN      IDS_MAXLEN
-
-#define XSYNC_SERVER_MAXID       SERVER_MAXID
-
-#define XSYNC_HOSTNAME_MAXLEN    HOSTNAME_MAXLEN
-
-#define XSYNC_PATHFILE_MAXLEN    PATHFILE_MAXLEN
-
-#define XSYNC_DHLIST_HASHSIZE    DHLIST_HASHSIZE
 
 
 #if defined(__cplusplus)
 }
 #endif
 
-#endif /* XSYNC_DEF_H_ */
+#endif /* SERVER_H_INCLUDED */

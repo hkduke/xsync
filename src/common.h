@@ -34,6 +34,10 @@ extern "C"
 {
 #endif
 
+/* xsyncdef.h must be included first */
+#include "xsyncdef.h"
+
+
 #include "header.h"
 #include "logger.h"
 
@@ -47,11 +51,8 @@ extern "C"
 #include "sockapi.h"
 //#include "sslapi.h"
 
-/* xsync definitions */
-#include "xsyncdef.h"
-
 /* inotify api */
-#include "intfapi.h"
+#include "inotiapi.h"
 
 
 /* memory helper api */

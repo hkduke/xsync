@@ -26,9 +26,10 @@
 extern "C" {
 #endif
 
-#include <common.h>
+#include "../common.h"
 
 #include "server_opts.h"
+#include "watch_path.h"
 
 
 typedef struct perthread_data
@@ -83,6 +84,12 @@ typedef struct xsync_client
      * thread pool for handlers */
     threadpool_t * pool;
     void        ** thread_args;
+
+
+    /**
+     * dhlist for watch path */
+    struct list_head list1;
+    struct hlist_head hlist[XSYNC_DHLIST_HASHSIZE + 1];
 } xsync_client;
 
 
@@ -94,11 +101,11 @@ static inline int xsync_client_get_servers (xsync_client * client)
 
 
 __attribute__((unused))
-static inline xsync_server_opts * xsync_client_get_server_by_sid (xsync_client * client, int sid /* 1 based */)
+static inline xsync_server_opts * xsync_client_get_server_by_id (xsync_client * client, int id /* 1 based */)
 {
-    assert(sid > 0 && sid <= client->servers_opts->servers);
+    assert(id > 0 && id <= client->servers_opts->servers);
 
-    return client->servers_opts + sid;
+    return client->servers_opts + id;
 }
 
 
@@ -106,6 +113,13 @@ extern int xsync_client_create (const char * xmlconf, xsync_client ** outClient)
 
 extern void xsync_client_release (xsync_client ** pclient);
 
+extern void xsync_client_clear_all_paths (xsync_client * client);
+
+extern int xsync_client_find_path (xsync_client * client, char * path, xsync_watch_path **outPath);
+
+extern int xsync_client_add_path (xsync_client * client, xsync_watch_path * wp);
+
+extern int xsync_client_remove_path (xsync_client * client, char * path);
 
 #if defined(__cplusplus)
 }

@@ -20,65 +20,28 @@
 ***********************************************************************/
 
 /**
-* xsyncdef.h
-*   common definitions for xsync-client and xsync-server
-*
-* Last Updated: 2018-01-21
-* Last Updated: 2018-01-21
-*/
-#ifndef XSYNC_DEF_H_
-#define XSYNC_DEF_H_
+ * inotiapi.h
+ *
+ *    inotify api
+ *
+ * 2014-08-01: init created
+ * 2018-01-22: last updated
+ * zhangliang
+ */
+#ifndef INOTIAPI_H_INCLUDED
+#define INOTIAPI_H_INCLUDED
 
 #if defined(__cplusplus)
 extern "C"
 {
 #endif
 
+#include <sys/inotify.h>
 
-#ifndef IDS_MAXLEN
-#  define IDS_MAXLEN          40
-#endif
-
-
-#ifndef PATHFILE_MAXLEN
-#  define PATHFILE_MAXLEN    0xff
-#endif
-
-
-#ifndef SERVER_MAXID
-#  define SERVER_MAXID       0xff
-#endif
-
-
-#ifndef HOSTNAME_MAXLEN
-#  define HOSTNAME_MAXLEN    128
-#endif
-
-
-#ifndef DHLIST_HASHSIZE
-#  define DHLIST_HASHSIZE    0xff
-#endif
-
-
-/**
- * each client thread has
- */
-
-#define XSYNC_CLIENTID_MAXLEN    IDS_MAXLEN
-
-#define XSYNC_PATHID_MAXLEN      IDS_MAXLEN
-
-#define XSYNC_SERVER_MAXID       SERVER_MAXID
-
-#define XSYNC_HOSTNAME_MAXLEN    HOSTNAME_MAXLEN
-
-#define XSYNC_PATHFILE_MAXLEN    PATHFILE_MAXLEN
-
-#define XSYNC_DHLIST_HASHSIZE    DHLIST_HASHSIZE
 
 
 #if defined(__cplusplus)
 }
 #endif
 
-#endif /* XSYNC_DEF_H_ */
+#endif /* INOTIAPI_H_INCLUDED */

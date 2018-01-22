@@ -21,7 +21,8 @@ TGT_LDLIBS  := \
 
 SOURCES := \
     client.c \
-    client_conf.c
+    client_conf.c \
+    watch_path.c
 
 
 SRC_DEFS := DEBUG \

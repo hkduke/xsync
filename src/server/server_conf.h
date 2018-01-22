@@ -19,24 +19,15 @@
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
 
-/**
- * intfapi.h
- *
- *    inotify api
- *
- * 2014-08-01: init created
- * 2018-01-22: last updated
- * zhangliang
- */
-#ifndef INTFAPI_H_INCLUDED
-#define INTFAPI_H_INCLUDED
+#ifndef SERVER_CONF_H_INCLUDED
+#define SERVER_CONF_H_INCLUDED
 
 #if defined(__cplusplus)
-extern "C"
-{
+extern "C" {
 #endif
 
-#include <sys/inotify.h>
+#include "../common.h"
+
 
 
 
@@ -44,4 +35,4 @@ extern "C"
 }
 #endif
 
-#endif /* INTFAPI_H_INCLUDED */
+#endif /* SERVER_CONF_H_INCLUDED */

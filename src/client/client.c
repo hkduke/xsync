@@ -19,9 +19,7 @@
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
 
-#include <client.h>
-
-#include <getopt.h>          /* getopt_long */
+#include "client.h"
 
 void run_forever (char * xmlconf);
 

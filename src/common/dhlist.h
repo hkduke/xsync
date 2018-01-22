@@ -4,9 +4,9 @@
  *
  * from Linux Kernel
  * for Windows and Linux
- * 
+ *
  * modified by cheungmine
- * 2013-4
+ * 2013-4, 2018-01-23
  */
 #ifndef _DH_LIST_H
 #define _DH_LIST_H
@@ -15,37 +15,50 @@
 extern "C" {
 #endif
 
-#include <assert.h>  
-#include <stdio.h>  
+#include <assert.h>
+#include <stdio.h>
 #include <string.h>
 #include <memory.h>
 #include <malloc.h>
 
-#ifdef _MSC_VER
-# define __INLINE static __forceinline
-# define __INLINE_ALL __INLINE
+
+/**
+ * BKDR Hash Function
+ *   http://www.cnblogs.com/-clq/archive/2012/05/31/2528153.html
+ */
+static inline unsigned int BKDRHash (char *str)
+{
+    /* seed: 31 131 1313 13131 131313 etc.. */
+    unsigned int seed = 131;
+    unsigned int hash = 0;
+
+    while (*str) {
+        hash = hash * seed + (*str++);
+    }
+
+    return (hash & 0x7FFFFFFF);
+}
+
+
+#ifdef CONFIG_ILLEGAL_POINTER_VALUE
+#  define POISON_POINTER_DELTA  _AC(CONFIG_ILLEGAL_POINTER_VALUE, UL)
 #else
-# define __INLINE __INLINE
-# if (defined(__APPLE__) && defined(__ppc__))
-/* __INLINE __attribute__ here breaks osx ppc gcc42 build */
-#   define __INLINE_ALL static __attribute__((always_inline))
-# else
-#   define __INLINE_ALL __INLINE __attribute__((always_inline))
-# endif
+#  define POISON_POINTER_DELTA  0
 #endif
 
-#ifndef LIST_POISON1
-#define LIST_POISON1 ((void *) 0x00100100)
-#endif
+/**
+ * These are non-NULL pointers that will result in page faults
+ * under normal circumstances, used to verify that nobody uses
+ * non-initialized list entries.
+ */
+#define LIST_POISON1  ((void *) 0x00100100 + POISON_POINTER_DELTA)
+#define LIST_POISON2  ((void *) 0x00200200 + POISON_POINTER_DELTA)
 
-#ifndef LIST_POISON2
-#define LIST_POISON2 ((void *) 0x00200200)
-#endif
 
 #ifdef typeof
 
-__INLINE void prefetch(const void *x) {;}
-__INLINE void prefetchw(const void *x) {;}
+static inline void prefetch(const void *x) {;}
+static inline void prefetchw(const void *x) {;}
 
 #define OFFSET_OF(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
 
@@ -55,10 +68,10 @@ __INLINE void prefetchw(const void *x) {;}
 
 #else
 
-__INLINE int prefetch(const void *x) {;return 1;}
-__INLINE int prefetchw(const void *x) {;return 1;}
+static inline int prefetch(const void *x) {;return 1;}
+static inline int prefetchw(const void *x) {;return 1;}
 
-#define OFFSET_OF(type, field)    ((unsigned int)(void*) &((type *)0)->field)
+#define OFFSET_OF(type, field)    ((unsigned int) (uintptr_t) (void*) &((type *)0)->field)
 
 #define CONTAINER_OF(address, type, field) \
     ((type *)((char *)(address) - OFFSET_OF(type, field)))
@@ -85,7 +98,7 @@ struct list_head
  * This is only for internal list manipulation where we know
  * the prev/next entries already!
  */
-__INLINE void __list_add(struct list_head *_new,
+static inline void __list_add(struct list_head *_new,
                               struct list_head *prev,
                               struct list_head *next)
 {
@@ -103,7 +116,7 @@ __INLINE void __list_add(struct list_head *_new,
  * Insert a new entry after the specified head.
  * This is good for implementing stacks.
  */
-__INLINE void list_add(struct list_head *_new, struct list_head *head)
+static inline void list_add(struct list_head *_new, struct list_head *head)
 {
     __list_add(_new, head, head->next);
 }
@@ -116,54 +129,54 @@ __INLINE void list_add(struct list_head *_new, struct list_head *head)
  * Insert a new entry before the specified head.
  * This is useful for implementing queues.
  */
-__INLINE void list_add_tail(struct list_head *_new, struct list_head *head)
+static inline void list_add_tail(struct list_head *_new, struct list_head *head)
 {
     __list_add(_new, head->prev, head);
 }
 
-__INLINE void __list_del(struct list_head * prev, struct list_head * next)
+static inline void __list_del(struct list_head * prev, struct list_head * next)
 {
     next->prev = prev;
     prev->next = next;
 }
 
-__INLINE void list_del(struct list_head *entry)
+static inline void list_del(struct list_head *entry)
 {
     __list_del(entry->prev, entry->next);
     entry->next = (struct list_head*) LIST_POISON1;
     entry->prev = (struct list_head*) LIST_POISON2;
 }
 
-__INLINE void list_del_init(struct list_head *entry)
+static inline void list_del_init(struct list_head *entry)
 {
     __list_del(entry->prev, entry->next);
     INIT_LIST_HEAD(entry);
 }
 
-__INLINE void list_move(struct list_head *list, struct list_head *head)
+static inline void list_move(struct list_head *list, struct list_head *head)
 {
     __list_del(list->prev, list->next);
     list_add(list, head);
 }
 
-__INLINE void list_move_tail(struct list_head *list, struct list_head *head)
+static inline void list_move_tail(struct list_head *list, struct list_head *head)
 {
     __list_del(list->prev, list->next);
     list_add_tail(list, head);
 }
 
-__INLINE int list_empty(const struct list_head *head)
+static inline int list_empty(const struct list_head *head)
 {
     return head->next == head;
 }
 
-__INLINE int list_empty_careful(const struct list_head *head)
+static inline int list_empty_careful(const struct list_head *head)
 {
     struct list_head *next = head->next;
     return (next == head) && (next == head->prev);
 }
 
-__INLINE void __list_splice(struct list_head *list, struct list_head *head)
+static inline void __list_splice(struct list_head *list, struct list_head *head)
 {
     struct list_head *first = list->next;
     struct list_head *last = list->prev;
@@ -181,7 +194,7 @@ __INLINE void __list_splice(struct list_head *list, struct list_head *head)
  * @list: the new list to add.
  * @head: the place to add it in the first list.
  */
-__INLINE void list_splice(struct list_head *list, struct list_head *head)
+static inline void list_splice(struct list_head *list, struct list_head *head)
 {
     if (!list_empty(list)) {
         __list_splice(list, head);
@@ -195,7 +208,7 @@ __INLINE void list_splice(struct list_head *list, struct list_head *head)
  *
  * The list at @list is reinitialised
  */
-__INLINE void list_splice_init(struct list_head *list, struct list_head *head)
+static inline void list_splice_init(struct list_head *list, struct list_head *head)
 {
     if (!list_empty(list)) {
         __list_splice(list, head);
@@ -290,17 +303,17 @@ struct hlist_node {
 #define INIT_HLIST_HEAD(ptr) ((ptr)->first = NULL)
 #define INIT_HLIST_NODE(ptr) ((ptr)->next = NULL, (ptr)->pprev = NULL)
 
-__INLINE int hlist_unhashed(const struct hlist_node *h)
+static inline int hlist_unhashed(const struct hlist_node *h)
 {
     return !h->pprev;
 }
 
-__INLINE int hlist_empty(const struct hlist_head *h)
+static inline int hlist_empty(const struct hlist_head *h)
 {
     return !h->first;
 }
 
-__INLINE void __hlist_del(struct hlist_node *n)
+static inline void __hlist_del(struct hlist_node *n)
 {
     struct hlist_node *next = n->next;
     struct hlist_node **pprev = n->pprev;
@@ -310,14 +323,14 @@ __INLINE void __hlist_del(struct hlist_node *n)
     }
 }
 
-__INLINE void hlist_del(struct hlist_node *n)
+static inline void hlist_del(struct hlist_node *n)
 {
     __hlist_del(n);
     n->next = (struct hlist_node*) LIST_POISON1;
     n->pprev = (struct hlist_node**) LIST_POISON2;
 }
 
-__INLINE void hlist_del_init(struct hlist_node *n)
+static inline void hlist_del_init(struct hlist_node *n)
 {
     if (n->pprev) {
         __hlist_del(n);
@@ -325,7 +338,7 @@ __INLINE void hlist_del_init(struct hlist_node *n)
     }
 }
 
-__INLINE void hlist_add_head(struct hlist_node *n, struct hlist_head *h)
+static inline void hlist_add_head(struct hlist_node *n, struct hlist_head *h)
 {
     struct hlist_node *first = h->first;
     n->next = first;
@@ -337,7 +350,7 @@ __INLINE void hlist_add_head(struct hlist_node *n, struct hlist_head *h)
 }
 
 /* next must be != NULL */
-__INLINE void hlist_add_before(struct hlist_node *n, struct hlist_node *next)
+static inline void hlist_add_before(struct hlist_node *n, struct hlist_node *next)
 {
     n->pprev = next->pprev;
     n->next = next;
@@ -345,7 +358,7 @@ __INLINE void hlist_add_before(struct hlist_node *n, struct hlist_node *next)
     *(n->pprev) = n;
 }
 
-__INLINE void hlist_add_after(struct hlist_node *n, struct hlist_node *next)
+static inline void hlist_add_after(struct hlist_node *n, struct hlist_node *next)
 {
     next->next = n->next;
     n->next = next;
@@ -396,8 +409,12 @@ __INLINE void hlist_add_after(struct hlist_node *n, struct hlist_node *next)
 #define hlist_for_each(pos, head) \
     for (pos = (head)->first; pos && prefetch(pos->next); pos = pos->next)
 
+/** warning: operation on ‘hn’ may be undefined [-Wsequence-point]
 #define hlist_for_each_safe(pos, n, head) \
     for (pos = (head)->first; pos && ((n=pos->next) == n); pos = n)
+*/
+#define hlist_for_each_safe(pos, n, head) \
+    for (pos = (head)->first; pos && ({ n = pos->next; 1; }); pos = n)
 
 #define hlist_for_each_entry(tpos, typeof_tpos, pos, head, member) \
     for (pos = (head)->first; \

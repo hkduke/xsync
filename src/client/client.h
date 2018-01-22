@@ -38,7 +38,10 @@ extern "C" {
 #  define LOGGER_CATEGORY_NAME  APP_NAME
 #endif
 
-#include <client_conf.h>
+
+#include "xsyncdef.h"
+#include "client_conf.h"
+
 
 /**
  * print usage for app

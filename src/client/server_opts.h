@@ -31,11 +31,9 @@ extern "C" {
 typedef struct xsync_server_opts
 {
     union {
-        int serverid;
+        int magic;
         int servers;
     };
-
-    int magic;
 
     char host[XSYNC_HOSTNAME_MAXLEN + 1];
     ushort port;
@@ -45,14 +43,13 @@ typedef struct xsync_server_opts
 
 
 __attribute__((unused))
-static void server_opts_init (xsync_server_opts * opts, int id)
+static void server_opts_init (xsync_server_opts * opts)
 {
     bzero(opts, sizeof(xsync_server_opts));
 
-    opts->serverid = id;
-
     strcpy(opts->host, "pepstack.com");
-    opts->port = 18960;
+
+    opts->port = 8960;
 
     sockconn_opts_init_default(&opts->sockopts);
 }
