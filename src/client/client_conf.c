@@ -23,7 +23,7 @@
 #include "watch_path.h"
 
 
-#define XSYNC_HASH_PATH(path)   ((int)(BKDRHash(path) & XSYNC_DHLIST_HASHSIZE))
+#define XSYNC_GET_HLIST_HASHID(path)   ((int)(BKDRHash(path) & XSYNC_WPATH_HASH_MAXID))
 
 
 static inline void free_xsync_client (void *pv)
@@ -91,7 +91,6 @@ int xsync_client_create (const char * xmlconf, xsync_client ** outClient)
     int SERVERS = 2;
     int THREADS = 4;
     int QUEUES = 256;
-    uint16_t BUFSIZE = 8192;
 
     *outClient = 0;
 
@@ -108,12 +107,11 @@ int xsync_client_create (const char * xmlconf, xsync_client ** outClient)
     /* init dhlist for watch path */
     LOGGER_TRACE("dhlist_init");
     INIT_LIST_HEAD(&client->list1);
-    for (i = 0; i <= XSYNC_DHLIST_HASHSIZE; i++) {
+    for (i = 0; i <= XSYNC_WPATH_HASH_MAXID; i++) {
         INIT_HLIST_HEAD(&client->hlist[i]);
     }
 
     client->servers_opts->servers = SERVERS;
-    client->bufsize = BUFSIZE;
     client->threads = THREADS;
     client->queues = QUEUES;
     client->sendfile = 1;
@@ -132,11 +130,10 @@ int xsync_client_create (const char * xmlconf, xsync_client ** outClient)
     client->thread_args = (void **) mem_alloc(THREADS, sizeof(void*));
 
     for (i = 0; i < THREADS; ++i) {
-        perthread_data * perdata = (perthread_data *) mem_alloc(1, sizeof(perthread_data) + sizeof(char) * BUFSIZE);
+        perthread_data * perdata = (perthread_data *) mem_alloc(1, sizeof(perthread_data));
 
         perdata->sockfds[0] = SERVERS;
         perdata->threadid = i + 1;
-        perdata->bufsize = BUFSIZE;
 
         // TODO: socket
         for (sid = 1; sid <= SERVERS; sid++) {
@@ -186,14 +183,16 @@ int xsync_client_create (const char * xmlconf, xsync_client ** outClient)
     /**
      * TODO: add watch path from XMLCONF
      */
-    for (i = 0; i < 10; i++) {
-        xsync_watch_path * wp = 0;
-
+    do {
         char pathfile[20];
 
-        snprintf(pathfile, sizeof(pathfile), "/tmp/%d", i);
+        int mask = IN_ACCESS | IN_MODIFY;
 
-        if (watch_path_create(pathfile, &wp) == 0) {
+        xsync_watch_path * wp = 0;
+
+        snprintf(pathfile, sizeof(pathfile), "/tmp");
+
+        if (watch_path_create(pathfile, mask, &wp) == 0) {
             if (! xsync_client_add_path(client, wp)) {
                 watch_path_release(&wp);
             }
@@ -201,7 +200,7 @@ int xsync_client_create (const char * xmlconf, xsync_client ** outClient)
             free_xsync_client((void*) client);
             return (-1);
         }
-    }
+    } while(0);
 
     /**
      * output xsync_client object */
@@ -225,6 +224,18 @@ void xsync_client_release (xsync_client ** inClient)
 }
 
 
+int xsync_client_lock (xsync_client * client)
+{
+    return 0;
+}
+
+
+int xsync_client_unlock (xsync_client * client)
+{
+    return 0;
+}
+
+
 void xsync_client_clear_all_paths (xsync_client * client)
 {
     struct list_head *list, *node;
@@ -234,10 +245,23 @@ void xsync_client_clear_all_paths (xsync_client * client)
     list_for_each_safe(list, node, &client->list1) {
         struct xsync_watch_path * wp = list_entry(list, struct xsync_watch_path, i_list);
 
-        hlist_del(&wp->i_hash);
-        list_del(list);
+        /* remove from inotify watch */
+        int wd = wp->watch_wd;
 
-        watch_path_release(&wp);
+        if (inotify_rm_watch(client->infd, wd) == 0) {
+            LOGGER_TRACE("xpath=%p, inotify_rm_watch success(0). (%s)", wp, wp->fullpath);
+
+            wp = client_wd_table_remove(client, wp);
+            assert(wp->watch_wd == wd);
+            wp->watch_wd = -1;
+
+            hlist_del(&wp->i_hash);
+            list_del(list);
+
+            watch_path_release(&wp);
+        } else {
+            LOGGER_ERROR("xpath=%p, inotify_rm_watch error(%d: %s). (%s)", wp, errno, strerror(errno), wp->fullpath);
+        }
     }
 }
 
@@ -247,14 +271,14 @@ int xsync_client_find_path (xsync_client * client, char * path, xsync_watch_path
     struct hlist_node * hp;
 
     // 计算 hash
-    int hash = XSYNC_HASH_PATH(path);
+    int hash = XSYNC_GET_HLIST_HASHID(path);
 
     hlist_for_each(hp, &client->hlist[hash]) {
         struct xsync_watch_path * wp = hlist_entry(hp, struct xsync_watch_path, i_hash);
 
-        if (! strcmp(wp->fullpath, path)) {
-            LOGGER_TRACE("xpath=%p (%s)", wp, wp->fullpath);
+        LOGGER_TRACE("xpath=%p (%s)", wp, wp->fullpath);
 
+        if (! strcmp(wp->fullpath, path)) {
             if (outwp) {
                 RefObjectRetain((void**) &wp);
 
@@ -272,7 +296,29 @@ int xsync_client_find_path (xsync_client * client, char * path, xsync_watch_path
 int xsync_client_add_path (xsync_client * client, xsync_watch_path * wp)
 {
     if (! xsync_client_find_path(client, wp->fullpath, 0)) {
-        int hash = XSYNC_HASH_PATH(wp->fullpath);
+        int hash;
+
+        assert(wp->watch_wd == -1);
+
+        /**
+         * add inotify watch
+         */
+        wp->watch_wd = inotify_add_watch(client->infd, wp->fullpath, wp->watch_mask);
+        if (wp->watch_wd == -1) {
+            LOGGER_ERROR("inotify_add_watch error(%d): %s", errno, strerror(errno));
+            return (0);
+        }
+
+        /**
+         * add wd_table
+         */
+        client_wd_table_insert(client, wp);
+
+        /**
+         * add dlist and hlist
+         */
+        hash = XSYNC_GET_HLIST_HASHID(wp->fullpath);
+        assert(hash >= 0 && hash <= XSYNC_WPATH_HASH_MAXID);
 
         // 串入长串
         list_add(&wp->i_list, &client->list1);
@@ -281,7 +327,8 @@ int xsync_client_add_path (xsync_client * client, xsync_watch_path * wp)
         hlist_add_head(&wp->i_hash, &client->hlist[hash]);
 
         // 成功
-        LOGGER_TRACE("xpath=%p (%s)", wp, wp->fullpath);
+        LOGGER_TRACE("xpath=%p, wd=%d. (%s)", wp, wp->watch_wd, wp->fullpath);
+
         return 1;
     }
 
@@ -294,21 +341,92 @@ int xsync_client_remove_path (xsync_client * client, char * path)
     struct hlist_node *hp;
     struct hlist_node *hn;
 
-    int hash = XSYNC_HASH_PATH(path);
+    int hash = XSYNC_GET_HLIST_HASHID(path);
 
     hlist_for_each_safe(hp, hn, &client->hlist[hash]) {
         struct xsync_watch_path * wp = hlist_entry(hp, struct xsync_watch_path, i_hash);
-
         if (! strcmp(wp->fullpath, path)) {
-            hlist_del(hp);
-            list_del(&wp->i_list);
+            /* remove from inotify watch */
+            int wd = wp->watch_wd;
 
-            LOGGER_TRACE("xpath=%p (%s)", wp, wp->fullpath);
-            watch_path_release(&wp);
-            return 1;
+            if (inotify_rm_watch(client->infd, wd) == 0) {
+                LOGGER_TRACE("xpath=%p, inotify_rm_watch success(0). (%s)", wp, wp->fullpath);
+
+                wp = client_wd_table_remove(client, wp);
+                assert(wp->watch_wd == wd);
+                wp->watch_wd = -1;
+
+                hlist_del(hp);
+                list_del(&wp->i_list);
+
+                watch_path_release(&wp);
+
+                return 1;
+            } else {
+                LOGGER_ERROR("xpath=%p, inotify_rm_watch error(%d: %s). (%s)", wp, errno, strerror(errno), wp->fullpath);
+                return 0;
+            }
         }
     }
 
     return 0;
 }
 
+
+int xsync_client_waiting_events (xsync_client * client)
+{
+    fd_set set;
+
+    __attribute__((unused)) int handled;
+
+    int wait_seconds = 6;
+
+    struct timeval timeout;
+    struct inotify_event * event;
+
+    char event_buf[XSYNC_INOEVENT_BUFSIZE]__attribute__((aligned(4)));
+
+    ssize_t len, at = 0;
+
+    LOGGER_TRACE("event_size=%d, wait_seconds=%d", XSYNC_INOEVENT_BUFSIZE, wait_seconds);
+
+    for ( ; ; ) {
+
+        FD_ZERO(&set);
+
+        FD_SET(client->infd, &set);
+
+        timeout.tv_sec =  wait_seconds;
+        timeout.tv_usec = 0;
+
+        if (select(client->infd + 1, &set, 0, 0, &timeout) > 0) {
+
+            if (FD_ISSET(client->infd, &set)) {
+                handled = 0;
+
+                /* read XSYNC_EVENT_BUFSIZE bytes’ worth of events */
+                while ((len = read(client->infd, &event_buf, XSYNC_INOEVENT_BUFSIZE)) > 0) {
+
+                    /* loop over every read event until none remain */
+                    at = 0;
+
+                    while (at < len) {
+                        /* here we get an event */
+                        event = (struct inotify_event *) (event_buf + at);
+
+                        /* handle the event */
+                        handled = handle_inotify_event(event, client);
+
+                        if (event->mask & IN_Q_OVERFLOW) {
+                            /* inotify is overflow. do getting rid of overflow in queue. */
+                            // select_sleep(0, 1);
+                        }
+
+                        /* update the index to the start of the next event */
+                        at += sizeof(struct inotify_event) + event->len;
+                    }
+                }
+            }
+        }
+    }
+}

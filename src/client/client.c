@@ -21,7 +21,7 @@
 
 #include "client.h"
 
-void run_forever (char * xmlconf);
+int run_forever (char * xmlconf);
 
 
 int main (int argc, char * argv [])
@@ -195,25 +195,41 @@ int main (int argc, char * argv [])
     LOGGER_INIT();
     LOGGER_INFO("%s (v%s) startup ...", APP_NAME, APP_VERSION);
 
-    run_forever(xmlconf);
+    ret = run_forever(xmlconf);
 
     LOGGER_FATAL("%s (v%s) shutdown !", APP_NAME, APP_VERSION);
     LOGGER_FINI();
 
-    return 0;
+    return ret;
 }
 
 
-void run_forever (char * xmlconf)
+int run_forever (char * xmlconf)
 {
     int err;
 
     xsync_client * client = 0;
 
     err = xsync_client_create(xmlconf, &client);
-    if (err) {
-        return;
+
+    if (! err) {
+        xsync_client_waiting_events(client);
+
+        xsync_client_release(&client);
     }
 
-    xsync_client_release(&client);
+    return err;
+}
+
+
+int handle_inotify_event (struct inotify_event * event, xsync_client * client)
+{
+    xsync_watch_path * wp = client_wd_table_lookup (client, event->wd);
+    assert(wp && wp->watch_wd == event->wd);
+
+    LOGGER_DEBUG("TODO: wd=%d mask=%d cookie=%d len=%d dir=%s. (%s/%s)",
+        event->wd, event->mask, event->cookie, event->len, ((event->mask & IN_ISDIR) ? "yes" : "no"),
+        wp->fullpath, (event->len > 0 ? event->name : "None"));
+
+    return 0;
 }

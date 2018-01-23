@@ -51,6 +51,10 @@ typedef struct xsync_watch_path
 
     char pathid[XSYNC_PATHID_MAXLEN + 1];
 
+    /* inotify watch mask */
+    uint32_t  watch_mask;
+    int watch_wd;
+
 //    char pathprefix[FSYNC_PATHPREFIX_LEN + 1];
 
     /* path-pattern */
@@ -81,6 +85,11 @@ typedef struct xsync_watch_path
     struct list_head  i_list;
     struct hlist_node i_hash;
 
+    /**
+     * hash map for watch_wd */
+    struct xsync_watch_path * next;
+
+    /* absolute path for monitor */
     char fullpath[0];
 } xsync_watch_path;
 
@@ -92,7 +101,7 @@ static inline int watch_path_get_servers (xsync_watch_path * wp)
 }
 
 
-extern int watch_path_create (const char * fullpath, xsync_watch_path ** outPath);
+extern int watch_path_create (const char * fullpath, uint32_t mask, xsync_watch_path ** outwp);
 
 extern void watch_path_release (xsync_watch_path ** wp);
 

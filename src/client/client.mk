@@ -24,9 +24,10 @@ SOURCES := \
     client_conf.c \
     watch_path.c
 
-
+# see xsyncdef.h for definitions
 SRC_DEFS := DEBUG \
-	APP_NAME='"${TARGET}"'
+	APP_NAME='"${TARGET}"' \
+	INOEVENTS_MAX=32
 
 
 SRC_INCDIRS := \

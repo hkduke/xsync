@@ -35,7 +35,7 @@ static inline void free_watch_path (void *pv)
 }
 
 
-int watch_path_create (const char * fullpath, xsync_watch_path ** outwp)
+int watch_path_create (const char * fullpath, uint32_t mask, xsync_watch_path ** outwp)
 {
     int sid, err;
     size_t cb;
@@ -47,6 +47,11 @@ int watch_path_create (const char * fullpath, xsync_watch_path ** outwp)
     cb = strlen(fullpath) + 1;
 
     wpath = (xsync_watch_path *) mem_alloc(1, sizeof(*wpath) + sizeof(char) * cb);
+
+    // 必须初始化=-1
+    wpath->watch_wd = -1;
+
+    wpath->watch_mask = mask;
 
     memcpy(wpath->fullpath, fullpath, cb);
 

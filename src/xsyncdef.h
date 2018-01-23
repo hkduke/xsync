@@ -34,6 +34,15 @@ extern "C"
 {
 #endif
 
+#ifndef IO_BUFSIZE
+#  define IO_BUFSIZE        8192
+#endif
+
+
+#ifndef INOEVENTS_MAX
+#  define INOEVENTS_MAX       64
+#endif
+
 
 #ifndef IDS_MAXLEN
 #  define IDS_MAXLEN          40
@@ -55,13 +64,13 @@ extern "C"
 #endif
 
 
-#ifndef DHLIST_HASHSIZE
-#  define DHLIST_HASHSIZE    0xff
+#ifndef WPATH_HASH_MAXID
+#  define WPATH_HASH_MAXID    0xff
 #endif
 
 
 /**
- * each client thread has
+ * DO NOT CHANGE BELOW DEFs
  */
 
 #define XSYNC_CLIENTID_MAXLEN    IDS_MAXLEN
@@ -74,7 +83,11 @@ extern "C"
 
 #define XSYNC_PATHFILE_MAXLEN    PATHFILE_MAXLEN
 
-#define XSYNC_DHLIST_HASHSIZE    DHLIST_HASHSIZE
+#define XSYNC_INOEVENT_BUFSIZE   ((int) (INOEVENTS_MAX * (sizeof(struct inotify_event) + NAME_MAX + 1)))
+
+#define XSYNC_IO_BUFSIZE         IO_BUFSIZE
+
+#define XSYNC_WPATH_HASH_MAXID   WPATH_HASH_MAXID
 
 
 #if defined(__cplusplus)
