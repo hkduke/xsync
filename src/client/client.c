@@ -61,19 +61,27 @@ int main (int argc, char * argv [])
     /**
      * get default real path for xsync-client.conf
      */
-    ret = getpwd(buff, sizeof(buff));
-    if (! ret) {
-        fprintf(stderr, "\033[31m[error: getpwd]\033[0m %s\n", buff);
+    ret = realpathdir(argv[0], buff, sizeof(buff));
+    if (ret <= 0) {
+        fprintf(stderr, "\033[31m[error]\033[0m %s\n", buff);
         exit(-1);
     }
+
+    if (strrchr(buff, '/') == strchr(buff, '/')) {
+        fprintf(stderr, "\033[31m[error]\033[0m cannot run under root path: %s\n", buff);
+        exit(-1);
+    }
+
     *strrchr(buff, '/') = 0;
-    ret = snprintf(xmlconf, sizeof(xmlconf), "%s/conf/%s.conf", buff, APP_NAME);
+    *(strrchr(buff, '/') + 1) = 0;
+
+    ret = snprintf(xmlconf, sizeof(xmlconf), "%sconf/%s.conf", buff, APP_NAME);
     if (ret < 20 || ret >= sizeof(xmlconf)) {
         fprintf(stderr, "\033[31m[error]\033[0m invalid conf path: %s\n", buff);
         exit(-1);
     }
 
-    ret = snprintf(log4crc, sizeof(log4crc), "LOG4C_RCPATH=%s/conf/", buff);
+    ret = snprintf(log4crc, sizeof(log4crc), "LOG4C_RCPATH=%sconf/", buff);
     if (ret < 20 || ret >= sizeof(log4crc)) {
         fprintf(stderr, "\033[31m[error]\033[0m invalid log4c path: %s\n", buff);
         exit(-1);
@@ -196,7 +204,7 @@ int main (int argc, char * argv [])
 
     LOGGER_INIT();
 
-    ret = getstartcmd(argc, argv, buff, sizeof(buff));
+    ret = getstartcmd(argc, argv, buff, sizeof(buff), APP_NAME);
 
     LOGGER_INFO("%s-%s startup %s", APP_NAME, APP_VERSION, (isdaemon? "as daemon ..." : "..."));
 

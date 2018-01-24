@@ -222,9 +222,9 @@ static int getfullpath (char * path, char * outpath, size_t size_outpath)
 
     char * p;
 
-    char savedcwd[512];
-    char fullpath[512];
-    char name[128];
+    char savedcwd[PATH_MAX + 1];
+    char fullpath[PATH_MAX + 1];
+    char name[XSYNC_HOSTNAME_MAXLEN + 1];
 
     *name = 0;
 
@@ -283,6 +283,7 @@ static int getfullpath (char * path, char * outpath, size_t size_outpath)
         return (-1);
     }
 
+    /* success */
     return 0;
 }
 
@@ -360,7 +361,9 @@ static int fileislink (const char * pathfile, char * inbuf, ssize_t inbufsize)
          *    http://www.virtsync.com/c-error-codes-include-errno
          */
         if (errno == EINVAL) {
-            /* file not a link */
+            /** file not a link:
+             *    When returned inbuf is undetermined
+             */
             return 0;
         }
 
@@ -381,48 +384,145 @@ static int fileislink (const char * pathfile, char * inbuf, ssize_t inbufsize)
 }
 
 
+/**
+ * returns:
+ *
+ *   success:
+ *     > 0 - length of rpdir
+ *
+ *   error:
+ *     <= 0 - failed anyway
+ */
 __attribute__((used))
-static const char * getbindir (char * cmd, char * bindir, int size)
+static int realpathdir (const char * file, char * rpdir, size_t size)
 {
-    char * p = strrchr(cmd, '/');
-    *bindir = 0;
+    char * p;
+
+    p = realpath(file, 0);
 
     if (p) {
-        /* get only abspath to dir */
-        char dir[XSYNC_PATHFILE_MAXLEN + 1];
-        strcpy(dir, cmd);
-        dir[ p - cmd ] = 0;
-        realpath(dir, bindir);
-    } else {
-        /* is slink */
-        snprintf(bindir, size, "%s", "/usr/local/bin");
+        int n = snprintf(rpdir, size, "%s", p);
+
+        free(p);
+
+        if (n >= size) {
+            snprintf(rpdir, size, "insufficent buffer for realpath");
+            rpdir[size - 1] = 0;
+            return 0;
+        }
+
+        if (n < 0) {
+            snprintf(rpdir, size, "snprintf error(%d): %s", errno, strerror(errno));
+            rpdir[size - 1] = 0;
+            return (-1);
+        }
+
+        p = strrchr(rpdir, '/');
+        if (p) {
+            *++p = 0;
+
+            /* success return here */
+            return (int)(p - rpdir);
+        }
+
+        snprintf(rpdir, size, "invlid path: %s", file);
+        rpdir[size - 1] = 0;
+
+        return 0;
     }
 
-    bindir[size-1] = 0;
-    return bindir;
+    snprintf(rpdir, size, "realpath error(%d): %s", errno, strerror(errno));
+    rpdir[size - 1] = 0;
+
+    return (-2);
 }
 
-// http://www.virtsync.com/c-error-codes-include-errno
+
+/**
+ * http://www.virtsync.com/c-error-codes-include-errno
+ */
 __attribute__((used))
-static int getstartcmd (int argc, char ** argv, char * cmdbuf, ssize_t bufsize)
+static int getstartcmd (int argc, char ** argv, char * cmdbuf, ssize_t bufsize, const char * link_name)
 {
     int err;
-    char * file;
+    char *binfile;
+    char linkpath[PATH_MAX + 1];
 
     err = fileislink(argv[0], cmdbuf, bufsize);
     if (err == 1) {
-        printf("file is link: %s\n", cmdbuf);
+        // 取得链接所在的物理目录: 先取得链接所在目录, 然后取得其路径
+        strcpy(cmdbuf, argv[0]);
+        binfile = strrchr(cmdbuf, '/');
+        *binfile++ = 0;
+
+        err = getfullpath(cmdbuf, linkpath, sizeof(linkpath));
+        if (err != 0) {
+            return (-1);
+        }
+
+        // 执行的链接文件全路径: linkpath
+        strcat(linkpath, binfile);
+
+        // 执行的物理文件全路径: cmdbuf
+        realpath(argv[0], cmdbuf);
     } else if (err == 0) {
-        printf("file not link: %s\n", argv[0]);
+        // 取得文件所在的物理目录
+        binfile = strrchr(argv[0], '/');
+        binfile++;
+
+        err = realpathdir(argv[0], cmdbuf, bufsize);
+        if (err <= 0) {
+            return (-1);
+        }
+
+        // 链接文件全路径
+        snprintf(linkpath, sizeof(linkpath), "%s%s", cmdbuf, link_name);
+
+        // 执行的物理文件全路径
+        strcat(cmdbuf, binfile);
+
+        // 创建链接: linkpath -> cmdbuf
+        if (symlink(cmdbuf, linkpath) != 0 && errno != EEXIST) {
+            // 创建链接失败
+            snprintf(cmdbuf, bufsize, "symlink error(%d): %s", errno, strerror(errno));
+            return (-1);
+        }
     } else {
-        printf("%d - %s\n", err, cmdbuf);
+        // error
         return (-1);
     }
 
-    file = realpath(argv[0], 0);
-    printf("realpath for (%s) is: %s\n", argv[0], file);
-    free(file);
+    do {
+        // 组合start cmd
+        int i;
 
+        char *cmd = cmdbuf;
+        ssize_t size = bufsize;
+
+        int offset = snprintf(cmd, size, "%s", linkpath);
+
+        if (offset < 0 || offset >= size) {
+            cmdbuf[bufsize - 1] = 0;
+            return -2;
+        }
+        cmd += offset;
+        size -= offset;
+
+        for (i = 1; i < argc; ++i) {
+            offset = snprintf(cmd, size, " '%s'", argv[i]);
+
+            if (offset < 0 || offset >= size) {
+                cmdbuf[bufsize - 1] = 0;
+                return -2;
+            }
+            cmd += offset;
+            size -= offset;
+        }
+
+        cmdbuf[bufsize - 1] = 0;
+    } while(0);
+
+    // 成功返回
     return 0;
 }
 

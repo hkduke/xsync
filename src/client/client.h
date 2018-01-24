@@ -22,12 +22,12 @@
 #ifndef CLIENT_H_INCLUDED
 #define CLIENT_H_INCLUDED
 
+#include "../xsync-config.h"
+
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
-
-#include "../xsync-config.h"
-
 
 #define APP_NAME              XSYNC_CLIENT_APPNAME
 #define APP_VERSION           XSYNC_CLIENT_VERSION
@@ -35,6 +35,10 @@ extern "C" {
 #define LOGGER_CATEGORY_NAME  APP_NAME
 
 #include "client_api.h"
+
+
+int handle_inotify_event (struct inotify_event * event, xs_client_t * client);
+
 
 /**
  * print usage for app
@@ -152,8 +156,6 @@ static int md5sum_file (const char * filename, char * buf, size_t bufsize)
     }
 }
 
-
-int handle_inotify_event (struct inotify_event * event, xs_client_t * client);
 
 #if defined(__cplusplus)
 }
