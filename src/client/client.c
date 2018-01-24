@@ -21,7 +21,7 @@
 
 #include "client.h"
 
-int run_forever (char * xmlconf);
+int run_forever (char * xmlconf, char * buff, ssize_t sizebuf);
 
 void exit_handler (int code, void * startcmd);
 
@@ -200,13 +200,19 @@ int main (int argc, char * argv [])
     fprintf(stdout, "\033[32m* Using conf file    : %s\033[0m\n", xmlconf);
     fprintf(stdout, "\033[32m* Using log4c path   : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
 
-    config_log4crc(APP_NAME, log4crc, priority, appender, sizeof(appender));
+    // 设置log4c
+    config_log4crc(APP_NAME, log4crc, priority, appender, sizeof(appender), buff, sizeof(buff));
+
+    // 得到启动命令
+    ret = getstartcmd(argc, argv, buff, sizeof(buff), APP_NAME);
+    if (ret) {
+        fprintf(stderr, "\033[31m[error: getstartcmd]\033[0m %s\n\n", buff);
+        exit(-1);
+    }
 
     LOGGER_INIT();
-
-    ret = getstartcmd(argc, argv, buff, sizeof(buff), APP_NAME);
-
-    LOGGER_INFO("%s-%s startup %s", APP_NAME, APP_VERSION, (isdaemon? "as daemon ..." : "..."));
+    LOGGER_INFO("%s-%s startup %s", APP_NAME, APP_VERSION, (isdaemon? "as daemon..." : "..."));
+    LOGGER_INFO("startcmd={%s}", buff);
 
     if (isdaemon) {
         /**
@@ -231,7 +237,7 @@ int main (int argc, char * argv [])
      */
     //on_exit(exit_handler, startcmd);
 
-    ret = run_forever(xmlconf);
+    ret = run_forever(xmlconf, buff, sizeof(buff));
 
 exit_onerror:
 
@@ -259,7 +265,7 @@ void exit_handler (int code, void * startcmd)
 }
 
 
-int run_forever (char * xmlconf)
+int run_forever (char * xmlconf, char * buff, ssize_t sizebuf)
 {
     int err;
 

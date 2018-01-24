@@ -528,14 +528,13 @@ static int getstartcmd (int argc, char ** argv, char * cmdbuf, ssize_t bufsize, 
 
 
 __attribute__((used))
-static void config_log4crc (const char * catname, char * log4crc, char * priority, char * appender, size_t size_appender)
+static void config_log4crc (const char * catname, char * log4crc, char * priority, char * appender, size_t sizeappd, char * buff, ssize_t sizebuf)
 {
     int i, ret;
 
     struct stat sb;
 
-    char cmd[512];
-    char result[256];
+    char result[512];
 
     char old_priority[30] = "info";
     char old_appender[60] = "stdout";
@@ -562,35 +561,35 @@ static void config_log4crc (const char * catname, char * log4crc, char * priorit
     }
 
     /* get old priority from log4crc */
-    ret = snprintf(cmd, sizeof(cmd),
+    ret = snprintf(buff, sizebuf,
             "grep '<category name=\"%s\" priority=\"' '%s' | sed -r 's/.* priority=\"(.*)\" appender=\".*/\\1/'",
             catname, log4crc_file);
-    if (ret < 0 || ret >= sizeof(cmd)) {
-        fprintf(stderr, "\033[31m[error]\033[0m insufficent string buffer for cmd");
+    if (ret < 0 || ret >= sizebuf) {
+        fprintf(stderr, "\033[31m[error]\033[0m insufficent buff");
         exit(-1);
     }
 
-    if (cmd_system(cmd, result, sizeof(result))) {
+    if (cmd_system(buff, result, sizeof(result))) {
         ret = snprintf(old_priority, sizeof(old_priority), "%s", trims(result, " \n"));
         if (ret < 0 || ret >= sizeof(old_priority)) {
-            fprintf(stderr, "\033[31m[error]\033[0m insufficent string buffer for priority");
+            fprintf(stderr, "\033[31m[error]\033[0m insufficent buffer for priority");
             exit(-1);
         }
     }
 
     /* get old appender from log4crc */
-    ret = snprintf(cmd, sizeof(cmd),
+    ret = snprintf(buff, sizebuf,
             "grep '<category name=\"%s\" priority=\"' '%s' | sed -r 's/.* appender=\"(.*)\" .*/\\1/'",
             catname, log4crc_file);
-    if (ret < 0 || ret >= sizeof(cmd)) {
-        fprintf(stderr, "\033[31m[error]\033[0m insufficent string buffer for cmd");
+    if (ret < 0 || ret >= sizebuf) {
+        fprintf(stderr, "\033[31m[error]\033[0m insufficent buff");
         exit(-1);
     }
 
-    if (cmd_system(cmd, result, sizeof(result))) {
+    if (cmd_system(buff, result, sizeof(result))) {
         ret = snprintf(old_appender, sizeof(old_appender), "%s", trims(result, " \n"));
         if (ret < 0 || ret >= sizeof(old_appender)) {
-            fprintf(stderr, "\033[31m[error]\033[0m insufficent string buffer for appender\n");
+            fprintf(stderr, "\033[31m[error]\033[0m insufficent buffer for appender\n");
             exit(-1);
         }
     }
@@ -600,7 +599,7 @@ static void config_log4crc (const char * catname, char * log4crc, char * priorit
             "<category name=\"%s\" priority=\"%s\" appender=\"%s\" \\/>",
             catname, old_priority, old_appender);
     if (ret < 0 || ret >= sizeof(old_category)) {
-        perror("\033[31m[error]\033[0m insufficent string buffer for category");
+        perror("\033[31m[error]\033[0m insufficent buffer for category");
         exit(-1);
     }
 
@@ -675,9 +674,9 @@ static void config_log4crc (const char * catname, char * log4crc, char * priorit
     }
 
     if (default_appender) {
-        ret = snprintf(appender, size_appender, "%s-appender", catname);
-        if (ret < 0 || ret >= size_appender) {
-            perror("\033[31m[error]\033[0m insufficent string buffer for appender");
+        ret = snprintf(appender, sizeappd, "%s-appender", catname);
+        if (ret < 0 || ret >= sizeappd) {
+            perror("\033[31m[error]\033[0m insufficent buffer for appender");
             exit(-1);
         }
     }
@@ -687,18 +686,18 @@ static void config_log4crc (const char * catname, char * log4crc, char * priorit
             "<category name=\"%s\" priority=\"%s\" appender=\"%s\" \\/>",
             catname, priority, appender);
     if (ret < 0 || ret >= sizeof(category)) {
-        perror("\033[31m[error]\033[0m insufficent string buffer for category");
+        perror("\033[31m[error]\033[0m insufficent buffer for category");
         exit(-1);
     }
 
     if (strcmp(category, old_category)) {
-        ret = snprintf(cmd, sizeof(cmd), "sed -i 's/%s/%s/g' '%s'", old_category, category, log4crc_file);
+        ret = snprintf(buff, sizebuf, "sed -i 's/%s/%s/g' '%s'", old_category, category, log4crc_file);
         if (ret < 0 || ret >= sizeof(category)) {
-            perror("\033[31m[error]\033[0m insufficent string buffer for cmd");
+            perror("\033[31m[error]\033[0m insufficent buff");
             exit(-1);
         }
 
-        ret = pox_system(cmd);
+        ret = pox_system(buff);
         if (ret != 0) {
             perror("pox_system");
             exit(-1);
@@ -707,31 +706,31 @@ static void config_log4crc (const char * catname, char * log4crc, char * priorit
 
     if (default_appender) {
         /* get and check logdir from log4crc */
-        ret = snprintf(cmd, sizeof(cmd),
+        ret = snprintf(buff, sizebuf,
                 "grep '<appender name=\"%s-appender\" logdir=\"' '%s' | sed -r 's/.* logdir=\"(.*)\".*/\\1/'",
                 catname, log4crc_file);
-        if (ret < 0 || ret >= sizeof(cmd)) {
-            perror("\033[31m[error]\033[0m insufficent string buffer for cmd");
+        if (ret < 0 || ret >= sizebuf) {
+            perror("\033[31m[error]\033[0m insufficent buff");
             exit(-1);
         }
 
-        if (cmd_system(cmd, result, sizeof(result))) {
-            ret = snprintf(cmd, sizeof(cmd), "%s", trims(result, " \n"));
-            if (ret <= 0 || ret >= sizeof(cmd)) {
-                perror("\033[31m[error]\033[0m insufficent string buffer for cmd");
+        if (cmd_system(buff, result, sizeof(result))) {
+            ret = snprintf(buff, sizebuf, "%s", trims(result, " \n"));
+            if (ret <= 0 || ret >= sizebuf) {
+                perror("\033[31m[error]\033[0m insufficent buff");
                 exit(-1);
             }
         }
 
-        fprintf(stdout, "* [log4crc]   logdir : \033[35m%s\033[0m\n", cmd);
+        fprintf(stdout, "* [log4crc]   logdir : \033[35m%s\033[0m\n", buff);
 
-        if (stat(cmd, &sb) == -1 && errno == ENOENT) {
-            fprintf(stderr, "\033[31m* [error] stat() - %s:\033[0m %s\n", strerror(errno), cmd);
+        if (stat(buff, &sb) == -1 && errno == ENOENT) {
+            fprintf(stderr, "\033[31m* [error] stat() - %s:\033[0m %s\n", strerror(errno), buff);
             exit(-1);
         }
 
-        if (access(cmd, F_OK | R_OK | W_OK) != 0) {
-            fprintf(stderr, "\033[31m* [error] access() - %s:\033[0m %s\n", strerror(errno), cmd);
+        if (access(buff, F_OK | R_OK | W_OK) != 0) {
+            fprintf(stderr, "\033[31m* [error] access() - %s:\033[0m %s\n", strerror(errno), buff);
             exit(-1);
         }
     }
