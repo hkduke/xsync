@@ -21,7 +21,8 @@
 
 /**
  * sslapi.h
- *    cheungmine
+ *
+ * author: master@pepstack.com
  *
  * API doc:
  *   http://openssl.org/docs/manmaster/ssl/SSL_CTX_use_certificate.html
@@ -37,9 +38,11 @@
  *   8) http://linux.chinaunix.net/docs/2006-11-10/3175.shtml
  *   9) http://www.cnblogs.com/huhu0013/p/4791724.html
  *
- * 2015-12-10: created
- * 2016-02-10: last updated
+ *
+ * create: 2015-07-21
+ * update: 2018-01-24
  */
+
 #ifndef SSLAPI_H_INCLUDED
 #define SSLAPI_H_INCLUDED
 

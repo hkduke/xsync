@@ -19,17 +19,16 @@
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
 
-#ifndef CLIENT_CONF_H_INCLUDED
-#define CLIENT_CONF_H_INCLUDED
+#ifndef CLIENT_API_H_INCLUDED
+#define CLIENT_API_H_INCLUDED
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#include "../common.h"
-
 #include "server_opts.h"
 #include "watch_path.h"
+#include "watch_entry.h"
 
 
 typedef struct perthread_data
@@ -44,9 +43,9 @@ typedef struct perthread_data
 
 
 /**
- * xsync_client type
+ * xs_client_t type
  */
-typedef struct xsync_client
+typedef struct xs_client_t
 {
     EXTENDS_REFOBJECT_TYPE();
 
@@ -57,7 +56,7 @@ typedef struct xsync_client
     /**
      * servers_opts[0].servers
      * total connections in server_conns */
-    xsync_server_opts  servers_opts[XSYNC_SERVER_MAXID + 1];
+    xs_server_opts_t  servers_opts[XSYNC_SERVER_MAXID + 1];
 
     /**
      * number of threads */
@@ -87,9 +86,9 @@ typedef struct xsync_client
 
     /**
      * hash table for wd (watch descriptor) -> watch_path */
-    xsync_watch_path * wd_table[XSYNC_WPATH_HASH_MAXID + 1];
+    xs_watch_path_t * wd_table[XSYNC_WPATH_HASH_MAXID + 1];
 
-} xsync_client;
+} * XS_client, xs_client_t;
 
 
 #define XSYNC_GET_WPATH_HASHID(wd)   ((int)((wd) & XSYNC_WPATH_HASH_MAXID))
@@ -98,7 +97,8 @@ typedef struct xsync_client
 /**
  * insert wd into wd_table of client
  */
-static inline void client_wd_table_insert (xsync_client * client, xsync_watch_path * wp)
+__attribute__((unused))
+static inline void client_wd_table_insert (XS_client client, XS_watch_path wp)
 {
     int hash = XSYNC_GET_WPATH_HASHID(wp->watch_wd);
     assert(wp->watch_wd != -1 && hash >= 0 && hash <= XSYNC_WPATH_HASH_MAXID);
@@ -108,9 +108,10 @@ static inline void client_wd_table_insert (xsync_client * client, xsync_watch_pa
 }
 
 
-static inline xsync_watch_path * client_wd_table_lookup (xsync_client * client, int wd)
+__attribute__((unused))
+static inline xs_watch_path_t * client_wd_table_lookup (XS_client client, int wd)
 {
-    xsync_watch_path * wp;
+    xs_watch_path_t * wp;
 
     int hash = XSYNC_GET_WPATH_HASHID(wd);
     assert(wd != -1 && hash >= 0 && hash <= XSYNC_WPATH_HASH_MAXID);
@@ -126,10 +127,11 @@ static inline xsync_watch_path * client_wd_table_lookup (xsync_client * client, 
 }
 
 
-static inline xsync_watch_path * client_wd_table_remove (xsync_client * client, xsync_watch_path * wp)
+__attribute__((unused))
+static inline XS_watch_path client_wd_table_remove (XS_client client, XS_watch_path wp)
 {
-    xsync_watch_path * lead;
-    xsync_watch_path * node;
+    xs_watch_path_t * lead;
+    xs_watch_path_t * node;
 
     int hash = XSYNC_GET_WPATH_HASHID(wp->watch_wd);
     assert(wp->watch_wd != -1 && hash >= 0 && hash <= XSYNC_WPATH_HASH_MAXID);
@@ -162,41 +164,40 @@ static inline xsync_watch_path * client_wd_table_remove (xsync_client * client, 
 
 
 __attribute__((unused))
-static inline int xsync_client_get_servers (xsync_client * client)
+static inline int client_get_servers (XS_client client)
 {
     return client->servers_opts->servers;
 }
 
 
 __attribute__((unused))
-static inline xsync_server_opts * xsync_client_get_server_by_id (xsync_client * client, int id /* 1 based */)
+static inline xs_server_opts_t * client_get_server_by_id (XS_client client, int id /* 1 based */)
 {
     assert(id > 0 && id <= client->servers_opts->servers);
-
     return client->servers_opts + id;
 }
 
 
-extern int xsync_client_create (const char * xmlconf, xsync_client ** outClient);
+extern int XS_client_create (const char * xmlconf, XS_client * outClient);
 
-extern void xsync_client_release (xsync_client ** pclient);
+extern void XS_client_release (XS_client * pclient);
 
-extern void xsync_client_clear_all_paths (xsync_client * client);
+extern void XS_client_clear_all_paths (XS_client client);
 
-extern int xsync_client_find_path (xsync_client * client, char * path, xsync_watch_path **outPath);
+extern int XS_client_find_path (XS_client client, char * path, XS_watch_path * outPath);
 
-extern int xsync_client_add_path (xsync_client * client, xsync_watch_path * wp);
+extern int XS_client_add_path (XS_client client, XS_watch_path wp);
 
-extern int xsync_client_remove_path (xsync_client * client, char * path);
+extern int XS_client_remove_path (XS_client client, char * path);
 
-extern int xsync_client_waiting_events (xsync_client * client);
+extern int XS_client_waiting_events (XS_client client);
 
-extern int xsync_client_lock (xsync_client * client);
+extern int XS_client_lock (XS_client client);
 
-extern int xsync_client_unlock (xsync_client * client);
+extern int XS_client_unlock (XS_client client);
 
 #if defined(__cplusplus)
 }
 #endif
 
-#endif /* CLIENT_CONF_H_INCLUDED */
+#endif /* CLIENT_API_H_INCLUDED */

@@ -20,8 +20,11 @@
 ***********************************************************************/
 
 /**
- * xsyncdef.h
- *   Definitions for xsync-client and xsync-server
+ * config.h
+ *
+ *   Compile Definitions can be overwrite by SRC_DEFS in:
+ *      client/client.mk
+ *      server/server.mk
  *
  * author: master@pepstack.com
  *
@@ -29,36 +32,57 @@
  * update: 2018-01-24
  */
 
-#ifndef XSYNC_DEF_H_
-#define XSYNC_DEF_H_
+#ifndef CONFIG_H_INCLUDED
+#define CONFIG_H_INCLUDED
 
 #if defined(__cplusplus)
 extern "C"
 {
 #endif
 
-#include "config.h"
+#ifndef IO_BUFSIZE
+#  define IO_BUFSIZE        8192
+#endif
 
 
-#define XSYNC_CLIENTID_MAXLEN    IDS_MAXLEN
+/**
+ * 8192 can hold 30 (num_inevents=30) inotify_events in minimum.
+ *   INEVENT_BUFSIZE = num_inevents * (sizeof(struct inotify_event) + NAME_MAX + 1)
+ * If you want to hold more events you should increment INEVENT_BUFSIZE (for examle: 16384).
+ * Note that you should not set it less than 4096 or more than 65536
+ */
+#ifndef INEVENT_BUFSIZE
+#  define INEVENT_BUFSIZE   8192
+#endif
 
-#define XSYNC_PATHID_MAXLEN      IDS_MAXLEN
 
-#define XSYNC_SERVER_MAXID       SERVER_MAXID
+#ifndef IDS_MAXLEN
+#  define IDS_MAXLEN          40
+#endif
 
-#define XSYNC_HOSTNAME_MAXLEN    HOSTNAME_MAXLEN
 
-#define XSYNC_PATHFILE_MAXLEN    PATHFILE_MAXLEN
+#ifndef PATHFILE_MAXLEN
+#  define PATHFILE_MAXLEN    0xff
+#endif
 
-#define XSYNC_INEVENT_BUFSIZE    INEVENT_BUFSIZE
 
-#define XSYNC_IO_BUFSIZE         IO_BUFSIZE
+#ifndef SERVER_MAXID
+#  define SERVER_MAXID       0xff
+#endif
 
-#define XSYNC_WPATH_HASH_MAXID   WPATH_HASH_MAXID
+
+#ifndef HOSTNAME_MAXLEN
+#  define HOSTNAME_MAXLEN    128
+#endif
+
+
+#ifndef WPATH_HASH_MAXID
+#  define WPATH_HASH_MAXID    0xff
+#endif
 
 
 #if defined(__cplusplus)
 }
 #endif
 
-#endif /* XSYNC_DEF_H_ */
+#endif /* CONFIG_H_INCLUDED */

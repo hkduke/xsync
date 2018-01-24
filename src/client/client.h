@@ -40,7 +40,7 @@ extern "C" {
 
 
 #include "xsyncdef.h"
-#include "client_conf.h"
+#include "client_api.h"
 
 
 /**
@@ -160,7 +160,7 @@ static int md5sum_file (const char * filename, char * buf, size_t bufsize)
 }
 
 
-int handle_inotify_event (struct inotify_event * event, xsync_client * client);
+int handle_inotify_event (struct inotify_event * event, xs_client_t * client);
 
 #if defined(__cplusplus)
 }

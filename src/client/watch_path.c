@@ -25,7 +25,7 @@
 
 static inline void free_watch_path (void *pv)
 {
-    xsync_watch_path * wpath = (xsync_watch_path *) pv;
+    xs_watch_path_t * wpath = (xs_watch_path_t *) pv;
 
     // TODO:
 
@@ -35,18 +35,18 @@ static inline void free_watch_path (void *pv)
 }
 
 
-int watch_path_create (const char * fullpath, uint32_t mask, xsync_watch_path ** outwp)
+int XS_watch_path_create (const char * fullpath, uint32_t mask, xs_watch_path_t ** outwp)
 {
     int sid, err;
     size_t cb;
 
-    xsync_watch_path * wpath;
+    xs_watch_path_t * wpath;
 
     *outwp = 0;
 
     cb = strlen(fullpath) + 1;
 
-    wpath = (xsync_watch_path *) mem_alloc(1, sizeof(*wpath) + sizeof(char) * cb);
+    wpath = (xs_watch_path_t *) mem_alloc(1, sizeof(*wpath) + sizeof(char) * cb);
 
     // 必须初始化=-1
     wpath->watch_wd = -1;
@@ -75,7 +75,7 @@ int watch_path_create (const char * fullpath, uint32_t mask, xsync_watch_path **
 }
 
 
-void watch_path_release (xsync_watch_path ** wp)
+void XS_watch_path_release (xs_watch_path_t ** wp)
 {
     LOGGER_TRACE0();
 

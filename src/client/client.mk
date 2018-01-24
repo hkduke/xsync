@@ -21,13 +21,13 @@ TGT_LDLIBS  := \
 
 SOURCES := \
     client.c \
-    client_conf.c \
+    client_api.c \
     watch_path.c
 
 # see xsyncdef.h for definitions
 SRC_DEFS := DEBUG \
 	APP_NAME='"${TARGET}"' \
-	INOEVENTS_MAX=32
+	INEVENT_BUFSIZE=4096
 
 
 SRC_INCDIRS := \

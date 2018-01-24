@@ -20,45 +20,40 @@
 ***********************************************************************/
 
 /**
- * xsyncdef.h
- *   Definitions for xsync-client and xsync-server
+ * watch_entry.h
  *
- * author: master@pepstack.com
+ * author:
+ *     master@pepstack.com
  *
- * create: 2018-01-21
+ * create: 2018-01-24
  * update: 2018-01-24
+ *
  */
-
-#ifndef XSYNC_DEF_H_
-#define XSYNC_DEF_H_
+#ifndef WATCH_ENTRY_H_INCLUDED
+#define WATCH_ENTRY_H_INCLUDED
 
 #if defined(__cplusplus)
-extern "C"
-{
+extern "C" {
 #endif
 
-#include "config.h"
+#include "../common.h"
 
 
-#define XSYNC_CLIENTID_MAXLEN    IDS_MAXLEN
+/**
+ * xs_watch_entry_t
+ *
+ */
+typedef struct xs_watch_entry_t
+{
+    EXTENDS_REFOBJECT_TYPE();
 
-#define XSYNC_PATHID_MAXLEN      IDS_MAXLEN
 
-#define XSYNC_SERVER_MAXID       SERVER_MAXID
-
-#define XSYNC_HOSTNAME_MAXLEN    HOSTNAME_MAXLEN
-
-#define XSYNC_PATHFILE_MAXLEN    PATHFILE_MAXLEN
-
-#define XSYNC_INEVENT_BUFSIZE    INEVENT_BUFSIZE
-
-#define XSYNC_IO_BUFSIZE         IO_BUFSIZE
-
-#define XSYNC_WPATH_HASH_MAXID   WPATH_HASH_MAXID
+    struct xs_watch_entry_t * next;
+} * XS_watch_entry, xs_watch_entry_t;
 
 
 #if defined(__cplusplus)
 }
 #endif
 
-#endif /* XSYNC_DEF_H_ */
+#endif /* WATCH_ENTRY_H_INCLUDED */

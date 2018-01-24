@@ -58,9 +58,11 @@ dkms.conf
 # python byte code files
 *.pyc
 
-# temp dirs
+# app specific work temp dirs
 libs/
 boilermake/
 build/
 target/
+watch/
+
 

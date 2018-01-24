@@ -29,7 +29,7 @@
 static inline void free_xsync_client (void *pv)
 {
     int i, sid;
-    xsync_client * client = (xsync_client *) pv;
+    xs_client_t * client = (xs_client_t *) pv;
 
     LOGGER_TRACE("pthread_cond_destroy");
     pthread_cond_destroy(&client->condition);
@@ -74,7 +74,7 @@ static inline void free_xsync_client (void *pv)
     }
 
     // 删除全部路径
-    xsync_client_clear_all_paths(client);
+    XS_client_clear_all_paths(client);
 
     LOGGER_TRACE("~xclient=%p", client);
 
@@ -82,11 +82,11 @@ static inline void free_xsync_client (void *pv)
 }
 
 
-int xsync_client_create (const char * xmlconf, xsync_client ** outClient)
+int XS_client_create (const char * xmlconf, XS_client * outClient)
 {
     int i, sid, err;
 
-    xsync_client * client;
+    xs_client_t * client;
 
     int SERVERS = 2;
     int THREADS = 4;
@@ -94,7 +94,7 @@ int xsync_client_create (const char * xmlconf, xsync_client ** outClient)
 
     *outClient = 0;
 
-    client = (xsync_client *) mem_alloc(1, sizeof(xsync_client));
+    client = (xs_client_t *) mem_alloc(1, sizeof(xs_client_t));
 
     /* PTHREAD_PROCESS_PRIVATE = 0 */
     LOGGER_TRACE("pthread_cond_init(%d)", PTHREAD_PROCESS_PRIVATE);
@@ -119,9 +119,9 @@ int xsync_client_create (const char * xmlconf, xsync_client ** outClient)
 
     /* populate server_opts from xmlconf */
     for (sid = 1; sid <= SERVERS; sid++) {
-        xsync_server_opts * server_opts = xsync_client_get_server_by_id(client, sid);
+        xs_server_opts_t * server_opts = client_get_server_by_id(client, sid);
 
-        server_opts_init(server_opts);
+        server_opt_init(server_opts);
 
         // TODO:
     }
@@ -137,7 +137,7 @@ int xsync_client_create (const char * xmlconf, xsync_client ** outClient)
 
         // TODO: socket
         for (sid = 1; sid <= SERVERS; sid++) {
-            xsync_server_opts * server = xsync_client_get_server_by_id(client, sid);
+            xs_server_opts_t * server = client_get_server_by_id(client, sid);
 
             int sockfd = opensocket(server->host, server->port, server->sockopts.timeosec, server->sockopts.nowait, &err);
 
@@ -188,13 +188,13 @@ int xsync_client_create (const char * xmlconf, xsync_client ** outClient)
 
         int mask = IN_ACCESS | IN_MODIFY;
 
-        xsync_watch_path * wp = 0;
+        xs_watch_path_t * wp = 0;
 
         snprintf(pathfile, sizeof(pathfile), "/tmp");
 
-        if (watch_path_create(pathfile, mask, &wp) == 0) {
-            if (! xsync_client_add_path(client, wp)) {
-                watch_path_release(&wp);
+        if (XS_watch_path_create(pathfile, mask, &wp) == 0) {
+            if (! XS_client_add_path(client, wp)) {
+                XS_watch_path_release(&wp);
             }
         } else {
             free_xsync_client((void*) client);
@@ -203,7 +203,7 @@ int xsync_client_create (const char * xmlconf, xsync_client ** outClient)
     } while(0);
 
     /**
-     * output xsync_client object */
+     * output xs_client_t object */
     if ((err = RefObjectInit(client)) == 0) {
         *outClient = client;
         LOGGER_TRACE("xclient=%p", client);
@@ -216,7 +216,7 @@ int xsync_client_create (const char * xmlconf, xsync_client ** outClient)
 }
 
 
-void xsync_client_release (xsync_client ** inClient)
+void XS_client_release (XS_client * inClient)
 {
     LOGGER_TRACE0();
 
@@ -224,26 +224,26 @@ void xsync_client_release (xsync_client ** inClient)
 }
 
 
-int xsync_client_lock (xsync_client * client)
+int XS_client_lock (XS_client client)
 {
     return 0;
 }
 
 
-int xsync_client_unlock (xsync_client * client)
+int XS_client_unlock (XS_client client)
 {
     return 0;
 }
 
 
-void xsync_client_clear_all_paths (xsync_client * client)
+void XS_client_clear_all_paths (XS_client client)
 {
     struct list_head *list, *node;
 
     LOGGER_TRACE0();
 
     list_for_each_safe(list, node, &client->list1) {
-        struct xsync_watch_path * wp = list_entry(list, struct xsync_watch_path, i_list);
+        struct xs_watch_path_t * wp = list_entry(list, struct xs_watch_path_t, i_list);
 
         /* remove from inotify watch */
         int wd = wp->watch_wd;
@@ -258,7 +258,7 @@ void xsync_client_clear_all_paths (xsync_client * client)
             hlist_del(&wp->i_hash);
             list_del(list);
 
-            watch_path_release(&wp);
+            XS_watch_path_release(&wp);
         } else {
             LOGGER_ERROR("xpath=%p, inotify_rm_watch error(%d: %s). (%s)", wp, errno, strerror(errno), wp->fullpath);
         }
@@ -266,7 +266,7 @@ void xsync_client_clear_all_paths (xsync_client * client)
 }
 
 
-int xsync_client_find_path (xsync_client * client, char * path, xsync_watch_path **outwp)
+int XS_client_find_path (XS_client client, char * path, XS_watch_path * outwp)
 {
     struct hlist_node * hp;
 
@@ -274,7 +274,7 @@ int xsync_client_find_path (xsync_client * client, char * path, xsync_watch_path
     int hash = XSYNC_GET_HLIST_HASHID(path);
 
     hlist_for_each(hp, &client->hlist[hash]) {
-        struct xsync_watch_path * wp = hlist_entry(hp, struct xsync_watch_path, i_hash);
+        struct xs_watch_path_t * wp = hlist_entry(hp, struct xs_watch_path_t, i_hash);
 
         LOGGER_TRACE("xpath=%p (%s)", wp, wp->fullpath);
 
@@ -293,9 +293,9 @@ int xsync_client_find_path (xsync_client * client, char * path, xsync_watch_path
 }
 
 
-int xsync_client_add_path (xsync_client * client, xsync_watch_path * wp)
+int XS_client_add_path (XS_client client, XS_watch_path wp)
 {
-    if (! xsync_client_find_path(client, wp->fullpath, 0)) {
+    if (! XS_client_find_path(client, wp->fullpath, 0)) {
         int hash;
 
         assert(wp->watch_wd == -1);
@@ -336,7 +336,7 @@ int xsync_client_add_path (xsync_client * client, xsync_watch_path * wp)
 }
 
 
-int xsync_client_remove_path (xsync_client * client, char * path)
+int XS_client_remove_path (XS_client client, char * path)
 {
     struct hlist_node *hp;
     struct hlist_node *hn;
@@ -344,7 +344,7 @@ int xsync_client_remove_path (xsync_client * client, char * path)
     int hash = XSYNC_GET_HLIST_HASHID(path);
 
     hlist_for_each_safe(hp, hn, &client->hlist[hash]) {
-        struct xsync_watch_path * wp = hlist_entry(hp, struct xsync_watch_path, i_hash);
+        struct xs_watch_path_t * wp = hlist_entry(hp, struct xs_watch_path_t, i_hash);
         if (! strcmp(wp->fullpath, path)) {
             /* remove from inotify watch */
             int wd = wp->watch_wd;
@@ -359,7 +359,7 @@ int xsync_client_remove_path (xsync_client * client, char * path)
                 hlist_del(hp);
                 list_del(&wp->i_list);
 
-                watch_path_release(&wp);
+                XS_watch_path_release(&wp);
 
                 return 1;
             } else {
@@ -373,7 +373,7 @@ int xsync_client_remove_path (xsync_client * client, char * path)
 }
 
 
-int xsync_client_waiting_events (xsync_client * client)
+int XS_client_waiting_events (XS_client client)
 {
     fd_set set;
 
@@ -384,11 +384,11 @@ int xsync_client_waiting_events (xsync_client * client)
     struct timeval timeout;
     struct inotify_event * event;
 
-    char event_buf[XSYNC_INOEVENT_BUFSIZE]__attribute__((aligned(4)));
+    char event_buf[XSYNC_INEVENT_BUFSIZE]__attribute__((aligned(4)));
 
     ssize_t len, at = 0;
 
-    LOGGER_TRACE("event_size=%d, wait_seconds=%d", XSYNC_INOEVENT_BUFSIZE, wait_seconds);
+    LOGGER_TRACE("event_size=%d, wait_seconds=%d", XSYNC_INEVENT_BUFSIZE, wait_seconds);
 
     for ( ; ; ) {
 
@@ -405,7 +405,7 @@ int xsync_client_waiting_events (xsync_client * client)
                 handled = 0;
 
                 /* read XSYNC_EVENT_BUFSIZE bytes’ worth of events */
-                while ((len = read(client->infd, &event_buf, XSYNC_INOEVENT_BUFSIZE)) > 0) {
+                while ((len = read(client->infd, &event_buf, XSYNC_INEVENT_BUFSIZE)) > 0) {
 
                     /* loop over every read event until none remain */
                     at = 0;

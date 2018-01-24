@@ -22,11 +22,11 @@
 /**
  * watch_path.h
  *
- * Author:
+ * author:
  *     master@pepstack.com
  *
- * 2017-01-06: init created
- * 2018-01-22: last updated
+ * create: 2017-01-06
+ * update: 2018-01-24
  *
  */
 #ifndef WATCH_PATH_H_INCLUDED
@@ -42,10 +42,10 @@ extern "C" {
 
 
 /**
- * xsync_watch_path
+ * xs_watch_path_t
  *   对应每个要监控的目录
  */
-typedef struct xsync_watch_path
+typedef struct xs_watch_path_t
 {
     EXTENDS_REFOBJECT_TYPE();
 
@@ -87,23 +87,23 @@ typedef struct xsync_watch_path
 
     /**
      * hash map for watch_wd */
-    struct xsync_watch_path * next;
+    struct xs_watch_path_t * next;
 
     /* absolute path for monitor */
     char fullpath[0];
-} xsync_watch_path;
+} * XS_watch_path, xs_watch_path_t;
 
 
 __attribute__((unused))
-static inline int watch_path_get_servers (xsync_watch_path * wp)
+static inline int watch_path_get_servers (XS_watch_path wp)
 {
     return wp->serverid_list[0];
 }
 
 
-extern int watch_path_create (const char * fullpath, uint32_t mask, xsync_watch_path ** outwp);
+extern int XS_watch_path_create (const char * fullpath, uint32_t mask, XS_watch_path * outwp);
 
-extern void watch_path_release (xsync_watch_path ** wp);
+extern void XS_watch_path_release (XS_watch_path * wp);
 
 
 #if defined(__cplusplus)

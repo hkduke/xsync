@@ -208,23 +208,23 @@ int run_forever (char * xmlconf)
 {
     int err;
 
-    xsync_client * client = 0;
+    xs_client_t * client = 0;
 
-    err = xsync_client_create(xmlconf, &client);
+    err = XS_client_create(xmlconf, &client);
 
     if (! err) {
-        xsync_client_waiting_events(client);
+        XS_client_waiting_events(client);
 
-        xsync_client_release(&client);
+        XS_client_release(&client);
     }
 
     return err;
 }
 
 
-int handle_inotify_event (struct inotify_event * event, xsync_client * client)
+int handle_inotify_event (struct inotify_event * event, xs_client_t * client)
 {
-    xsync_watch_path * wp = client_wd_table_lookup (client, event->wd);
+    xs_watch_path_t * wp = client_wd_table_lookup (client, event->wd);
     assert(wp && wp->watch_wd == event->wd);
 
     LOGGER_DEBUG("TODO: wd=%d mask=%d cookie=%d len=%d dir=%s. (%s/%s)",

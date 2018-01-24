@@ -28,7 +28,7 @@ extern "C" {
 
 #include "../common.h"
 
-typedef struct xsync_server_opts
+typedef struct xs_server_opts_t
 {
     union {
         int magic;
@@ -39,13 +39,13 @@ typedef struct xsync_server_opts
     ushort port;
 
     struct sockconn_opts  sockopts;
-} xsync_server_opts;
+} * XS_server_opts, xs_server_opts_t;
 
 
 __attribute__((unused))
-static void server_opts_init (xsync_server_opts * opts)
+static void server_opt_init (XS_server_opts opts)
 {
-    bzero(opts, sizeof(xsync_server_opts));
+    bzero(opts, sizeof(xs_server_opts_t));
 
     strcpy(opts->host, "pepstack.com");
 
