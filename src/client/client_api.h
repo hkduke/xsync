@@ -55,23 +55,28 @@ typedef struct xs_client_t
 
     /**
      * servers_opts[0].servers
-     * total connections in server_conns */
+     * total connections in server_conns
+     */
     xs_server_opts_t  servers_opts[XSYNC_SERVER_MAXID + 1];
 
     /**
-     * number of threads */
+     * number of threads
+     */
     int threads;
 
     /**
-     * queue size per thread */
+     * queue size per thread
+     */
     int queues;
 
     /**
-     * if using linux sendfile() to send data */
+     * if using linux sendfile() to send data
+     */
     int sendfile;
 
     /**
-     * inotify fd */
+     * inotify fd
+     */
     int infd;
 
     /**
@@ -80,14 +85,21 @@ typedef struct xs_client_t
     void        ** thread_args;
 
     /**
-     * dhlist for watch path */
-    struct list_head list1;
-    struct hlist_head hlist[XSYNC_WPATH_HASH_MAXID + 1];
+     * hash table for wd (watch descriptor) -> watch_path
+     */
+    XS_watch_path wd_table[XSYNC_WPATH_HASH_MAXID + 1];
 
     /**
-     * hash table for wd (watch descriptor) -> watch_path */
-    xs_watch_path_t * wd_table[XSYNC_WPATH_HASH_MAXID + 1];
+     * hash table for watch_entry -> watch_entry
+     */
+    XS_watch_entry * entry_table[XSYNC_WENTRY_HASH_MAXID + 1];
 
+    /**
+     * dhlist for watch path:
+     *    watch_path list and hashmap
+     */
+    struct list_head list1;
+    struct hlist_head hlist[XSYNC_WPATH_HASH_MAXID + 1];
 } * XS_client, xs_client_t;
 
 

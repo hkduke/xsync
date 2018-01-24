@@ -81,6 +81,11 @@ extern "C"
 #endif
 
 
+#ifndef WENTRY_HASH_MAXID
+#  define WENTRY_HASH_MAXID    0xff
+#endif
+
+
 #if defined(__cplusplus)
 }
 #endif
