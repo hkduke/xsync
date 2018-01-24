@@ -38,20 +38,20 @@ extern "C"
 #endif
 
 #ifndef XSYNC_CLIENT_APPNAME
-#  define XSYNC_CLIENT_APPNAME  "xsync-client"
+#  define XSYNC_CLIENT_APPNAME   "xsync-client"
 #endif
 
-#ifndef XSYNC_CLIENT_APPVER
-#  define XSYNC_CLIENT_APPVER   "0.0.1"
+#ifndef XSYNC_CLIENT_VERSION
+#  define XSYNC_CLIENT_VERSION   "0.0.1"
 #endif
 
 
 #ifndef XSYNC_SERVER_APPNAME
-#  define XSYNC_SERVER_APPNAME  "xsync-server"
+#  define XSYNC_SERVER_APPNAME   "xsync-server"
 #endif
 
-#ifndef XSYNC_SERVER_APPVER
-#  define XSYNC_SERVER_APPVER   "0.0.1"
+#ifndef XSYNC_SERVER_VERSION
+#  define XSYNC_SERVER_VERSION   "0.0.1"
 #endif
 
 

@@ -4,10 +4,11 @@
 # update: 2018-01-24
 ########################################################################
 
-# !!! DO NOT CHANGE TARGET IF YOU MAKE SURE WHAT YOU ARE DOING !!!
-TARGET := xsync-server
-
+# !!! DO NOT change APPNAME and VERSION only when you make sure do that !
+APPNAME := xsync-server
 VERSION := 0.0.1
+
+TARGET := ${APPNAME}-${VERSION}
 
 
 LIB_PREFIX := ${TARGET_DIR}/../libs/lib
@@ -25,7 +26,7 @@ SOURCES := \
 # see "../xsync-config.h" for definitions
 SRC_DEFS := DEBUG \
 	XSYNC_SERVER_APPNAME='"${TARGET}"' \
-	XSYNC_SERVER_APPVER='"${VERSION}"'
+	XSYNC_SERVER_VERSION='"${VERSION}"'
 
 
 SRC_INCDIRS := \

@@ -29,14 +29,12 @@
 #ifndef COMMON_H_INCLUDED
 #define COMMON_H_INCLUDED
 
+#include "xsync-config.h"
+
 #if defined(__cplusplus)
 extern "C"
 {
 #endif
-
-/* xsync-config.h must be included first */
-#include "xsync-config.h"
-
 
 #include "header.h"
 #include "logger.h"
@@ -324,6 +322,108 @@ static int pox_system (const char * cmd)
     }
     signal(SIGCHLD, old_handler);
     return ret;
+}
+
+
+__attribute__((used))
+static int fileislink (const char * pathfile, char * inbuf, ssize_t inbufsize)
+{
+    char * buf;
+
+    ssize_t bufsize;
+    ssize_t size;
+
+    if (inbuf) {
+        bufsize = inbufsize;
+        buf = inbuf;
+    } else {
+        bufsize = PATH_MAX + 1;
+        buf = (char *) malloc(bufsize);
+    }
+
+    size = readlink(pathfile, buf, bufsize);
+
+    if (buf != inbuf) {
+        free(buf);
+    }
+
+    if (size == bufsize) {
+        if (inbuf) {
+            snprintf(inbuf, inbufsize, "buff is too small");
+            inbuf[inbufsize - 1] = 0;
+        }
+        return (-1);
+    }
+
+    if (size == -1) {
+        /** errno:
+         *    http://www.virtsync.com/c-error-codes-include-errno
+         */
+        if (errno == EINVAL) {
+            /* file not a link */
+            return 0;
+        }
+
+        if (inbuf) {
+            snprintf(inbuf, inbufsize, "fileislink error(%d): %s", errno, strerror(errno));
+            inbuf[inbufsize - 1] = 0;
+        }
+
+        /* fileislink error */
+        return (-2);
+    }
+
+    /* 1: fileislink ok */
+    if (inbuf) {
+        inbuf[size] = 0;
+    }
+    return 1;
+}
+
+
+__attribute__((used))
+static const char * getbindir (char * cmd, char * bindir, int size)
+{
+    char * p = strrchr(cmd, '/');
+    *bindir = 0;
+
+    if (p) {
+        /* get only abspath to dir */
+        char dir[XSYNC_PATHFILE_MAXLEN + 1];
+        strcpy(dir, cmd);
+        dir[ p - cmd ] = 0;
+        realpath(dir, bindir);
+    } else {
+        /* is slink */
+        snprintf(bindir, size, "%s", "/usr/local/bin");
+    }
+
+    bindir[size-1] = 0;
+    return bindir;
+}
+
+// http://www.virtsync.com/c-error-codes-include-errno
+__attribute__((used))
+static int getstartcmd (int argc, char ** argv, char * cmdbuf, ssize_t bufsize)
+{
+    int err;
+    char * file;
+
+    err = fileislink(argv[0], cmdbuf, bufsize);
+    if (err == 1) {
+        printf("file is link: %s\n", cmdbuf);
+    } else if (err == 0) {
+        printf("file not link: %s\n", argv[0]);
+    } else {
+        printf("%d - %s\n", err, cmdbuf);
+        return (-1);
+    }
+
+    file = realpath(argv[0], 0);
+    printf("realpath for (%s) is: %s\n", argv[0], file);
+    free(file);
+
+    return 0;
 }
 
 

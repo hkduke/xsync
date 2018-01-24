@@ -23,6 +23,8 @@
 
 int run_forever (char * xmlconf);
 
+void exit_handler (int code, void * startcmd);
+
 
 int main (int argc, char * argv [])
 {
@@ -36,7 +38,7 @@ int main (int argc, char * argv [])
     char priority[20] = {0};
     char appender[60] = {0};
 
-    __attribute__((unused)) int isdaemon = 0;
+    int isdaemon = 0;
     __attribute__((unused)) int verbose = 0;
 
     /* command arguments */
@@ -193,14 +195,59 @@ int main (int argc, char * argv [])
     config_log4crc(APP_NAME, log4crc, priority, appender, sizeof(appender));
 
     LOGGER_INIT();
-    LOGGER_INFO("%s (v%s) startup ...", APP_NAME, APP_VERSION);
+
+    ret = getstartcmd(argc, argv, buff, sizeof(buff));
+
+    LOGGER_INFO("%s-%s startup %s", APP_NAME, APP_VERSION, (isdaemon? "as daemon ..." : "..."));
+
+    if (isdaemon) {
+        /**
+         * int daemon(int nochdir, int noclose);
+         *
+         * see also:
+         *   http://man7.org/linux/man-pages/man3/daemon.3.html
+         */
+        ret = daemon(1, 1);
+
+        if (ret) {
+            LOGGER_ERROR("daemon error(%d): %s", errno, strerror(errno));
+            goto exit_onerror;
+        } else {
+            LOGGER_INFO("daemon ok. pid=%d", getpid());
+        }
+    }
+
+
+    /**
+     * 程序退出时调用: exit_handler
+     */
+    //on_exit(exit_handler, startcmd);
 
     ret = run_forever(xmlconf);
+
+exit_onerror:
 
     LOGGER_FATAL("%s (v%s) shutdown !", APP_NAME, APP_VERSION);
     LOGGER_FINI();
 
     return ret;
+}
+
+
+void exit_handler (int code, void * startcmd)
+{
+    //sem_unlink(semaphore);
+    //printf ("\n* %s exit(%d).\n", FSYNC_CLIENT_APP, code);
+
+    if (startcmd) {
+        if (code == 10 || code == 11) {
+            //time_t t = time(0);
+            //printf("\n\n* %s* isynclog-client restart: %s\n\n", ctime(&t), (char*) startcmd);
+            //code = pox_system(startcmd);
+        }
+
+        free(startcmd);
+    }
 }
 
 

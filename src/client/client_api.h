@@ -90,9 +90,9 @@ typedef struct xs_client_t
     XS_watch_path wd_table[XSYNC_PATH_HASH_MAXID + 1];
 
     /**
-     * hash table for watch_entry -> watch_entry
+     * hash map for watch_entry -> watch_entry
      */
-    XS_watch_entry * entry_table[XSYNC_ENTRY_HASH_MAXID + 1];
+    XS_watch_entry * entry_map[XSYNC_ENTRY_HASH_MAXID + 1];
 
     /**
      * dhlist for watch path:

@@ -30,7 +30,7 @@ extern "C" {
 
 
 #define APP_NAME              XSYNC_CLIENT_APPNAME
-#define APP_VERSION           XSYNC_CLIENT_APPVER
+#define APP_VERSION           XSYNC_CLIENT_VERSION
 
 #define LOGGER_CATEGORY_NAME  APP_NAME
 
