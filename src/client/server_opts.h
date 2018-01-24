@@ -42,7 +42,7 @@ typedef struct xs_server_opts_t
 } * XS_server_opts, xs_server_opts_t;
 
 
-__attribute__((unused))
+__attribute__((used))
 static void server_opt_init (XS_server_opts opts)
 {
     bzero(opts, sizeof(xs_server_opts_t));

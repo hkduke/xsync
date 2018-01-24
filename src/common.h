@@ -34,8 +34,8 @@ extern "C"
 {
 #endif
 
-/* xsyncdef.h must be included first */
-#include "xsyncdef.h"
+/* xsync-config.h must be included first */
+#include "xsync-config.h"
 
 
 #include "header.h"
@@ -56,7 +56,7 @@ extern "C"
 
 
 /* memory helper api */
-__attribute__((unused))
+__attribute__((used)) __attribute__((malloc))
 static inline void * mem_alloc (int num, size_t size)
 {
     void * pv = calloc(num, size);
@@ -68,7 +68,7 @@ static inline void * mem_alloc (int num, size_t size)
 }
 
 
-__attribute__((unused))
+__attribute__((used))
 static inline void mem_free (void **ppv)
 {
     if (ppv) {
@@ -98,7 +98,7 @@ static inline void mem_free (void **ppv)
 /**
  * trim specified character in given string
  */
-__attribute__((unused))
+__attribute__((used))
 static inline char * trim (char * s, char c)
 {
     return (*s==0)?s:(((*s!=c)?(((trim(s+1,c)-1)==s)?s:(*(trim(s+1,c)-1)=*s,*s=c,trim(s+1,c))):trim(s+1,c)));
@@ -108,7 +108,7 @@ static inline char * trim (char * s, char c)
 /**
  * trim specified characters in given string
  */
-__attribute__((unused))
+__attribute__((used))
 static inline char * trims (char *s, char *chrs)
 {
     char *p = chrs;
@@ -133,7 +133,7 @@ static inline char * strrplchr (char *s, char c, char d)
 
 
 #ifndef _MSC_VER
-__attribute__((unused))
+__attribute__((used))
 static inline char * strlwr(char * str)
 {
     if (! str) {
@@ -151,7 +151,7 @@ static inline char * strlwr(char * str)
 }
 
 
-__attribute__((unused))
+__attribute__((used))
 static inline char * strupr(char * str)
 {
     char * p = str;
@@ -165,7 +165,7 @@ static inline char * strupr(char * str)
 #endif /* _MSC_VER */
 
 
-__attribute__((unused))
+__attribute__((used))
 static int isdir(const char *path)
 {
     struct stat sb;
@@ -187,7 +187,7 @@ static int isdir(const char *path)
  *
  * last: 2017-01-09
  */
-__attribute__((unused))
+__attribute__((used))
 static int getpwd (char *path, int size)
 {
     ssize_t r;
@@ -217,7 +217,7 @@ static int getpwd (char *path, int size)
 }
 
 
-__attribute__((unused))
+__attribute__((used))
 static int getfullpath (char * path, char * outpath, size_t size_outpath)
 {
     int rc;
@@ -289,7 +289,7 @@ static int getfullpath (char * path, char * outpath, size_t size_outpath)
 }
 
 
-__attribute__((unused))
+__attribute__((used))
 static const char* cmd_system(const char * cmd, char *outbuf, ssize_t outsize)
 {
     char * result = 0;
@@ -311,7 +311,7 @@ static const char* cmd_system(const char * cmd, char *outbuf, ssize_t outsize)
 
 typedef void (*sighandler_t)(int);
 
-__attribute__((unused))
+__attribute__((used))
 static int pox_system (const char * cmd)
 {
     int ret = 0;
@@ -327,7 +327,7 @@ static int pox_system (const char * cmd)
 }
 
 
-__attribute__((unused))
+__attribute__((used))
 static void config_log4crc (const char * catname, char * log4crc, char * priority, char * appender, size_t size_appender)
 {
     int i, ret;

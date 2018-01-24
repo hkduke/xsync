@@ -87,46 +87,46 @@ typedef struct xs_client_t
     /**
      * hash table for wd (watch descriptor) -> watch_path
      */
-    XS_watch_path wd_table[XSYNC_WPATH_HASH_MAXID + 1];
+    XS_watch_path wd_table[XSYNC_PATH_HASH_MAXID + 1];
 
     /**
      * hash table for watch_entry -> watch_entry
      */
-    XS_watch_entry * entry_table[XSYNC_WENTRY_HASH_MAXID + 1];
+    XS_watch_entry * entry_table[XSYNC_ENTRY_HASH_MAXID + 1];
 
     /**
      * dhlist for watch path:
      *    watch_path list and hashmap
      */
     struct list_head list1;
-    struct hlist_head hlist[XSYNC_WPATH_HASH_MAXID + 1];
+    struct hlist_head hlist[XSYNC_PATH_HASH_MAXID + 1];
 } * XS_client, xs_client_t;
 
 
-#define XSYNC_GET_WPATH_HASHID(wd)   ((int)((wd) & XSYNC_WPATH_HASH_MAXID))
+#define XSYNC_PATH_HASH_ID_GET(wd)   ((int)((wd) & XSYNC_PATH_HASH_MAXID))
 
 
 /**
  * insert wd into wd_table of client
  */
-__attribute__((unused))
+__attribute__((used))
 static inline void client_wd_table_insert (XS_client client, XS_watch_path wp)
 {
-    int hash = XSYNC_GET_WPATH_HASHID(wp->watch_wd);
-    assert(wp->watch_wd != -1 && hash >= 0 && hash <= XSYNC_WPATH_HASH_MAXID);
+    int hash = XSYNC_PATH_HASH_ID_GET(wp->watch_wd);
+    assert(wp->watch_wd != -1 && hash >= 0 && hash <= XSYNC_PATH_HASH_MAXID);
 
     wp->next = client->wd_table[hash];
     client->wd_table[hash] = wp;
 }
 
 
-__attribute__((unused))
+__attribute__((used))
 static inline xs_watch_path_t * client_wd_table_lookup (XS_client client, int wd)
 {
     xs_watch_path_t * wp;
 
-    int hash = XSYNC_GET_WPATH_HASHID(wd);
-    assert(wd != -1 && hash >= 0 && hash <= XSYNC_WPATH_HASH_MAXID);
+    int hash = XSYNC_PATH_HASH_ID_GET(wd);
+    assert(wd != -1 && hash >= 0 && hash <= XSYNC_PATH_HASH_MAXID);
 
     wp = client->wd_table[hash];
     while (wp) {
@@ -139,14 +139,14 @@ static inline xs_watch_path_t * client_wd_table_lookup (XS_client client, int wd
 }
 
 
-__attribute__((unused))
+__attribute__((used))
 static inline XS_watch_path client_wd_table_remove (XS_client client, XS_watch_path wp)
 {
     xs_watch_path_t * lead;
     xs_watch_path_t * node;
 
-    int hash = XSYNC_GET_WPATH_HASHID(wp->watch_wd);
-    assert(wp->watch_wd != -1 && hash >= 0 && hash <= XSYNC_WPATH_HASH_MAXID);
+    int hash = XSYNC_PATH_HASH_ID_GET(wp->watch_wd);
+    assert(wp->watch_wd != -1 && hash >= 0 && hash <= XSYNC_PATH_HASH_MAXID);
 
     // 特殊处理头节点
     lead = client->wd_table[hash];
@@ -175,14 +175,14 @@ static inline XS_watch_path client_wd_table_remove (XS_client client, XS_watch_p
 }
 
 
-__attribute__((unused))
+__attribute__((used))
 static inline int client_get_servers (XS_client client)
 {
     return client->servers_opts->servers;
 }
 
 
-__attribute__((unused))
+__attribute__((used))
 static inline xs_server_opts_t * client_get_server_by_id (XS_client client, int id /* 1 based */)
 {
     assert(id > 0 && id <= client->servers_opts->servers);

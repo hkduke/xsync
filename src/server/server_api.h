@@ -19,48 +19,20 @@
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
 
-/**
- * xsyncdef.h
- *   Definitions for xsync-client and xsync-server
- *
- * author: master@pepstack.com
- *
- * create: 2018-01-21
- * update: 2018-01-24
- */
-
-#ifndef XSYNC_DEF_H_
-#define XSYNC_DEF_H_
+#ifndef SERVER_API_H_INCLUDED
+#define SERVER_API_H_INCLUDED
 
 #if defined(__cplusplus)
-extern "C"
-{
+extern "C" {
 #endif
 
-#include "config.h"
+#include "../common.h"
 
 
-#define XSYNC_CLIENTID_MAXLEN           IDS_MAXLEN
-
-#define XSYNC_PATHID_MAXLEN             IDS_MAXLEN
-
-#define XSYNC_SERVER_MAXID              SERVER_MAXID
-
-#define XSYNC_HOSTNAME_MAXLEN           HOSTNAME_MAXLEN
-
-#define XSYNC_PATHFILE_MAXLEN           PATHFILE_MAXLEN
-
-#define XSYNC_INEVENT_BUFSIZE           INEVENT_BUFSIZE
-
-#define XSYNC_IO_BUFSIZE                IO_BUFSIZE
-
-#define XSYNC_WPATH_HASH_MAXID          WPATH_HASH_MAXID
-
-#define XSYNC_WENTRY_HASH_MAXID         WENTRY_HASH_MAXID
 
 
 #if defined(__cplusplus)
 }
 #endif
 
-#endif /* XSYNC_DEF_H_ */
+#endif /* SERVER_API_H_INCLUDED */

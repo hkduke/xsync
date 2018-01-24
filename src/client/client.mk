@@ -1,6 +1,15 @@
-# see "client.mk.another" for another style of client.mk
+########################################################################
+# client.mk
 #
+# see: "client.mk.another" for another style of client.mk
+#
+# update: 2018-01-24
+########################################################################
+
+# !!! DO NOT CHANGE TARGET IF YOU MAKE SURE WHAT YOU ARE DOING !!!
 TARGET := xsync-client
+VERSION := 0.0.1
+
 
 LIB_PREFIX := ${TARGET_DIR}/../libs/lib
 
@@ -24,10 +33,12 @@ SOURCES := \
     client_api.c \
     watch_path.c
 
-# see xsyncdef.h for definitions
+
+# see "../xsync-config.h" for definitions
 SRC_DEFS := DEBUG \
-	APP_NAME='"${TARGET}"' \
-	INEVENT_BUFSIZE=4096
+	XSYNC_CLIENT_APPNAME='"${TARGET}"' \
+	XSYNC_CLIENT_APPVER='"${VERSION}"' \
+	XSYNC_INEVENT_BUFSIZE=4096
 
 
 SRC_INCDIRS := \

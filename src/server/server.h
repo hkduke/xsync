@@ -22,24 +22,21 @@
 #ifndef SERVER_H_INCLUDED
 #define SERVER_H_INCLUDED
 
+#include "../xsync-config.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#ifndef APP_NAME
-#  define APP_NAME       "xsync-server"
-#endif
 
-#ifndef APP_VERSION
-#  define APP_VERSION    "0.0.1"
-#endif
+#define APP_NAME       XSYNC_SERVER_APPNAME
+#define APP_VERSION    XSYNC_SERVER_APPVER
 
 #ifndef LOGGER_CATEGORY_NAME
 #  define LOGGER_CATEGORY_NAME  APP_NAME
 #endif
 
-#include "xsyncdef.h"
-#include "server_conf.h"
+#include "server_api.h"
 
 
 

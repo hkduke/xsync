@@ -28,10 +28,10 @@ int main (int argc, char * argv [])
 {
     int ret;
 
-    char buff[4096];
+    char buff[XSYNC_IO_BUFSIZE];
 
-    char xmlconf[256];
-    char log4crc[256];
+    char xmlconf[XSYNC_PATHFILE_MAXLEN + 1];
+    char log4crc[XSYNC_PATHFILE_MAXLEN + 1];
 
     char priority[20] = {0};
     char appender[60] = {0};

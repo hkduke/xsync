@@ -49,7 +49,7 @@ typedef struct xs_watch_path_t
 {
     EXTENDS_REFOBJECT_TYPE();
 
-    char pathid[XSYNC_PATHID_MAXLEN + 1];
+    char pathid[XSYNC_CLIENTID_MAXLEN + 1];
 
     /* inotify watch mask */
     uint32_t  watch_mask;
@@ -94,7 +94,7 @@ typedef struct xs_watch_path_t
 } * XS_watch_path, xs_watch_path_t;
 
 
-__attribute__((unused))
+__attribute__((used))
 static inline int watch_path_get_servers (XS_watch_path wp)
 {
     return wp->serverid_list[0];

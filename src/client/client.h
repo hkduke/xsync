@@ -26,22 +26,15 @@
 extern "C" {
 #endif
 
-#ifndef APP_NAME
-#  define APP_NAME  "xsync-client"
-#endif
-
-#ifndef APP_VERSION
-#  define APP_VERSION  "0.0.1"
-#endif
-
-#ifndef LOGGER_CATEGORY_NAME
-#  define LOGGER_CATEGORY_NAME  APP_NAME
-#endif
+#include "../xsync-config.h"
 
 
-#include "xsyncdef.h"
+#define APP_NAME              XSYNC_CLIENT_APPNAME
+#define APP_VERSION           XSYNC_CLIENT_APPVER
+
+#define LOGGER_CATEGORY_NAME  APP_NAME
+
 #include "client_api.h"
-
 
 /**
  * print usage for app
@@ -61,7 +54,7 @@ extern "C" {
  * "\033[33m YELLOW \033[0m"
  */
 
-__attribute__((unused))
+__attribute__((used))
 static void print_usage(void)
 {
     printf("\033[47;35m* %s, Version: %s, Build: %s %s\033[0m\n",
@@ -99,7 +92,7 @@ static void print_usage(void)
 }
 
 
-__attribute__((unused))
+__attribute__((used))
 static int check_file_mode (const char * file, int mode /* R_OK, W_OK */)
 {
     if (0 == access(file, mode)) {
@@ -116,7 +109,7 @@ static int check_file_mode (const char * file, int mode /* R_OK, W_OK */)
  *   $ md5sum $file
  *   $ openssl md5 $file
  */
-__attribute__((unused))
+__attribute__((used))
 static int md5sum_file (const char * filename, char * buf, size_t bufsize)
 {
     FILE * fd;

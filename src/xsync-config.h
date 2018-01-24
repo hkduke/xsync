@@ -20,28 +20,47 @@
 ***********************************************************************/
 
 /**
- * config.h
- *
- *   Compile Definitions can be overwrite by SRC_DEFS in:
- *      client/client.mk
- *      server/server.mk
+ * xsync-config.h
+ *   Definitions for xsync-client and xsync-server
  *
  * author: master@pepstack.com
  *
- * create: 2018-01-21
+ * create: 2018-01-24
  * update: 2018-01-24
  */
 
-#ifndef CONFIG_H_INCLUDED
-#define CONFIG_H_INCLUDED
+#ifndef XSYNC_CONFIG_H_
+#define XSYNC_CONFIG_H_
 
 #if defined(__cplusplus)
 extern "C"
 {
 #endif
 
-#ifndef IO_BUFSIZE
-#  define IO_BUFSIZE        8192
+#ifndef XSYNC_CLIENT_APPNAME
+#  define XSYNC_CLIENT_APPNAME  "xsync-client"
+#endif
+
+#ifndef XSYNC_CLIENT_APPVER
+#  define XSYNC_CLIENT_APPVER   "0.0.1"
+#endif
+
+
+#ifndef XSYNC_SERVER_APPNAME
+#  define XSYNC_SERVER_APPNAME  "xsync-server"
+#endif
+
+#ifndef XSYNC_SERVER_APPVER
+#  define XSYNC_SERVER_APPVER   "0.0.1"
+#endif
+
+
+/**
+ * The directory ("/var/run/xsync") specified by XSYNC_PID_PREFIX
+ *   must has R|W permission for current runuser.
+ */
+#ifndef XSYNC_PID_PREFIX
+#  define XSYNC_PID_PREFIX  "/var/run/xsync"
 #endif
 
 
@@ -51,38 +70,50 @@ extern "C"
  * If you want to hold more events you should increment INEVENT_BUFSIZE (for examle: 16384).
  * Note that you should not set it less than 4096 or more than 65536
  */
-#ifndef INEVENT_BUFSIZE
-#  define INEVENT_BUFSIZE   8192
+#ifndef XSYNC_INEVENT_BUFSIZE
+#  define XSYNC_INEVENT_BUFSIZE   8192
+#endif
+
+/**
+ * SHOULD = 1024 * n (n = 2, 4, 8, 16)
+ */
+#ifndef XSYNC_IO_BUFSIZE
+#  define XSYNC_IO_BUFSIZE         8192
 #endif
 
 
-#ifndef IDS_MAXLEN
-#  define IDS_MAXLEN          40
+#ifndef XSYNC_DEF_SENDFILE
+#  define XSYNC_DEF_SENDFILE         1
 #endif
 
 
-#ifndef PATHFILE_MAXLEN
-#  define PATHFILE_MAXLEN    0xff
+#ifndef XSYNC_CLIENTID_MAXLEN
+#  define XSYNC_CLIENTID_MAXLEN     40
 #endif
 
 
-#ifndef SERVER_MAXID
-#  define SERVER_MAXID       0xff
+#ifndef XSYNC_PATHFILE_MAXLEN
+#  define XSYNC_PATHFILE_MAXLEN     0xff
 #endif
 
 
-#ifndef HOSTNAME_MAXLEN
-#  define HOSTNAME_MAXLEN    128
+#ifndef XSYNC_SERVER_MAXID
+#  define XSYNC_SERVER_MAXID        0xff
 #endif
 
 
-#ifndef WPATH_HASH_MAXID
-#  define WPATH_HASH_MAXID    0xff
+#ifndef XSYNC_HOSTNAME_MAXLEN
+#  define XSYNC_HOSTNAME_MAXLEN      128
 #endif
 
 
-#ifndef WENTRY_HASH_MAXID
-#  define WENTRY_HASH_MAXID    0xff
+#ifndef XSYNC_PATH_HASH_MAXID
+#  define XSYNC_PATH_HASH_MAXID     0xff
+#endif
+
+
+#ifndef XSYNC_ENTRY_HASH_MAXID
+#  define XSYNC_ENTRY_HASH_MAXID    1023
 #endif
 
 
@@ -90,4 +121,4 @@ extern "C"
 }
 #endif
 
-#endif /* CONFIG_H_INCLUDED */
+#endif /* XSYNC_CONFIG_H_ */

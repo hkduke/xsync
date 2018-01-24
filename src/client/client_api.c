@@ -23,7 +23,7 @@
 #include "watch_path.h"
 
 
-#define XSYNC_GET_HLIST_HASHID(path)   ((int)(BKDRHash(path) & XSYNC_WPATH_HASH_MAXID))
+#define XSYNC_GET_HLIST_HASHID(path)   ((int)(BKDRHash(path) & XSYNC_PATH_HASH_MAXID))
 
 
 static inline void free_xsync_client (void *pv)
@@ -107,7 +107,7 @@ int XS_client_create (const char * xmlconf, XS_client * outClient)
     /* init dhlist for watch path */
     LOGGER_TRACE("dhlist_init");
     INIT_LIST_HEAD(&client->list1);
-    for (i = 0; i <= XSYNC_WPATH_HASH_MAXID; i++) {
+    for (i = 0; i <= XSYNC_PATH_HASH_MAXID; i++) {
         INIT_HLIST_HEAD(&client->hlist[i]);
     }
 
@@ -318,7 +318,7 @@ int XS_client_add_path (XS_client client, XS_watch_path wp)
          * add dlist and hlist
          */
         hash = XSYNC_GET_HLIST_HASHID(wp->fullpath);
-        assert(hash >= 0 && hash <= XSYNC_WPATH_HASH_MAXID);
+        assert(hash >= 0 && hash <= XSYNC_PATH_HASH_MAXID);
 
         // 串入长串
         list_add(&wp->i_list, &client->list1);
@@ -377,7 +377,7 @@ int XS_client_waiting_events (XS_client client)
 {
     fd_set set;
 
-    __attribute__((unused)) int handled;
+    int handled;
 
     int wait_seconds = 6;
 
@@ -416,6 +416,8 @@ int XS_client_waiting_events (XS_client client)
 
                         /* handle the event */
                         handled = handle_inotify_event(event, client);
+
+                        handled += 0;
 
                         if (event->mask & IN_Q_OVERFLOW) {
                             /* inotify is overflow. do getting rid of overflow in queue. */
