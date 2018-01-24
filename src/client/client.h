@@ -39,8 +39,6 @@ extern "C" {
 
 int run_forever (char * xmlconf, char * buff, ssize_t sizebuf);
 
-int handle_inotify_event (struct inotify_event * event, XS_client client);
-
 
 /**
  * print usage for app
@@ -96,25 +94,6 @@ static void print_usage(void)
         "\033[47;35m* COPYRIGHT (c) 2014-2020 PEPSTACK.COM, ALL RIGHTS RESERVED.\033[0m\n", APP_NAME);
 }
 
-
-/**
- * per-thread task
- */
-__attribute__((used))
-static void  event_task (thread_context_t * thread_ctx)
-{
-    threadpool_task_t * task = thread_ctx->task;
-
-    if (task->flags == XS_watch_event_typeid) {
-        XS_watch_event event = (XS_watch_event) task->argument;
-        task->flags = 0;
-
-        sleep(3000);
-
-        // MUST release event after using
-        XS_watch_event_release(&event);
-    }
-}
 
 
 #if defined(__cplusplus)

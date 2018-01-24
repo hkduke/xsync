@@ -216,6 +216,8 @@ extern int XS_client_lock (XS_client client);
 
 extern int XS_client_unlock (XS_client client);
 
+extern int XS_client_on_inotify_event (XS_client client, struct inotify_event * inevent);
+
 #if defined(__cplusplus)
 }
 #endif

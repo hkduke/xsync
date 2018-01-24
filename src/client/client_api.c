@@ -382,9 +382,9 @@ int XS_client_waiting_events (XS_client client)
     int wait_seconds = 6;
 
     struct timeval timeout;
-    struct inotify_event * event;
+    struct inotify_event * inevent;
 
-    char event_buf[XSYNC_INEVENT_BUFSIZE]__attribute__((aligned(4)));
+    char inevent_buf[XSYNC_INEVENT_BUFSIZE]__attribute__((aligned(4)));
 
     ssize_t len, at = 0;
 
@@ -405,30 +405,99 @@ int XS_client_waiting_events (XS_client client)
                 handled = 0;
 
                 /* read XSYNC_EVENT_BUFSIZE bytes’ worth of events */
-                while ((len = read(client->infd, &event_buf, XSYNC_INEVENT_BUFSIZE)) > 0) {
+                while ((len = read(client->infd, &inevent_buf, XSYNC_INEVENT_BUFSIZE)) > 0) {
 
-                    /* loop over every read event until none remain */
+                    /* loop over every read inevent until none remain */
                     at = 0;
 
                     while (at < len) {
-                        /* here we get an event */
-                        event = (struct inotify_event *) (event_buf + at);
+                        /* here we get an inevent */
+                        inevent = (struct inotify_event *) (inevent_buf + at);
 
-                        /* handle the event */
-                        handled = handle_inotify_event(event, client);
+                        /* handle the inevent */
+                        handled = XS_client_on_inotify_event(client, inevent);
 
                         handled += 0;
 
-                        if (event->mask & IN_Q_OVERFLOW) {
+                        if (inevent->mask & IN_Q_OVERFLOW) {
                             /* inotify is overflow. do getting rid of overflow in queue. */
                             // select_sleep(0, 1);
                         }
 
                         /* update the index to the start of the next event */
-                        at += sizeof(struct inotify_event) + event->len;
+                        at += sizeof(struct inotify_event) + inevent->len;
                     }
                 }
             }
         }
     }
 }
+
+
+static void event_task (thread_context_t * thread_ctx)
+{
+    threadpool_task_t * task = thread_ctx->task;
+
+    if (task->flags == XS_watch_event_typeid) {
+        XS_watch_event event = (XS_watch_event) task->argument;
+        task->flags = 0;
+
+        sleep(3000);
+
+        // MUST release event after using
+        XS_watch_event_release(&event);
+    }
+}
+
+
+int XS_client_on_inotify_event (XS_client client, struct inotify_event * inevent)
+{
+    int num;
+
+    xs_watch_path_t * wp = client_wd_table_lookup(client, inevent->wd);
+    assert(wp && wp->watch_wd == inevent->wd);
+
+    LOGGER_DEBUG("TODO: wd=%d mask=%d cookie=%d len=%d dir=%s. (%s/%s)",
+        inevent->wd, inevent->mask, inevent->cookie, inevent->len, ((inevent->mask & IN_ISDIR) ? "yes" : "no"),
+        wp->fullpath, (inevent->len > 0 ? inevent->name : "None"));
+
+    /**
+     * 如果队列空闲才能加入事件
+     */
+    num = client_threadpool_unused_queues(client);
+    LOGGER_TRACE("threadpool_unused_queues=%d", num);
+
+    if (num > 0) {
+        int i, err;
+
+        err = XS_client_lock(client);
+        if (! err) {
+
+            XS_watch_event events[XSYNC_SERVER_MAXID + 1];
+
+            //TODO: num = XS_client_create_events(client, inevent, events, XSYNC_SERVER_MAXID);
+            num = XSYNC_SERVER_MAXID;
+
+            // unlock immediately
+            XS_client_unlock(client);
+
+            for (i = 0; i < num; ++i) {
+                XS_watch_event event = events[i];
+
+                err = threadpool_add(client->pool, event_task, (void*) event, 100);
+
+                if (! err) {
+                    // success
+                    LOGGER_TRACE("threadpool_add event success");
+                } else {
+                    // error
+                    XS_watch_event_release(&event);
+                    LOGGER_WARN("threadpool_add event error(%d): %s", err, threadpool_error_messages[-err]);
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
