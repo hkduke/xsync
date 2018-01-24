@@ -53,7 +53,68 @@ extern "C"
 #include "inotiapi.h"
 
 
-/* memory helper api */
+#ifndef HAVE_GETRUSAGE_PROTO
+int  getrusage (int, struct rusage *);
+#endif
+
+
+__attribute__((used))
+static void print_cpu_time (void)
+{
+    double user, sys;
+    struct rusage myusage, childusage;
+
+    if (getrusage(RUSAGE_SELF, &myusage) < 0) {
+        printf("\ngetrusage(RUSAGE_SELF) error.\n");
+    }
+
+    if (getrusage(RUSAGE_CHILDREN, &childusage) < 0) {
+        printf("\ngetrusage(RUSAGE_CHILDREN) error.\n");
+    }
+
+    user = (double) myusage.ru_utime.tv_sec + myusage.ru_utime.tv_usec / 1000000.0;
+    user += (double) childusage.ru_utime.tv_sec + childusage.ru_utime.tv_usec / 1000000.0;
+    sys = (double) myusage.ru_stime.tv_sec + myusage.ru_stime.tv_usec / 1000000.0;
+    sys += (double) childusage.ru_stime.tv_sec + childusage.ru_stime.tv_usec / 1000000.0;
+
+    printf("\n* [ user-time = %g, sys-time = %g ]\n", user, sys);
+}
+
+
+#ifndef _SIGNAL_H
+typedef void sigfunc(int);
+
+__attribute__((used))
+static sigfunc * signal (int signo, sigfunc *func)
+{
+    struct sigaction act, oact;
+
+    act.sa_handler = func;
+    sigemptyset (&act.sa_mask);
+    act.sa_flags = 0;
+
+    if (signo == SIGALRM) {
+#ifdef  SA_INTERRUPT
+        act.sa_flags |= SA_INTERRUPT;  /* SunOS 4.x */
+#endif
+    } else {
+#ifdef  SA_RESTART
+        act.sa_flags |= SA_RESTART;    /* SVR4, 4.4BSD */
+#endif
+    }
+
+    if (sigaction (signo, &act, &oact) < 0) {
+        return (SIG_ERR);
+    } else {
+        return (oact.sa_handler);
+    }
+}
+#endif
+
+
+/**
+ * memory helper api
+ */
 __attribute__((used)) __attribute__((malloc))
 static inline void * mem_alloc (int num, size_t size)
 {
@@ -161,6 +222,18 @@ static inline char * strupr(char * str)
     return p;
 }
 #endif /* _MSC_VER */
+
+
+__attribute__((used))
+static int check_file_mode (const char * file, int mode /* R_OK, W_OK */)
+{
+    if (0 == access(file, mode)) {
+        return 0;
+    } else {
+        perror(file);
+        return -1;
+    }
+}
 
 
 __attribute__((used))
@@ -743,6 +816,55 @@ static void config_log4crc (const char * catname, char * log4crc, char * priorit
     if (0 != putenv(log4crc)) {
         fprintf(stderr, "\033[31m* [error] putenv() - %s:\033[0m %s\n", strerror(errno), log4crc);
         exit(-1);
+    }
+}
+
+
+/**
+ * MUST equal with:
+ *   $ md5sum $file
+ *   $ openssl md5 $file
+ */
+__attribute__((used))
+static int md5sum_file (const char * filename, char * buf, size_t bufsize)
+{
+    FILE * fd;
+
+    fd = fopen(filename, "rb");
+    if ( ! fd ) {
+        return (-1);
+    } else {
+        MD5_CTX  ctx;
+        int err = 1;
+
+        MD5_Init(&ctx);
+
+        for (;;) {
+            size_t len = fread(buf, 1, bufsize, fd);
+
+            if (len == 0) {
+                err = ferror(fd);
+
+                if (! err) {
+                    unsigned char md5[16];
+
+                    MD5_Final(md5, &ctx);
+
+                    for (len = 0; len < sizeof(md5); ++len) {
+                        snprintf(buf + len * 2, 3, "%02x", md5[len]);
+                    }
+                }
+
+                buf[32] = 0;
+
+                fclose(fd);
+                break;
+            }
+
+            MD5_Update(&ctx , (const void *) buf, len);
+        }
+
+        return err;
     }
 }
 

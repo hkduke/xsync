@@ -78,7 +78,7 @@ extern "C"
  * SHOULD = 1024 * n (n = 2, 4, 8, 16)
  */
 #ifndef XSYNC_IO_BUFSIZE
-#  define XSYNC_IO_BUFSIZE         8192
+#  define XSYNC_IO_BUFSIZE        4096
 #endif
 
 
@@ -97,8 +97,11 @@ extern "C"
 #endif
 
 
+/**
+ * 支持的最大的服务器数目. 根据需要可以更改这个值
+ */
 #ifndef XSYNC_SERVER_MAXID
-#  define XSYNC_SERVER_MAXID        0xff
+#  define XSYNC_SERVER_MAXID          64
 #endif
 
 

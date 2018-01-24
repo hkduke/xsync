@@ -33,14 +33,16 @@ TGT_LDLIBS  := \
 SOURCES := \
     client.c \
     client_api.c \
-    watch_path.c
+    watch_path.c \
+    watch_event.c
 
 
 # see "../xsync-config.h" for definitions
 SRC_DEFS := DEBUG \
 	XSYNC_CLIENT_APPNAME='"${APPNAME}"' \
 	XSYNC_SERVER_VERSION='"${VERSION}"' \
-	XSYNC_INEVENT_BUFSIZE=4096
+	XSYNC_INEVENT_BUFSIZE=4096 \
+	XSYNC_SERVER_MAXID=16
 
 
 SRC_INCDIRS := \

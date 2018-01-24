@@ -21,11 +21,69 @@
 
 #include "client.h"
 
-int run_forever (char * xmlconf, char * buff, ssize_t sizebuf);
 
-void exit_handler (int code, void * startcmd);
+void sig_chld (int signo)
+{
+    pid_t    pid;
+    int      stat;
+
+    /* must call waitpid() */
+    while ((pid = waitpid(-1, &stat, WNOHANG)) > 0) {
+        /* UNUSED:
+         * printf ("[%d] child process terminated", pid);
+         */
+    }
+    return;
+}
 
 
+/**
+ * kill -15 pid
+ */
+void sig_term (int signo)
+{
+    void print_cpu_time(void);
+    print_cpu_time();
+    exit(signo);
+}
+
+
+/**
+ * kill -2 pid
+ */
+void sig_int (int signo)
+{
+    void print_cpu_time(void);
+    print_cpu_time();
+    exit(signo);
+}
+
+
+/**
+ * 程序退出时调用: exit_handler
+ */
+void exit_handler (int exitcode, void * startcmd)
+{
+    //sem_unlink(semaphore);
+    printf("\n* %s-%s exit(%d).\n", APP_NAME, APP_VERSION, exitcode);
+
+    if (startcmd) {
+        if (exitcode == 10 || exitcode == 11) {
+            //time_t t = time(0);
+            //printf("\n\n* %s* isynclog-client restart: %s\n\n", ctime(&t), (char*) startcmd);
+            //code = pox_system(startcmd);
+        }
+
+        free(startcmd);
+    }
+}
+
+
+/**
+ * main
+ *
+ *
+ */
 int main (int argc, char * argv [])
 {
     int ret;
@@ -57,6 +115,9 @@ int main (int argc, char * argv [])
         {"regexp", required_argument, 0, 'r'},
         {0, 0, 0, 0}
     };
+
+    void sig_chld(int);
+    void sig_int(int);
 
     /**
      * get default real path for xsync-client.conf
@@ -231,12 +292,52 @@ int main (int argc, char * argv [])
         }
     }
 
+    do {
+        char * startcmd;
+        ret = strlen(buff);
+
+        startcmd = (char *) malloc(ret + 1);
+        memcpy(startcmd, buff, ret);
+        startcmd[ret] = 0;
+
+        /* 注册退出函数 */
+        on_exit(exit_handler, startcmd);
+
+        /* SIGCHLD */
+        if (signal(SIGCHLD, sig_chld) == SIG_ERR) {
+            LOGGER_FATAL("signal(SIGCHLD) error(%d): %s", errno, strerror(errno));
+            exit(-1);
+        }
+
+        if (signal(SIGINT, sig_int) == SIG_ERR) {
+            LOGGER_FATAL("signal(SIGINT) error(%d): %s", errno, strerror(errno));
+            exit(-1);
+        }
+
+        if (signal(SIGTERM, sig_term) == SIG_ERR) {
+            LOGGER_FATAL("signal(SIGTERM) error(%d): %s", errno, strerror(errno));
+            exit(-1);
+        }
+
+        /**
+         * signal(SIGPIPE, SIG_IGN);
+         *
+         * Unix supports the principle of piping, which allows processes to send data
+         * to other processes without the need for creating temporary files. When a
+         * pipe is broken, the process writing to it is sent the SIGPIPE signal.
+         * The default reaction to this signal for a process is to terminate.
+         * see also:
+         *   - http://blog.csdn.net/sukhoi27smk/article/details/43760605
+         */
+        if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
+            LOGGER_FATAL("signal(SIGPIPE) error(%d): %s", errno, strerror(errno));
+            exit(-1);
+        }
+    } while (0);
 
     /**
-     * 程序退出时调用: exit_handler
+     * 启动客户端服务程序
      */
-    //on_exit(exit_handler, startcmd);
-
     ret = run_forever(xmlconf, buff, sizeof(buff));
 
 exit_onerror:
@@ -245,23 +346,6 @@ exit_onerror:
     LOGGER_FINI();
 
     return ret;
-}
-
-
-void exit_handler (int code, void * startcmd)
-{
-    //sem_unlink(semaphore);
-    //printf ("\n* %s exit(%d).\n", FSYNC_CLIENT_APP, code);
-
-    if (startcmd) {
-        if (code == 10 || code == 11) {
-            //time_t t = time(0);
-            //printf("\n\n* %s* isynclog-client restart: %s\n\n", ctime(&t), (char*) startcmd);
-            //code = pox_system(startcmd);
-        }
-
-        free(startcmd);
-    }
 }
 
 
@@ -283,14 +367,53 @@ int run_forever (char * xmlconf, char * buff, ssize_t sizebuf)
 }
 
 
-int handle_inotify_event (struct inotify_event * event, xs_client_t * client)
+int handle_inotify_event (struct inotify_event * inoevent, XS_client client)
 {
-    xs_watch_path_t * wp = client_wd_table_lookup (client, event->wd);
-    assert(wp && wp->watch_wd == event->wd);
+    int num;
+
+    xs_watch_path_t * wp = client_wd_table_lookup (client, inoevent->wd);
+    assert(wp && wp->watch_wd == inoevent->wd);
 
     LOGGER_DEBUG("TODO: wd=%d mask=%d cookie=%d len=%d dir=%s. (%s/%s)",
-        event->wd, event->mask, event->cookie, event->len, ((event->mask & IN_ISDIR) ? "yes" : "no"),
-        wp->fullpath, (event->len > 0 ? event->name : "None"));
+        inoevent->wd, inoevent->mask, inoevent->cookie, inoevent->len, ((inoevent->mask & IN_ISDIR) ? "yes" : "no"),
+        wp->fullpath, (inoevent->len > 0 ? inoevent->name : "None"));
+
+    /**
+     * 如果队列空闲才能加入事件
+     */
+    num = client_threadpool_unused_queues(client);
+    LOGGER_TRACE("threadpool_unused_queues=%d", num);
+
+    if (num > 0) {
+        int i, err;
+
+        err = XS_client_lock(client);
+        if (! err) {
+
+            XS_watch_event events[XSYNC_SERVER_MAXID + 1];
+
+            //TODO: num = XS_client_create_events(client, inoevent, events, XSYNC_SERVER_MAXID);
+            num = XSYNC_SERVER_MAXID;
+
+            // unlock immediately
+            XS_client_unlock(client);
+
+            for (i = 0; i < num; ++i) {
+                XS_watch_event event = events[i];
+
+                err = threadpool_add(client->pool, event_task, (void*) event, 100);
+
+                if (! err) {
+                    // success
+                    LOGGER_TRACE("threadpool_add event success");
+                } else {
+                    // error
+                    XS_watch_event_release(&event);
+                    LOGGER_WARN("threadpool_add event error(%d): %s", err, threadpool_error_messages[-err]);
+                }
+            }
+        }
+    }
 
     return 0;
 }

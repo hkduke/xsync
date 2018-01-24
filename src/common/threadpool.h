@@ -102,6 +102,19 @@ typedef enum
 } threadpool_error_t;
 
 
+__attribute__((used))
+static const char* threadpool_error_messages[] = {
+    "threadpool_success",
+    "threadpool_invalid",
+    "threadpool_lock_failure",
+    "threadpool_queue_full",
+    "threadpool_shutdown",
+    "threadpool_run_failure",
+    "threadpool_out_memory",
+    0
+};
+
+
 /**
  * @function threadpool_create
  * @brief Creates a threadpool_t object.

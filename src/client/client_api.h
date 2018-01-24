@@ -29,6 +29,7 @@ extern "C" {
 #include "server_opts.h"
 #include "watch_path.h"
 #include "watch_entry.h"
+#include "watch_event.h"
 
 
 typedef struct perthread_data
@@ -179,6 +180,13 @@ __attribute__((used))
 static inline int client_get_servers (XS_client client)
 {
     return client->servers_opts->servers;
+}
+
+
+__attribute__((used))
+static inline int client_threadpool_unused_queues (XS_client client)
+{
+    return threadpool_unused_queues(client->pool);
 }
 
 

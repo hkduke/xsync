@@ -37,7 +37,9 @@ extern "C" {
 #include "client_api.h"
 
 
-int handle_inotify_event (struct inotify_event * event, xs_client_t * client);
+int run_forever (char * xmlconf, char * buff, ssize_t sizebuf);
+
+int handle_inotify_event (struct inotify_event * event, XS_client client);
 
 
 /**
@@ -57,7 +59,6 @@ int handle_inotify_event (struct inotify_event * event, xs_client_t * client);
  * "\033[32m GREEN \033[0m"
  * "\033[33m YELLOW \033[0m"
  */
-
 __attribute__((used))
 static void print_usage(void)
 {
@@ -96,63 +97,22 @@ static void print_usage(void)
 }
 
 
-__attribute__((used))
-static int check_file_mode (const char * file, int mode /* R_OK, W_OK */)
-{
-    if (0 == access(file, mode)) {
-        return 0;
-    } else {
-        perror(file);
-        return -1;
-    }
-}
-
-
 /**
- * MUST equal with:
- *   $ md5sum $file
- *   $ openssl md5 $file
+ * per-thread task
  */
 __attribute__((used))
-static int md5sum_file (const char * filename, char * buf, size_t bufsize)
+static void  event_task (thread_context_t * thread_ctx)
 {
-    FILE * fd;
+    threadpool_task_t * task = thread_ctx->task;
 
-    fd = fopen(filename, "rb");
-    if ( ! fd ) {
-        return (-1);
-    } else {
-        MD5_CTX  ctx;
-        int err = 1;
+    if (task->flags == XS_watch_event_typeid) {
+        XS_watch_event event = (XS_watch_event) task->argument;
+        task->flags = 0;
 
-        MD5_Init(&ctx);
+        sleep(3000);
 
-        for (;;) {
-            size_t len = fread(buf, 1, bufsize, fd);
-
-            if (len == 0) {
-                err = ferror(fd);
-
-                if (! err) {
-                    unsigned char md5[16];
-
-                    MD5_Final(md5, &ctx);
-
-                    for (len = 0; len < sizeof(md5); ++len) {
-                        snprintf(buf + len * 2, 3, "%02x", md5[len]);
-                    }
-                }
-
-                buf[32] = 0;
-
-                fclose(fd);
-                break;
-            }
-
-            MD5_Update(&ctx , (const void *) buf, len);
-        }
-
-        return err;
+        // MUST release event after using
+        XS_watch_event_release(&event);
     }
 }
 
