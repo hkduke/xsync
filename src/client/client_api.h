@@ -198,7 +198,7 @@ static inline xs_server_opts_t * client_get_server_by_id (XS_client client, int 
 }
 
 
-extern int XS_client_create (const char * xmlconf, XS_client * outClient);
+extern int XS_client_create (const char * config, int force_watch, XS_client * outClient);
 
 extern void XS_client_release (XS_client * pclient);
 

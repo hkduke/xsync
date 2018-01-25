@@ -93,13 +93,16 @@ int main (int argc, char * argv [])
 
     char buff[XSYNC_IO_BUFSIZE];
 
-    char xmlconf[XSYNC_PATHFILE_MAXLEN + 1];
+    char config[XSYNC_PATHFILE_MAXLEN + 1];
     char log4crc[XSYNC_PATHFILE_MAXLEN + 1];
 
     char priority[20] = {0};
     char appender[60] = {0};
 
+    int force_watch = 0;
+
     int isdaemon = 0;
+
     __attribute__((unused)) int verbose = 0;
 
     /* command arguments */
@@ -108,6 +111,7 @@ int main (int argc, char * argv [])
         {"version", no_argument, 0, 'V'},
         {"verbose", no_argument, 0, 'v'},
         {"config", required_argument, 0, 'C'},
+        {"force-watch", no_argument, 0, 'W'},
         {"log4c-rcpath", required_argument, 0, 'O'},
         {"priority", required_argument, 0, 'P'},
         {"appender", required_argument, 0, 'A'},
@@ -127,32 +131,32 @@ int main (int argc, char * argv [])
      */
     ret = realpathdir(argv[0], buff, sizeof(buff));
     if (ret <= 0) {
-        fprintf(stderr, "\033[31m[error]\033[0m %s\n", buff);
+        fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buff);
         exit(-1);
     }
 
     if (strrchr(buff, '/') == strchr(buff, '/')) {
-        fprintf(stderr, "\033[31m[error]\033[0m cannot run under root path: %s\n", buff);
+        fprintf(stderr, "\033[1;31m[error]\033[0m cannot run under root path: %s\n", buff);
         exit(-1);
     }
 
     *strrchr(buff, '/') = 0;
     *(strrchr(buff, '/') + 1) = 0;
 
-    ret = snprintf(xmlconf, sizeof(xmlconf), "%sconf/%s.conf", buff, APP_NAME);
-    if (ret < 20 || ret >= sizeof(xmlconf)) {
-        fprintf(stderr, "\033[31m[error]\033[0m invalid conf path: %s\n", buff);
+    ret = snprintf(config, sizeof(config), "%sconf/%s.conf", buff, APP_NAME);
+    if (ret < 20 || ret >= sizeof(config)) {
+        fprintf(stderr, "\033[1;31m[error]\033[0m invalid conf path: %s\n", buff);
         exit(-1);
     }
 
     ret = snprintf(log4crc, sizeof(log4crc), "LOG4C_RCPATH=%sconf/", buff);
     if (ret < 20 || ret >= sizeof(log4crc)) {
-        fprintf(stderr, "\033[31m[error]\033[0m invalid log4c path: %s\n", buff);
+        fprintf(stderr, "\033[1;31m[error]\033[0m invalid log4c path: %s\n", buff);
         exit(-1);
     }
 
     /* parse command arguments */
-    while ((ret = getopt_long(argc, argv, "DKLhVvC:O:P:A:m:r:", lopts, 0)) != EOF) {
+    while ((ret = getopt_long(argc, argv, "DKLhVvC:WO:P:A:m:r:", lopts, 0)) != EOF) {
         switch (ret) {
         case 'D':
             isdaemon = 1;
@@ -165,39 +169,43 @@ int main (int argc, char * argv [])
 
         case 'C':
             /* overwrite default config file */
-            ret = snprintf(xmlconf, sizeof(xmlconf), "%s", optarg);
-            if (ret < 20 || ret >= sizeof(xmlconf)) {
-                fprintf(stderr, "\033[31m[error]\033[0m specified invalid conf file: %s\n", optarg);
+            ret = snprintf(config, sizeof(config), "%s", optarg);
+            if (ret < 20 || ret >= sizeof(config)) {
+                fprintf(stderr, "\033[1;31m[error]\033[0m specified invalid conf file: %s\n", optarg);
                 exit(-1);
             }
 
-            if (getfullpath(xmlconf, buff, sizeof(buff)) != 0) {
-                fprintf(stderr, "\033[31m[error]\033[0m %s\n", buff);
+            if (getfullpath(config, buff, sizeof(buff)) != 0) {
+                fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buff);
                 exit(-1);
             } else {
-                ret = snprintf(xmlconf, sizeof(xmlconf), "%s", buff);
-                if (ret < 20 || ret >= sizeof(xmlconf)) {
-                    fprintf(stderr, "\033[31m[error]\033[0m invalid conf file: %s\n", buff);
+                ret = snprintf(config, sizeof(config), "%s", buff);
+                if (ret < 20 || ret >= sizeof(config)) {
+                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid conf file: %s\n", buff);
                     exit(-1);
                 }
             }
+            break;
+
+        case 'W':
+            force_watch = 1;
             break;
 
         case 'O':
             /* overwrite default log4crc file */
             ret = snprintf(log4crc, sizeof(log4crc), "%s", optarg);
             if (ret < 0 || ret >= sizeof(log4crc)) {
-                fprintf(stderr, "\033[31m[error]\033[0m specified invalid log4c path: \033[31m%s\033[0m\n", optarg);
+                fprintf(stderr, "\033[1;31m[error]\033[0m specified invalid log4c path: \033[31m%s\033[0m\n", optarg);
                 exit(-1);
             }
 
             if (getfullpath(log4crc, buff, sizeof(buff)) != 0) {
-                fprintf(stderr, "\033[31m[error]\033[0m %s\n", buff);
+                fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buff);
                 exit(-1);
             } else {
                 ret = snprintf(log4crc, sizeof(log4crc), "LOG4C_RCPATH=%s", buff);
                 if (ret < 10 || ret >= sizeof(log4crc)) {
-                    fprintf(stderr, "\033[31m[error]\033[0m invalid log4c path: %s\n", buff);
+                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid log4c path: %s\n", buff);
                     exit(-1);
                 }
             }
@@ -206,7 +214,7 @@ int main (int argc, char * argv [])
         case 'P':
             ret = snprintf(priority, sizeof(priority), "%s", optarg);
             if (ret < 0 || ret >= sizeof(priority)) {
-                fprintf(stderr, "\033[31m[error]\033[0m specified invalid priority: %s\n", optarg);
+                fprintf(stderr, "\033[1;31m[error]\033[0m specified invalid priority: %s\n", optarg);
                 exit(-1);
             }
             break;
@@ -214,7 +222,7 @@ int main (int argc, char * argv [])
         case 'A':
             ret = snprintf(appender, sizeof(appender), "%s", optarg);
             if (ret < 0 || ret >= sizeof(appender)) {
-                fprintf(stderr, "\033[31m[error]\033[0m specified invalid appender: \033[31m%s\033[0m\n", optarg);
+                fprintf(stderr, "\033[1;31m[error]\033[0m specified invalid appender: \033[31m%s\033[0m\n", optarg);
                 exit(-1);
             }
             break;
@@ -231,14 +239,14 @@ int main (int argc, char * argv [])
             ret = check_file_mode(optarg, R_OK);
 
             if (ret) {
-                fprintf(stderr, "\033[31m[error: md5sum]\033[0m file not found: %s\n\n", optarg);
+                fprintf(stderr, "\033[1;31m[error: md5sum]\033[0m file not found: %s\n\n", optarg);
             } else {
                 ret = md5sum_file(optarg, buff, sizeof(buff));
 
                 if (ret == 0) {
-                    fprintf(stdout, "\033[32m[success: md5sum]\033[0m %s (%s)\n", buff, optarg);
+                    fprintf(stdout, "\033[1;32m[success: md5sum]\033[0m %s (%s)\n", buff, optarg);
                 } else {
-                    fprintf(stderr, "\033[31m[error: md5sum]\033[0m file: %s\n", optarg);
+                    fprintf(stderr, "\033[1;31m[error: md5sum]\033[0m file: %s\n", optarg);
                 }
             }
             exit(ret);
@@ -249,7 +257,7 @@ int main (int argc, char * argv [])
             break;
 
         case 'V':
-            fprintf(stdout, "\033[35m%s, Version: %s, Build: %s %s\033[0m\n\n", APP_NAME, APP_VERSION, __DATE__, __TIME__);
+            fprintf(stdout, "\033[1;35m%s, Version: %s, Build: %s %s\033[0m\n\n", APP_NAME, APP_VERSION, __DATE__, __TIME__);
             exit(0);
             break;
 
@@ -259,10 +267,32 @@ int main (int argc, char * argv [])
         }
     }
 
-    fprintf(stdout, "\033[34m* Default conf file  : %s\033[0m\n", xmlconf);
-    fprintf(stdout, "\033[34m* Default log4c path : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
-    fprintf(stdout, "\033[32m* Using conf file    : %s\033[0m\n", xmlconf);
-    fprintf(stdout, "\033[32m* Using log4c path   : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
+    fprintf(stdout, "\033[1;34m* Default conf file  : %s\033[0m\n", config);
+    fprintf(stdout, "\033[1;34m* Default log4c path : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
+    fprintf(stdout, "\033[1;32m* Using conf file    : %s\033[0m\n", config);
+    fprintf(stdout, "\033[1;32m* Using log4c path   : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
+
+    if (force_watch) {
+        // 强迫从 watch 目录自动配置
+        snprintf(buff, sizeof(buff), "%s", config);
+
+        *strrchr(buff, '/') = 0;
+        *strrchr(buff, '/') = 0;
+        strcat(buff, "/watch");
+
+        if (! isdir(buff)) {
+            fprintf(stderr, "\033[1;31m[error] NOT a directory:\033[0m %s\n\n", buff);
+            exit(-1);
+        }
+
+        if (0 != access(buff, F_OK|R_OK|X_OK)) {
+            fprintf(stderr, "\033[1;31m[error] watch error(%d): %s.\033[0m (%s)\n\n", errno, strerror(errno), buff);
+            exit(-1);
+        }
+
+        snprintf(config, sizeof(config), "%s", buff);
+        fprintf(stdout, "\033[1;36m* Force using watch  : %s\033[0m\n", config);
+    }
 
     // 设置log4c
     config_log4crc(APP_NAME, log4crc, priority, appender, sizeof(appender), buff, sizeof(buff));
@@ -270,7 +300,7 @@ int main (int argc, char * argv [])
     // 得到启动命令
     ret = getstartcmd(argc, argv, buff, sizeof(buff), APP_NAME);
     if (ret) {
-        fprintf(stderr, "\033[31m[error: getstartcmd]\033[0m %s\n\n", buff);
+        fprintf(stderr, "\033[1;31m[error: getstartcmd]\033[0m %s\n\n", buff);
         exit(-1);
     }
 
@@ -338,33 +368,24 @@ int main (int argc, char * argv [])
         }
     } while (0);
 
-    /**
-     * 启动客户端服务程序
-     */
-    ret = run_forever(xmlconf, buff, sizeof(buff));
+    // 启动客户端服务程序, 永远运行
+    do {
+        XS_client client = 0;
+
+        ret = XS_client_create(config, force_watch, &client);
+
+        if (ret == 0) {
+
+            XS_client_listening_events(client);
+
+            XS_client_release(&client);
+        }
+    } while(0);
 
 exit_onerror:
 
     LOGGER_FATAL("%s (v%s) shutdown !", APP_NAME, APP_VERSION);
     LOGGER_FINI();
 
-    return ret;
-}
-
-
-int run_forever (char * xmlconf, char * buff, ssize_t sizebuf)
-{
-    int err;
-
-    xs_client_t * client = 0;
-
-    err = XS_client_create(xmlconf, &client);
-
-    if (! err) {
-        XS_client_listening_events(client);
-
-        XS_client_release(&client);
-    }
-
-    return err;
+    return (ret);
 }

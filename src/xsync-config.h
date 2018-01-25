@@ -82,6 +82,38 @@ extern "C"
 #endif
 
 
+/**
+ * max threads and queues for client
+ */
+#ifndef XSYNC_CLIENT_THREADS_MAX
+#  define XSYNC_CLIENT_THREADS_MAX    16
+#endif
+
+/**
+ * XSYNC_CLIENT_QUEUES_MAX = XSYNC_CLIENT_THREADS_MAX * tasks_per_thread
+ * 1024 = 16 * 64, tasks_per_thread = 64
+ */
+#ifndef XSYNC_CLIENT_QUEUES_MAX
+#  define XSYNC_CLIENT_QUEUES_MAX   1024
+#endif
+
+
+/**
+ * max threads and queues for server
+ */
+#ifndef XSYNC_SERVER_THREADS_MAX
+#  define XSYNC_SERVER_THREADS_MAX   256
+#endif
+
+/**
+ * XSYNC_SERVER_QUEUES_MAX = XSYNC_SERVER_THREADS_MAX * tasks_per_thread
+ * 8192 = 256 * 32, tasks_per_thread = 32
+ */
+#ifndef XSYNC_SERVER_QUEUES_MAX
+#  define XSYNC_SERVER_QUEUES_MAX   8192
+#endif
+
+
 #ifndef XSYNC_DEF_SENDFILE
 #  define XSYNC_DEF_SENDFILE         1
 #endif

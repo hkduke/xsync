@@ -104,13 +104,20 @@ __attribute__((used))
 static int client_init_from_watch (XS_client client, const char * watchdir)
 {
 
+
+
+    validate_client_config(client);
+
     return -1;
 }
 
 
 __attribute__((used))
-static int client_init_from_conf (XS_client client, const char * xmlconf)
+static int client_init_from_conf (XS_client client, const char * config)
 {
+
+    validate_client_config(client);
+
     return -1;
 }
 
@@ -171,7 +178,7 @@ static void free_xsync_client (void *pv)
 }
 
 
-int XS_client_create (const char * xmlconf, XS_client * outClient)
+int XS_client_create (const char * config, int force_watch, XS_client * outClient)
 {
     int i, sid, err;
 
@@ -206,12 +213,12 @@ int XS_client_create (const char * xmlconf, XS_client * outClient)
     client->sendfile = 1;
     client->infd = -1;
 
-    client_init_from_watch(client, xmlconf);
+    client_init_from_watch(client, config);
 
-    //client_init_from_watch(client, xmlconf);
+    //client_init_from_watch(client, config);
 
 
-    /* populate server_opts from xmlconf */
+    /* populate server_opts from config */
     for (sid = 1; sid <= SERVERS; sid++) {
         xs_server_opts_t * server_opts = client_get_server_by_id(client, sid);
 
