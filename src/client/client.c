@@ -80,8 +80,11 @@ void exit_handler (int exitcode, void * startcmd)
 
 
 /**
- * main
+ * client main entry
  *
+ * Run Commands:
+ * 1) Debug:
+ *     $ ../target/xsync-client-0.0.1 -Ptrace -Astdout
  *
  */
 int main (int argc, char * argv [])

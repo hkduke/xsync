@@ -21,7 +21,20 @@
 
 /**
  * client_api.c
+ */
+
+#include "client.h"
+
+#include "watch_path.h"
+
+
+#define XSYNC_GET_HLIST_HASHID(path)   ((int)(BKDRHash(path) & XSYNC_PATH_HASH_MAXID))
+
+
+/**
+ * client_api.c
  *
+ * client_init_from_watch
  * 从 watch 目录初始化 client. watch 目录遵循下面的规则:
  *
  *  xsync-client-home/                           (客户端主目录)
@@ -62,25 +75,26 @@
  *                    |
  *                    |     (以下文件为可选)
  *                    |
- *                    +---- 1.include  (可选, 服务1: 包含文件的正则表达式)
+ *                    +---- 1.INCLUDE  (可选, 服务1: 包含文件的正则表达式)
  *                    |
- *                    +---- 1.exclude  (可选, 服务1: 排除文件的正则表达式)
+ *                    +---- 1.EXCLUDE  (可选, 服务1: 排除文件的正则表达式)
  *                    |
- *                    +---- 2.include  (可选)
+ *                    +---- 2.INCLUDE  (可选)
  *                           ...
  *
  */
-
-#include "client.h"
-
-#include "watch_path.h"
-
-
-#define XSYNC_GET_HLIST_HASHID(path)   ((int)(BKDRHash(path) & XSYNC_PATH_HASH_MAXID))
-
-static int client_init_from_watch (const char * xmlconf, XS_client * outClient)
+__attribute__((used))
+static int client_init_from_watch (XS_client client, const char * watchdir)
 {
 
+    return -1;
+}
+
+
+__attribute__((used))
+static int client_init_from_conf (XS_client client, const char * xmlconf)
+{
+    return -1;
 }
 
 
