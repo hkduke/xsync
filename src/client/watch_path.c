@@ -35,37 +35,40 @@ static inline void free_watch_path (void *pv)
 }
 
 
-int XS_watch_path_create (const char * fullpath, uint32_t mask, xs_watch_path_t ** outwp)
+int XS_watch_path_create (const char * pathid, const char * fullpath, uint32_t events_mask, XS_watch_path * outwp)
 {
     int sid, err;
     size_t cb;
 
-    xs_watch_path_t * wpath;
+    XS_watch_path wpath;
 
     *outwp = 0;
 
     cb = strlen(fullpath) + 1;
 
-    wpath = (xs_watch_path_t *) mem_alloc(1, sizeof(*wpath) + sizeof(char) * cb);
+    wpath = (XS_watch_path) mem_alloc(1, sizeof(*wpath) + sizeof(char) * cb);
 
     // 必须初始化=-1
     wpath->watch_wd = -1;
 
-    wpath->watch_mask = mask;
+    // inotify 监视掩码: mask of events
+    wpath->events_mask = events_mask;
 
+    // path id
+    strncpy(wpath->pathid, pathid, XSYNC_CLIENTID_MAXLEN);
+    wpath->pathid[XSYNC_CLIENTID_MAXLEN] = 0;
+
+    // 全路径
     memcpy(wpath->fullpath, fullpath, cb);
 
-    // [0] : max sid enabled
-    wpath->serverid_list[0] = 0;
-
-    for (sid = 1; sid <= XSYNC_SERVER_MAXID; sid++) {
-        // 0: disabled; 1: enabled
-        wpath->serverid_list[sid] = 0;
+    // 初始化 sid_masks: sid_masks[0] => sid_max
+    for (sid = 0; sid <= XSYNC_SERVER_MAXID; sid++) {
+        wpath->sid_masks[sid] = 0;
     }
 
     if ((err = RefObjectInit(wpath)) == 0) {
+        LOGGER_TRACE("xpath=%p (%s=>%s)", wpath, wpath->pathid, wpath->fullpath);
         *outwp = wpath;
-        LOGGER_TRACE("xpath=%p (%s)", wpath, wpath->fullpath);
         return 0;
     } else {
         LOGGER_FATAL("RefObjectInit error(%d): %s", err, strerror(err));

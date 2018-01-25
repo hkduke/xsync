@@ -71,11 +71,6 @@ typedef struct xs_client_t
     int queues;
 
     /**
-     * if using linux sendfile() to send data
-     */
-    int sendfile;
-
-    /**
      * inotify fd
      */
     int infd;
@@ -177,9 +172,9 @@ static inline XS_watch_path client_wd_table_remove (XS_client client, XS_watch_p
 
 
 __attribute__((used))
-static inline int client_get_servers (XS_client client)
+static inline int client_get_sid_max (XS_client client)
 {
-    return client->servers_opts->servers;
+    return client->servers_opts->sidmax;
 }
 
 
@@ -193,12 +188,12 @@ static inline int client_threadpool_unused_queues (XS_client client)
 __attribute__((used))
 static inline xs_server_opts_t * client_get_server_by_id (XS_client client, int id /* 1 based */)
 {
-    assert(id > 0 && id <= client->servers_opts->servers);
+    assert(id > 0 && id <= client->servers_opts->sidmax);
     return client->servers_opts + id;
 }
 
 
-extern int XS_client_create (const char * config, int force_watch, XS_client * outClient);
+extern int XS_client_create (char * config, int force_watch, char * inbuf, size_t inbufsize, XS_client * outClient);
 
 extern void XS_client_release (XS_client * pclient);
 

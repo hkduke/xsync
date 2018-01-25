@@ -72,7 +72,7 @@
 #include <stdarg.h>
 
 #include <getopt.h>          /* getopt_long */
-#include <regex.h>
+#include <regex.h>           /* regex_t */
 
 /* sqlite3 should be installed first */
 #include <sqlite3.h>

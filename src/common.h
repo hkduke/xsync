@@ -252,6 +252,53 @@ static int isdir(const char *path)
 }
 
 
+typedef int (*listdir_callback_t)(char * path, int pathlen, struct dirent *ent, void * data);
+
+__attribute__((used))
+static int listdir(const char * path, char * inbuf, ssize_t inbufsize, listdir_callback_t lscb, void * data)
+{
+    DIR *dir;
+    struct dirent *ent;
+    int pathlen;
+
+    int err = 0;
+
+    if ((dir = opendir(path)) != 0) {
+        /* print all the files and directories within directory */
+
+        while ((ent = readdir(dir)) != 0) {
+            if (strcmp(ent->d_name, ".") && strcmp(ent->d_name, "..")) {
+
+                pathlen = snprintf(inbuf, inbufsize, "%s/%s", path, ent->d_name);
+                if (pathlen < 0) {
+                    // strerror(errno);
+                    err = (-1);
+                    break;
+                }
+
+                if (pathlen >= inbufsize) {
+                    // buff is too small
+                    err = (-2);
+                    break;
+                }
+
+                inbuf[pathlen] = 0;
+
+                if (lscb(inbuf, pathlen, ent, data) != 1) {
+                    err = (-3);
+                    break;
+                }
+            }
+        }
+
+        closedir(dir);
+    }
+
+    // 0: all is ok, others: error
+    return err;
+}
+
+
 /**
  * getpwd
  *   Get absolute path (end with '/') for current process.
@@ -517,16 +564,16 @@ static int realpathdir (const char * file, char * rpdir, size_t size)
 __attribute__((used))
 static int getstartcmd (int argc, char ** argv, char * cmdbuf, ssize_t bufsize, const char * link_name)
 {
-    int err;
-    char *binfile;
+    int err, len;
+    char *tmpbin;
     char linkpath[PATH_MAX + 1];
 
     err = fileislink(argv[0], cmdbuf, bufsize);
     if (err == 1) {
         // 取得链接所在的物理目录: 先取得链接所在目录, 然后取得其路径
         strcpy(cmdbuf, argv[0]);
-        binfile = strrchr(cmdbuf, '/');
-        *binfile++ = 0;
+        tmpbin = strrchr(cmdbuf, '/');
+        *tmpbin++ = 0;
 
         err = getfullpath(cmdbuf, linkpath, sizeof(linkpath));
         if (err != 0) {
@@ -534,14 +581,32 @@ static int getstartcmd (int argc, char ** argv, char * cmdbuf, ssize_t bufsize, 
         }
 
         // 执行的链接文件全路径: linkpath
-        strcat(linkpath, binfile);
+        strcat(linkpath, tmpbin);
 
         // 执行的物理文件全路径: cmdbuf
-        realpath(argv[0], cmdbuf);
+        tmpbin = realpath(argv[0], 0);
+        if (! tmpbin) {
+            // strerror(errno)
+            return (-1);
+        }
+
+        // 执行的物理文件全路径: cmdbuf
+        len = snprintf(cmdbuf, bufsize, "%s", tmpbin);
+
+        free(tmpbin);
+
+        if (len < 0) {
+            // strerror(errno)
+            return (-1);
+        }
+        if (len >= bufsize) {
+            // cmdbuf is too small
+            return (-1);
+        }
     } else if (err == 0) {
         // 取得文件所在的物理目录
-        binfile = strrchr(argv[0], '/');
-        binfile++;
+        tmpbin = strrchr(argv[0], '/');
+        tmpbin++;
 
         err = realpathdir(argv[0], cmdbuf, bufsize);
         if (err <= 0) {
@@ -549,10 +614,18 @@ static int getstartcmd (int argc, char ** argv, char * cmdbuf, ssize_t bufsize, 
         }
 
         // 链接文件全路径
-        snprintf(linkpath, sizeof(linkpath), "%s%s", cmdbuf, link_name);
+        len = snprintf(linkpath, sizeof(linkpath), "%s%s", cmdbuf, link_name);
+        if (len < 0) {
+            // strerror(errno)
+            return (-1);
+        }
+        if (len >= sizeof(linkpath)) {
+            // cmdbuf is too small
+            return (-1);
+        }
 
         // 执行的物理文件全路径
-        strcat(cmdbuf, binfile);
+        strcat(cmdbuf, tmpbin);
 
         // 创建链接: linkpath -> cmdbuf
         if (symlink(cmdbuf, linkpath) != 0 && errno != EEXIST) {

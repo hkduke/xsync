@@ -372,7 +372,7 @@ int main (int argc, char * argv [])
     do {
         XS_client client = 0;
 
-        ret = XS_client_create(config, force_watch, &client);
+        ret = XS_client_create(config, force_watch, buff, sizeof(buff), &client);
 
         if (ret == 0) {
 

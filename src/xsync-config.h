@@ -26,7 +26,7 @@
  * author: master@pepstack.com
  *
  * create: 2018-01-24
- * update: 2018-01-24
+ * update: 2018-01-25
  */
 
 #ifndef XSYNC_CONFIG_H_
@@ -87,14 +87,23 @@ extern "C"
  */
 #ifndef XSYNC_CLIENT_THREADS_MAX
 #  define XSYNC_CLIENT_THREADS_MAX    16
+#elif XSYNC_CLIENT_THREADS_MAX > 128
+#  error XSYNC_CLIENT_THREADS_MAX is more than 128
+#elif XSYNC_CLIENT_THREADS_MAX < 8
+#  error XSYNC_CLIENT_THREADS_MAX is less than 8
 #endif
+
 
 /**
  * XSYNC_CLIENT_QUEUES_MAX = XSYNC_CLIENT_THREADS_MAX * tasks_per_thread
- * 1024 = 16 * 64, tasks_per_thread = 64
+ * 512 = 16 * 32, tasks_per_thread = 32
  */
 #ifndef XSYNC_CLIENT_QUEUES_MAX
-#  define XSYNC_CLIENT_QUEUES_MAX   1024
+#  define XSYNC_CLIENT_QUEUES_MAX    512
+#elif XSYNC_CLIENT_QUEUES_MAX > 4096
+#  error XSYNC_CLIENT_QUEUES_MAX is more than 4096
+#elif XSYNC_CLIENT_QUEUES_MAX < 256
+#  error XSYNC_CLIENT_QUEUES_MAX is less than 256
 #endif
 
 
@@ -102,20 +111,24 @@ extern "C"
  * max threads and queues for server
  */
 #ifndef XSYNC_SERVER_THREADS_MAX
-#  define XSYNC_SERVER_THREADS_MAX   256
+#  define XSYNC_SERVER_THREADS_MAX    256
+#elif XSYNC_SERVER_THREADS_MAX > 1024
+#  error XSYNC_SERVER_THREADS_MAX is more than 1024
+#elif XSYNC_SERVER_THREADS_MAX < 8
+#  error XSYNC_SERVER_THREADS_MAX is less than 8
 #endif
+
 
 /**
  * XSYNC_SERVER_QUEUES_MAX = XSYNC_SERVER_THREADS_MAX * tasks_per_thread
  * 8192 = 256 * 32, tasks_per_thread = 32
  */
 #ifndef XSYNC_SERVER_QUEUES_MAX
-#  define XSYNC_SERVER_QUEUES_MAX   8192
-#endif
-
-
-#ifndef XSYNC_DEF_SENDFILE
-#  define XSYNC_DEF_SENDFILE         1
+#  define XSYNC_SERVER_QUEUES_MAX    4096
+#elif XSYNC_SERVER_QUEUES_MAX > 16384
+#  error XSYNC_SERVER_QUEUES_MAX is more than 16384
+#elif XSYNC_SERVER_QUEUES_MAX < 1024
+#  error XSYNC_SERVER_QUEUES_MAX is less than 1024
 #endif
 
 
@@ -130,10 +143,14 @@ extern "C"
 
 
 /**
- * 支持的最大的服务器数目. 根据需要可以更改这个值
+ * 支持的最大的服务器数目. 根据需要可以更改这个值 (不可以大于 30)
  */
 #ifndef XSYNC_SERVER_MAXID
-#  define XSYNC_SERVER_MAXID          64
+#  define XSYNC_SERVER_MAXID             10
+#elif XSYNC_SERVER_MAXID > 30
+#  error XSYNC_SERVER_MAXID is more than 30
+#elif XSYNC_SERVER_MAXID < 8
+#  error XSYNC_SERVER_MAXID is less than  8
 #endif
 
 

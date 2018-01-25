@@ -34,7 +34,8 @@ SOURCES := \
     client.c \
     client_api.c \
     watch_path.c \
-    watch_event.c
+    watch_event.c \
+    path_filt.c
 
 
 # see "../xsync-config.h" for definitions
@@ -42,8 +43,8 @@ SRC_DEFS := DEBUG \
 	XSYNC_CLIENT_APPNAME='"${APPNAME}"' \
 	XSYNC_SERVER_VERSION='"${VERSION}"' \
 	XSYNC_INEVENT_BUFSIZE=4096 \
-	XSYNC_SERVER_MAXID=16 \
-	XSYNC_CLIENT_THREADS_MAX=8 \
+	XSYNC_SERVER_MAXID=10 \
+	XSYNC_CLIENT_THREADS_MAX=16 \
 	XSYNC_CLIENT_QUEUES_MAX=256
 
 

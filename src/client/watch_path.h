@@ -37,8 +37,9 @@ extern "C" {
 #endif
 
 #include "../common.h"
-
 #include "../common/dhlist.h"
+
+#include "path_filt.h"
 
 
 /**
@@ -52,7 +53,7 @@ typedef struct xs_watch_path_t
     char pathid[XSYNC_CLIENTID_MAXLEN + 1];
 
     /* inotify watch mask */
-    uint32_t  watch_mask;
+    uint32_t  events_mask;
     int watch_wd;
 
 //    char pathprefix[FSYNC_PATHPREFIX_LEN + 1];
@@ -75,35 +76,48 @@ typedef struct xs_watch_path_t
 
     /**
      * 指定该目录下的文件需要同步到那些服务器
-     * serverid_list[0] = servers
-     *    sid = [ 1 : servers ]
+     * sid_masks[0] = sid_max
+     *    sid = [ 1 : sid_max ]
      */
-    int serverid_list[XSYNC_SERVER_MAXID + 1];
+    int sid_masks[XSYNC_SERVER_MAXID + 1];
 
     /**
-     * dhlist node */
+     * 包含的文件的正则表达式
+     */
+    XS_path_filt included_filters[XSYNC_SERVER_MAXID + 1];
+
+    /**
+     * 排除文件的正则表达式
+     */
+    XS_path_filt excluded_filters[XSYNC_SERVER_MAXID + 1];
+
+    /**
+     * dhlist node
+     */
     struct list_head  i_list;
     struct hlist_node i_hash;
 
     /**
-     * hash map for watch_wd */
+     * hash map for watch_wd
+     */
     struct xs_watch_path_t * next;
 
-    /* absolute path for monitor */
+    /* absolute path for watch */
     char fullpath[0];
 } * XS_watch_path, xs_watch_path_t;
 
 
 __attribute__((used))
-static inline int watch_path_get_servers (XS_watch_path wp)
+static inline int watch_path_get_sid_max (XS_watch_path wp)
 {
-    return wp->serverid_list[0];
+    return wp->sid_masks[0];
 }
 
 
-extern int XS_watch_path_create (const char * fullpath, uint32_t mask, XS_watch_path * outwp);
+extern int XS_watch_path_create (const char * pathid, const char * fullpath, uint32_t events_mask, XS_watch_path * outwp);
 
 extern void XS_watch_path_release (XS_watch_path * wp);
+
 
 
 #if defined(__cplusplus)

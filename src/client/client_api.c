@@ -92,31 +92,138 @@
  *                    |
  *                    |     (以下文件为可选)
  *                    |
- *                    +---- 1.INCLUDE  (可选, 服务1: 包含文件的正则表达式)
+ *                    +---- 0.included  (可选, 适用于全部服务: 包含文件的正则表达式)
+ *                    +---- 0.excluded  (可选, 适用于全部服务: 排除的文件的正则表达式)
+ *                    |                      [全部服务  = included - excluded]
  *                    |
- *                    +---- 1.EXCLUDE  (可选, 服务1: 排除文件的正则表达式)
+ *                    +---- 1.included  (可选, 服务1: 包含文件的正则表达式)
+ *                    +---- 1.excluded  (可选, 服务1: 排除的文件的正则表达式)
+ *                    |                      [服务1  = included - excluded]
  *                    |
- *                    +---- 2.INCLUDE  (可选)
+ *                    +---- 2.excluded  (可选, 服务2: 排除的文件的正则表达式
+ *                    |                      [服务2  = all - excluded]
  *                           ...
  *
  */
-__attribute__((used))
-static int client_init_from_watch (XS_client client, const char * watchdir)
+
+static int listdir_cb(char * path, int pathlen, struct dirent *ent, XS_client client)
 {
+    int  lnk, sid, err;
 
+    lnk = fileislink(path, 0, 0);
 
+    if (isdir(path)) {
+        if (lnk) {
+            char * abspath = realpath(path, 0);
 
-    validate_client_config(client);
+            if (abspath) {
+                XS_watch_path  wp;
 
-    return -1;
+                char * pathid = strrchr(path, '/') + 1;
+
+                LOGGER_DEBUG("watch pathid=[%s] -> (%s)", pathid, abspath);
+
+                err = XS_watch_path_create(pathid, abspath, IN_ACCESS | IN_MODIFY, &wp);
+
+                free(abspath);
+
+                if (err) {
+                    // error
+                    return 0;
+                }
+
+                if (! XS_client_add_path(client, wp)) {
+                    XS_watch_path_release(&wp);
+                    // error
+                    return 0;
+                }
+            } else {
+                LOGGER_ERROR("realpath error(%d): %s", errno, strerror(errno));
+                return 0;
+            }
+        } else {
+            LOGGER_WARN("ignored path due to not a symbol link: %s", path);
+        }
+    } else {
+        char sid_table[10];
+        char sid_included[20];
+        char sid_excluded[20];
+
+        for (sid = 1; sid < XSYNC_SERVER_MAXID; sid++) {
+            snprintf(sid_table, sizeof(sid_table), "%d", sid);
+            snprintf(sid_included, sizeof(sid_included), "%d.included", sid);
+            snprintf(sid_excluded, sizeof(sid_excluded), "%d.excluded", sid);
+
+            if (! strcmp(sid_table, ent->d_name)) {
+                // 设置 servers_opts
+                assert(client->servers_opts[sid].magic == 0);
+
+                char * sidfile = realpath(path, 0);
+                if (! sidfile) {
+                    LOGGER_ERROR("realpath error(%d): %s", errno, strerror(errno));
+                    return 0;
+                }
+
+                if (lnk) {
+                    LOGGER_INFO("init sid=%d from: %s -> %s", sid, path, sidfile);
+                } else {
+                    LOGGER_INFO("init sid=%d from: %s", sid, path);
+                }
+
+                err = server_opt_init(&client->servers_opts[sid], sid, sidfile);
+
+                free(sidfile);
+
+                if (err) {
+                    // 有错误, 中止运行
+                    return 0;
+                }
+
+                if (client->servers_opts[0].sidmax < sid) {
+                    client->servers_opts[0].sidmax = sid;
+                }
+            }
+
+            if (! strcmp(sid_included, ent->d_name)) {
+                // 读 sid.INCLUDE 文件, 设置 sid 包含哪些目录文件
+                LOGGER_WARN("TODO: read %s pattern to include path or files for server-%d", sid_included, sid);
+
+            }
+
+            if (! strcmp(sid_excluded, ent->d_name)) {
+                // 读 sid.EXCLUDE 文件, 设置 sid 排除哪些目录文件
+                LOGGER_WARN("TODO: read %s pattern to exclude path or files for server-%d", sid_excluded, sid);
+
+            }
+        }
+    }
+
+    // continue to next
+    return 1;
 }
 
 
 __attribute__((used))
-static int client_init_from_conf (XS_client client, const char * config)
+static int client_init_from_watch (XS_client client, const char * watchdir, char * inbuf, size_t inbufsize)
 {
+    int err;
 
-    validate_client_config(client);
+    err = listdir(watchdir, inbuf, inbufsize, (listdir_callback_t) listdir_cb, (void*) client);
+
+    if (! err) {
+        // 设置 watch_path 的 sid_masks
+
+
+    }
+
+
+    return err;
+}
+
+
+__attribute__((used))
+static int client_init_from_config (XS_client client, const char * config, char * inbuf, size_t inbufsize)
+{
 
     return -1;
 }
@@ -178,11 +285,11 @@ static void free_xsync_client (void *pv)
 }
 
 
-int XS_client_create (const char * config, int force_watch, XS_client * outClient)
+int XS_client_create (char * config, int force_watch, char * inbuf, size_t inbufsize, XS_client * outClient)
 {
     int i, sid, err;
 
-    xs_client_t * client;
+    XS_client client;
 
     int SERVERS = 2;
     int THREADS = 4;
@@ -190,7 +297,8 @@ int XS_client_create (const char * config, int force_watch, XS_client * outClien
 
     *outClient = 0;
 
-    client = (xs_client_t *) mem_alloc(1, sizeof(xs_client_t));
+    client = (XS_client) mem_alloc(1, sizeof(xs_client_t));
+    assert(client->thread_args == 0);
 
     /* PTHREAD_PROCESS_PRIVATE = 0 */
     LOGGER_TRACE("pthread_cond_init(%d)", PTHREAD_PROCESS_PRIVATE);
@@ -207,25 +315,30 @@ int XS_client_create (const char * config, int force_watch, XS_client * outClien
         INIT_HLIST_HEAD(&client->hlist[i]);
     }
 
-    client->servers_opts->servers = SERVERS;
-    client->threads = THREADS;
-    client->queues = QUEUES;
-    client->sendfile = 1;
+    client->servers_opts->sidmax = 0;
     client->infd = -1;
 
-    client_init_from_watch(client, config);
-
-    //client_init_from_watch(client, config);
-
-
-    /* populate server_opts from config */
-    for (sid = 1; sid <= SERVERS; sid++) {
-        xs_server_opts_t * server_opts = client_get_server_by_id(client, sid);
-
-        server_opt_init(server_opts);
-
-        // TODO:
+    /* http://www.cnblogs.com/jimmychange/p/3498862.html */
+    LOGGER_DEBUG("inotify_init");
+    client->infd = inotify_init();
+    if (client->infd == -1) {
+        LOGGER_ERROR("inotify_init() error(%d): %s", errno, strerror(errno));
+        free_xsync_client((void*) client);
+        return (-1);
     }
+
+    if (force_watch) {
+        err = client_init_from_watch(client, config, inbuf, inbufsize);
+    } else {
+        err = client_init_from_config(client, config, inbuf, inbufsize);
+    }
+
+    // TODO: err???
+
+    client->threads = THREADS;
+    client->queues = QUEUES;
+
+    validate_client_config(client);
 
     /* create per thread data */
     client->thread_args = (void **) mem_alloc(THREADS, sizeof(void*));
@@ -237,8 +350,8 @@ int XS_client_create (const char * config, int force_watch, XS_client * outClien
         perdata->threadid = i + 1;
 
         // TODO: socket
-        for (sid = 1; sid <= SERVERS; sid++) {
-            xs_server_opts_t * server = client_get_server_by_id(client, sid);
+        for (sid = 1; sid <= client_get_sid_max(client); sid++) {
+            XS_server_opts server = client_get_server_by_id(client, sid);
 
             int sockfd = opensocket(server->host, server->port, server->sockopts.timeosec, server->sockopts.nowait, &err);
 
@@ -272,39 +385,9 @@ int XS_client_create (const char * config, int force_watch, XS_client * outClien
         return (-1);
     }
 
-    /* http://www.cnblogs.com/jimmychange/p/3498862.html */
-    LOGGER_DEBUG("inotify_init");
-    client->infd = inotify_init();
-    if (client->infd == -1) {
-        LOGGER_ERROR("inotify_init() error(%d): %s", errno, strerror(errno));
-        free_xsync_client((void*) client);
-        return (-1);
-    }
-
     /**
-     * TODO: add watch path from XMLCONF
+     * output xs_client_t object
      */
-    do {
-        char pathfile[20];
-
-        int mask = IN_ACCESS | IN_MODIFY;
-
-        xs_watch_path_t * wp = 0;
-
-        snprintf(pathfile, sizeof(pathfile), "/tmp");
-
-        if (XS_watch_path_create(pathfile, mask, &wp) == 0) {
-            if (! XS_client_add_path(client, wp)) {
-                XS_watch_path_release(&wp);
-            }
-        } else {
-            free_xsync_client((void*) client);
-            return (-1);
-        }
-    } while(0);
-
-    /**
-     * output xs_client_t object */
     if ((err = RefObjectInit(client)) == 0) {
         *outClient = client;
         LOGGER_TRACE("xclient=%p", client);
@@ -404,7 +487,8 @@ int XS_client_add_path (XS_client client, XS_watch_path wp)
         /**
          * add inotify watch
          */
-        wp->watch_wd = inotify_add_watch(client->infd, wp->fullpath, wp->watch_mask);
+        assert(client->infd != -1);
+        wp->watch_wd = inotify_add_watch(client->infd, wp->fullpath, wp->events_mask);
         if (wp->watch_wd == -1) {
             LOGGER_ERROR("inotify_add_watch error(%d): %s", errno, strerror(errno));
             return (0);
@@ -542,8 +626,6 @@ static void event_task (thread_context_t * thread_ctx)
     if (task->flags == XS_watch_event_typeid) {
         XS_watch_event event = (XS_watch_event) task->argument;
         task->flags = 0;
-
-        sleep(3000);
 
         // MUST release event after using
         XS_watch_event_release(&event);

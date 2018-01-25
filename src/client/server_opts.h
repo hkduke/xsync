@@ -28,11 +28,12 @@ extern "C" {
 
 #include "../common.h"
 
+
 typedef struct xs_server_opts_t
 {
     union {
         int magic;
-        int servers;
+        int sidmax;
     };
 
     char host[XSYNC_HOSTNAME_MAXLEN + 1];
@@ -43,15 +44,48 @@ typedef struct xs_server_opts_t
 
 
 __attribute__((used))
-static void server_opt_init (XS_server_opts opts)
+static int server_opt_init (XS_server_opts opts, int sid, const char * sidfile)
 {
     bzero(opts, sizeof(xs_server_opts_t));
 
-    strcpy(opts->host, "pepstack.com");
+    FILE * fp = fopen(sidfile, "r");
 
-    opts->port = 8960;
+    if (fp) {
+        char buf[256] = {0};
 
-    sockconn_opts_init_default(&opts->sockopts);
+        if (fgets(buf, sizeof(buf), fp)) {
+            if (strchr(buf, '\n')) {
+                *strchr(buf, '\n') = 0;
+            }
+
+            char * p = strchr(buf, ':');
+            if (p) {
+                char * m = strchr(p, '#');
+
+                if (m) {
+                    *p++ = 0;
+                    *m++ = 0;
+
+                    strcpy(opts->host, buf);
+                    opts->port = (ushort) atoi(p);
+                    opts->magic = (int) atoi(m);
+
+                    // TODO:
+                    sockconn_opts_init_default(&opts->sockopts);
+
+                    // 成功: success
+                    LOGGER_TRACE("sid=%d host=%s port=%d magic=%d (%s)", sid, opts->host, opts->port, opts->magic, sidfile);
+                    return 0;
+                }
+            }
+        }
+
+        fclose(fp);
+    }
+
+    // 失败: error
+    LOGGER_ERROR("sid=%d error(%d): %s. (%s)", sid, errno, strerror(errno), sidfile);
+    return (-1);
 }
 
 
