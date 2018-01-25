@@ -47,6 +47,14 @@
  *            |       |
  *            |       +---- xsync-client-1.0.0   (客户端程序)
  *            |
+ *            |
+ *            +---- conf/                        (客户端配置文件目录)
+ *            |       |
+ *            |       +---- xsync-client.conf    (客户端配置文件)
+ *            |       |
+ *            |       +---- log4crc              (客户端日志配置文件)
+ *            |
+ *            |
  *            +---- sid/                         (服务器配置目录)
  *            |       |
  *            |       +---- pepstack-server/           (服务器名称目录)
@@ -60,11 +68,6 @@
  *            |       |
  *            |       +---- ...
  *            |
- *            +---- conf/                        (客户端配置文件目录)
- *            |       |
- *            |       +---- xsync-client.conf    (客户端配置文件)
- *            |       |
- *            |       +---- log4crc              (客户端日志配置文件)
  *            |
  *            |
  *            +---- watch/             (可选, 客户端 watch 目录)
@@ -202,6 +205,11 @@ int XS_client_create (const char * xmlconf, XS_client * outClient)
     client->queues = QUEUES;
     client->sendfile = 1;
     client->infd = -1;
+
+    client_init_from_watch(client, xmlconf);
+
+    //client_init_from_watch(client, xmlconf);
+
 
     /* populate server_opts from xmlconf */
     for (sid = 1; sid <= SERVERS; sid++) {
