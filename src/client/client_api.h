@@ -210,7 +210,7 @@ extern int XS_client_add_path (XS_client client, XS_watch_path wp);
 
 extern int XS_client_remove_path (XS_client client, char * path);
 
-extern int XS_client_waiting_events (XS_client client);
+extern int XS_client_listening_events (XS_client client);
 
 extern int XS_client_lock (XS_client client);
 

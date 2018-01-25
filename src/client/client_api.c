@@ -18,6 +18,59 @@
 *
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
+
+/**
+ * client_api.c
+ *
+ * 从 watch 目录初始化 client. watch 目录遵循下面的规则:
+ *
+ *  xsync-client-home/                           (客户端主目录)
+ *            |
+ *            +---- CLIENTID  (客户端唯一标识 ID, 确保名称符合文件目录名规则, 长度不大于 40 字符)
+ *            |
+ *            +---- LICENCE                      (客户端版权文件)
+ *            |
+ *            +---- bin/
+ *            |       |
+ *            |       +---- xsync-client-1.0.0   (客户端程序)
+ *            |
+ *            |
+ *            +---- conf/                        (客户端配置文件目录)
+ *            |       |
+ *            |       +---- xsync-client.conf    (客户端配置文件)
+ *            |       |
+ *            |       +---- log4crc              (客户端日志配置文件)
+ *            |
+ *            |
+ *            +---- watch/             (可选, 客户端 watch 目录)
+ *                    |
+ *                    +---- pathlinkA -> /path/to/A/
+ *                    |
+ *                    +---- pathlinkB -> /path/to/B/
+ *                    |
+ *                    +---- pathLinkC -> /path/to/C/
+ *                    |        ...
+ *                    +---- pathLinkN -> /path/to/N/
+ *                    |
+ *                    +---- 1  (服务器 sid=1, 内容仅1行="host:port#magic")
+ *                    |
+ *                    +---- 2  (服务器 sid=2)
+ *                    |
+ *                    +      ... (服务器 sid顺序编制, 不可以跳跃)
+ *                    |
+ *                    +---- i  (服务器 sid=i. 最大服务号不可以超过255. 参考手册)
+ *                    |
+ *                    |     (以下文件为可选)
+ *                    |
+ *                    +---- 1.include  (可选, 服务1: 包含文件的正则表达式)
+ *                    |
+ *                    +---- 1.exclude  (可选, 服务1: 排除文件的正则表达式)
+ *                    |
+ *                    +---- 2.include  (可选)
+ *                           ...
+ *
+ */
+
 #include "client.h"
 
 #include "watch_path.h"
@@ -25,8 +78,13 @@
 
 #define XSYNC_GET_HLIST_HASHID(path)   ((int)(BKDRHash(path) & XSYNC_PATH_HASH_MAXID))
 
+static int client_init_from_watch (const char * xmlconf, XS_client * outClient)
+{
 
-static inline void free_xsync_client (void *pv)
+}
+
+
+static void free_xsync_client (void *pv)
 {
     int i, sid;
     xs_client_t * client = (xs_client_t *) pv;
@@ -373,7 +431,7 @@ int XS_client_remove_path (XS_client client, char * path)
 }
 
 
-int XS_client_waiting_events (XS_client client)
+int XS_client_listening_events (XS_client client)
 {
     fd_set set;
 

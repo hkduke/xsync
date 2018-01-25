@@ -358,7 +358,7 @@ int run_forever (char * xmlconf, char * buff, ssize_t sizebuf)
     err = XS_client_create(xmlconf, &client);
 
     if (! err) {
-        XS_client_waiting_events(client);
+        XS_client_listening_events(client);
 
         XS_client_release(&client);
     }
