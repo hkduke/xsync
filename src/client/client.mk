@@ -35,7 +35,7 @@ SOURCES := \
     client_api.c \
     watch_path.c \
     watch_event.c \
-    path_filt.c
+    path_filter.c
 
 
 # see "../xsync-config.h" for definitions

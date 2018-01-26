@@ -20,7 +20,7 @@
 ***********************************************************************/
 
 /**
- * path_filt.h
+ * path_filter.h
  *   path filter using regex
  *
  * author:
@@ -40,7 +40,7 @@ extern "C" {
 #include "../common.h"
 
 
-typedef struct xs_path_filt_t
+typedef struct xs_path_filter_t
 {
     EXTENDS_REFOBJECT_TYPE();
 
@@ -49,12 +49,12 @@ typedef struct xs_path_filt_t
 
     ssize_t  length;
     char     filters[0];
-} * XS_path_filt, xs_path_filt_t;
+} * XS_path_filter, xs_path_filter_t;
 
 
-extern int XS_path_filt_create (const char **filters, int num_filters, XS_path_filt * pfilt);
+extern int XS_path_filter_create (const char **filters, int num_filters, XS_path_filter * pfilt);
 
-extern void XS_path_filt_release (XS_path_filt * pfilt);
+extern void XS_path_filter_release (XS_path_filter * pfilt);
 
 
 

@@ -20,7 +20,7 @@
 ***********************************************************************/
 
 /**
- * path_filter.c
+ * path_filt.c
  *   path filter using regex
  *
  * author:
@@ -31,7 +31,7 @@
  *
  */
 
-#include "path_filter.h"
+#include "path_filt.h"
 
 
 int XS_path_filter_create (const char **filters, int num_filters, XS_path_filter * pfilt)

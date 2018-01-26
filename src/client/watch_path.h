@@ -39,7 +39,7 @@ extern "C" {
 #include "../common.h"
 #include "../common/dhlist.h"
 
-#include "path_filt.h"
+#include "path_filter.h"
 
 
 /**
@@ -84,12 +84,12 @@ typedef struct xs_watch_path_t
     /**
      * 包含的文件的正则表达式
      */
-    XS_path_filt included_filters[XSYNC_SERVER_MAXID + 1];
+    XS_path_filter included_filters[XSYNC_SERVER_MAXID + 1];
 
     /**
      * 排除文件的正则表达式
      */
-    XS_path_filt excluded_filters[XSYNC_SERVER_MAXID + 1];
+    XS_path_filter excluded_filters[XSYNC_SERVER_MAXID + 1];
 
     /**
      * dhlist node
