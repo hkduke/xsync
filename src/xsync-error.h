@@ -20,46 +20,49 @@
 ***********************************************************************/
 
 /**
- * watch_event.h
+ * xsync-error.h
+ *   Definitions for xsync-client and xsync-server
  *
- * author:
- *     master@pepstack.com
+ * author: master@pepstack.com
  *
- * create: 2018-01-24
- * update: 2018-01-24
- *
+ * create: 2018-01-29
+ * update: 2018-01-29
  */
-#ifndef WATCH_EVENT_H_INCLUDED
-#define WATCH_EVENT_H_INCLUDED
+
+#ifndef XSYNC_ERROR_H_
+#define XSYNC_ERROR_H_
 
 #if defined(__cplusplus)
-extern "C" {
+extern "C"
+{
 #endif
 
-#include "../common.h"
+#define XS_IS_NULL(p)       ((p) == 0)
+#define XS_IS_SUCCESS(r)    ((r) == XS_SUCCESS)
+#define XS_HAS_ERROR(r)     ((r) != XS_NOERROR)
 
-#include "xsync-error.h"
-
-
-#define XS_watch_event_typeid   100
-
-
-typedef struct xs_watch_event_t
-{
-    EXTENDS_REFOBJECT_TYPE();
+#define XS_IS_TRUE(b)       ((b) == XS_TRUE)
+#define XS_IS_FALSE(b)      ((b) == XS_FALSE)
 
 
+typedef void XS_VOID;
 
-} * XS_watch_event, xs_watch_event_t;
+typedef int XS_RESULT;
+
+#define XS_SUCCESS    0
+#define XS_NOERROR    XS_SUCCESS
+
+#define XS_ERROR    (-1)
 
 
-extern int XS_watch_event_create (XS_watch_event * event);
+typedef int XS_BOOL;
 
-extern void XS_watch_event_release (XS_watch_event * event);
+#define XS_TRUE       1
+#define XS_FALSE      0
 
 
 #if defined(__cplusplus)
 }
 #endif
 
-#endif /* WATCH_EVENT_H_INCLUDED */
+#endif /* XSYNC_ERROR_H_ */

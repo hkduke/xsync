@@ -20,12 +20,14 @@
 ***********************************************************************/
 
 /**
-* common.h
-*   common api
-*
-* Last Updated: 2017-01-09
-* Last Updated: 2018-01-21
-*/
+ * common.h
+ *   common api
+ *
+ * author: master@pepstack.com
+ *
+ * create: 2017-01-09
+ * update: 2018-01-29
+ */
 #ifndef COMMON_H_INCLUDED
 #define COMMON_H_INCLUDED
 

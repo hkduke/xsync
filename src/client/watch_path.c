@@ -35,7 +35,7 @@ static inline void free_watch_path (void *pv)
 }
 
 
-int XS_watch_path_create (const char * pathid, const char * fullpath, uint32_t events_mask, XS_watch_path * outwp)
+XS_RESULT XS_watch_path_create (const char * pathid, const char * fullpath, uint32_t events_mask, XS_watch_path * outwp)
 {
     int sid, err;
     size_t cb;
@@ -69,16 +69,16 @@ int XS_watch_path_create (const char * pathid, const char * fullpath, uint32_t e
     if ((err = RefObjectInit(wpath)) == 0) {
         LOGGER_TRACE("xpath=%p (%s=>%s)", wpath, wpath->pathid, wpath->fullpath);
         *outwp = wpath;
-        return 0;
+        return XS_SUCCESS;
     } else {
         LOGGER_FATAL("RefObjectInit error(%d): %s", err, strerror(err));
         free_watch_path((void*) wpath);
-        return (-1);
+        return XS_ERROR;
     }
 }
 
 
-void XS_watch_path_release (xs_watch_path_t ** wp)
+XS_VOID XS_watch_path_release (xs_watch_path_t ** wp)
 {
     LOGGER_TRACE0();
 
@@ -91,10 +91,13 @@ XS_path_filter XS_watch_path_get_included_filter (XS_watch_path wp, int sid)
     assert(sid > 0 && sid <= XSYNC_SERVER_MAXID);
 
     if (! wp->included_filters[sid]) {
-        wp->included_filters[sid] = XS_path_filter_create(XS_path_filter_patterns_block);
+        wp->included_filters[sid] = XS_path_filter_create(sid, XS_path_filter_patterns_block);
     }
 
-    return wp->included_filters[sid];
+    XS_path_filter filt = wp->included_filters[sid];
+    assert(filt->sid == sid);
+
+    return filt;
 }
 
 
@@ -103,30 +106,11 @@ XS_path_filter XS_watch_path_get_excluded_filter (XS_watch_path wp, int sid)
     assert(sid > 0 && sid <= XSYNC_SERVER_MAXID);
 
     if (! wp->excluded_filters[sid]) {
-        wp->excluded_filters[sid] = XS_path_filter_create(XS_path_filter_patterns_block);
+        wp->excluded_filters[sid] = XS_path_filter_create(sid, XS_path_filter_patterns_block);
     }
 
-    return wp->excluded_filters[sid];
-}
+    XS_path_filter filt = wp->excluded_filters[sid];
+    assert(filt->sid == sid);
 
-
-int XS_watch_path_set_path_filter (XS_watch_path wp, int sid, int filter_type, XS_path_filter pf)
-{
-    if (sid < 1 || sid > XSYNC_SERVER_MAXID) {
-        LOGGER_ERROR("invalid sid: %d", sid);
-        return (-1);
-    }
-
-    if (filter_type == XS_path_filter_type_included) {
-        assert(wp->included_filters[sid] == 0);
-        wp->included_filters[sid] = pf;
-    } else if (filter_type == XS_path_filter_type_excluded) {
-        assert(wp->excluded_filters[sid] == 0);
-        wp->excluded_filters[sid] = pf;
-    } else {
-        LOGGER_ERROR("invalid filter type: %d", filter_type);
-        return (-2);
-    }
-
-    return 0;
+    return filt;
 }

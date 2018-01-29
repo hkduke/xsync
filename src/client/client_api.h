@@ -26,6 +26,8 @@
 extern "C" {
 #endif
 
+#include "xsync-error.h"
+
 #include "server_opts.h"
 #include "watch_path.h"
 #include "watch_entry.h"
@@ -186,38 +188,40 @@ static inline int client_threadpool_unused_queues (XS_client client)
 
 
 __attribute__((used))
-static inline xs_server_opts_t * client_get_server_by_id (XS_client client, int id /* 1 based */)
+static inline xs_server_opts_t * client_get_server_by_id (XS_client client, int sid /* 1 based */)
 {
-    assert(id > 0 && id <= client->servers_opts->sidmax);
-    return client->servers_opts + id;
+    assert(sid > 0 && sid <= client->servers_opts->sidmax);
+    return client->servers_opts + sid;
 }
 
 
-extern int XS_client_create (char * config, int force_watch, char * inbuf, size_t inbufsize, XS_client * outClient);
+extern XS_RESULT XS_client_create (char * config, int force_watch, char * inbuf, size_t inbufsize, XS_client * outClient);
 
-extern void XS_client_release (XS_client * pclient);
+extern XS_VOID XS_client_release (XS_client * pclient);
 
-extern void XS_client_clear_all_paths (XS_client client);
+extern XS_VOID XS_client_clear_all_paths (XS_client client);
 
-typedef int (*traverse_watch_path_callback_t)(XS_watch_path wp, void * data);
+typedef XS_RESULT (*traverse_watch_path_callback_t)(XS_watch_path wp, void * data);
 
-extern void XS_client_traverse_watch_paths (XS_client client, traverse_watch_path_callback_t traverse_path_cb, void * data);
+extern XS_VOID XS_client_traverse_watch_paths (XS_client client, traverse_watch_path_callback_t traverse_path_cb, void * data);
 
-extern int XS_client_find_path (XS_client client, char * path, XS_watch_path * outPath);
+extern XS_BOOL XS_client_find_path (XS_client client, char * path, XS_watch_path * outPath);
 
-extern int XS_client_add_path (XS_client client, XS_watch_path wp);
+extern XS_BOOL XS_client_add_path (XS_client client, XS_watch_path wp);
 
-extern int XS_client_remove_path (XS_client client, char * path);
+extern XS_BOOL XS_client_remove_path (XS_client client, char * path);
 
-extern int XS_client_listening_events (XS_client client);
+extern XS_VOID XS_client_listening_events (XS_client client);
 
-extern int XS_client_lock (XS_client client);
+extern XS_RESULT XS_client_lock (XS_client client);
 
-extern int XS_client_unlock (XS_client client);
+extern XS_RESULT XS_client_unlock (XS_client client);
 
-extern int XS_client_on_inotify_event (XS_client client, struct inotify_event * inevent);
+extern XS_RESULT XS_client_on_inotify_event (XS_client client, struct inotify_event * inevent);
 
-extern int XS_client_read_path_filter_file (XS_client client, const char * filter_file, int sid, int filter_type);
+extern XS_RESULT XS_client_read_filter_file (XS_client client, const char * filter_file, int sid, int filter_type);
+
+extern XS_RESULT XS_client_save_config_file (XS_client client, const char * config_file);
 
 #if defined(__cplusplus)
 }

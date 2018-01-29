@@ -53,12 +53,13 @@ static void free_path_filter (void *pv)
 }
 
 
-XS_path_filter XS_path_filter_create (int capacity)
+XS_path_filter XS_path_filter_create (int sid, int capacity)
 {
     XS_path_filter filt = (XS_path_filter) mem_alloc(1, sizeof(xs_path_filter_t));
 
     assert(filt->patterns_used == 0);
 
+    filt->sid = sid;
     filt->patterns_capacity = capacity;
     filt->patterns = (XS_pattern *) mem_alloc(capacity, sizeof(XS_pattern));
 
@@ -68,7 +69,7 @@ XS_path_filter XS_path_filter_create (int capacity)
 }
 
 
-void XS_path_filter_release (XS_path_filter * pfilt)
+XS_VOID XS_path_filter_release (XS_path_filter * pfilt)
 {
     LOGGER_TRACE0();
 
@@ -76,7 +77,7 @@ void XS_path_filter_release (XS_path_filter * pfilt)
 }
 
 
-int XS_path_filter_add_patterns (XS_path_filter filt, char * patterns)
+XS_RESULT XS_path_filter_add_patterns (XS_path_filter filt, char * patterns)
 {
     char * p1, * p2;
     ssize_t len;
@@ -97,7 +98,7 @@ int XS_path_filter_add_patterns (XS_path_filter filt, char * patterns)
 
     filt->patterns[curpos] = 0;
 
-    err = -1;
+    err = XS_ERROR;
 
     while (p1 && (p2 = strstr(p1, "}}/{{")) > p1) {
         p2 += 2;
@@ -143,7 +144,7 @@ error_exit:
             xs_pattern_free(pattern);
         }
     } else if (pattern) {
-        assert(err == 0);
+        assert(err == XS_SUCCESS);
         filt->patterns_used++;
     }
 

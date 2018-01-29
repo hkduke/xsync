@@ -39,6 +39,11 @@ extern "C" {
 
 #include "../common.h"
 
+#include "../xmlconf.h"
+
+#include "xsync-error.h"
+
+
 #define XS_path_filter_type_excluded   0
 #define XS_path_filter_type_included   1
 
@@ -86,8 +91,8 @@ extern "C" {
 #define XS_reg_target_dir_name     1
 
 static const char * XS_reg_targets[] = {
-    "XS_reg_target_file_name",
-    "XS_reg_target_dir_name"
+    "file_name",
+    "dir_name"
 };
 
 
@@ -118,7 +123,7 @@ typedef struct xs_pattern_t
 typedef struct xs_path_filter_t
 {
     EXTENDS_REFOBJECT_TYPE();
-
+    int sid;
     ssize_t patterns_used;
     ssize_t patterns_capacity;
     struct xs_pattern_t ** patterns;
@@ -197,11 +202,45 @@ static int xs_pattern_build_and_add (XS_path_filter pf, int at, XS_pattern p)
 }
 
 
-extern XS_path_filter XS_path_filter_create (int capacity);
+__attribute__((used))
+static void xs_filter_set_xmlnode (XS_path_filter filter, mxml_node_t *filter_node)
+{
+    int i;
 
-extern void XS_path_filter_release (XS_path_filter * pfilt);
+    mxmlElementSetAttrf(filter_node, "sid", "%d", filter->sid);
+    mxmlElementSetAttrf(filter_node, "pipes", "%d", (int) filter->patterns_used);
 
-extern int XS_path_filter_add_patterns (XS_path_filter filt, char * patterns);
+    for (i = 0; i < filter->patterns_used; i++) {
+        XS_pattern pattern = filter->patterns[i];
+        mxml_node_t *first_pattern_node = 0;
+
+        while (pattern) {
+            mxml_node_t *pattern_node;
+
+            if (! first_pattern_node) {
+                first_pattern_node = mxmlNewElement(filter_node, "pattern-pipe");
+                pattern_node = first_pattern_node;
+            } else {
+                pattern_node = mxmlNewElement(first_pattern_node, "pattern");
+            }
+
+            mxmlElementSetAttrf(pattern_node, "target", "%s", XS_reg_targets[pattern->target]);
+            mxmlElementSetAttrf(pattern_node, "regex", "%s", pattern->pattern);
+
+            //mxmlNewTextf(pattern_node, 0, "%s", pattern->pattern);
+
+            // next pattern
+            pattern = pattern->next;
+        }
+    }
+}
+
+
+extern XS_path_filter XS_path_filter_create (int sid, int capacity);
+
+extern XS_VOID XS_path_filter_release (XS_path_filter * pfilt);
+
+extern XS_RESULT XS_path_filter_add_patterns (XS_path_filter filt, char * patterns);
 
 #if defined(__cplusplus)
 }

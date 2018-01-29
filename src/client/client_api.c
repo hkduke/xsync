@@ -27,6 +27,8 @@
 
 #include "watch_path.h"
 
+#include "../xmlconf.h"
+
 
 #define XSYNC_GET_HLIST_HASHID(path)   ((int)(BKDRHash(path) & XSYNC_PATH_HASH_MAXID))
 
@@ -184,7 +186,7 @@ static int listdir_cb(const char * path, int pathlen, struct dirent *ent, XS_cli
 
             if (! strcmp(sid_included, ent->d_name)) {
                 // 读 sid.included 文件, 设置 sid 包含哪些目录文件
-                err = XS_client_read_path_filter_file(client, path, sid, XS_path_filter_type_included);
+                err = XS_client_read_filter_file(client, path, sid, XS_path_filter_type_included);
 
                 if (! err) {
                     LOGGER_INFO("read included filter: %s", path);
@@ -196,7 +198,7 @@ static int listdir_cb(const char * path, int pathlen, struct dirent *ent, XS_cli
                 }
             } else if (! strcmp(sid_excluded, ent->d_name)) {
                 // 读 sid.excluded 文件, 设置 sid 排除哪些目录文件
-                err = XS_client_read_path_filter_file(client, path, sid, XS_path_filter_type_excluded);
+                err = XS_client_read_filter_file(client, path, sid, XS_path_filter_type_excluded);
 
                 if (! err) {
                     LOGGER_INFO("read excluded filter: %s", path);
@@ -321,7 +323,7 @@ static void free_xsync_client (void *pv)
 }
 
 
-int XS_client_create (char * config, int force_watch, char * inbuf, size_t inbufsize, XS_client * outClient)
+XS_RESULT XS_client_create (char * config, int force_watch, char * inbuf, size_t inbufsize, XS_client * outClient)
 {
     int i, sid, err;
 
@@ -341,7 +343,7 @@ int XS_client_create (char * config, int force_watch, char * inbuf, size_t inbuf
     if (0 != pthread_cond_init(&client->condition, PTHREAD_PROCESS_PRIVATE)) {
         LOGGER_FATAL("pthread_cond_init() error(%d): %s", errno, strerror(errno));
         free((void*) client);
-        return (-1);
+        return XS_ERROR;
     };
 
     /* init dhlist for watch path */
@@ -360,7 +362,7 @@ int XS_client_create (char * config, int force_watch, char * inbuf, size_t inbuf
     if (client->infd == -1) {
         LOGGER_ERROR("inotify_init() error(%d): %s", errno, strerror(errno));
         free_xsync_client((void*) client);
-        return (-1);
+        return XS_ERROR;
     }
 
     if (force_watch) {
@@ -369,7 +371,10 @@ int XS_client_create (char * config, int force_watch, char * inbuf, size_t inbuf
         err = client_init_from_config(client, config, inbuf, inbufsize);
     }
 
-    // TODO: err???
+    if (err) {
+        free_xsync_client((void*) client);
+        return XS_ERROR;
+    }
 
     client->threads = THREADS;
     client->queues = QUEUES;
@@ -418,7 +423,7 @@ int XS_client_create (char * config, int force_watch, char * inbuf, size_t inbuf
     if (! client->pool) {
         LOGGER_FATAL("threadpool_create error: Out of memory");
         free_xsync_client((void*) client);
-        return (-1);
+        return XS_ERROR;
     }
 
     /**
@@ -427,16 +432,19 @@ int XS_client_create (char * config, int force_watch, char * inbuf, size_t inbuf
     if ((err = RefObjectInit(client)) == 0) {
         *outClient = client;
         LOGGER_TRACE("xclient=%p", client);
-        return 0;
+
+        XS_client_save_config_file(client, "/tmp/xsync-client-conf-debug.xml");
+
+        return XS_SUCCESS;
     } else {
         LOGGER_FATAL("RefObjectInit error(%d): %s", err, strerror(err));
         free_xsync_client((void*) client);
-        return (-1);
+        return XS_ERROR;
     }
 }
 
 
-void XS_client_release (XS_client * inClient)
+XS_VOID XS_client_release (XS_client * inClient)
 {
     LOGGER_TRACE0();
 
@@ -444,13 +452,13 @@ void XS_client_release (XS_client * inClient)
 }
 
 
-int XS_client_lock (XS_client client)
+XS_RESULT XS_client_lock (XS_client client)
 {
     return 0;
 }
 
 
-int XS_client_unlock (XS_client client)
+XS_RESULT XS_client_unlock (XS_client client)
 {
     return 0;
 }
@@ -469,7 +477,7 @@ void XS_client_traverse_watch_paths (XS_client client, traverse_watch_path_callb
 }
 
 
-void XS_client_clear_all_paths (XS_client client)
+XS_VOID XS_client_clear_all_paths (XS_client client)
 {
     struct list_head *list, *node;
 
@@ -499,7 +507,7 @@ void XS_client_clear_all_paths (XS_client client)
 }
 
 
-int XS_client_find_path (XS_client client, char * path, XS_watch_path * outwp)
+XS_BOOL XS_client_find_path (XS_client client, char * path, XS_watch_path * outwp)
 {
     struct hlist_node * hp;
 
@@ -518,15 +526,15 @@ int XS_client_find_path (XS_client client, char * path, XS_watch_path * outwp)
                 *outwp = wp;
             }
 
-            return 1;
+            return XS_TRUE;
         }
     }
 
-    return 0;
+    return XS_FALSE;
 }
 
 
-int XS_client_add_path (XS_client client, XS_watch_path wp)
+XS_BOOL XS_client_add_path (XS_client client, XS_watch_path wp)
 {
     if (! XS_client_find_path(client, wp->fullpath, 0)) {
         int hash;
@@ -540,7 +548,7 @@ int XS_client_add_path (XS_client client, XS_watch_path wp)
         wp->watch_wd = inotify_add_watch(client->infd, wp->fullpath, wp->events_mask);
         if (wp->watch_wd == -1) {
             LOGGER_ERROR("inotify_add_watch error(%d): %s", errno, strerror(errno));
-            return (0);
+            return XS_FALSE;
         }
 
         /**
@@ -563,14 +571,14 @@ int XS_client_add_path (XS_client client, XS_watch_path wp)
         // 成功
         LOGGER_TRACE("xpath=%p, wd=%d. (%s)", wp, wp->watch_wd, wp->fullpath);
 
-        return 1;
+        return XS_TRUE;
     }
 
-    return 0;
+    return XS_FALSE;
 }
 
 
-int XS_client_remove_path (XS_client client, char * path)
+XS_BOOL XS_client_remove_path (XS_client client, char * path)
 {
     struct hlist_node *hp;
     struct hlist_node *hn;
@@ -595,19 +603,19 @@ int XS_client_remove_path (XS_client client, char * path)
 
                 XS_watch_path_release(&wp);
 
-                return 1;
+                return XS_TRUE;
             } else {
                 LOGGER_ERROR("xpath=%p, inotify_rm_watch error(%d: %s). (%s)", wp, errno, strerror(errno), wp->fullpath);
-                return 0;
+                return XS_FALSE;
             }
         }
     }
 
-    return 0;
+    return XS_FALSE;
 }
 
 
-int XS_client_listening_events (XS_client client)
+XS_VOID XS_client_listening_events (XS_client client)
 {
     fd_set set;
 
@@ -682,7 +690,7 @@ static void event_task (thread_context_t * thread_ctx)
 }
 
 
-int XS_client_on_inotify_event (XS_client client, struct inotify_event * inevent)
+XS_RESULT XS_client_on_inotify_event (XS_client client, struct inotify_event * inevent)
 {
     int num;
 
@@ -734,7 +742,7 @@ int XS_client_on_inotify_event (XS_client client, struct inotify_event * inevent
 }
 
 
-int XS_client_read_path_filter_file (XS_client client, const char * filter_file, int sid, int filter_type)
+XS_RESULT XS_client_read_filter_file (XS_client client, const char * filter_file, int sid, int filter_type)
 {
     int ret, lineno, err;
     char * endpath;
@@ -786,19 +794,19 @@ int XS_client_read_path_filter_file (XS_client client, const char * filter_file,
         while (fgets(line, sizeof(line), fp)) {
             lineno++;
 
+            p = strrchr(line, '\n');
+            if (p) {
+                *p = 0;
+            }
+            p = strrchr(line, '\r');
+            if (p) {
+                *p = 0;
+            }
+
             if (line[0] == '#') {
                 // 忽略注释行
                 LOGGER_TRACE("[%s - line: %d] %s", sid_filter, lineno, line);
                 continue;
-            }
-
-            p = strrchr(line, '\n');
-            if (p) {
-                * p = 0;
-            }
-            p = strrchr(line, '\r');
-            if (p) {
-                * p = 0;
             }
 
             filter = strchr(line, '/');
@@ -858,3 +866,103 @@ error_exit:
     return err;
 }
 
+
+static int watch_path_set_xmlnode_cb (XS_watch_path wp, void *data)
+{
+    int sid, sid_max;
+
+    mxml_node_t *watchpathsNode = (mxml_node_t *) data;
+
+    mxml_node_t *watch_path_node;
+    mxml_node_t *included_filters_node;
+    mxml_node_t *excluded_filters_node;
+    mxml_node_t *filter_node;
+
+    watch_path_node = mxmlNewElement(watchpathsNode, "watch-path");
+
+    mxmlElementSetAttrf(watch_path_node, "pathid", "%s", wp->pathid);
+
+    mxmlElementSetAttrf(watch_path_node, "fullpath", "%s", wp->fullpath);
+
+    included_filters_node = mxmlNewElement(watch_path_node, "included-filters");
+    excluded_filters_node = mxmlNewElement(watch_path_node, "excluded-filters");
+
+    sid_max = wp->sid_masks[0];
+
+    for (sid = 1; sid <= sid_max; sid++) {
+        XS_path_filter filter = wp->included_filters[sid];
+        if (filter) {
+            filter_node = mxmlNewElement(included_filters_node, "filter-patterns");
+
+            xs_filter_set_xmlnode(filter, filter_node);
+        }
+    }
+
+    for (sid = 1; sid <= sid_max; sid++) {
+        XS_path_filter filter = wp->excluded_filters[sid];
+        if (filter) {
+            filter_node = mxmlNewElement(excluded_filters_node, "filter-patterns");
+
+            xs_filter_set_xmlnode(filter, filter_node);
+        }
+    }
+
+    return 1;
+}
+
+
+/**
+ * https://www.systutorials.com/docs/linux/man/3-mxml/
+ */
+XS_RESULT XS_client_save_config_file (XS_client client, const char * config_file)
+{
+    int sid;
+
+    mxml_node_t *xml;
+
+    xml = mxmlNewXML("1.0");
+
+    mxml_node_t * root;
+    mxml_node_t * configNode;
+    mxml_node_t * serversNode;
+    mxml_node_t * watchpathsNode;
+
+    mxml_node_t * node;
+
+    root = mxmlNewElement(xml, "xsync-client-conf");
+    configNode = mxmlNewElement(root, "application");
+    serversNode = mxmlNewElement(root, "server-list");
+
+    do {
+        mxmlElementSetAttrf(configNode, "clientid", "%s", client->clientid);
+
+        mxmlElementSetAttrf(configNode, "threads", "%d", client->threads);
+
+        mxmlElementSetAttrf(configNode, "queues", "%d", client->queues);
+    } while(0);
+
+    for (sid = 1; sid <= client_get_sid_max(client); sid++) {
+        XS_server_opts server = client_get_server_by_id(client, sid);
+
+        node = mxmlNewElement(serversNode, "server");
+
+        mxmlElementSetAttrf(node, "sid", "%d", sid);
+        mxmlElementSetAttrf(node, "host", "%s", server->host);
+        mxmlElementSetAttrf(node, "port", "%d", server->port);
+        mxmlElementSetAttrf(node, "magic", "%d", server->magic);
+
+
+    } while(0);
+
+    watchpathsNode = mxmlNewElement(root, "watch-path-list");
+    XS_client_traverse_watch_paths(client, watch_path_set_xmlnode_cb, watchpathsNode);
+
+
+    FILE *fp;
+
+    fp = fopen(config_file, "w");
+    mxmlSaveFile(xml, fp, MXML_NO_CALLBACK);
+    fclose(fp);
+
+    return XS_SUCCESS;
+}

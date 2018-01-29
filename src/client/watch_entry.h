@@ -38,6 +38,7 @@ extern "C" {
 
 #include "../common.h"
 
+#include "xsync-error.h"
 
 /**
  * xs_watch_entry_t

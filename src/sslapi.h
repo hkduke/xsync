@@ -42,7 +42,6 @@
  * create: 2015-07-21
  * update: 2018-01-24
  */
-
 #ifndef SSLAPI_H_INCLUDED
 #define SSLAPI_H_INCLUDED
 

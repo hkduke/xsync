@@ -20,13 +20,14 @@
 ***********************************************************************/
 
 /**
-* header.h
-*   common linux header files
-*
-* Init Created: 2014-08-01
-* Last Updated: 2017-01-09
-*/
-
+ * header.h
+ *   common linux header files
+ *
+ * author: master@pepstack.com
+ *
+ * create: 2014-08-01
+ * update: 2017-01-09
+ */
 #ifndef HEADER_H_INCLUDED
 #define HEADER_H_INCLUDED
 

@@ -22,8 +22,8 @@
 /**
  * sockapi.h
  *
- * 2014-08-01: init created
- * 2018-01-22: last updated
+ * create: 2014-08-01
+ * update: 2018-01-22
  *
  */
 #ifndef SOCKAPI_H_INCLUDED

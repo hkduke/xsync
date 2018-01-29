@@ -39,6 +39,8 @@ extern "C" {
 #include "../common.h"
 #include "../common/dhlist.h"
 
+#include "xsync-error.h"
+
 #include "path_filter.h"
 
 
@@ -114,9 +116,9 @@ static inline int watch_path_get_sid_max (XS_watch_path wp)
 }
 
 
-extern int XS_watch_path_create (const char * pathid, const char * fullpath, uint32_t events_mask, XS_watch_path * outwp);
+extern XS_RESULT XS_watch_path_create (const char * pathid, const char * fullpath, uint32_t events_mask, XS_watch_path * outwp);
 
-extern void XS_watch_path_release (XS_watch_path * wp);
+extern XS_VOID XS_watch_path_release (XS_watch_path * wp);
 
 extern XS_path_filter XS_watch_path_get_included_filter (XS_watch_path wp, int sid);
 
