@@ -118,7 +118,9 @@ extern int XS_watch_path_create (const char * pathid, const char * fullpath, uin
 
 extern void XS_watch_path_release (XS_watch_path * wp);
 
+extern XS_path_filter XS_watch_path_get_included_filter (XS_watch_path wp, int sid);
 
+extern XS_path_filter XS_watch_path_get_excluded_filter (XS_watch_path wp, int sid);
 
 #if defined(__cplusplus)
 }

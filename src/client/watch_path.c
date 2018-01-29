@@ -84,3 +84,49 @@ void XS_watch_path_release (xs_watch_path_t ** wp)
 
     RefObjectRelease((void**) wp, free_watch_path);
 }
+
+
+XS_path_filter XS_watch_path_get_included_filter (XS_watch_path wp, int sid)
+{
+    assert(sid > 0 && sid <= XSYNC_SERVER_MAXID);
+
+    if (! wp->included_filters[sid]) {
+        wp->included_filters[sid] = XS_path_filter_create(XS_path_filter_capacity_default);
+    }
+
+    return wp->included_filters[sid];
+}
+
+
+XS_path_filter XS_watch_path_get_excluded_filter (XS_watch_path wp, int sid)
+{
+    assert(sid > 0 && sid <= XSYNC_SERVER_MAXID);
+
+    if (! wp->excluded_filters[sid]) {
+        wp->excluded_filters[sid] = XS_path_filter_create(XS_path_filter_capacity_default);
+    }
+
+    return wp->excluded_filters[sid];
+}
+
+
+int XS_watch_path_set_path_filter (XS_watch_path wp, int sid, int filter_type, XS_path_filter pf)
+{
+    if (sid < 1 || sid > XSYNC_SERVER_MAXID) {
+        LOGGER_ERROR("invalid sid: %d", sid);
+        return (-1);
+    }
+
+    if (filter_type == XS_path_filter_type_included) {
+        assert(wp->included_filters[sid] == 0);
+        wp->included_filters[sid] = pf;
+    } else if (filter_type == XS_path_filter_type_excluded) {
+        assert(wp->excluded_filters[sid] == 0);
+        wp->excluded_filters[sid] = pf;
+    } else {
+        LOGGER_ERROR("invalid filter type: %d", filter_type);
+        return (-2);
+    }
+
+    return 0;
+}

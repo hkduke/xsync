@@ -213,6 +213,8 @@ extern int XS_client_unlock (XS_client client);
 
 extern int XS_client_on_inotify_event (XS_client client, struct inotify_event * inevent);
 
+extern int XS_client_read_path_filter_file (XS_client client, const char * filter_file, int sid, int filter_type);
+
 #if defined(__cplusplus)
 }
 #endif

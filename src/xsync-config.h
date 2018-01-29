@@ -56,6 +56,14 @@ extern "C"
 
 
 /**
+ * define max size of path file
+ */
+#ifndef XSYNC_PATH_MAX_SIZE
+#  define XSYNC_PATH_MAX_SIZE        PATH_MAX
+#endif
+
+
+/**
  * The directory ("/var/run/xsync") specified by XSYNC_PID_PREFIX
  *   must has R|W permission for current runuser.
  */

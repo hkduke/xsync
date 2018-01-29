@@ -39,6 +39,12 @@ extern "C" {
 
 #include "../common.h"
 
+#define XS_path_filter_type_excluded   0
+#define XS_path_filter_type_included   1
+
+#define XS_path_filter_capacity_default  16
+
+
 /** 1.included
  * # 目录名总是以字符 '/' 结尾
  * #
@@ -51,7 +57,7 @@ extern "C" {
  */
 
 /*
-#define XS_reg_target_file_name
+
 #define XS_reg_target_file_
 #define XS_reg_target_file_
 #define XS_reg_target_file_
@@ -63,7 +69,7 @@ extern "C" {
 #define XS_reg_target_flnk_
 #define XS_reg_target_flnk_
 
-#define XS_reg_target_dir_name
+
 #define XS_reg_target_dir_
 #define XS_reg_target_dir_
 #define XS_reg_target_dir_
@@ -76,13 +82,22 @@ extern "C" {
 #define XS_reg_target_dlnk_
 */
 
+#define XS_reg_target_file_name    0
+#define XS_reg_target_dir_name     1
+
+static const char * XS_reg_targets[] = {
+    "XS_reg_target_file_name",
+    "XS_reg_target_dir_name"
+};
+
+
 /**
  * 正则模式对象
  */
-typedef struct reg_pattern_t
+typedef struct xs_pattern_t
 {
     // 指向下一个正则模式对象
-    struct regex_pattern_t * next;
+    struct xs_pattern_t * next;
 
     // 要匹配的目标对象类型:
     //   文件名, 目录名, 文件创建时间, 目录创建时间, 文件修改时间, 目录修改时间, ...
@@ -93,24 +108,85 @@ typedef struct reg_pattern_t
     regex_t  reg;
 
     // 原始正则语句
+    ssize_t pattern_size;
     char pattern[0];
-} reg_pattern_t;
+} * XS_pattern, xs_pattern_t;
 
 
 typedef struct xs_path_filter_t
 {
     EXTENDS_REFOBJECT_TYPE();
 
-    int num_regs;
-    reg_pattern_t  reg_patterns[0];
+    ssize_t patterns_used;
+    ssize_t patterns_capacity;
+    struct xs_pattern_t ** patterns;
 } * XS_path_filter, xs_path_filter_t;
 
 
-extern int XS_path_filter_create (const char **filters, int num_filters, XS_path_filter * pfilt);
+//typedef int (*listdir_callback_t)(const char * path, int pathlen, struct dirent *ent, void * data);
+__attribute__((used))
+static XS_pattern xs_pattern_create (const char * pattern, ssize_t pattern_len, int target)
+{
+    if (pattern_len > 4 &&
+        pattern[0] == '{' && pattern[1] == '{' &&
+        pattern[pattern_len - 1] == '}' && pattern[pattern_len - 2] == '}') {
+        XS_pattern p = (XS_pattern) mem_alloc(1, sizeof(xs_pattern_t) + pattern_len + 1);
+
+        p->target = target;
+
+        p->pattern_size = pattern_len - 3;
+
+        memcpy(p->pattern, pattern + 2, p->pattern_size);
+
+        p->pattern[p->pattern_size - 1] = 0;
+
+        LOGGER_DEBUG("%s: '%s'", XS_reg_targets[p->target], p->pattern);
+
+        return p;
+    }
+
+    LOGGER_ERROR("invalid pattern: %s", pattern);
+    return 0;
+}
+
+
+__attribute__((used))
+static void xs_pattern_free (xs_pattern_t * p)
+{
+    while (p) {
+        regfree(&p->reg);
+
+        xs_pattern_free(p->next);
+
+        free(p);
+    }
+}
+
+
+__attribute__((used))
+static void xs_pattern_build_and_add (XS_path_filter pf, XS_pattern p)
+{
+    int err;
+
+    err = regcomp(&p->reg, p->pattern, 0);
+    if (! err) {
+        if (pf->patterns_used == pf->patterns_capacity) {
+            pf->patterns_capacity += XS_path_filter_capacity_default;
+
+            pf->patterns = realloc(pf->patterns, sizeof(xs_pattern_t *) * pf->patterns_capacity);
+            assert(pf->patterns);
+
+            pf->patterns[pf->patterns_used++] = p;
+        }
+    }
+}
+
+
+extern XS_path_filter XS_path_filter_create (int capacity);
 
 extern void XS_path_filter_release (XS_path_filter * pfilt);
 
-
+extern int XS_path_filter_add_patterns (XS_path_filter filt, char * patterns);
 
 #if defined(__cplusplus)
 }

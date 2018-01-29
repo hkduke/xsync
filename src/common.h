@@ -252,7 +252,7 @@ static int isdir(const char *path)
 }
 
 
-typedef int (*listdir_callback_t)(char * path, int pathlen, struct dirent *ent, void * data);
+typedef int (*listdir_callback_t)(const char * path, int pathlen, struct dirent *ent, void * data);
 
 __attribute__((used))
 static int listdir(const char * path, char * inbuf, ssize_t inbufsize, listdir_callback_t lscb, void * data)
@@ -342,8 +342,8 @@ static int getfullpath (char * path, char * outpath, size_t size_outpath)
 
     char * p;
 
-    char savedcwd[PATH_MAX + 1];
-    char fullpath[PATH_MAX + 1];
+    char savedcwd[XSYNC_PATH_MAX_SIZE];
+    char fullpath[XSYNC_PATH_MAX_SIZE];
     char name[XSYNC_HOSTNAME_MAXLEN + 1];
 
     *name = 0;
@@ -458,7 +458,7 @@ static int fileislink (const char * pathfile, char * inbuf, ssize_t inbufsize)
         bufsize = inbufsize;
         buf = inbuf;
     } else {
-        bufsize = PATH_MAX + 1;
+        bufsize = XSYNC_PATH_MAX_SIZE;
         buf = (char *) malloc(bufsize);
     }
 
@@ -566,7 +566,7 @@ static int getstartcmd (int argc, char ** argv, char * cmdbuf, ssize_t bufsize, 
 {
     int err, len;
     char *tmpbin;
-    char linkpath[PATH_MAX + 1];
+    char linkpath[XSYNC_PATH_MAX_SIZE];
 
     err = fileislink(argv[0], cmdbuf, bufsize);
     if (err == 1) {
