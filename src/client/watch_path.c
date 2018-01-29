@@ -91,7 +91,7 @@ XS_path_filter XS_watch_path_get_included_filter (XS_watch_path wp, int sid)
     assert(sid > 0 && sid <= XSYNC_SERVER_MAXID);
 
     if (! wp->included_filters[sid]) {
-        wp->included_filters[sid] = XS_path_filter_create(XS_path_filter_capacity_default);
+        wp->included_filters[sid] = XS_path_filter_create(XS_path_filter_patterns_block);
     }
 
     return wp->included_filters[sid];
@@ -103,7 +103,7 @@ XS_path_filter XS_watch_path_get_excluded_filter (XS_watch_path wp, int sid)
     assert(sid > 0 && sid <= XSYNC_SERVER_MAXID);
 
     if (! wp->excluded_filters[sid]) {
-        wp->excluded_filters[sid] = XS_path_filter_create(XS_path_filter_capacity_default);
+        wp->excluded_filters[sid] = XS_path_filter_create(XS_path_filter_patterns_block);
     }
 
     return wp->excluded_filters[sid];

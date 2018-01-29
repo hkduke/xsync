@@ -199,6 +199,10 @@ extern void XS_client_release (XS_client * pclient);
 
 extern void XS_client_clear_all_paths (XS_client client);
 
+typedef int (*traverse_watch_path_callback_t)(XS_watch_path wp, void * data);
+
+extern void XS_client_traverse_watch_paths (XS_client client, traverse_watch_path_callback_t traverse_path_cb, void * data);
+
 extern int XS_client_find_path (XS_client client, char * path, XS_watch_path * outPath);
 
 extern int XS_client_add_path (XS_client client, XS_watch_path wp);

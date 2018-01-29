@@ -172,7 +172,6 @@ static int listdir_cb(const char * path, int pathlen, struct dirent *ent, XS_cli
                 }
 
                 err = server_opt_init(&client->servers_opts[sid], sid, sidfile);
-
                 if (err) {
                     // 有错误, 中止运行
                     return 0;
@@ -185,19 +184,57 @@ static int listdir_cb(const char * path, int pathlen, struct dirent *ent, XS_cli
 
             if (! strcmp(sid_included, ent->d_name)) {
                 // 读 sid.included 文件, 设置 sid 包含哪些目录文件
-                LOGGER_INFO("read included filter: %s", path);
                 err = XS_client_read_path_filter_file(client, path, sid, XS_path_filter_type_included);
 
+                if (! err) {
+                    LOGGER_INFO("read included filter: %s", path);
+                } else {
+                    LOGGER_ERROR("read included filter: %s", path);
+
+                    // 有错误, 中止运行
+                    return 0;
+                }
             } else if (! strcmp(sid_excluded, ent->d_name)) {
                 // 读 sid.excluded 文件, 设置 sid 排除哪些目录文件
-                LOGGER_INFO("read excluded filter: %s", path);
                 err = XS_client_read_path_filter_file(client, path, sid, XS_path_filter_type_excluded);
 
+                if (! err) {
+                    LOGGER_INFO("read excluded filter: %s", path);
+                } else {
+                    LOGGER_ERROR("read excluded filter: %s", path);
+
+                    // 有错误, 中止运行
+                    return 0;
+                }
             }
         }
     }
 
     // continue to next
+    return 1;
+}
+
+
+static int watch_path_set_sid_masks_cb (XS_watch_path wp, void * data)
+{
+    int sid;
+
+    XS_client client = (XS_client) data;
+
+    wp->sid_masks[0] = client->servers_opts[0].sidmax;
+
+    // TODO: 设置 watch_path 的 sid_masks
+    for (sid = 1; sid <= wp->sid_masks[0]; sid++) {
+        // wp->included_filters[sid]
+
+        // wp->excluded_filters[sid]
+
+        // TODO:
+        wp->sid_masks[sid] = 0xfffff;
+
+        LOGGER_WARN("pathid: %s (sid=%d, masks=%d)", wp->pathid, sid, 0xfffff);
+    }
+
     return 1;
 }
 
@@ -211,10 +248,10 @@ static int client_init_from_watch (XS_client client, const char * watchdir, char
 
     if (! err) {
         // 设置 watch_path 的 sid_masks
+        LOGGER_TRACE("max sid=%d", client->servers_opts[0].sidmax);
 
-
+        XS_client_traverse_watch_paths(client, watch_path_set_sid_masks_cb, client);
     }
-
 
     return err;
 }
@@ -416,6 +453,19 @@ int XS_client_lock (XS_client client)
 int XS_client_unlock (XS_client client)
 {
     return 0;
+}
+
+
+void XS_client_traverse_watch_paths (XS_client client, traverse_watch_path_callback_t traverse_path_cb, void * data)
+{
+    struct list_head *list;
+
+    list_for_each(list, &client->list1) {
+        struct xs_watch_path_t *wp = list_entry(list, struct xs_watch_path_t, i_list);
+        if (traverse_path_cb(wp, data) != 1) {
+            return;
+        }
+    }
 }
 
 
@@ -686,12 +736,13 @@ int XS_client_on_inotify_event (XS_client client, struct inotify_event * inevent
 
 int XS_client_read_path_filter_file (XS_client client, const char * filter_file, int sid, int filter_type)
 {
-    int ret, lineno;
-    FILE * fp;
+    int ret, lineno, err;
     char * endpath;
 
     char pathid_file[XSYNC_IO_BUFSIZE];
     char resolved_path[XSYNC_IO_BUFSIZE];
+
+    FILE * fp = 0;
 
     ret = snprintf(pathid_file, sizeof(pathid_file), "%s", filter_file);
     if (ret < 0) {
@@ -716,7 +767,14 @@ int XS_client_read_path_filter_file (XS_client client, const char * filter_file,
     assert(filter_type == XS_path_filter_type_excluded || filter_type == XS_path_filter_type_included);
 
     fp = fopen(filter_file, "r");
-    if (fp) {
+    if (! fp) {
+        LOGGER_ERROR("fopen error(%d): %s", errno, strerror(errno));
+        return (-4);
+    }
+
+    err = -5;
+
+    do {
         char line[XSYNC_IO_BUFSIZE];
         char * p, * filter;
 
@@ -746,7 +804,7 @@ int XS_client_read_path_filter_file (XS_client client, const char * filter_file,
             filter = strchr(line, '/');
             if (! filter) {
                 LOGGER_ERROR("[%s - line: %d] %s", sid_filter, lineno, line);
-                continue;
+                goto error_exit;
             }
 
             LOGGER_DEBUG("[%s - line: %d] %s", sid_filter, lineno, line);
@@ -773,21 +831,30 @@ int XS_client_read_path_filter_file (XS_client client, const char * filter_file,
 
                     LOGGER_DEBUG("pathid=%s, pathid-file=%s", line, pathid_file);
 
-                    XS_path_filter_add_patterns(pf, filter);
+                    ret = XS_path_filter_add_patterns(pf, filter);
+                    if (ret != 0) {
+                        err = -6;
+                        goto error_exit;
+                    }
                 } else {
+                    err = -7;
                     LOGGER_WARN("not found path: (pathid=%s, pathid-file=%s)", line, pathid_file);
+                    goto error_exit;
                 }
             } else {
+                err = -8;
                 LOGGER_ERROR("realpath error(%d): %s", errno, strerror(errno));
+                goto error_exit;
             }
         }
 
-
+        // success return here
         fclose(fp);
         return 0;
-    }
+    } while(0);
 
-    LOGGER_ERROR("fopen error(%d): %s", errno, strerror(errno));
-    return (-1);
+error_exit:
+    fclose(fp);
+    return err;
 }
 

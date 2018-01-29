@@ -162,6 +162,11 @@ extern "C"
 #endif
 
 
+#ifndef XSYNC_ERRBUF_MAXLEN
+#  define XSYNC_ERRBUF_MAXLEN        255
+#endif
+
+
 #ifndef XSYNC_HOSTNAME_MAXLEN
 #  define XSYNC_HOSTNAME_MAXLEN      128
 #endif

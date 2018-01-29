@@ -48,17 +48,19 @@ static void free_path_filter (void *pv)
         xs_pattern_free(pf->patterns[i]);
     }
 
+    free(pf->patterns);
     free(pv);
 }
 
 
 XS_path_filter XS_path_filter_create (int capacity)
 {
-    XS_path_filter filt = (XS_path_filter) mem_alloc(1, sizeof(xs_path_filter_t) + sizeof(XS_pattern) * capacity);
+    XS_path_filter filt = (XS_path_filter) mem_alloc(1, sizeof(xs_path_filter_t));
 
     assert(filt->patterns_used == 0);
 
     filt->patterns_capacity = capacity;
+    filt->patterns = (XS_pattern *) mem_alloc(capacity, sizeof(XS_pattern));
 
     RefObjectInit(filt);
 
@@ -78,6 +80,7 @@ int XS_path_filter_add_patterns (XS_path_filter filt, char * patterns)
 {
     char * p1, * p2;
     ssize_t len;
+    int err, curpos;
     XS_pattern pattern;
 
     LOGGER_DEBUG("patterns='%s'", patterns);
@@ -85,13 +88,29 @@ int XS_path_filter_add_patterns (XS_path_filter filt, char * patterns)
     p1 = strstr(patterns, "{{");
     assert(p1 == patterns);
 
+    if (filt->patterns_used == filt->patterns_capacity) {
+        filt->patterns_capacity += XS_path_filter_patterns_block;
+        filt->patterns = (XS_pattern *) mem_realloc(filt->patterns, sizeof(XS_pattern) * filt->patterns_capacity);
+    }
+
+    curpos = (int) filt->patterns_used;
+
+    filt->patterns[curpos] = 0;
+
+    err = -1;
+
     while (p1 && (p2 = strstr(p1, "}}/{{")) > p1) {
         p2 += 2;
         *p2++ = 0;
 
         pattern = xs_pattern_create(p1, strlen(p1), XS_reg_target_dir_name);
+
         if (pattern) {
-            xs_pattern_build_and_add(filt, pattern);
+            err = xs_pattern_build_and_add(filt, curpos, pattern);
+            if (err) {
+                xs_pattern_free(pattern);
+                goto error_exit;
+            }
         }
 
         p1 = p2;
@@ -107,9 +126,26 @@ int XS_path_filter_add_patterns (XS_path_filter filt, char * patterns)
         }
 
         if (pattern) {
-            xs_pattern_build_and_add(filt, pattern);
+            err = xs_pattern_build_and_add(filt, curpos, pattern);
+            if (err) {
+                xs_pattern_free(pattern);
+                goto error_exit;
+            }
         }
     }
 
-    return 0;
+error_exit:
+    pattern = filt->patterns[curpos];
+
+    if (err) {
+        filt->patterns[curpos] = 0;
+        if (pattern) {
+            xs_pattern_free(pattern);
+        }
+    } else if (pattern) {
+        assert(err == 0);
+        filt->patterns_used++;
+    }
+
+    return err;
 }

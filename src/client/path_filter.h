@@ -42,7 +42,7 @@ extern "C" {
 #define XS_path_filter_type_excluded   0
 #define XS_path_filter_type_included   1
 
-#define XS_path_filter_capacity_default  16
+#define XS_path_filter_patterns_block  8
 
 
 /** 1.included
@@ -107,6 +107,8 @@ typedef struct xs_pattern_t
     // 根据原始正则语句存放编译好的正则对象
     regex_t  reg;
 
+    char errbuf[XSYNC_ERRBUF_MAXLEN + 1];
+
     // 原始正则语句
     ssize_t pattern_size;
     char pattern[0];
@@ -123,7 +125,6 @@ typedef struct xs_path_filter_t
 } * XS_path_filter, xs_path_filter_t;
 
 
-//typedef int (*listdir_callback_t)(const char * path, int pathlen, struct dirent *ent, void * data);
 __attribute__((used))
 static XS_pattern xs_pattern_create (const char * pattern, ssize_t pattern_len, int target)
 {
@@ -159,25 +160,39 @@ static void xs_pattern_free (xs_pattern_t * p)
         xs_pattern_free(p->next);
 
         free(p);
+
+        LOGGER_TRACE0();
     }
 }
 
 
 __attribute__((used))
-static void xs_pattern_build_and_add (XS_path_filter pf, XS_pattern p)
+static int xs_pattern_build_and_add (XS_path_filter pf, int at, XS_pattern p)
 {
     int err;
 
     err = regcomp(&p->reg, p->pattern, 0);
+
     if (! err) {
-        if (pf->patterns_used == pf->patterns_capacity) {
-            pf->patterns_capacity += XS_path_filter_capacity_default;
+        XS_pattern head = pf->patterns[at];
 
-            pf->patterns = realloc(pf->patterns, sizeof(xs_pattern_t *) * pf->patterns_capacity);
-            assert(pf->patterns);
+        assert(p->next == 0);
 
-            pf->patterns[pf->patterns_used++] = p;
+        if (! head) {
+            pf->patterns[at] = p;
+        } else {
+            while (head->next) {
+                head = head->next;
+            }
+            // add at end of list
+            head->next = p;
         }
+        // success
+        return 0;
+    } else {
+        regerror(err, &p->reg, p->errbuf, sizeof(p->errbuf));
+        LOGGER_ERROR("regcomp error(%d): %s. (%s)", err, p->errbuf, p->pattern);
+        return err;
     }
 }
 

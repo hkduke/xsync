@@ -127,6 +127,18 @@ static inline void * mem_alloc (int num, size_t size)
 }
 
 
+__attribute__((used)) __attribute__((malloc))
+static inline void * mem_realloc (void * pvOld, size_t newSize)
+{
+    void * pvNew = realloc(pvOld, newSize);
+    if (! pvNew) {
+        perror("recalloc");
+        exit(-1);
+    }
+    return pvNew;
+}
+
+
 __attribute__((used))
 static inline void mem_free (void **ppv)
 {
