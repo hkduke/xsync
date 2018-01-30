@@ -108,9 +108,9 @@
  *
  */
 
-static int listdir_cb(const char * path, int pathlen, struct dirent *ent, XS_client client)
+static int lscb_add_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client)
 {
-    int  lnk, sid, err;
+    int  lnk, err;
 
     char resolved_path[XSYNC_PATH_MAX_SIZE];
 
@@ -146,7 +146,22 @@ static int listdir_cb(const char * path, int pathlen, struct dirent *ent, XS_cli
         } else {
             LOGGER_WARN("ignored path due to not a symbol link: %s", path);
         }
-    } else {
+    }
+
+    // continue to next
+    return 1;
+}
+
+
+static int lscb_init_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client)
+{
+    int  lnk, sid, err;
+
+    char resolved_path[XSYNC_PATH_MAX_SIZE];
+
+    lnk = fileislink(path, 0, 0);
+
+    if (! isdir(path)) {
         char sid_table[10];
         char sid_included[20];
         char sid_excluded[20];
@@ -246,13 +261,19 @@ static int client_init_from_watch (XS_client client, const char * watchdir, char
 {
     int err;
 
-    err = listdir(watchdir, inbuf, inbufsize, (listdir_callback_t) listdir_cb, (void*) client);
-
+    err = listdir(watchdir, inbuf, inbufsize, (listdir_callback_t) lscb_add_watch_path, (void*) client);
     if (! err) {
-        // 设置 watch_path 的 sid_masks
-        LOGGER_TRACE("max sid=%d", client->servers_opts[0].sidmax);
+        err = listdir(watchdir, inbuf, inbufsize, (listdir_callback_t) lscb_init_watch_path, (void*) client);
 
-        XS_client_traverse_watch_paths(client, watch_path_set_sid_masks_cb, client);
+        if (! err) {
+            // 设置 watch_path 的 sid_masks
+            LOGGER_TRACE("max sid=%d", client->servers_opts[0].sidmax);
+
+            XS_client_traverse_watch_paths(client, watch_path_set_sid_masks_cb, client);
+            
+            // success
+            return 0;
+        }
     }
 
     return err;
@@ -513,6 +534,8 @@ XS_BOOL XS_client_find_path (XS_client client, char * path, XS_watch_path * outw
 
     // 计算 hash
     int hash = XSYNC_GET_HLIST_HASHID(path);
+
+    LOGGER_TRACE("fullpath=%s", path);
 
     hlist_for_each(hp, &client->hlist[hash]) {
         struct xs_watch_path_t * wp = hlist_entry(hp, struct xs_watch_path_t, i_hash);
