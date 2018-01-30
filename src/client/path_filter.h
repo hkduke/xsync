@@ -50,63 +50,29 @@ extern "C" {
 #define XS_path_filter_patterns_block  8
 
 
-/** 1.included
- * # 目录名总是以字符 '/' 结尾
- * #
- * xs_client_log/{{文件名匹配表达式1}}
- * xs_client_log/{{目录名匹配表达式1}}/{{文件名匹配表达式2}}
- * xs_client_log/{{目录名匹配表达式3}}/{{目录名匹配表达式2}}/{{文件名匹配表达式1}}
- * xs_client_log/{{目录名匹配表达式4}}/
- * xs_client_log/{{目录名匹配表达式4}}/
- * tmp/{{文件匹配表达式3}}
- */
+// 正则表达式模式匹配
+#define XS_pattern_target_regex        0
 
-/*
-
-#define XS_reg_target_file_
-#define XS_reg_target_file_
-#define XS_reg_target_file_
-#define XS_reg_target_file_
-
-#define XS_reg_target_flnk_name
-#define XS_reg_target_flnk_
-#define XS_reg_target_flnk_
-#define XS_reg_target_flnk_
-#define XS_reg_target_flnk_
+// 外部脚本模式匹配
+#define XS_pattern_target_script       1
 
 
-#define XS_reg_target_dir_
-#define XS_reg_target_dir_
-#define XS_reg_target_dir_
-#define XS_reg_target_dir_
-
-#define XS_reg_target_dlnk_name
-#define XS_reg_target_dlnk_
-#define XS_reg_target_dlnk_
-#define XS_reg_target_dlnk_
-#define XS_reg_target_dlnk_
-*/
-
-#define XS_reg_target_file_name    0
-#define XS_reg_target_dir_name     1
-
-static const char * XS_reg_targets[] = {
-    "file_name",
-    "dir_name"
+static const char * XS_pattern_target_names[] = {
+    "regex",
+    "script"
 };
 
 
 /**
- * 正则模式对象
+ * 模式匹配对象
  */
 typedef struct xs_pattern_t
 {
     // 指向下一个正则模式对象
     struct xs_pattern_t * next;
 
-    // 要匹配的目标对象类型:
-    //   文件名, 目录名, 文件创建时间, 目录创建时间, 文件修改时间, 目录修改时间, ...
-    //   链接文件名, 链接目录名
+    // 要匹配的目标对象类型: 正则表达式, 外部脚本
+    //
     int target;
 
     // 根据原始正则语句存放编译好的正则对象
@@ -114,8 +80,10 @@ typedef struct xs_pattern_t
 
     char errbuf[XSYNC_ERRBUF_MAXLEN + 1];
 
-    // 原始正则语句
-    ssize_t pattern_size;
+    // 语句长度(不包括结尾'\0'字符)
+    ssize_t pattern_len;
+
+    // 原始语句
     char pattern[0];
 } * XS_pattern, xs_pattern_t;
 
@@ -131,22 +99,29 @@ typedef struct xs_path_filter_t
 
 
 __attribute__((used))
-static XS_pattern xs_pattern_create (const char * pattern, ssize_t pattern_len, int target)
+static XS_pattern xs_pattern_create (const char * pattern, ssize_t pattern_len)
 {
     if (pattern_len > 4 &&
         pattern[0] == '{' && pattern[1] == '{' &&
         pattern[pattern_len - 1] == '}' && pattern[pattern_len - 2] == '}') {
+
         XS_pattern p = (XS_pattern) mem_alloc(1, sizeof(xs_pattern_t) + pattern_len + 1);
 
-        p->target = target;
+        if (pattern[2] == '@' && pattern[3] == '@') {
+            // 脚本文件名
+            p->target = XS_pattern_target_script;
+            p->pattern_len = pattern_len - 6;
+            memcpy(p->pattern, pattern + 4, p->pattern_len);
+        } else {
+            // 正则表达式
+            p->target = XS_pattern_target_regex;
+            p->pattern_len = pattern_len - 4;
+            memcpy(p->pattern, pattern + 2, p->pattern_len);
+        }
 
-        p->pattern_size = pattern_len - 3;
+        p->pattern[p->pattern_len] = 0;
 
-        memcpy(p->pattern, pattern + 2, p->pattern_size);
-
-        p->pattern[p->pattern_size - 1] = 0;
-
-        LOGGER_DEBUG("%s: '%s'", XS_reg_targets[p->target], p->pattern);
+        LOGGER_DEBUG("%s: '%s'", XS_pattern_target_names[p->target], p->pattern);
 
         return p;
     }
@@ -160,7 +135,9 @@ __attribute__((used))
 static void xs_pattern_free (xs_pattern_t * p)
 {
     while (p) {
-        regfree(&p->reg);
+        if (p->target == XS_pattern_target_regex) {
+            regfree(&p->reg);
+        }
 
         xs_pattern_free(p->next);
 
@@ -176,7 +153,11 @@ static int xs_pattern_build_and_add (XS_path_filter pf, int at, XS_pattern p)
 {
     int err;
 
-    err = regcomp(&p->reg, p->pattern, 0);
+    if (p->target == XS_pattern_target_regex) {
+        err = regcomp(&p->reg, p->pattern, 0);
+    } else {
+        err = 0;
+    }
 
     if (! err) {
         XS_pattern head = pf->patterns[at];
@@ -208,7 +189,7 @@ static void xs_filter_set_xmlnode (XS_path_filter filter, mxml_node_t *filter_no
     int i;
 
     mxmlElementSetAttrf(filter_node, "sid", "%d", filter->sid);
-    mxmlElementSetAttrf(filter_node, "pipes", "%d", (int) filter->patterns_used);
+    mxmlElementSetAttrf(filter_node, "size", "%d", (int) filter->patterns_used);
 
     for (i = 0; i < filter->patterns_used; i++) {
         XS_pattern pattern = filter->patterns[i];
@@ -218,14 +199,13 @@ static void xs_filter_set_xmlnode (XS_path_filter filter, mxml_node_t *filter_no
             mxml_node_t *pattern_node;
 
             if (! first_pattern_node) {
-                first_pattern_node = mxmlNewElement(filter_node, "pattern-pipe");
+                first_pattern_node = mxmlNewElement(filter_node, "xs:pattern");
                 pattern_node = first_pattern_node;
             } else {
-                pattern_node = mxmlNewElement(first_pattern_node, "pattern");
+                pattern_node = mxmlNewElement(first_pattern_node, "xs:sub-pattern");
             }
 
-            mxmlElementSetAttrf(pattern_node, "target", "%s", XS_reg_targets[pattern->target]);
-            mxmlElementSetAttrf(pattern_node, "regex", "%s", pattern->pattern);
+            mxmlElementSetAttr(pattern_node, XS_pattern_target_names[pattern->target], pattern->pattern);
 
             //mxmlNewTextf(pattern_node, 0, "%s", pattern->pattern);
 

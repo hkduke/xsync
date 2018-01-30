@@ -878,21 +878,21 @@ static int watch_path_set_xmlnode_cb (XS_watch_path wp, void *data)
     mxml_node_t *excluded_filters_node;
     mxml_node_t *filter_node;
 
-    watch_path_node = mxmlNewElement(watchpathsNode, "watch-path");
+    watch_path_node = mxmlNewElement(watchpathsNode, "xs:watch-path");
 
     mxmlElementSetAttrf(watch_path_node, "pathid", "%s", wp->pathid);
 
     mxmlElementSetAttrf(watch_path_node, "fullpath", "%s", wp->fullpath);
 
-    included_filters_node = mxmlNewElement(watch_path_node, "included-filters");
-    excluded_filters_node = mxmlNewElement(watch_path_node, "excluded-filters");
+    included_filters_node = mxmlNewElement(watch_path_node, "xs:included-filters");
+    excluded_filters_node = mxmlNewElement(watch_path_node, "xs:excluded-filters");
 
     sid_max = wp->sid_masks[0];
 
     for (sid = 1; sid <= sid_max; sid++) {
         XS_path_filter filter = wp->included_filters[sid];
         if (filter) {
-            filter_node = mxmlNewElement(included_filters_node, "filter-patterns");
+            filter_node = mxmlNewElement(included_filters_node, "xs:filter-patterns");
 
             xs_filter_set_xmlnode(filter, filter_node);
         }
@@ -901,13 +901,78 @@ static int watch_path_set_xmlnode_cb (XS_watch_path wp, void *data)
     for (sid = 1; sid <= sid_max; sid++) {
         XS_path_filter filter = wp->excluded_filters[sid];
         if (filter) {
-            filter_node = mxmlNewElement(excluded_filters_node, "filter-patterns");
+            filter_node = mxmlNewElement(excluded_filters_node, "xs:filter-patterns");
 
             xs_filter_set_xmlnode(filter, filter_node);
         }
     }
 
     return 1;
+}
+
+
+// MXML_WS_BEFORE_OPEN, MXML_WS_AFTER_OPEN, MXML_WS_BEFORE_CLOSE, MXML_WS_AFTER_CLOSE
+//
+static const char * whitespace_cb(mxml_node_t *node, int where)
+{
+    const char *name;
+
+    static char wrapline[] = "\n";
+
+    if (node->type != MXML_ELEMENT) {
+        return 0;
+    }
+
+    if (node->value.element.name == 0) {
+        return 0;
+    }
+
+    name = node->value.element.name;
+
+    if (where == MXML_WS_BEFORE_OPEN || where == MXML_WS_BEFORE_CLOSE) {
+        if (name[0] == 'x' && name[1] == 's' && name[2] == ':') {
+            if (! strcmp(name, "xs:application")) {
+                return "\n\t";
+            }
+            if (! strcmp(name, "xs:server-list")) {
+                return "\n\t";
+            }
+            if (! strcmp(name, "xs:watch-path-list")) {
+                return "\n\t";
+            }
+
+            if (! strcmp(name, "xs:server")) {
+                return "\n\t\t";
+            }
+            if (! strcmp(name, "xs:watch-path")) {
+                return "\n\t\t";
+            }
+
+            if (! strcmp(name, "xs:included-filters")) {
+                return "\n\t\t\t";
+            }
+            if (! strcmp(name, "xs:excluded-filters")) {
+                return "\n\t\t\t";
+            }
+
+            if (! strcmp(name, "xs:filter-patterns")) {
+                return "\n\t\t\t\t";
+            }
+
+            if (! strcmp(name, "xs:pattern")) {
+                return "\n\t\t\t\t\t";
+            }
+
+            if (! strcmp(name, "xs:sub-pattern")) {
+                return "\n\t\t\t\t\t\t";
+            }
+
+            return wrapline;
+        }
+    }
+
+    // 如果不需要添加空白字符则返回 0
+    return 0;
 }
 
 
@@ -918,9 +983,13 @@ XS_RESULT XS_client_save_config_file (XS_client client, const char * config_file
 {
     int sid;
 
-    mxml_node_t *xml;
+    mxml_node_t *xml = 0;
 
     xml = mxmlNewXML("1.0");
+    if (! xml) {
+        LOGGER_ERROR("mxmlNewXML error: out of memory");
+        return XS_ERROR;
+    }
 
     mxml_node_t * root;
     mxml_node_t * configNode;
@@ -929,40 +998,57 @@ XS_RESULT XS_client_save_config_file (XS_client client, const char * config_file
 
     mxml_node_t * node;
 
-    root = mxmlNewElement(xml, "xsync-client-conf");
-    configNode = mxmlNewElement(root, "application");
-    serversNode = mxmlNewElement(root, "server-list");
+    mxmlSetWrapMargin(0);
+
+    root = mxmlNewElement(xml, "xs:xsync-client-conf");
+
+    // 添加名称空间, 在Firefox中看不到, 在Chrome中可以
+    mxmlElementSetAttr(root, "xmlns:xs", "http://github.com/pepstack/xsync");
+    mxmlElementSetAttr(root, "copyright", "pepstack.com");
+
+    configNode = mxmlNewElement(root, "xs:application");
+    serversNode = mxmlNewElement(root, "xs:server-list");
 
     do {
         mxmlElementSetAttrf(configNode, "clientid", "%s", client->clientid);
-
         mxmlElementSetAttrf(configNode, "threads", "%d", client->threads);
-
         mxmlElementSetAttrf(configNode, "queues", "%d", client->queues);
     } while(0);
 
     for (sid = 1; sid <= client_get_sid_max(client); sid++) {
         XS_server_opts server = client_get_server_by_id(client, sid);
 
-        node = mxmlNewElement(serversNode, "server");
+        node = mxmlNewElement(serversNode, "xs:server");
 
         mxmlElementSetAttrf(node, "sid", "%d", sid);
         mxmlElementSetAttrf(node, "host", "%s", server->host);
         mxmlElementSetAttrf(node, "port", "%d", server->port);
         mxmlElementSetAttrf(node, "magic", "%d", server->magic);
-
-
     } while(0);
 
-    watchpathsNode = mxmlNewElement(root, "watch-path-list");
+    watchpathsNode = mxmlNewElement(root, "xs:watch-path-list");
+
     XS_client_traverse_watch_paths(client, watch_path_set_xmlnode_cb, watchpathsNode);
 
+    do {
+        FILE * fp;
 
-    FILE *fp;
+        fp = fopen(config_file, "w");
 
-    fp = fopen(config_file, "w");
-    mxmlSaveFile(xml, fp, MXML_NO_CALLBACK);
-    fclose(fp);
+        if (fp) {
+            mxmlSaveFile(xml, fp, whitespace_cb);
 
-    return XS_SUCCESS;
+            fclose(fp);
+            mxmlDelete(xml);
+
+            return XS_SUCCESS;
+        }
+
+        LOGGER_ERROR("fopen error(%d): %s. (%s)", errno, strerror(errno), config_file);
+    } while(0);
+
+    // 必须删除整个 xml
+    mxmlDelete(xml);
+
+    return XS_ERROR;
 }

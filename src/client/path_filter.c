@@ -104,7 +104,7 @@ XS_RESULT XS_path_filter_add_patterns (XS_path_filter filt, char * patterns)
         p2 += 2;
         *p2++ = 0;
 
-        pattern = xs_pattern_create(p1, strlen(p1), XS_reg_target_dir_name);
+        pattern = xs_pattern_create(p1, strlen(p1));
 
         if (pattern) {
             err = xs_pattern_build_and_add(filt, curpos, pattern);
@@ -121,9 +121,9 @@ XS_RESULT XS_path_filter_add_patterns (XS_path_filter filt, char * patterns)
         len = strlen(p1);
 
         if (p1[len - 1] == '/') {
-            pattern = xs_pattern_create(p1, len - 1, XS_reg_target_dir_name);
+            pattern = xs_pattern_create(p1, len - 1);
         } else {
-            pattern = xs_pattern_create(p1, len, XS_reg_target_file_name);
+            pattern = xs_pattern_create(p1, len);
         }
 
         if (pattern) {
