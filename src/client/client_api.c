@@ -874,7 +874,7 @@ XS_RESULT XS_client_read_filter_file (XS_client client, const char * filter_file
                 }
             } else {
                 err = -8;
-                LOGGER_ERROR("realpath error(%d): %s", errno, strerror(errno));
+                LOGGER_ERROR("realpath error(%d): %s. (%s)", errno, strerror(errno), pathid_file);
                 goto error_exit;
             }
         }
