@@ -37,6 +37,15 @@ extern "C"
 {
 #endif
 
+#define XSYNC_CLIENT_XMLNS    "http://github.com/pepstack/xsync/client"
+
+#define XSYNC_SERVER_XMLNS    "http://github.com/pepstack/xsync/server"
+
+#define XSYNC_COPYRIGHT       "pepstack.com"
+
+#define XSYNC_AUTHOR          "master@pepstack.com"
+
+
 #ifndef XSYNC_CLIENT_APPNAME
 #  define XSYNC_CLIENT_APPNAME   "xsync-client"
 #endif

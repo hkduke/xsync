@@ -270,7 +270,7 @@ static int client_init_from_watch (XS_client client, const char * watchdir, char
             LOGGER_TRACE("max sid=%d", client->servers_opts[0].sidmax);
 
             XS_client_traverse_watch_paths(client, watch_path_set_sid_masks_cb, client);
-            
+
             // success
             return 0;
         }
@@ -389,7 +389,7 @@ XS_RESULT XS_client_create (char * config, int force_watch, char * inbuf, size_t
     if (force_watch) {
         err = client_init_from_watch(client, config, inbuf, inbufsize);
     } else {
-        err = client_init_from_config(client, config, inbuf, inbufsize);
+        err = XS_client_load_config_file(client, config);
     }
 
     if (err) {
@@ -454,7 +454,7 @@ XS_RESULT XS_client_create (char * config, int force_watch, char * inbuf, size_t
         *outClient = client;
         LOGGER_TRACE("xclient=%p", client);
 
-        XS_client_save_config_file(client, "/tmp/xsync-client-conf-debug.xml");
+        XS_client_save_config_file(client, "/tmp/xsync-client-debug.conf");
 
         return XS_SUCCESS;
     } else {
@@ -934,6 +934,169 @@ static int watch_path_set_xmlnode_cb (XS_watch_path wp, void *data)
 }
 
 
+__attribute__((used))
+static int list_server_cb (mxml_node_t *server_node, XS_client client)
+{
+    const char * attr;
+
+    xmlconf_element_attr_read(server_node, "sid", 0, attr);
+    xmlconf_element_attr_read(server_node, "host", 0, attr);
+    xmlconf_element_attr_read(server_node, "port", 0, attr);
+    xmlconf_element_attr_read(server_node, "magic", 0, attr);
+
+    return 1;
+}
+
+
+__attribute__((used))
+static int list_sub_pattern_cb (mxml_node_t *subpattern_node, XS_client client)
+{
+    const char * attr;
+
+    xmlconf_element_attr_read(subpattern_node, "regex", 0, attr);
+    xmlconf_element_attr_read(subpattern_node, "script", 0, attr);
+
+    return 1;
+}
+
+
+__attribute__((used))
+static int list_pattern_cb (mxml_node_t *pattern_node, XS_client client)
+{
+    const char * attr;
+
+    xmlconf_element_attr_read(pattern_node, "regex", 0, attr);
+    xmlconf_element_attr_read(pattern_node, "script", 0, attr);
+
+    xmlconf_list_mxml_nodes(pattern_node, "xs:sub-pattern", (xmlconf_list_node_cb_t) list_sub_pattern_cb, (void *) client);
+
+    return 1;
+}
+
+
+__attribute__((used))
+static int list_included_filter_cb (mxml_node_t *filter_node, XS_client client)
+{
+    const char * attr;
+    xmlconf_element_attr_read(filter_node, "sid", 0, attr);
+    xmlconf_element_attr_read(filter_node, "size", 0, attr);
+
+    return 1;
+}
+
+
+__attribute__((used))
+static int list_excluded_filter_cb (mxml_node_t *filter_node, XS_client client)
+{
+    const char * attr;
+    xmlconf_element_attr_read(filter_node, "sid", 0, attr);
+    xmlconf_element_attr_read(filter_node, "size", 0, attr);
+
+    xmlconf_list_mxml_nodes(filter_node, "xs:pattern", (xmlconf_list_node_cb_t) list_pattern_cb, (void *) client);
+
+    return 1;
+}
+
+
+__attribute__((used))
+static int list_watch_path_cb (mxml_node_t *wp_node, XS_client client)
+{
+    const char * attr;
+    mxml_node_t * node;
+
+    xmlconf_element_attr_read(wp_node, "pathid", 0, attr);
+    xmlconf_element_attr_read(wp_node, "fullpath", 0, attr);
+
+    xmlconf_find_element_node(wp_node, "xs:included-filters", node);
+    {
+        xmlconf_list_mxml_nodes(node, "xs:filter-patterns", (xmlconf_list_node_cb_t) list_included_filter_cb, (void *) client);
+
+    }
+
+    xmlconf_find_element_node(wp_node, "xs:excluded-filters", node);
+    {
+        xmlconf_list_mxml_nodes(node, "xs:filter-patterns", (xmlconf_list_node_cb_t) list_excluded_filter_cb, (void *) client);
+    }
+
+    return 1;
+
+error_exit:
+    return 0;
+}
+
+
+XS_RESULT XS_client_load_config_file (XS_client client, const char * config_file)
+{
+    FILE *fp;
+
+    const char * attr;
+
+    mxml_node_t *xml;
+    mxml_node_t *root;
+    mxml_node_t *node;
+
+    if (strcmp(strrchr(config_file, '.'), ".conf")) {
+        LOGGER_ERROR("config file end with not '.conf': %s", config_file);
+        return XS_EARG;
+    }
+
+    if (strstr(strrchr(config_file, '/'), XSYNC_CLIENT_APPNAME) !=  strrchr(config_file, '/') + 1) {
+        LOGGER_ERROR("config file start with not '%s': %s", XSYNC_CLIENT_APPNAME, config_file);
+        return XS_EARG;
+    }
+
+    fp = fopen(config_file, "r");
+    if (! fp) {
+        LOGGER_ERROR("fopen error(%d): %s. (%s)", errno, strerror(errno), config_file);
+        return XS_ERROR;
+    }
+
+    xml = mxmlLoadFile(0, fp, MXML_TEXT_CALLBACK);
+    if (! xml) {
+        LOGGER_ERROR("mxmlLoadFile error. (%s)", config_file);
+        fclose(fp);
+        return XS_ERROR;
+    }
+
+    xmlconf_find_element_node(xml, "xs:"XSYNC_CLIENT_APPNAME"-conf", root);
+    {
+        xmlconf_element_attr_check(root, "xmlns:xs", XSYNC_CLIENT_XMLNS, attr);
+        xmlconf_element_attr_check(root, "copyright", XSYNC_COPYRIGHT, attr);
+        xmlconf_element_attr_check(root, "version", XSYNC_CLIENT_VERSION, attr);
+    }
+
+    xmlconf_find_element_node(root, "xs:application", node);
+    {
+        xmlconf_element_attr_read(node, "clientid", 0, attr);
+        xmlconf_element_attr_read(node, "threads", 0, attr);
+        xmlconf_element_attr_read(node, "queues", 0, attr);
+    }
+
+    xmlconf_find_element_node(root, "xs:server-list", node);
+    {
+        xmlconf_list_mxml_nodes(node, "xs:server", (xmlconf_list_node_cb_t) list_server_cb, (void *) client);
+    }
+
+    xmlconf_find_element_node(root, "xs:watch-path-list", node);
+    {
+        xmlconf_list_mxml_nodes(node, "xs:watch-path", (xmlconf_list_node_cb_t) list_watch_path_cb, (void *) client);
+    }
+
+
+    mxmlDelete(xml);
+    fclose(fp);
+
+    return XS_SUCCESS;
+
+error_exit:
+
+    mxmlDelete(xml);
+    fclose(fp);
+
+    return XS_ERROR;
+}
+
+
 // MXML_WS_BEFORE_OPEN, MXML_WS_AFTER_OPEN, MXML_WS_BEFORE_CLOSE, MXML_WS_AFTER_CLOSE
 //
 static const char * whitespace_cb(mxml_node_t *node, int where)
@@ -1006,7 +1169,22 @@ XS_RESULT XS_client_save_config_file (XS_client client, const char * config_file
 {
     int sid;
 
-    mxml_node_t *xml = 0;
+    mxml_node_t *xml;
+    mxml_node_t *node;
+    mxml_node_t *root;
+    mxml_node_t *configNode;
+    mxml_node_t *serversNode;
+    mxml_node_t *watchpathsNode;
+
+    if (strcmp(strrchr(config_file, '.'), ".conf")) {
+        LOGGER_ERROR("config file end with not '.conf': %s", config_file);
+        return XS_EARG;
+    }
+
+    if (strstr(strrchr(config_file, '/'), XSYNC_CLIENT_APPNAME) !=  strrchr(config_file, '/') + 1) {
+        LOGGER_ERROR("config file start with not '%s': %s", XSYNC_CLIENT_APPNAME, config_file);
+        return XS_EARG;
+    }
 
     xml = mxmlNewXML("1.0");
     if (! xml) {
@@ -1014,20 +1192,15 @@ XS_RESULT XS_client_save_config_file (XS_client client, const char * config_file
         return XS_ERROR;
     }
 
-    mxml_node_t * root;
-    mxml_node_t * configNode;
-    mxml_node_t * serversNode;
-    mxml_node_t * watchpathsNode;
-
-    mxml_node_t * node;
-
     mxmlSetWrapMargin(0);
 
-    root = mxmlNewElement(xml, "xs:xsync-client-conf");
+    root = mxmlNewElement(xml, "xs:"XSYNC_CLIENT_APPNAME"-conf");
 
     // 添加名称空间, 在Firefox中看不到, 在Chrome中可以
-    mxmlElementSetAttr(root, "xmlns:xs", "http://github.com/pepstack/xsync");
-    mxmlElementSetAttr(root, "copyright", "pepstack.com");
+    mxmlElementSetAttr(root, "xmlns:xs", XSYNC_CLIENT_XMLNS);
+    mxmlElementSetAttr(root, "copyright", XSYNC_COPYRIGHT);
+    mxmlElementSetAttr(root, "version", XSYNC_CLIENT_VERSION);
+    mxmlElementSetAttr(root, "author", XSYNC_AUTHOR);
 
     configNode = mxmlNewElement(root, "xs:application");
     serversNode = mxmlNewElement(root, "xs:server-list");
@@ -1061,8 +1234,9 @@ XS_RESULT XS_client_save_config_file (XS_client client, const char * config_file
         if (fp) {
             mxmlSaveFile(xml, fp, whitespace_cb);
 
-            fclose(fp);
             mxmlDelete(xml);
+
+            fclose(fp);
 
             return XS_SUCCESS;
         }

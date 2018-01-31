@@ -195,7 +195,7 @@ static inline xs_server_opts_t * client_get_server_by_id (XS_client client, int 
 }
 
 
-extern XS_RESULT XS_client_create (char * config, int force_watch, char * inbuf, size_t inbufsize, XS_client * outClient);
+extern XS_RESULT XS_client_create (char * config_file, int force_watch, char * inbuf, size_t inbufsize, XS_client * outClient);
 
 extern XS_VOID XS_client_release (XS_client * pclient);
 
@@ -220,6 +220,8 @@ extern XS_RESULT XS_client_unlock (XS_client client);
 extern XS_RESULT XS_client_on_inotify_event (XS_client client, struct inotify_event * inevent);
 
 extern XS_RESULT XS_client_read_filter_file (XS_client client, const char * filter_file, int sid, int filter_type);
+
+extern XS_RESULT XS_client_load_config_file (XS_client client, const char * config_file);
 
 extern XS_RESULT XS_client_save_config_file (XS_client client, const char * config_file);
 
