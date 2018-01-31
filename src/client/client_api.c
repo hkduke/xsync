@@ -1082,7 +1082,6 @@ XS_RESULT XS_client_load_config_file (XS_client client, const char * config_file
         xmlconf_list_mxml_nodes(node, "xs:watch-path", (xmlconf_list_node_cb_t) list_watch_path_cb, (void *) client);
     }
 
-
     mxmlDelete(xml);
     fclose(fp);
 
