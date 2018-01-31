@@ -103,18 +103,21 @@ int main (int argc, char * argv [])
 
     int isdaemon = 0;
 
-    __attribute__((unused)) int verbose = 0;
+    int threads = 0;
+    int queues = 0;
 
     /* command arguments */
     const struct option lopts[] = {
         {"help", no_argument, 0, 'h'},
         {"version", no_argument, 0, 'V'},
-        {"verbose", no_argument, 0, 'v'},
         {"config", required_argument, 0, 'C'},
         {"force-watch", no_argument, 0, 'W'},
         {"log4c-rcpath", required_argument, 0, 'O'},
         {"priority", required_argument, 0, 'P'},
         {"appender", required_argument, 0, 'A'},
+        {"threads", required_argument, 0, 't'},
+        {"queues", required_argument, 0, 'q'},
+        {"update-clientid", required_argument, 0, 'I'},
         {"daemon", no_argument, 0, 'D'},
         {"kill", no_argument, 0, 'K'},
         {"list", no_argument, 0, 'L'},
@@ -156,7 +159,7 @@ int main (int argc, char * argv [])
     }
 
     /* parse command arguments */
-    while ((ret = getopt_long(argc, argv, "DKLhVvC:WO:P:A:m:r:", lopts, 0)) != EOF) {
+    while ((ret = getopt_long(argc, argv, "DKLhVC:WO:P:A:t:q:I:m:r:", lopts, 0)) != EOF) {
         switch (ret) {
         case 'D':
             isdaemon = 1;
@@ -227,11 +230,15 @@ int main (int argc, char * argv [])
             }
             break;
 
-        case 'K':
-            exit(0);
+        case 't':
+            threads = validate_arg_threads(atoi(optarg));
             break;
 
-        case 'L':
+        case 'q':
+            queues = validate_arg_queues(atoi(optarg), threads);
+            break;
+
+        case 'I':
             exit(0);
             break;
 
@@ -252,6 +259,14 @@ int main (int argc, char * argv [])
             exit(ret);
             break;
 
+        case 'K':
+            exit(0);
+            break;
+
+        case 'L':
+            exit(0);
+            break;
+
         case 'r':
             exit(0);
             break;
@@ -260,17 +275,19 @@ int main (int argc, char * argv [])
             fprintf(stdout, "\033[1;35m%s, Version: %s, Build: %s %s\033[0m\n\n", APP_NAME, APP_VERSION, __DATE__, __TIME__);
             exit(0);
             break;
-
-        case 'v':
-            verbose = 1;
-            break;
         }
     }
 
-    fprintf(stdout, "\033[1;34m* Default conf file  : %s\033[0m\n", config);
     fprintf(stdout, "\033[1;34m* Default log4c path : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
-    fprintf(stdout, "\033[1;32m* Using conf file    : %s\033[0m\n", config);
+    fprintf(stdout, "\033[1;34m* Default config file: %s\033[0m\n\n", config);
     fprintf(stdout, "\033[1;32m* Using log4c path   : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
+    fprintf(stdout, "\033[1;32m* Using config file  : %s\033[0m\n", config);
+
+    if (threads > 0) {
+        // 用户指定了线程和队列用于覆盖配置文件
+        queues = validate_arg_queues(queues, threads);
+        fprintf(stdout, "\033[1;32m* Overwritten config : (threads=%d, queues=%d)\033[0m\n\n", threads, queues);
+    }
 
     if (force_watch) {
         // 强迫从 watch 目录自动配置

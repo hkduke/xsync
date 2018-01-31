@@ -23,6 +23,7 @@
 #define CLIENT_H_INCLUDED
 
 #include "../xsync-config.h"
+#include "../xsync-error.h"
 
 
 #if defined(__cplusplus)
@@ -66,41 +67,51 @@ static void print_usage(void)
     printf("\033[35mUsage:\033[0m %s [Options]\n", APP_NAME);
     printf("\t\033[35m extremely synchronize files among servers.\033[0m\n");
     printf("\033[35mOptions:\033[0m\n"
-        "\t-h, --help                  \033[35m display help messages\033[0m\n"
-        "\t-V, --version               \033[35m print version information\033[0m\n"
-        "\t-v, --verbose               \033[35m output verbose messages\033[0m\n"
+        "\t-h, --help                      \033[35m display help messages\033[0m\n"
+        "\t-V, --version                   \033[35m print version information\033[0m\n"
         "\n"
-        "\t-C, --config=PATHFILE       \033[35m specify path file to conf. '../conf/%s.conf' (default)\033[0m\n"
-        "\t-W, --force-watch           \033[35m force to use watch path as an override of config(-C, --config).\033[0m\n"
-        "\t                              \033[35m if enable watch path by '--use-watch', config=PATHFILE will be ignored.\033[0m\n"
-        "\t                              \033[35m NOTE: watch/ folder lives alway in the sibling directory of config PATHFILE, for example:\033[0m\n"
-        "\t                              \033[35m client_home/\033[0m\n"
-        "\t                                      \033[35m |\033[0m\n"
-        "\t                                      \033[35m +--- CLIENTID    (client id file)\033[0m\n"
-        "\t                                      \033[35m |\033[0m\n"
-        "\t                                      \033[35m +--- bin/%s-%s\033[0m\n"
-        "\t                                      \033[35m |\033[0m\n"
-        "\t                                      \033[35m +--- conf/%s.conf    (default config file)\033[0m\n"
-        "\t                                      \033[35m |\033[0m\n"
-        "\t                                      \033[35m +--- watch/\033[0m\n"
-        "\t                                      \033[35m       |\033[0m\n"
-        "\t                                      \033[35m       +--- pathlinkA/ -> A    (symlink to path A)\033[0m\n"
-        "\t                                      \033[35m       +--- pathlinkB/ -> B    (symlink to path A)\033[0m\n"
-        "\t                                      \033[35m       ...\033[0m\n"
+        "\t-C, --config=PATHFILE           \033[35m specify path file to conf. '../conf/%s.conf' (default)\033[0m\n"
+        "\t-W, --force-watch               \033[35m force to use watch path as an override of config(-C, --config).\033[0m\n"
+        "\t                                  \033[35m if enable watch path by '--use-watch', config=PATHFILE will be ignored.\033[0m\n"
+        "\t                                  \033[35m NOTE: watch/ folder lives alway in the sibling directory of config PATHFILE, for example:\033[0m\n"
+        "\t                                  \033[35m client_home/\033[0m\n"
+        "\t                                        \033[35m |\033[0m\n"
+        "\t                                        \033[35m +--- CLIENTID    (client id file)\033[0m\n"
+        "\t                                        \033[35m |\033[0m\n"
+        "\t                                        \033[35m +--- bin/%s-%s\033[0m\n"
+        "\t                                        \033[35m |\033[0m\n"
+        "\t                                        \033[35m +--- conf/%s.conf    (default config file)\033[0m\n"
+        "\t                                        \033[35m |\033[0m\n"
+        "\t                                        \033[35m +--- watch/\033[0m\n"
+        "\t                                        \033[35m       |\033[0m\n"
+        "\t                                        \033[35m       +--- pathlinkA/ -> A    (symlink to path A)\033[0m\n"
+        "\t                                        \033[35m       +--- pathlinkB/ -> B    (symlink to path A)\033[0m\n"
+        "\t                                        \033[35m       ...\033[0m\n"
         "\n"
-        "\t-O, --log4c-rcpath=PATH     \033[35m specify path of log4crc file. '../conf/' (default)\033[0m\n"
-        "\t-P, --priority=<PRIORITY>   \033[35m overwrite priority in log4crc, available PRIORITY:\033[0m\n"
+        "\t-O, --log4c-rcpath=PATH         \033[35m specify path of log4crc file. '../conf/' (default)\033[0m\n"
+        "\t-P, --priority=<PRIORITY>       \033[35m overwrite priority in log4crc, available PRIORITY:\033[0m\n"
         "\t                                      \033[35m 'fatal'\033[0m\n"
         "\t                                      \033[35m 'error' - used in stable release stage\033[0m\n"
         "\t                                      \033[35m 'warn'\033[0m\n"
         "\t                                      \033[35m 'info'  - used in release stage\033[0m\n"
         "\t                                      \033[35m 'debug' - used only in devel\033[0m\n"
         "\t                                      \033[35m 'trace' - show all details\033[0m\n"
-        "\t-A, --appender=<APPENDER>   \033[35moverwrite appender in log4crc, available APPENDER:\033[0m\n"
+        "\n"
+        "\t-A, --appender=<APPENDER>       \033[35m overwrite appender in log4crc, available APPENDER:\033[0m\n"
         "\t                                      \033[35m 'default' - using appender specified in log4crc\033[0m\n"
         "\t                                      \033[35m 'stdout' - using appender stdout\033[0m\n"
         "\t                                      \033[35m 'stderr' - using appender stderr\033[0m\n"
         "\t                                      \033[35m 'syslog' - using appender syslog\033[0m\n"
+        "\n"
+        "\t-t, --threads=<THREADS>         \033[35m specify number of threads. THREADS can also be:\033[0m\n"
+        "\t                                      \033[35m  0 - using minimum threads\033[0m\n"
+        "\t                                      \033[35m -1 - using maximum threads\033[0m\n"
+        "\n"
+        "\t-q, --queues=<QUEUES>           \033[35m specify total queues for all threads. QUEUES can also be:\033[0m\n"
+        "\t                                      \033[35m  0 - using available minimum queues\033[0m\n"
+        "\t                                      \033[35m -1 - using available maximum queues\033[0m\n"
+        "\n"
+        "\t-I, --replace-clientid=<CLIENTID>\033[35m CAUTION: replace clientid in file CLIENTID\033[0m\n"
         "\n"
         "\t-D, --daemon                \033[35m run as daemon process\033[0m\n"
         "\t-K, --kill                  \033[35m kill all processes for this program\033[0m\n"
@@ -111,6 +122,70 @@ static void print_usage(void)
         "\n"
         "\033[47;35m* COPYRIGHT (c) 2014-2020 PEPSTACK.COM, ALL RIGHTS RESERVED.\033[0m\n",
         APP_NAME, APP_NAME, APP_VERSION, APP_NAME);
+}
+
+
+__attribute__((used))
+static int validate_arg_threads (int arg_threads)
+{
+    int threads = 0;
+
+    if (arg_threads == 0) {
+        threads = XSYNC_CLIENT_THREADS_MIN;
+    } else if (arg_threads == -1) {
+        threads = XSYNC_CLIENT_THREADS_MAX;
+    } else if (arg_threads > XSYNC_CLIENT_THREADS_MAX) {
+        fprintf(stderr, "\033[1;31m[error]\033[0m too many threads(%d) > %d\033[0m\n",
+            arg_threads, XSYNC_CLIENT_THREADS_MAX);
+        exit(XS_EARG);
+    } else if (arg_threads < XSYNC_CLIENT_THREADS_MIN) {
+        fprintf(stderr, "\033[1;31m[error]\033[0m too less threads(%d) < %d\033[0m\n",
+            arg_threads, XSYNC_CLIENT_THREADS_MIN);
+        exit(XS_EARG);
+    } else {
+        threads = arg_threads;
+    }
+
+    return threads;
+}
+
+
+__attribute__((used))
+static int validate_arg_queues (int arg_queues, int threads)
+{
+    int queues = 0;
+
+    if (threads) {
+        if (arg_queues == 0) {
+            queues = threads * XSYNC_TASKS_PERTHREAD_MIN;
+        } else if (arg_queues == -1) {
+            queues = threads * XSYNC_TASKS_PERTHREAD_MAX;
+        } else if (arg_queues < threads * XSYNC_TASKS_PERTHREAD_MIN) {
+            queues = threads * XSYNC_TASKS_PERTHREAD_MIN;
+        } else if (arg_queues > threads * XSYNC_TASKS_PERTHREAD_MAX) {
+            queues = threads * XSYNC_TASKS_PERTHREAD_MAX;
+        } else {
+            queues = arg_queues;
+        }
+    } else {
+        if (arg_queues != 0 && arg_queues != -1) {
+            if (arg_queues > XSYNC_CLIENT_QUEUES_MAX) {
+                fprintf(stderr, "\033[1;31m[error]\033[0m too many queues(%d > %d)\033[0m\n",
+                    arg_queues, XSYNC_CLIENT_QUEUES_MAX);
+                exit(XS_EARG);
+            }
+
+            if (arg_queues < XSYNC_CLIENT_THREADS_MIN * XSYNC_TASKS_PERTHREAD_MIN) {
+                fprintf(stderr, "\033[1;31m[error]\033[0m too less queues(%d < %d)\033[0m\n",
+                    arg_queues, XSYNC_CLIENT_THREADS_MIN * XSYNC_TASKS_PERTHREAD_MIN);
+                exit(XS_EARG);
+            }
+
+            queues = arg_queues;
+        }
+    }
+
+    return queues;
 }
 
 
