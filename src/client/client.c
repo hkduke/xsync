@@ -146,7 +146,7 @@ int main (int argc, char * argv [])
     *strrchr(buff, '/') = 0;
     *(strrchr(buff, '/') + 1) = 0;
 
-    ret = snprintf(config, sizeof(config), "%sconf/%s.conf", buff, APP_NAME);
+    ret = snprintf(config, sizeof(config), "%sconf/%s-conf.ini", buff, APP_NAME);
     if (ret < 20 || ret >= sizeof(config)) {
         fprintf(stderr, "\033[1;31m[error]\033[0m invalid conf path: %s\n", buff);
         exit(-1);

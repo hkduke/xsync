@@ -27,6 +27,8 @@
 
 #include "watch_path.h"
 
+#include "../common/readconf.h"
+
 #include "../xmlconf.h"
 
 
@@ -257,22 +259,20 @@ static int watch_path_set_sid_masks_cb (XS_watch_path wp, void * data)
 
 
 __attribute__((used))
-static int client_init_from_watch (XS_client client, const char * watchdir, char * inbuf, size_t inbufsize)
+static int client_init_from_watch (XS_client client, const char * watchdir)
 {
     int err;
 
-    err = listdir(watchdir, inbuf, inbufsize, (listdir_callback_t) lscb_add_watch_path, (void*) client);
+    char inbuf[XSYNC_PATH_MAX_SIZE];
+
+    err = listdir(watchdir, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_add_watch_path, (void*) client);
     if (! err) {
-        err = listdir(watchdir, inbuf, inbufsize, (listdir_callback_t) lscb_init_watch_path, (void*) client);
+        err = listdir(watchdir, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_init_watch_path, (void*) client);
 
         if (! err) {
-            // 设置 watch_path 的 sid_masks
-            LOGGER_TRACE("max sid=%d", client->servers_opts[0].sidmax);
-
             XS_client_traverse_watch_paths(client, watch_path_set_sid_masks_cb, client);
 
-            // success
-            return 0;
+            return XS_SUCCESS;
         }
     }
 
@@ -281,10 +281,20 @@ static int client_init_from_watch (XS_client client, const char * watchdir, char
 
 
 __attribute__((used))
-static int client_init_from_config (XS_client client, const char * config, char * inbuf, size_t inbufsize)
+static int client_init_from_config (XS_client client, const char * config_file)
 {
+    int err = XS_ERROR;
 
-    return -1;
+    if ( ! strcmp(strrchr(config_file, '.'), ".xml") ) {
+        err = XS_client_load_conf_xml(client, config_file);
+    } else if ( ! strcmp(strrchr(config_file, '.'), ".ini") ) {
+        err = XS_client_load_conf_ini(client, config_file);
+    } else {
+        LOGGER_ERROR("unknown config file: %s", config_file);
+        err = XS_EFILE;
+    }
+
+    return err;
 }
 
 
@@ -387,9 +397,9 @@ XS_RESULT XS_client_create (char * config, int force_watch, char * inbuf, size_t
     }
 
     if (force_watch) {
-        err = client_init_from_watch(client, config, inbuf, inbufsize);
+        err = client_init_from_watch(client, config);
     } else {
-        err = XS_client_load_config_file(client, config);
+        err = client_init_from_config(client, config);
     }
 
     if (err) {
@@ -454,7 +464,7 @@ XS_RESULT XS_client_create (char * config, int force_watch, char * inbuf, size_t
         *outClient = client;
         LOGGER_TRACE("xclient=%p", client);
 
-        XS_client_save_config_file(client, "/tmp/xsync-client-debug.conf");
+        XS_client_save_conf_xml(client, "/tmp/xsync-client-debug.conf");
 
         return XS_SUCCESS;
     } else {
@@ -1025,7 +1035,7 @@ error_exit:
 }
 
 
-XS_RESULT XS_client_load_config_file (XS_client client, const char * config_file)
+XS_RESULT XS_client_load_conf_xml (XS_client client, const char * config_file)
 {
     FILE *fp;
 
@@ -1035,8 +1045,8 @@ XS_RESULT XS_client_load_config_file (XS_client client, const char * config_file
     mxml_node_t *root;
     mxml_node_t *node;
 
-    if (strcmp(strrchr(config_file, '.'), ".conf")) {
-        LOGGER_ERROR("config file end with not '.conf': %s", config_file);
+    if (strcmp(strrchr(config_file, '.'), ".xml")) {
+        LOGGER_ERROR("config file end with not '.xml': %s", config_file);
         return XS_EARG;
     }
 
@@ -1164,7 +1174,7 @@ static const char * whitespace_cb(mxml_node_t *node, int where)
 /**
  * https://www.systutorials.com/docs/linux/man/3-mxml/
  */
-XS_RESULT XS_client_save_config_file (XS_client client, const char * config_file)
+XS_RESULT XS_client_save_conf_xml (XS_client client, const char * config_file)
 {
     int sid;
 
@@ -1175,8 +1185,8 @@ XS_RESULT XS_client_save_config_file (XS_client client, const char * config_file
     mxml_node_t *serversNode;
     mxml_node_t *watchpathsNode;
 
-    if (strcmp(strrchr(config_file, '.'), ".conf")) {
-        LOGGER_ERROR("config file end with not '.conf': %s", config_file);
+    if (strcmp(strrchr(config_file, '.'), ".xml")) {
+        LOGGER_ERROR("config file end with not '.xml': %s", config_file);
         return XS_EARG;
     }
 
@@ -1246,5 +1256,143 @@ XS_RESULT XS_client_save_config_file (XS_client client, const char * config_file
     // 必须删除整个 xml
     mxmlDelete(xml);
 
+    return XS_ERROR;
+}
+
+
+
+XS_RESULT XS_client_load_conf_ini (XS_client client, const char * config_ini)
+{
+    int i, numsecs, sidmax;
+    void *seclist;
+
+    char *key, *val, *sec;
+
+    char *family;
+    char *qualifier;
+
+    char sid_filter[20];
+
+    char secname[CONF_MAX_SECNAME];
+
+    LOGGER_DEBUG("[xsync-client-conf]");
+    if (ConfReadValueRef(config_ini, "xsync-client-conf", "namespace", &val)) {
+        LOGGER_DEBUG("  namespace=%s", val);
+    } else {
+        LOGGER_WARN("not found key: 'namespace'");
+    }
+    if (ConfReadValueRef(config_ini, "xsync-client-conf", "copyright", &val)) {
+        LOGGER_DEBUG("  copyright=%s", val);
+    } else {
+        LOGGER_WARN("not found key: 'copyright'");
+    }
+    if (ConfReadValueRef(config_ini, "xsync-client-conf", "version", &val)) {
+        LOGGER_DEBUG("  version=%s", val);
+    } else {
+        LOGGER_WARN("not found key: 'version'");
+    }
+    if (ConfReadValueRef(config_ini, "xsync-client-conf", "author", &val)) {
+        LOGGER_DEBUG("  author=%s", val);
+    } else {
+        LOGGER_WARN("not found key: 'author'");
+    }
+
+    LOGGER_DEBUG("[application]");
+    if (ConfReadValueRef(config_ini, "application", "threads", &val)) {
+        LOGGER_DEBUG("  threads=%s", val);
+    } else {
+        LOGGER_WARN("not found key: 'threads'");
+    }
+    if (ConfReadValueRef(config_ini, "application", "clientid", &val)) {
+        LOGGER_DEBUG("  clientid=%s", val);
+    } else {
+        LOGGER_WARN("not found key: 'clientid'");
+    }
+    if (ConfReadValueRef(config_ini, "application", "queues", &val)) {
+        LOGGER_DEBUG("  queues=%s", val);
+    } else {
+        LOGGER_WARN("not found key: 'queues'");
+    }
+
+    // [server:id]
+    sidmax = 0;
+    numsecs = ConfGetSectionList(config_ini, &seclist);
+    for (i = 0; i < numsecs; i++) {
+        sec = ConfSectionListGetAt(seclist, i);
+
+        strcpy(secname, sec);
+
+        if (ConfSectionParse(secname, &family, &qualifier) == 2) {
+            if (! strcmp(family, "server")) {
+                LOGGER_DEBUG("[%s:%s]", family, qualifier);
+
+                ConfReadValueRef(config_ini, sec, "host", &val);
+                LOGGER_DEBUG("  host=%s", val);
+
+                ConfReadValueRef(config_ini, sec, "port", &val);
+                LOGGER_DEBUG("  port=%s", val);
+
+                ConfReadValueRef(config_ini, sec, "magic", &val);
+                LOGGER_DEBUG("  magic=%s", val);
+
+                sidmax++;
+            }
+        }
+    }
+    ConfSectionListFree(seclist);
+
+    // [watch-path:id]
+    numsecs = ConfGetSectionList(config_ini, &seclist);
+    for (i = 0; i < numsecs; i++) {
+        sec = ConfSectionListGetAt(seclist, i);
+
+        strcpy(secname, sec);
+
+        if (ConfSectionParse(secname, &family, &qualifier) == 2) {
+            if (! strcmp(family, "watch-path")) {
+                LOGGER_DEBUG("[%s:%s]", family, qualifier);
+
+                ConfReadValueRef(config_ini, sec, "fullpath", &val);
+                LOGGER_DEBUG("  fullpath=%s", val);
+
+                CONF_position cpos = ConfOpenFile(config_ini);
+                char * str = ConfGetFirstPair(cpos, &key, &val);
+                while (str) {
+                    if (! strcmp(ConfGetSection(cpos), sec) && strcmp(key, "fullpath")) {
+                        int sid;
+                        char *filter;
+
+                        snprintf(sid_filter, sizeof(sid_filter), "%s", key);
+
+                        filter = strchr(sid_filter, '.');
+                        *filter++ = 0;
+
+                        if (! strcmp(filter, "included")) {
+                            sid = atoi(sid_filter);
+
+                            LOGGER_DEBUG("  %d.included=%s", sid, val);
+                        } else if (! strcmp(filter, "excluded")) {
+                            sid = atoi(sid_filter);
+
+                            LOGGER_DEBUG("  %d.excluded=%s", sid, val);
+                        } else {
+                            LOGGER_WARN("  %s=%s", key, val);
+                        }
+                    }
+
+                    str = ConfGetNextPair(cpos, &key, &val);
+                }
+                ConfCloseFile(cpos);
+            }
+        }
+    }
+    ConfSectionListFree(seclist);
+
+    return XS_ERROR;
+}
+
+
+XS_RESULT XS_client_save_conf_ini (XS_client client, const char * config_ini)
+{
     return XS_ERROR;
 }

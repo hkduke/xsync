@@ -4,7 +4,8 @@ SOURCES := \
 	threadpool.c \
 	getopt_longw.c \
 	getoptw.c \
-	base64.c
+	base64.c \
+	readconf.c
 
 
 SRC_INCDIRS := .

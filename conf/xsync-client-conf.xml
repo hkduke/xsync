@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:xsync-client-conf xmlns:xs="http://github.com/pepstack/xsync/client" copyright="pepstack.com" version="0.0.1" author="master@pepstack.com">
+    <xs:application clientid="" threads="4" queues="256" />
+    <xs:server-list>
+        <xs:server sid="1" host="pepstack.com" port="8960" magic="89604916" />
+        <xs:server sid="2" host="139.198.3.164" port="8960" magic="98898888" />
+    </xs:server-list>
+    <xs:watch-path-list>
+        <xs:watch-path pathid="xs_client_log" fullpath="/var/log/xsync/client">
+            <xs:included-filters>
+                <xs:filter-patterns sid="1" size="5">
+                    <xs:pattern regex="文件名匹配表达式1" />
+                    <xs:pattern regex="目录名匹配表达式1">
+                        <xs:sub-pattern regex="文件名匹配表达式2" />
+                    </xs:pattern>
+                    <xs:pattern regex="目录名匹配表达式3">
+                        <xs:sub-pattern regex="目录名匹配表达式2" />
+                        <xs:sub-pattern regex="文件名匹配表达式1" />
+                    </xs:pattern>
+                    <xs:pattern regex="目录名匹配表达式4">
+                        <xs:sub-pattern regex="*" />
+                    </xs:pattern>
+                    <xs:pattern script="外部可执行脚本路径" />
+                </xs:filter-patterns>
+                <xs:filter-patterns sid="2" size="3">
+                    <xs:pattern regex="文件匹配表达式4" />
+                    <xs:pattern regex="目录名匹配表达式5">
+                        <xs:sub-pattern regex="文件匹配表达式5" />
+                    </xs:pattern>
+                    <xs:pattern regex="目录名匹配表达式6">
+                        <xs:sub-pattern regex="目录名匹配表达式7" />
+                        <xs:sub-pattern regex="文件匹配表达式1" />
+                    </xs:pattern>
+                </xs:filter-patterns>
+            </xs:included-filters>
+            <xs:excluded-filters>
+                <xs:filter-patterns sid="1" size="5">
+                    <xs:pattern regex="文件名匹配表达式1" />
+                    <xs:pattern regex="目录名匹配表达式1">
+                        <xs:sub-pattern regex="文件名匹配表达式2" />
+                    </xs:pattern>
+                    <xs:pattern regex="目录名匹配表达式3">
+                        <xs:sub-pattern regex="目录名匹配表达式2" />
+                        <xs:sub-pattern regex="文件名匹配表达式1" />
+                    </xs:pattern>
+                    <xs:pattern regex="目录名匹配表达式4">
+                        <xs:sub-pattern regex="*" />
+                    </xs:pattern>
+                    <xs:pattern script="外部可执行脚本路径" />
+                </xs:filter-patterns>
+            </xs:excluded-filters>
+        </xs:watch-path>
+        <xs:watch-path pathid="tmp" fullpath="/tmp">
+            <xs:included-filters>
+                <xs:filter-patterns sid="1" size="1">
+                    <xs:pattern regex="文件匹配表达式3" />
+                </xs:filter-patterns>
+                <xs:filter-patterns sid="2" size="1">
+                    <xs:pattern regex="文件匹配表达式8" />
+                </xs:filter-patterns>
+            </xs:included-filters>
+            <xs:excluded-filters>
+                <xs:filter-patterns sid="1" size="1">
+                    <xs:pattern regex="文件匹配表达式3" />
+                </xs:filter-patterns>
+            </xs:excluded-filters>
+        </xs:watch-path>
+    </xs:watch-path-list>
+</xs:xsync-client-conf>

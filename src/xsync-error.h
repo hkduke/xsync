@@ -55,6 +55,8 @@ typedef int XS_RESULT;
 #define XS_ERROR    (-1)
 
 #define XS_EARG     (-10)
+#define XS_EFILE    (-11)
+
 
 
 typedef int XS_BOOL;

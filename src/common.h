@@ -463,23 +463,23 @@ static int pox_system (const char * cmd)
 __attribute__((used))
 static int fileislink (const char * pathfile, char * inbuf, ssize_t inbufsize)
 {
-    char * buf;
+    char * sbbuf;
 
     ssize_t bufsize;
     ssize_t size;
 
     if (inbuf) {
         bufsize = inbufsize;
-        buf = inbuf;
+        sbbuf = inbuf;
     } else {
         bufsize = XSYNC_PATH_MAX_SIZE;
-        buf = (char *) malloc(bufsize);
+        sbbuf = (char *) malloc(bufsize);
     }
 
-    size = readlink(pathfile, buf, bufsize);
+    size = readlink(pathfile, sbbuf, bufsize);
 
-    if (buf != inbuf) {
-        free(buf);
+    if (sbbuf != inbuf) {
+        free(sbbuf);
     }
 
     if (size == bufsize) {
@@ -913,7 +913,7 @@ static void config_log4crc (const char * catname, char * log4crc, char * priorit
  *   $ openssl md5 $file
  */
 __attribute__((used))
-static int md5sum_file (const char * filename, char * buf, size_t bufsize)
+static int md5sum_file (const char * filename, char * sbbuf, size_t bufsize)
 {
     FILE * fd;
 
@@ -927,7 +927,7 @@ static int md5sum_file (const char * filename, char * buf, size_t bufsize)
         MD5_Init(&ctx);
 
         for (;;) {
-            size_t len = fread(buf, 1, bufsize, fd);
+            size_t len = fread(sbbuf, 1, bufsize, fd);
 
             if (len == 0) {
                 err = ferror(fd);
@@ -938,17 +938,17 @@ static int md5sum_file (const char * filename, char * buf, size_t bufsize)
                     MD5_Final(md5, &ctx);
 
                     for (len = 0; len < sizeof(md5); ++len) {
-                        snprintf(buf + len * 2, 3, "%02x", md5[len]);
+                        snprintf(sbbuf + len * 2, 3, "%02x", md5[len]);
                     }
                 }
 
-                buf[32] = 0;
+                sbbuf[32] = 0;
 
                 fclose(fd);
                 break;
             }
 
-            MD5_Update(&ctx , (const void *) buf, len);
+            MD5_Update(&ctx , (const void *) sbbuf, len);
         }
 
         return err;

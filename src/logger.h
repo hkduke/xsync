@@ -25,6 +25,7 @@
  *
  * create: 2014-08-01
  * update: 2017-01-29
+ * fixbug: 2018-01-31   'buf' as temp variable will cause conflicts with other files
  *
  * 2015-11-17: add color output
  * ------ color output ------
@@ -75,20 +76,20 @@
 
 __attribute__((unused)) static log4c_category_t * logger_get_cat (int priority)
 {
-    log4c_category_t * cat = log4c_category_get (LOGGER_CATEGORY_NAME_REAL);
+    log4c_category_t * __logger_cat_var = log4c_category_get (LOGGER_CATEGORY_NAME_REAL);
 
-    if (cat && log4c_category_is_priority_enabled (cat, priority)) {
-        return cat;
+    if (__logger_cat_var && log4c_category_is_priority_enabled (__logger_cat_var, priority)) {
+        return __logger_cat_var;
     } else {
         return 0;
     }
 }
 
 
-__attribute__((unused)) static void logger_write (log4c_category_t *cat, int priority,
+__attribute__((unused)) static void logger_write (log4c_category_t *__logger_cat_var, int priority,
     const char *file, int line, const char *func, const char * msg)
 {
-    log4c_category_log (cat, priority, "(%s:%d) <%s> %s", file, line, func, msg);
+    log4c_category_log (__logger_cat_var, priority, "(%s:%d) <%s> %s", file, line, func, msg);
 }
 
 
@@ -118,12 +119,12 @@ __attribute__((unused)) static void LOGGER_FINI ()
 #else
     #define LOGGER_UNKNOWN(message, args...)  \
         do { \
-            log4c_category_t * cat = logger_get_cat (LOG4C_PRIORITY_UNKNOWN); \
-            if (cat) { \
-                char buf[LOGGER_BUF_LEN+1]; \
-                snprintf (buf, LOGGER_BUF_LEN, message, ##args); \
-                buf[LOGGER_BUF_LEN] = 0; \
-                logger_write (cat, LOG4C_PRIORITY_UNKNOWN, __FILE__, __LINE__, __FUNCTION__, buf); \
+            log4c_category_t * __logger_cat_tmp = logger_get_cat (LOG4C_PRIORITY_UNKNOWN); \
+            if (__logger_cat_tmp) { \
+                char __logger_buf_tmp[LOGGER_BUF_LEN+1]; \
+                snprintf (__logger_buf_tmp, LOGGER_BUF_LEN, message, ##args); \
+                __logger_buf_tmp[LOGGER_BUF_LEN] = 0; \
+                logger_write (__logger_cat_tmp, LOG4C_PRIORITY_UNKNOWN, __FILE__, __LINE__, __FUNCTION__, __logger_buf_tmp); \
             } \
         } while (0)
 #endif
@@ -134,12 +135,12 @@ __attribute__((unused)) static void LOGGER_FINI ()
 #else
 #   define LOGGER_TRACE(message, args...)  \
     do { \
-        log4c_category_t * cat = logger_get_cat (LOG4C_PRIORITY_TRACE); \
-        if (cat) { \
-            char buf[LOGGER_BUF_LEN+1]; \
-            snprintf(buf, LOGGER_BUF_LEN, message, ##args); \
-            buf[LOGGER_BUF_LEN] = 0; \
-            logger_write (cat, LOG4C_PRIORITY_TRACE, __FILE__, __LINE__, __FUNCTION__, buf); \
+        log4c_category_t * __logger_cat_tmp = logger_get_cat (LOG4C_PRIORITY_TRACE); \
+        if (__logger_cat_tmp) { \
+            char __logger_buf_tmp[LOGGER_BUF_LEN+1]; \
+            snprintf(__logger_buf_tmp, LOGGER_BUF_LEN, message, ##args); \
+            __logger_buf_tmp[LOGGER_BUF_LEN] = 0; \
+            logger_write (__logger_cat_tmp, LOG4C_PRIORITY_TRACE, __FILE__, __LINE__, __FUNCTION__, __logger_buf_tmp); \
         } \
     } while (0)
 #endif
@@ -151,26 +152,26 @@ __attribute__((unused)) static void LOGGER_FINI ()
 #if defined(LOGGER_COLOR_OUTPUT)
     #define LOGGER_DEBUG(message, args...)  \
         do { \
-            log4c_category_t * cat = logger_get_cat (LOG4C_PRIORITY_DEBUG); \
-            if (cat) { \
-                char buf[LOGGER_BUF_LEN + 1]; \
-                char *psz = buf; \
-                psz = buf + snprintf(psz, 20, "\033[36m"); \
-                psz = psz + snprintf(psz, LOGGER_BUF_LEN - 20, message, ##args); \
-                snprintf(psz, 20, "\033[0m"); \
-                buf[LOGGER_BUF_LEN] = 0; \
-                logger_write (cat, LOG4C_PRIORITY_DEBUG, __FILE__, __LINE__, __FUNCTION__, buf); \
+            log4c_category_t * __logger_cat_tmp = logger_get_cat (LOG4C_PRIORITY_DEBUG); \
+            if (__logger_cat_tmp) { \
+                char __logger_buf_tmp[LOGGER_BUF_LEN + 1]; \
+                char *__psz_logger_buf = __logger_buf_tmp; \
+                __psz_logger_buf = __logger_buf_tmp + snprintf(__psz_logger_buf, 20, "\033[36m"); \
+                __psz_logger_buf = __psz_logger_buf + snprintf(__psz_logger_buf, LOGGER_BUF_LEN - 20, message, ##args); \
+                snprintf(__psz_logger_buf, 20, "\033[0m"); \
+                __logger_buf_tmp[LOGGER_BUF_LEN] = 0; \
+                logger_write (__logger_cat_tmp, LOG4C_PRIORITY_DEBUG, __FILE__, __LINE__, __FUNCTION__, __logger_buf_tmp); \
             } \
         } while (0)
 #else
     #define LOGGER_DEBUG(message, args...)  \
         do { \
-            log4c_category_t * cat = logger_get_cat (LOG4C_PRIORITY_DEBUG); \
-            if (cat) { \
-                char buf[LOGGER_BUF_LEN+1]; \
-                snprintf (buf, LOGGER_BUF_LEN, message, ##args); \
-                buf[LOGGER_BUF_LEN] = 0; \
-                logger_write (cat, LOG4C_PRIORITY_DEBUG, __FILE__, __LINE__, __FUNCTION__, buf); \
+            log4c_category_t * __logger_cat_tmp = logger_get_cat (LOG4C_PRIORITY_DEBUG); \
+            if (__logger_cat_tmp) { \
+                char __logger_buf_tmp[LOGGER_BUF_LEN+1]; \
+                snprintf (__logger_buf_tmp, LOGGER_BUF_LEN, message, ##args); \
+                __logger_buf_tmp[LOGGER_BUF_LEN] = 0; \
+                logger_write (__logger_cat_tmp, LOG4C_PRIORITY_DEBUG, __FILE__, __LINE__, __FUNCTION__, __logger_buf_tmp); \
             } \
         } while (0)
 #endif
@@ -183,26 +184,26 @@ __attribute__((unused)) static void LOGGER_FINI ()
 #if defined(LOGGER_COLOR_OUTPUT)
     #define LOGGER_WARN(message, args...)  \
         do { \
-            log4c_category_t * cat = logger_get_cat (LOG4C_PRIORITY_WARN); \
-            if (cat) { \
-                char buf[LOGGER_BUF_LEN + 1]; \
-                char *psz = buf; \
-                psz = buf + snprintf(psz, 20, "\033[33m"); \
-                psz = psz + snprintf(psz, LOGGER_BUF_LEN - 20, message, ##args); \
-                snprintf(psz, 20, "\033[0m"); \
-                buf[LOGGER_BUF_LEN] = 0; \
-                logger_write (cat, LOG4C_PRIORITY_WARN, __FILE__, __LINE__, __FUNCTION__, buf); \
+            log4c_category_t * __logger_cat_tmp = logger_get_cat (LOG4C_PRIORITY_WARN); \
+            if (__logger_cat_tmp) { \
+                char __logger_buf_tmp[LOGGER_BUF_LEN + 1]; \
+                char *__psz_logger_buf = __logger_buf_tmp; \
+                __psz_logger_buf = __logger_buf_tmp + snprintf(__psz_logger_buf, 20, "\033[33m"); \
+                __psz_logger_buf = __psz_logger_buf + snprintf(__psz_logger_buf, LOGGER_BUF_LEN - 20, message, ##args); \
+                snprintf(__psz_logger_buf, 20, "\033[0m"); \
+                __logger_buf_tmp[LOGGER_BUF_LEN] = 0; \
+                logger_write (__logger_cat_tmp, LOG4C_PRIORITY_WARN, __FILE__, __LINE__, __FUNCTION__, __logger_buf_tmp); \
             } \
         } while (0)
 #else
     #define LOGGER_WARN(message, args...)  \
         do { \
-            log4c_category_t * cat = logger_get_cat (LOG4C_PRIORITY_WARN); \
-            if (cat) { \
-                char buf[LOGGER_BUF_LEN+1]; \
-                snprintf (buf, LOGGER_BUF_LEN, message, ##args); \
-                buf[LOGGER_BUF_LEN] = 0; \
-                logger_write (cat, LOG4C_PRIORITY_WARN, __FILE__, __LINE__, __FUNCTION__, buf); \
+            log4c_category_t * __logger_cat_tmp = logger_get_cat (LOG4C_PRIORITY_WARN); \
+            if (__logger_cat_tmp) { \
+                char __logger_buf_tmp[LOGGER_BUF_LEN+1]; \
+                snprintf (__logger_buf_tmp, LOGGER_BUF_LEN, message, ##args); \
+                __logger_buf_tmp[LOGGER_BUF_LEN] = 0; \
+                logger_write (__logger_cat_tmp, LOG4C_PRIORITY_WARN, __FILE__, __LINE__, __FUNCTION__, __logger_buf_tmp); \
             } \
         } while (0)
 #endif
@@ -215,26 +216,26 @@ __attribute__((unused)) static void LOGGER_FINI ()
 #if defined(LOGGER_COLOR_OUTPUT)
     #define LOGGER_INFO(message, args...)  \
         do { \
-            log4c_category_t * cat = logger_get_cat (LOG4C_PRIORITY_INFO); \
-            if (cat) { \
-                char buf[LOGGER_BUF_LEN + 1]; \
-                char *psz = buf; \
-                psz = buf + snprintf(psz, 20, "\033[32m"); \
-                psz = psz + snprintf(psz, LOGGER_BUF_LEN - 20, message, ##args); \
-                snprintf(psz, 20, "\033[0m"); \
-                buf[LOGGER_BUF_LEN] = 0; \
-                logger_write (cat, LOG4C_PRIORITY_INFO, __FILE__, __LINE__, __FUNCTION__, buf); \
+            log4c_category_t * __logger_cat_tmp = logger_get_cat (LOG4C_PRIORITY_INFO); \
+            if (__logger_cat_tmp) { \
+                char __logger_buf_tmp[LOGGER_BUF_LEN + 1]; \
+                char *__psz_logger_buf = __logger_buf_tmp; \
+                __psz_logger_buf = __logger_buf_tmp + snprintf(__psz_logger_buf, 20, "\033[32m"); \
+                __psz_logger_buf = __psz_logger_buf + snprintf(__psz_logger_buf, LOGGER_BUF_LEN - 20, message, ##args); \
+                snprintf(__psz_logger_buf, 20, "\033[0m"); \
+                __logger_buf_tmp[LOGGER_BUF_LEN] = 0; \
+                logger_write (__logger_cat_tmp, LOG4C_PRIORITY_INFO, __FILE__, __LINE__, __FUNCTION__, __logger_buf_tmp); \
             } \
         } while (0)
 #else
     #define LOGGER_INFO(message, args...)  \
         do { \
-            log4c_category_t * cat = logger_get_cat (LOG4C_PRIORITY_INFO); \
-            if (cat) { \
-                char buf[LOGGER_BUF_LEN+1]; \
-                snprintf (buf, LOGGER_BUF_LEN, message, ##args); \
-                buf[LOGGER_BUF_LEN] = 0; \
-                logger_write (cat, LOG4C_PRIORITY_INFO, __FILE__, __LINE__, __FUNCTION__, buf); \
+            log4c_category_t * __logger_cat_tmp = logger_get_cat (LOG4C_PRIORITY_INFO); \
+            if (__logger_cat_tmp) { \
+                char __logger_buf_tmp[LOGGER_BUF_LEN+1]; \
+                snprintf (__logger_buf_tmp, LOGGER_BUF_LEN, message, ##args); \
+                __logger_buf_tmp[LOGGER_BUF_LEN] = 0; \
+                logger_write (__logger_cat_tmp, LOG4C_PRIORITY_INFO, __FILE__, __LINE__, __FUNCTION__, __logger_buf_tmp); \
             } \
         } while (0)
 #endif
@@ -247,26 +248,26 @@ __attribute__((unused)) static void LOGGER_FINI ()
 #if defined(LOGGER_COLOR_OUTPUT)
     #define LOGGER_ERROR(message, args...)    \
         do { \
-            log4c_category_t * cat = logger_get_cat (LOG4C_PRIORITY_ERROR); \
-            if (cat) { \
-                char buf[LOGGER_BUF_LEN + 1]; \
-                char *psz = buf; \
-                psz = buf + snprintf(psz, 20, "\033[31m"); \
-                psz = psz + snprintf(psz, LOGGER_BUF_LEN - 20, message, ##args); \
-                snprintf(psz, 20, "\033[0m"); \
-                buf[LOGGER_BUF_LEN] = 0; \
-                logger_write (cat, LOG4C_PRIORITY_ERROR, __FILE__, __LINE__, __FUNCTION__, buf); \
+            log4c_category_t * __logger_cat_tmp = logger_get_cat (LOG4C_PRIORITY_ERROR); \
+            if (__logger_cat_tmp) { \
+                char __logger_buf_tmp[LOGGER_BUF_LEN + 1]; \
+                char *__psz_logger_buf = __logger_buf_tmp; \
+                __psz_logger_buf = __logger_buf_tmp + snprintf(__psz_logger_buf, 20, "\033[31m"); \
+                __psz_logger_buf = __psz_logger_buf + snprintf(__psz_logger_buf, LOGGER_BUF_LEN - 20, message, ##args); \
+                snprintf(__psz_logger_buf, 20, "\033[0m"); \
+                __logger_buf_tmp[LOGGER_BUF_LEN] = 0; \
+                logger_write (__logger_cat_tmp, LOG4C_PRIORITY_ERROR, __FILE__, __LINE__, __FUNCTION__, __logger_buf_tmp); \
             } \
         } while (0)
 #else
     #define LOGGER_ERROR(message, args...)  \
         do { \
-            log4c_category_t * cat = logger_get_cat (LOG4C_PRIORITY_ERROR); \
-            if (cat) { \
-                char buf[LOGGER_BUF_LEN+1]; \
-                snprintf (buf, LOGGER_BUF_LEN, message, ##args); \
-                buf[LOGGER_BUF_LEN] = 0; \
-                logger_write (cat, LOG4C_PRIORITY_ERROR, __FILE__, __LINE__, __FUNCTION__, buf); \
+            log4c_category_t * __logger_cat_tmp = logger_get_cat (LOG4C_PRIORITY_ERROR); \
+            if (__logger_cat_tmp) { \
+                char __logger_buf_tmp[LOGGER_BUF_LEN+1]; \
+                snprintf (__logger_buf_tmp, LOGGER_BUF_LEN, message, ##args); \
+                __logger_buf_tmp[LOGGER_BUF_LEN] = 0; \
+                logger_write (__logger_cat_tmp, LOG4C_PRIORITY_ERROR, __FILE__, __LINE__, __FUNCTION__, __logger_buf_tmp); \
             } \
         } while (0)
 #endif
@@ -279,26 +280,26 @@ __attribute__((unused)) static void LOGGER_FINI ()
 #if defined(LOGGER_COLOR_OUTPUT)
     #define LOGGER_FATAL(message, args...)  \
         do { \
-            log4c_category_t * cat = logger_get_cat (LOG4C_PRIORITY_FATAL); \
-            if (cat) { \
-                char buf[LOGGER_BUF_LEN + 1]; \
-                char *psz = buf; \
-                psz = buf + snprintf(psz, 20, "\033[31m"); \
-                psz = psz + snprintf(psz, LOGGER_BUF_LEN - 20, message, ##args); \
-                snprintf(psz, 20, "\033[0m"); \
-                buf[LOGGER_BUF_LEN] = 0; \
-                logger_write (cat, LOG4C_PRIORITY_FATAL, __FILE__, __LINE__, __FUNCTION__, buf); \
+            log4c_category_t * __logger_cat_tmp = logger_get_cat (LOG4C_PRIORITY_FATAL); \
+            if (__logger_cat_tmp) { \
+                char __logger_buf_tmp[LOGGER_BUF_LEN + 1]; \
+                char *__psz_logger_buf = __logger_buf_tmp; \
+                __psz_logger_buf = __logger_buf_tmp + snprintf(__psz_logger_buf, 20, "\033[31m"); \
+                __psz_logger_buf = __psz_logger_buf + snprintf(__psz_logger_buf, LOGGER_BUF_LEN - 20, message, ##args); \
+                snprintf(__psz_logger_buf, 20, "\033[0m"); \
+                __logger_buf_tmp[LOGGER_BUF_LEN] = 0; \
+                logger_write (__logger_cat_tmp, LOG4C_PRIORITY_FATAL, __FILE__, __LINE__, __FUNCTION__, __logger_buf_tmp); \
             } \
         } while (0)
 #else
     #define LOGGER_FATAL(message, args...)  \
         do { \
-            log4c_category_t * cat = logger_get_cat (LOG4C_PRIORITY_FATAL); \
-            if (cat) { \
-                char buf[LOGGER_BUF_LEN+1]; \
-                snprintf (buf, LOGGER_BUF_LEN, message, ##args); \
-                buf[LOGGER_BUF_LEN] = 0; \
-                logger_write (cat, LOG4C_PRIORITY_FATAL, __FILE__, __LINE__, __FUNCTION__, buf); \
+            log4c_category_t * __logger_cat_tmp = logger_get_cat (LOG4C_PRIORITY_FATAL); \
+            if (__logger_cat_tmp) { \
+                char __logger_buf_tmp[LOGGER_BUF_LEN+1]; \
+                snprintf (__logger_buf_tmp, LOGGER_BUF_LEN, message, ##args); \
+                __logger_buf_tmp[LOGGER_BUF_LEN] = 0; \
+                logger_write (__logger_cat_tmp, LOG4C_PRIORITY_FATAL, __FILE__, __LINE__, __FUNCTION__, __logger_buf_tmp); \
             } \
         } while (0)
 #endif

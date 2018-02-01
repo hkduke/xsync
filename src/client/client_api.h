@@ -221,9 +221,13 @@ extern XS_RESULT XS_client_on_inotify_event (XS_client client, struct inotify_ev
 
 extern XS_RESULT XS_client_read_filter_file (XS_client client, const char * filter_file, int sid, int filter_type);
 
-extern XS_RESULT XS_client_load_config_file (XS_client client, const char * config_file);
+extern XS_RESULT XS_client_load_conf_xml (XS_client client, const char * config_xml);
 
-extern XS_RESULT XS_client_save_config_file (XS_client client, const char * config_file);
+extern XS_RESULT XS_client_save_conf_xml (XS_client client, const char * config_xml);
+
+extern XS_RESULT XS_client_load_conf_ini (XS_client client, const char * config_ini);
+
+extern XS_RESULT XS_client_save_conf_ini (XS_client client, const char * config_ini);
 
 #if defined(__cplusplus)
 }
