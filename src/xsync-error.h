@@ -47,16 +47,17 @@ extern "C"
 
 typedef void XS_VOID;
 
+
 typedef int XS_RESULT;
 
-#define XS_SUCCESS    0
-#define XS_NOERROR    XS_SUCCESS
+#define XS_SUCCESS        0
+#define XS_NOERROR     XS_SUCCESS
 
-#define XS_ERROR    (-1)
-
-#define XS_EARG     (-10)
-#define XS_EFILE    (-11)
-
+#define XS_ERROR         (-1)
+#define XS_E_OUTMEM      (-4)
+#define XS_E_PARAM      (-10)
+#define XS_E_FILE       (-11)
+#define XS_E_NOTIMP     (-12)
 
 
 typedef int XS_BOOL;

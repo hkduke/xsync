@@ -137,11 +137,11 @@ static int validate_arg_threads (int arg_threads)
     } else if (arg_threads > XSYNC_CLIENT_THREADS_MAX) {
         fprintf(stderr, "\033[1;31m[error]\033[0m too many threads(%d) > %d\033[0m\n",
             arg_threads, XSYNC_CLIENT_THREADS_MAX);
-        exit(XS_EARG);
+        exit(XS_E_PARAM);
     } else if (arg_threads < XSYNC_CLIENT_THREADS_MIN) {
         fprintf(stderr, "\033[1;31m[error]\033[0m too less threads(%d) < %d\033[0m\n",
             arg_threads, XSYNC_CLIENT_THREADS_MIN);
-        exit(XS_EARG);
+        exit(XS_E_PARAM);
     } else {
         threads = arg_threads;
     }
@@ -172,13 +172,13 @@ static int validate_arg_queues (int arg_queues, int threads)
             if (arg_queues > XSYNC_CLIENT_QUEUES_MAX) {
                 fprintf(stderr, "\033[1;31m[error]\033[0m too many queues(%d > %d)\033[0m\n",
                     arg_queues, XSYNC_CLIENT_QUEUES_MAX);
-                exit(XS_EARG);
+                exit(XS_E_PARAM);
             }
 
             if (arg_queues < XSYNC_CLIENT_THREADS_MIN * XSYNC_TASKS_PERTHREAD_MIN) {
                 fprintf(stderr, "\033[1;31m[error]\033[0m too less queues(%d < %d)\033[0m\n",
                     arg_queues, XSYNC_CLIENT_THREADS_MIN * XSYNC_TASKS_PERTHREAD_MIN);
-                exit(XS_EARG);
+                exit(XS_E_PARAM);
             }
 
             queues = arg_queues;

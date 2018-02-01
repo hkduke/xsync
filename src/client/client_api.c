@@ -291,10 +291,18 @@ static int client_init_from_config (XS_client client, const char * config_file)
         err = XS_client_load_conf_ini(client, config_file);
     } else {
         LOGGER_ERROR("unknown config file: %s", config_file);
-        err = XS_EFILE;
+        err = XS_E_FILE;
     }
 
     return err;
+}
+
+
+__attribute__((used))
+static int client_create_events (XS_client client, struct inotify_event * inevent, XS_watch_event events[], int maxsid)
+{
+
+    return 0;
 }
 
 
@@ -748,8 +756,8 @@ XS_RESULT XS_client_on_inotify_event (XS_client client, struct inotify_event * i
 
             XS_watch_event events[XSYNC_SERVER_MAXID + 1];
 
-            //TODO: num = XS_client_create_events(client, inevent, events, XSYNC_SERVER_MAXID);
-            num = XSYNC_SERVER_MAXID;
+            // client_info_makeup_events
+            num = client_create_events(client, inevent, events, XSYNC_SERVER_MAXID);
 
             // unlock immediately
             XS_client_unlock(client);
@@ -1047,12 +1055,12 @@ XS_RESULT XS_client_load_conf_xml (XS_client client, const char * config_file)
 
     if (strcmp(strrchr(config_file, '.'), ".xml")) {
         LOGGER_ERROR("config file end with not '.xml': %s", config_file);
-        return XS_EARG;
+        return XS_E_PARAM;
     }
 
     if (strstr(strrchr(config_file, '/'), XSYNC_CLIENT_APPNAME) !=  strrchr(config_file, '/') + 1) {
         LOGGER_ERROR("config file start with not '%s': %s", XSYNC_CLIENT_APPNAME, config_file);
-        return XS_EARG;
+        return XS_E_PARAM;
     }
 
     fp = fopen(config_file, "r");
@@ -1187,12 +1195,12 @@ XS_RESULT XS_client_save_conf_xml (XS_client client, const char * config_file)
 
     if (strcmp(strrchr(config_file, '.'), ".xml")) {
         LOGGER_ERROR("config file end with not '.xml': %s", config_file);
-        return XS_EARG;
+        return XS_E_PARAM;
     }
 
     if (strstr(strrchr(config_file, '/'), XSYNC_CLIENT_APPNAME) !=  strrchr(config_file, '/') + 1) {
         LOGGER_ERROR("config file start with not '%s': %s", XSYNC_CLIENT_APPNAME, config_file);
-        return XS_EARG;
+        return XS_E_PARAM;
     }
 
     xml = mxmlNewXML("1.0");

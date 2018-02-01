@@ -26,7 +26,7 @@
 extern "C" {
 #endif
 
-#include "xsync-error.h"
+#include "../xsync-error.h"
 
 #include "server_opts.h"
 #include "watch_path.h"
