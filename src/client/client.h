@@ -190,23 +190,279 @@ static int validate_arg_queues (int arg_queues, int threads)
 
 
 __attribute__((used))
-static void validate_client_config (XS_client client)
+static void clientapp_opts_checkup (clientapp_opts *opts)
 {
-    if (client->threads > XSYNC_CLIENT_THREADS_MAX) {
-        LOGGER_WARN("too many THREADS(%d) expected. coerce THREADS=%d", client->threads, XSYNC_CLIENT_THREADS_MAX);
-        client->threads = XSYNC_CLIENT_THREADS_MAX;
-    } else if (client->threads < XS_DEFAULT_NumberThreadsMin) {
-        LOGGER_WARN("too less THREADS(%d) expected. coerce THREADS=%d", client->threads, XS_DEFAULT_NumberThreadsMin);
-        client->threads = XS_DEFAULT_NumberThreadsMin;
+    if (opts->threads > XSYNC_CLIENT_THREADS_MAX) {
+        LOGGER_WARN("too many THREADS(%d) expected. coerce THREADS=%d", opts->threads, XSYNC_CLIENT_THREADS_MAX);
+        opts->threads = XSYNC_CLIENT_THREADS_MAX;
+    } else if (opts->threads < XS_DEFAULT_NumberThreadsMin) {
+        LOGGER_WARN("too less THREADS(%d) expected. coerce THREADS=%d", opts->threads, XS_DEFAULT_NumberThreadsMin);
+        opts->threads = XS_DEFAULT_NumberThreadsMin;
     }
 
-    if (client->queues > XSYNC_CLIENT_QUEUES_MAX) {
-        LOGGER_WARN("too many QUEUES(%d) expected. coerce QUEUES=%d", client->threads, XSYNC_CLIENT_QUEUES_MAX);
-        client->queues = XSYNC_CLIENT_QUEUES_MAX;
-    } else if (client->queues < client->threads * XS_DEFAULT_TasksPrethreadMin) {
-        LOGGER_WARN("too less QUEUES(%d) expected. coerce QUEUES=%d", client->queues, client->threads * XS_DEFAULT_TasksPrethreadMin);
-        client->queues = client->threads * XS_DEFAULT_TasksPrethreadMin;
+    if (opts->queues > XSYNC_CLIENT_QUEUES_MAX) {
+        LOGGER_WARN("too many QUEUES(%d) expected. coerce QUEUES=%d", opts->threads, XSYNC_CLIENT_QUEUES_MAX);
+        opts->queues = XSYNC_CLIENT_QUEUES_MAX;
+    } else if (opts->queues < opts->threads * XS_DEFAULT_TasksPrethreadMin) {
+        LOGGER_WARN("too less QUEUES(%d) expected. coerce QUEUES=%d", opts->queues, opts->threads * XS_DEFAULT_TasksPrethreadMin);
+        opts->queues = opts->threads * XS_DEFAULT_TasksPrethreadMin;
     }
+}
+
+
+__attribute__((used))
+static void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
+{
+    int ret;
+
+    char buff[XSYNC_IO_BUFSIZE];
+
+    char config[XSYNC_PATHFILE_MAXLEN + 1];
+    char log4crc[XSYNC_PATHFILE_MAXLEN + 1];
+
+    char priority[20] = {0};
+    char appender[60] = {0};
+
+    int force_watch = 0;
+
+    int isdaemon = 0;
+
+    int threads = 0;
+    int queues = 0;
+
+    bzero(opts, sizeof(*opts));
+
+    /* command arguments */
+    const struct option lopts[] = {
+        {"help", no_argument, 0, 'h'},
+        {"version", no_argument, 0, 'V'},
+        {"config", required_argument, 0, 'C'},
+        {"force-watch", no_argument, 0, 'W'},
+        {"log4c-rcpath", required_argument, 0, 'O'},
+        {"priority", required_argument, 0, 'P'},
+        {"appender", required_argument, 0, 'A'},
+        {"threads", required_argument, 0, 't'},
+        {"queues", required_argument, 0, 'q'},
+        {"update-clientid", required_argument, 0, 'I'},
+        {"daemon", no_argument, 0, 'D'},
+        {"kill", no_argument, 0, 'K'},
+        {"list", no_argument, 0, 'L'},
+        {"md5", required_argument, 0, 'm'},
+        {"regexp", required_argument, 0, 'r'},
+        {0, 0, 0, 0}
+    };
+
+    /**
+     * get default real path for xsync-client.conf
+     */
+    ret = realpathdir(argv[0], buff, sizeof(buff));
+    if (ret <= 0) {
+        fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buff);
+        exit(-1);
+    }
+
+    if (strrchr(buff, '/') == strchr(buff, '/')) {
+        fprintf(stderr, "\033[1;31m[error]\033[0m cannot run under root path: %s\n", buff);
+        exit(-1);
+    }
+
+    *strrchr(buff, '/') = 0;
+    *(strrchr(buff, '/') + 1) = 0;
+
+    ret = snprintf(config, sizeof(config), "%sconf/%s-conf.ini", buff, APP_NAME);
+    if (ret < 20 || ret >= sizeof(config)) {
+        fprintf(stderr, "\033[1;31m[error]\033[0m invalid conf path: %s\n", buff);
+        exit(-1);
+    }
+
+    ret = snprintf(log4crc, sizeof(log4crc), "LOG4C_RCPATH=%sconf/", buff);
+    if (ret < 20 || ret >= sizeof(log4crc)) {
+        fprintf(stderr, "\033[1;31m[error]\033[0m invalid log4c path: %s\n", buff);
+        exit(-1);
+    }
+
+    /* parse command arguments */
+    while ((ret = getopt_long(argc, argv, "DKLhVC:WO:P:A:t:q:I:m:r:", lopts, 0)) != EOF) {
+        switch (ret) {
+        case 'D':
+            isdaemon = 1;
+            break;
+
+        case 'h':
+            print_usage();
+            exit(0);
+            break;
+
+        case 'C':
+            /* overwrite default config file */
+            ret = snprintf(config, sizeof(config), "%s", optarg);
+            if (ret < 20 || ret >= sizeof(config)) {
+                fprintf(stderr, "\033[1;31m[error]\033[0m specified invalid conf file: %s\n", optarg);
+                exit(-1);
+            }
+
+            if (getfullpath(config, buff, sizeof(buff)) != 0) {
+                fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buff);
+                exit(-1);
+            } else {
+                ret = snprintf(config, sizeof(config), "%s", buff);
+                if (ret < 20 || ret >= sizeof(config)) {
+                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid conf file: %s\n", buff);
+                    exit(-1);
+                }
+            }
+            break;
+
+        case 'W':
+            force_watch = 1;
+            break;
+
+        case 'O':
+            /* overwrite default log4crc file */
+            ret = snprintf(log4crc, sizeof(log4crc), "%s", optarg);
+            if (ret < 0 || ret >= sizeof(log4crc)) {
+                fprintf(stderr, "\033[1;31m[error]\033[0m specified invalid log4c path: \033[31m%s\033[0m\n", optarg);
+                exit(-1);
+            }
+
+            if (getfullpath(log4crc, buff, sizeof(buff)) != 0) {
+                fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buff);
+                exit(-1);
+            } else {
+                ret = snprintf(log4crc, sizeof(log4crc), "LOG4C_RCPATH=%s", buff);
+                if (ret < 10 || ret >= sizeof(log4crc)) {
+                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid log4c path: %s\n", buff);
+                    exit(-1);
+                }
+            }
+            break;
+
+        case 'P':
+            ret = snprintf(priority, sizeof(priority), "%s", optarg);
+            if (ret < 0 || ret >= sizeof(priority)) {
+                fprintf(stderr, "\033[1;31m[error]\033[0m specified invalid priority: %s\n", optarg);
+                exit(-1);
+            }
+            break;
+
+        case 'A':
+            ret = snprintf(appender, sizeof(appender), "%s", optarg);
+            if (ret < 0 || ret >= sizeof(appender)) {
+                fprintf(stderr, "\033[1;31m[error]\033[0m specified invalid appender: \033[31m%s\033[0m\n", optarg);
+                exit(-1);
+            }
+            break;
+
+        case 't':
+            threads = validate_arg_threads(atoi(optarg));
+            break;
+
+        case 'q':
+            queues = validate_arg_queues(atoi(optarg), threads);
+            break;
+
+        case 'I':
+            exit(0);
+            break;
+
+        case 'm':
+            ret = check_file_mode(optarg, R_OK);
+
+            if (ret) {
+                fprintf(stderr, "\033[1;31m[error: md5sum]\033[0m file not found: %s\n\n", optarg);
+            } else {
+                ret = md5sum_file(optarg, buff, sizeof(buff));
+
+                if (ret == 0) {
+                    fprintf(stdout, "\033[1;32m[success: md5sum]\033[0m %s (%s)\n", buff, optarg);
+                } else {
+                    fprintf(stderr, "\033[1;31m[error: md5sum]\033[0m file: %s\n", optarg);
+                }
+            }
+            exit(ret);
+            break;
+
+        case 'K':
+            exit(0);
+            break;
+
+        case 'L':
+            exit(0);
+            break;
+
+        case 'r':
+            exit(0);
+            break;
+
+        case 'V':
+            fprintf(stdout, "\033[1;35m%s, Version: %s, Build: %s %s\033[0m\n\n", APP_NAME, APP_VERSION, __DATE__, __TIME__);
+            exit(0);
+            break;
+        }
+    }
+
+    fprintf(stdout, "\033[1;34m* Default log4c path : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
+    fprintf(stdout, "\033[1;34m* Default config file: %s\033[0m\n\n", config);
+    fprintf(stdout, "\033[1;32m* Using log4c path   : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
+    fprintf(stdout, "\033[1;32m* Using config file  : %s\033[0m\n", config);
+
+    if (threads > 0) {
+        // 用户指定了线程和队列用于覆盖配置文件
+        queues = validate_arg_queues(queues, threads);
+        fprintf(stdout, "\033[1;32m* Overwritten config : (threads=%d, queues=%d)\033[0m\n\n", threads, queues);
+    }
+
+    if (force_watch) {
+        // 强迫从 watch 目录自动配置
+        snprintf(buff, sizeof(buff), "%s", config);
+
+        *strrchr(buff, '/') = 0;
+        *strrchr(buff, '/') = 0;
+        strcat(buff, "/watch");
+
+        if (! isdir(buff)) {
+            fprintf(stderr, "\033[1;31m[error] NOT a directory:\033[0m %s\n\n", buff);
+            exit(-1);
+        }
+
+        if (0 != access(buff, F_OK|R_OK|X_OK)) {
+            fprintf(stderr, "\033[1;31m[error] watch error(%d): %s.\033[0m (%s)\n\n", errno, strerror(errno), buff);
+            exit(-1);
+        }
+
+        snprintf(config, sizeof(config), "%s", buff);
+        fprintf(stdout, "\033[1;36m* Force using watch  : %s\033[0m\n", config);
+    }
+
+    // 设置log4c
+    config_log4crc(APP_NAME, log4crc, priority, appender, sizeof(appender), buff, sizeof(buff));
+
+    // 得到启动命令
+    ret = getstartcmd(argc, argv, buff, sizeof(buff), APP_NAME);
+    if (ret) {
+        fprintf(stderr, "\033[1;31m[error: getstartcmd]\033[0m %s\n\n", buff);
+        exit(-1);
+    }
+
+    // 输出选项
+    ret = strlen(buff) + 1;
+    opts->startcmd = (char *) malloc(ret + 1);
+    memcpy(opts->startcmd, buff, ret);
+    opts->startcmd[ret] = 0;
+
+    opts->isdaemon = isdaemon;
+    opts->threads = threads;
+    opts->queues = queues;
+    opts->force_watch = force_watch;
+
+    memcpy(opts->config, config, XSYNC_PATHFILE_MAXLEN);
+    opts->config[XSYNC_PATHFILE_MAXLEN] = 0;
+}
+
+
+__attribute__((used))
+static void clientapp_opts_cleanup (clientapp_opts *opts)
+{
 }
 
 

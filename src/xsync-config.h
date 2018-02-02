@@ -198,13 +198,13 @@ extern "C"
 #endif
 
 
-#ifndef XSYNC_PATH_HASH_MAXID
-#  define XSYNC_PATH_HASH_MAXID     0xff
+#ifndef XSYNC_WATCH_PATH_HASHMAX
+#  define XSYNC_WATCH_PATH_HASHMAX      255
 #endif
 
 
-#ifndef XSYNC_ENTRY_HASH_MAXID
-#  define XSYNC_ENTRY_HASH_MAXID    1023
+#ifndef XSYNC_WATCH_ENTRY_HASHMAX
+#  define XSYNC_WATCH_ENTRY_HASHMAX    1023
 #endif
 
 

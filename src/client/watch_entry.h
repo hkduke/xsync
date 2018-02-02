@@ -48,6 +48,19 @@ typedef struct xs_watch_entry_t
 {
     EXTENDS_REFOBJECT_TYPE();
 
+    uint64_t entryid;                   /* server-side entry id for file, must valid (> 0) */
+
+    /* read only members */
+    int  wd;                            /* watch path descriptor */
+    int  sid;                           /* server id receive event */
+
+    time_t cretime;                     /* creation time of the entry */
+    time_t curtime;                     /* current time of the entry */
+
+    uint64_t offset;                    /* current offset position */
+
+    int status;                         /* status code */
+
 
     struct xs_watch_entry_t * next;
 } * XS_watch_entry, xs_watch_entry_t;

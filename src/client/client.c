@@ -62,13 +62,17 @@ void sig_int (int signo)
 /**
  * 程序退出时调用: exit_handler
  */
-void exit_handler (int exitcode, void * startcmd)
+void exit_handler (int exitCode, void *ppData)
 {
+    char *startcmd = *((char **) ppData);
+
     //sem_unlink(semaphore);
-    printf("\n* %s-%s exit(%d).\n", APP_NAME, APP_VERSION, exitcode);
+    printf("\n* %s-%s exit(%d).\n", APP_NAME, APP_VERSION, exitCode);
 
     if (startcmd) {
-        if (exitcode == 10 || exitcode == 11) {
+        *((char **) ppData) = 0;
+
+        if (exitCode == 10 || exitCode == 11) {
             //time_t t = time(0);
             //printf("\n\n* %s* isynclog-client restart: %s\n\n", ctime(&t), (char*) startcmd);
             //code = pox_system(startcmd);
@@ -87,322 +91,98 @@ void exit_handler (int exitcode, void * startcmd)
  *     $ ../target/xsync-client-0.0.1 -Ptrace -Astdout
  *
  */
-int main (int argc, char * argv [])
+int main (int argc, char *argv[])
 {
-    int ret;
+    XS_client client;
 
-    char buff[XSYNC_IO_BUFSIZE];
+    clientapp_opts opts;
 
-    char config[XSYNC_PATHFILE_MAXLEN + 1];
-    char log4crc[XSYNC_PATHFILE_MAXLEN + 1];
-
-    char priority[20] = {0};
-    char appender[60] = {0};
-
-    int force_watch = 0;
-
-    int isdaemon = 0;
-
-    int threads = 0;
-    int queues = 0;
-
-    /* command arguments */
-    const struct option lopts[] = {
-        {"help", no_argument, 0, 'h'},
-        {"version", no_argument, 0, 'V'},
-        {"config", required_argument, 0, 'C'},
-        {"force-watch", no_argument, 0, 'W'},
-        {"log4c-rcpath", required_argument, 0, 'O'},
-        {"priority", required_argument, 0, 'P'},
-        {"appender", required_argument, 0, 'A'},
-        {"threads", required_argument, 0, 't'},
-        {"queues", required_argument, 0, 'q'},
-        {"update-clientid", required_argument, 0, 'I'},
-        {"daemon", no_argument, 0, 'D'},
-        {"kill", no_argument, 0, 'K'},
-        {"list", no_argument, 0, 'L'},
-        {"md5", required_argument, 0, 'm'},
-        {"regexp", required_argument, 0, 'r'},
-        {0, 0, 0, 0}
-    };
+    clientapp_opts_initiate(argc, argv, &opts);
 
     void sig_chld(int);
     void sig_int(int);
 
-    /**
-     * get default real path for xsync-client.conf
-     */
-    ret = realpathdir(argv[0], buff, sizeof(buff));
-    if (ret <= 0) {
-        fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buff);
-        exit(-1);
-    }
-
-    if (strrchr(buff, '/') == strchr(buff, '/')) {
-        fprintf(stderr, "\033[1;31m[error]\033[0m cannot run under root path: %s\n", buff);
-        exit(-1);
-    }
-
-    *strrchr(buff, '/') = 0;
-    *(strrchr(buff, '/') + 1) = 0;
-
-    ret = snprintf(config, sizeof(config), "%sconf/%s-conf.ini", buff, APP_NAME);
-    if (ret < 20 || ret >= sizeof(config)) {
-        fprintf(stderr, "\033[1;31m[error]\033[0m invalid conf path: %s\n", buff);
-        exit(-1);
-    }
-
-    ret = snprintf(log4crc, sizeof(log4crc), "LOG4C_RCPATH=%sconf/", buff);
-    if (ret < 20 || ret >= sizeof(log4crc)) {
-        fprintf(stderr, "\033[1;31m[error]\033[0m invalid log4c path: %s\n", buff);
-        exit(-1);
-    }
-
-    /* parse command arguments */
-    while ((ret = getopt_long(argc, argv, "DKLhVC:WO:P:A:t:q:I:m:r:", lopts, 0)) != EOF) {
-        switch (ret) {
-        case 'D':
-            isdaemon = 1;
-            break;
-
-        case 'h':
-            print_usage();
-            exit(0);
-            break;
-
-        case 'C':
-            /* overwrite default config file */
-            ret = snprintf(config, sizeof(config), "%s", optarg);
-            if (ret < 20 || ret >= sizeof(config)) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m specified invalid conf file: %s\n", optarg);
-                exit(-1);
-            }
-
-            if (getfullpath(config, buff, sizeof(buff)) != 0) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buff);
-                exit(-1);
-            } else {
-                ret = snprintf(config, sizeof(config), "%s", buff);
-                if (ret < 20 || ret >= sizeof(config)) {
-                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid conf file: %s\n", buff);
-                    exit(-1);
-                }
-            }
-            break;
-
-        case 'W':
-            force_watch = 1;
-            break;
-
-        case 'O':
-            /* overwrite default log4crc file */
-            ret = snprintf(log4crc, sizeof(log4crc), "%s", optarg);
-            if (ret < 0 || ret >= sizeof(log4crc)) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m specified invalid log4c path: \033[31m%s\033[0m\n", optarg);
-                exit(-1);
-            }
-
-            if (getfullpath(log4crc, buff, sizeof(buff)) != 0) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buff);
-                exit(-1);
-            } else {
-                ret = snprintf(log4crc, sizeof(log4crc), "LOG4C_RCPATH=%s", buff);
-                if (ret < 10 || ret >= sizeof(log4crc)) {
-                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid log4c path: %s\n", buff);
-                    exit(-1);
-                }
-            }
-            break;
-
-        case 'P':
-            ret = snprintf(priority, sizeof(priority), "%s", optarg);
-            if (ret < 0 || ret >= sizeof(priority)) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m specified invalid priority: %s\n", optarg);
-                exit(-1);
-            }
-            break;
-
-        case 'A':
-            ret = snprintf(appender, sizeof(appender), "%s", optarg);
-            if (ret < 0 || ret >= sizeof(appender)) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m specified invalid appender: \033[31m%s\033[0m\n", optarg);
-                exit(-1);
-            }
-            break;
-
-        case 't':
-            threads = validate_arg_threads(atoi(optarg));
-            break;
-
-        case 'q':
-            queues = validate_arg_queues(atoi(optarg), threads);
-            break;
-
-        case 'I':
-            exit(0);
-            break;
-
-        case 'm':
-            ret = check_file_mode(optarg, R_OK);
-
-            if (ret) {
-                fprintf(stderr, "\033[1;31m[error: md5sum]\033[0m file not found: %s\n\n", optarg);
-            } else {
-                ret = md5sum_file(optarg, buff, sizeof(buff));
-
-                if (ret == 0) {
-                    fprintf(stdout, "\033[1;32m[success: md5sum]\033[0m %s (%s)\n", buff, optarg);
-                } else {
-                    fprintf(stderr, "\033[1;31m[error: md5sum]\033[0m file: %s\n", optarg);
-                }
-            }
-            exit(ret);
-            break;
-
-        case 'K':
-            exit(0);
-            break;
-
-        case 'L':
-            exit(0);
-            break;
-
-        case 'r':
-            exit(0);
-            break;
-
-        case 'V':
-            fprintf(stdout, "\033[1;35m%s, Version: %s, Build: %s %s\033[0m\n\n", APP_NAME, APP_VERSION, __DATE__, __TIME__);
-            exit(0);
-            break;
-        }
-    }
-
-    fprintf(stdout, "\033[1;34m* Default log4c path : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
-    fprintf(stdout, "\033[1;34m* Default config file: %s\033[0m\n\n", config);
-    fprintf(stdout, "\033[1;32m* Using log4c path   : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
-    fprintf(stdout, "\033[1;32m* Using config file  : %s\033[0m\n", config);
-
-    if (threads > 0) {
-        // 用户指定了线程和队列用于覆盖配置文件
-        queues = validate_arg_queues(queues, threads);
-        fprintf(stdout, "\033[1;32m* Overwritten config : (threads=%d, queues=%d)\033[0m\n\n", threads, queues);
-    }
-
-    if (force_watch) {
-        // 强迫从 watch 目录自动配置
-        snprintf(buff, sizeof(buff), "%s", config);
-
-        *strrchr(buff, '/') = 0;
-        *strrchr(buff, '/') = 0;
-        strcat(buff, "/watch");
-
-        if (! isdir(buff)) {
-            fprintf(stderr, "\033[1;31m[error] NOT a directory:\033[0m %s\n\n", buff);
-            exit(-1);
-        }
-
-        if (0 != access(buff, F_OK|R_OK|X_OK)) {
-            fprintf(stderr, "\033[1;31m[error] watch error(%d): %s.\033[0m (%s)\n\n", errno, strerror(errno), buff);
-            exit(-1);
-        }
-
-        snprintf(config, sizeof(config), "%s", buff);
-        fprintf(stdout, "\033[1;36m* Force using watch  : %s\033[0m\n", config);
-    }
-
-    // 设置log4c
-    config_log4crc(APP_NAME, log4crc, priority, appender, sizeof(appender), buff, sizeof(buff));
-
-    // 得到启动命令
-    ret = getstartcmd(argc, argv, buff, sizeof(buff), APP_NAME);
-    if (ret) {
-        fprintf(stderr, "\033[1;31m[error: getstartcmd]\033[0m %s\n\n", buff);
-        exit(-1);
-    }
-
     LOGGER_INIT();
-    LOGGER_INFO("%s-%s startup %s", APP_NAME, APP_VERSION, (isdaemon? "as daemon..." : "..."));
-    LOGGER_INFO("startcmd={%s}", buff);
+    LOGGER_INFO("%s-%s startup %s", APP_NAME, APP_VERSION, (opts.isdaemon? "as daemon..." : "..."));
+    LOGGER_INFO("startcmd={%s}", opts.startcmd);
 
-    if (isdaemon) {
+    clientapp_opts_checkup(&opts);
+
+    /**
+     * 注册退出函数
+     */
+    on_exit(exit_handler, (void *)((char**) &opts.startcmd));
+
+    if (opts.isdaemon) {
         /**
          * int daemon(int nochdir, int noclose);
          *
          * see also:
          *   http://man7.org/linux/man-pages/man3/daemon.3.html
          */
-        ret = daemon(1, 1);
-
-        if (ret) {
+        if ( daemon(1, 1) ) {
             LOGGER_ERROR("daemon error(%d): %s", errno, strerror(errno));
-            goto exit_onerror;
+            goto on_error_exit;
         } else {
             LOGGER_INFO("daemon ok. pid=%d", getpid());
         }
     }
 
-    do {
-        char * startcmd;
-        ret = strlen(buff);
+    /**
+     * 注册信号处理函数
+     */
+    if (signal(SIGCHLD, sig_chld) == SIG_ERR) {
+        LOGGER_FATAL("signal(SIGCHLD) error(%d): %s", errno, strerror(errno));
+        exit(-1);
+    }
 
-        startcmd = (char *) malloc(ret + 1);
-        memcpy(startcmd, buff, ret);
-        startcmd[ret] = 0;
+    if (signal(SIGINT, sig_int) == SIG_ERR) {
+        LOGGER_FATAL("signal(SIGINT) error(%d): %s", errno, strerror(errno));
+        exit(-1);
+    }
 
-        /* 注册退出函数 */
-        on_exit(exit_handler, startcmd);
+    if (signal(SIGTERM, sig_term) == SIG_ERR) {
+        LOGGER_FATAL("signal(SIGTERM) error(%d): %s", errno, strerror(errno));
+        exit(-1);
+    }
 
-        /* SIGCHLD */
-        if (signal(SIGCHLD, sig_chld) == SIG_ERR) {
-            LOGGER_FATAL("signal(SIGCHLD) error(%d): %s", errno, strerror(errno));
-            exit(-1);
-        }
+    /**
+     * signal(SIGPIPE, SIG_IGN);
+     *
+     * Unix supports the principle of piping, which allows processes to send data
+     * to other processes without the need for creating temporary files. When a
+     * pipe is broken, the process writing to it is sent the SIGPIPE signal.
+     * The default reaction to this signal for a process is to terminate.
+     * see also:
+     *   - http://blog.csdn.net/sukhoi27smk/article/details/43760605
+     */
+    if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
+        LOGGER_FATAL("signal(SIGPIPE) error(%d): %s", errno, strerror(errno));
+        exit(-1);
+    }
 
-        if (signal(SIGINT, sig_int) == SIG_ERR) {
-            LOGGER_FATAL("signal(SIGINT) error(%d): %s", errno, strerror(errno));
-            exit(-1);
-        }
-
-        if (signal(SIGTERM, sig_term) == SIG_ERR) {
-            LOGGER_FATAL("signal(SIGTERM) error(%d): %s", errno, strerror(errno));
-            exit(-1);
-        }
+    /**
+     * 创建客户端
+     */
+    if (XS_client_create(&opts, &client) == XS_SUCCESS) {
+        /**
+         * 启动客户端服务程序, 永远运行...
+         */
+        XS_client_bootstrap(client);
 
         /**
-         * signal(SIGPIPE, SIG_IGN);
-         *
-         * Unix supports the principle of piping, which allows processes to send data
-         * to other processes without the need for creating temporary files. When a
-         * pipe is broken, the process writing to it is sent the SIGPIPE signal.
-         * The default reaction to this signal for a process is to terminate.
-         * see also:
-         *   - http://blog.csdn.net/sukhoi27smk/article/details/43760605
+         * 使用完毕, 释放客户端
          */
-        if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
-            LOGGER_FATAL("signal(SIGPIPE) error(%d): %s", errno, strerror(errno));
-            exit(-1);
-        }
-    } while (0);
+        XS_client_release(&client);
+    }
 
-    // 启动客户端服务程序, 永远运行
-    do {
-        XS_client client = 0;
-
-        ret = XS_client_create(config, force_watch, buff, sizeof(buff), &client);
-
-        if (ret == 0) {
-
-            XS_client_listening_events(client);
-
-            XS_client_release(&client);
-        }
-    } while(0);
-
-exit_onerror:
+    /**
+     * 客户端异常退出!
+     */
+on_error_exit:
+    clientapp_opts_cleanup(&opts);
 
     LOGGER_FATAL("%s (v%s) shutdown !", APP_NAME, APP_VERSION);
     LOGGER_FINI();
-
-    return (ret);
+    return (XS_ERROR);
 }

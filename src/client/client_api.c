@@ -32,7 +32,11 @@
 #include "../xmlconf.h"
 
 
-#define XSYNC_GET_HLIST_HASHID(path)   ((int)(BKDRHash(path) & XSYNC_PATH_HASH_MAXID))
+#define XS_watch_path_hash_get(path)   ((int)(BKDRHash(path) & XSYNC_WATCH_PATH_HASHMAX))
+
+#define XS_watch_id_hash_get(wd)       ((int)((wd) & XSYNC_WATCH_PATH_HASHMAX))
+
+#define XS_entry_map_hash_get(path)    ((int)(BKDRHash(path) & XSYNC_WATCH_ENTRY_HASHMAX))
 
 
 /**
@@ -109,6 +113,98 @@
  *                           ...
  *
  */
+
+
+/**
+ * insert wd into wd_table of client
+ */
+__attribute__((used))
+static inline void client_wd_table_insert (XS_client client, XS_watch_path wp)
+{
+    int hash = XS_watch_id_hash_get(wp->watch_wd);
+    assert(wp->watch_wd != -1 && hash >= 0 && hash <= XSYNC_WATCH_PATH_HASHMAX);
+
+    wp->next = client->wd_table[hash];
+    client->wd_table[hash] = wp;
+}
+
+
+__attribute__((used))
+static inline xs_watch_path_t * client_wd_table_lookup (XS_client client, int wd)
+{
+    xs_watch_path_t * wp;
+
+    int hash = XS_watch_id_hash_get(wd);
+    assert(wd != -1 && hash >= 0 && hash <= XSYNC_WATCH_PATH_HASHMAX);
+
+    wp = client->wd_table[hash];
+    while (wp) {
+        if (wp->watch_wd == wd) {
+            return wp;
+        }
+        wp = wp->next;
+    }
+    return wp;
+}
+
+
+__attribute__((used))
+static inline XS_watch_path client_wd_table_remove (XS_client client, XS_watch_path wp)
+{
+    xs_watch_path_t * lead;
+    xs_watch_path_t * node;
+
+    int hash = XS_watch_id_hash_get(wp->watch_wd);
+    assert(wp->watch_wd != -1 && hash >= 0 && hash <= XSYNC_WATCH_PATH_HASHMAX);
+
+    // 特殊处理头节点
+    lead = client->wd_table[hash];
+    if (! lead || lead == wp) {
+        if (lead) {
+            client->wd_table[hash] = lead->next;
+            lead->next = 0;
+        }
+        return lead;
+    }
+
+    // lead->node->...
+    node = lead->next;
+    while (node && node != wp) {
+        lead = node;
+        node = node->next;
+    }
+
+    if (node == wp) {
+        // found wd
+        lead->next = node->next;
+        node->next = 0;
+    }
+
+    return node;
+}
+
+
+__attribute__((used))
+static inline int client_get_sid_max (XS_client client)
+{
+    return client->servers_opts->sidmax;
+}
+
+
+__attribute__((used))
+static inline int client_threadpool_unused_queues (XS_client client)
+{
+    return threadpool_unused_queues(client->pool);
+}
+
+
+__attribute__((used))
+static inline xs_server_opts_t * client_get_server_by_id (XS_client client, int sid /* 1 based */)
+{
+    assert(sid > 0 && sid <= client->servers_opts->sidmax);
+    return client->servers_opts + sid;
+}
+
 
 static int lscb_add_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client)
 {
@@ -299,14 +395,24 @@ static int client_init_from_config (XS_client client, const char * config_file)
 
 
 __attribute__((used))
+static XS_RESULT client_add_watch_entry (XS_client client, XS_watch_entry entry)
+{
+    //XS_entry_map_hash_get
+
+
+    return 0;
+}
+
+
+__attribute__((used))
 static int client_create_events (XS_client client, struct inotify_event * inevent, XS_watch_event events[], int maxsid)
 {
 
     return 0;
 }
 
-
-static void free_xsync_client (void *pv)
+__attribute__((used))
+static void xs_client_free (void *pv)
 {
     int i, sid;
     xs_client_t * client = (xs_client_t *) pv;
@@ -361,16 +467,24 @@ static void free_xsync_client (void *pv)
     free(client);
 }
 
+/**
+ * public api for XS_client
+ *
 
-XS_RESULT XS_client_create (char * config, int force_watch, char * inbuf, size_t inbufsize, XS_client * outClient)
+extern XS_RESULT XS_client_create (char *config, int config_type, XS_client *outclient)
+{
+
+extern XS_RESULT XS_client_bootstrap (XS_client client);
+ */
+extern XS_RESULT XS_client_create (clientapp_opts *opts, XS_client *outClient)
 {
     int i, sid, err;
 
-    XS_client client;
+    int SERVERS;
+    int THREADS;
+    int QUEUES;
 
-    int SERVERS = 2;
-    int THREADS = 4;
-    int QUEUES = 256;
+    XS_client client;
 
     *outClient = 0;
 
@@ -388,7 +502,7 @@ XS_RESULT XS_client_create (char * config, int force_watch, char * inbuf, size_t
     /* init dhlist for watch path */
     LOGGER_TRACE("dhlist_init");
     INIT_LIST_HEAD(&client->list1);
-    for (i = 0; i <= XSYNC_PATH_HASH_MAXID; i++) {
+    for (i = 0; i <= XSYNC_WATCH_PATH_HASHMAX; i++) {
         INIT_HLIST_HEAD(&client->hlist[i]);
     }
 
@@ -400,25 +514,27 @@ XS_RESULT XS_client_create (char * config, int force_watch, char * inbuf, size_t
     client->infd = inotify_init();
     if (client->infd == -1) {
         LOGGER_ERROR("inotify_init() error(%d): %s", errno, strerror(errno));
-        free_xsync_client((void*) client);
+        xs_client_free((void*) client);
         return XS_ERROR;
     }
 
-    if (force_watch) {
-        err = client_init_from_watch(client, config);
+    if (opts->force_watch) {
+        err = client_init_from_watch(client, opts->config);
     } else {
-        err = client_init_from_config(client, config);
+        err = client_init_from_config(client, opts->config);
     }
 
     if (err) {
-        free_xsync_client((void*) client);
+        xs_client_free((void*) client);
         return XS_ERROR;
     }
 
-    client->threads = THREADS;
-    client->queues = QUEUES;
+    client->threads = opts->threads;
+    client->queues = opts->queues;
 
-    validate_client_config(client);
+    SERVERS = client_get_sid_max(client);
+    THREADS = client->threads;
+    QUEUES = client->queues;
 
     /* create per thread data */
     client->thread_args = (void **) mem_alloc(THREADS, sizeof(void*));
@@ -461,7 +577,7 @@ XS_RESULT XS_client_create (char * config, int force_watch, char * inbuf, size_t
     client->pool = threadpool_create(THREADS, QUEUES, client->thread_args, 0);
     if (! client->pool) {
         LOGGER_FATAL("threadpool_create error: Out of memory");
-        free_xsync_client((void*) client);
+        xs_client_free((void*) client);
         return XS_ERROR;
     }
 
@@ -477,7 +593,7 @@ XS_RESULT XS_client_create (char * config, int force_watch, char * inbuf, size_t
         return XS_SUCCESS;
     } else {
         LOGGER_FATAL("RefObjectInit error(%d): %s", err, strerror(err));
-        free_xsync_client((void*) client);
+        xs_client_free((void*) client);
         return XS_ERROR;
     }
 }
@@ -487,19 +603,25 @@ XS_VOID XS_client_release (XS_client * inClient)
 {
     LOGGER_TRACE0();
 
-    RefObjectRelease((void**) inClient, free_xsync_client);
+    RefObjectRelease((void**) inClient, xs_client_free);
 }
 
 
 XS_RESULT XS_client_lock (XS_client client)
 {
-    return 0;
+    int err = RefObjectLock((void*) client, 1);
+
+    if (err) {
+        LOGGER_WARN("pthread_mutex_trylock error(%d): %s", err, strerror(err));
+    }
+
+    return err;
 }
 
 
-XS_RESULT XS_client_unlock (XS_client client)
+XS_VOID XS_client_unlock (XS_client client)
 {
-    return 0;
+    RefObjectUnlock((void*) client);
 }
 
 
@@ -551,7 +673,7 @@ XS_BOOL XS_client_find_path (XS_client client, char * path, XS_watch_path * outw
     struct hlist_node * hp;
 
     // 计算 hash
-    int hash = XSYNC_GET_HLIST_HASHID(path);
+    int hash = XS_watch_path_hash_get(path);
 
     LOGGER_TRACE("fullpath=%s", path);
 
@@ -600,8 +722,8 @@ XS_BOOL XS_client_add_path (XS_client client, XS_watch_path wp)
         /**
          * add dlist and hlist
          */
-        hash = XSYNC_GET_HLIST_HASHID(wp->fullpath);
-        assert(hash >= 0 && hash <= XSYNC_PATH_HASH_MAXID);
+        hash = XS_watch_path_hash_get(wp->fullpath);
+        assert(hash >= 0 && hash <= XSYNC_WATCH_PATH_HASHMAX);
 
         // 串入长串
         list_add(&wp->i_list, &client->list1);
@@ -624,7 +746,7 @@ XS_BOOL XS_client_remove_path (XS_client client, char * path)
     struct hlist_node *hp;
     struct hlist_node *hn;
 
-    int hash = XSYNC_GET_HLIST_HASHID(path);
+    int hash = XS_watch_path_hash_get(path);
 
     hlist_for_each_safe(hp, hn, &client->hlist[hash]) {
         struct xs_watch_path_t * wp = hlist_entry(hp, struct xs_watch_path_t, i_hash);
@@ -656,7 +778,7 @@ XS_BOOL XS_client_remove_path (XS_client client, char * path)
 }
 
 
-XS_VOID XS_client_listening_events (XS_client client)
+XS_VOID XS_client_bootstrap (XS_client client)
 {
     fd_set set;
 
