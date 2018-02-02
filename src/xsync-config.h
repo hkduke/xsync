@@ -65,6 +65,12 @@ extern "C"
 
 
 /**
+ * DO NOT CHANGE BELOW VALUE
+ */
+#define XSYNC_IO_BUFSIZE          4096
+
+
+/**
  * define max size of path file
  */
 #ifndef XSYNC_PATH_MAX_SIZE
@@ -90,14 +96,6 @@ extern "C"
 #ifndef XSYNC_INEVENT_BUFSIZE
 #  define XSYNC_INEVENT_BUFSIZE   8192
 #endif
-
-/**
- * SHOULD = 1024 * n (n = 2, 4, 8, 16)
- */
-#ifndef XSYNC_IO_BUFSIZE
-#  define XSYNC_IO_BUFSIZE        4096
-#endif
-
 
 
 /**

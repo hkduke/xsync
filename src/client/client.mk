@@ -36,6 +36,7 @@ SOURCES := \
     client_conf.c \
     watch_path.c \
     watch_event.c \
+    watch_entry.c \
     path_filter.c
 
 

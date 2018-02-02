@@ -43,7 +43,7 @@ typedef struct xs_server_opts_t
     char host[XSYNC_HOSTNAME_MAXLEN + 1];
     ushort port;
 
-    struct sockconn_opts  sockopts;
+    struct sockconn_opts sockopts;
 } * XS_server_opts, xs_server_opts_t;
 
 

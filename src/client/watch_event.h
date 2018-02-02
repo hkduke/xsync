@@ -39,24 +39,46 @@ extern "C" {
 #include "../xsync-error.h"
 #include "../xsync-config.h"
 
+#include "server_opts.h"
+
+
+typedef struct xs_client_t * XS_client;
+
+typedef struct xs_watch_entry_t * XS_watch_entry;
+
+
 #include "../common/common_util.h"
 
+#define XS_watch_event_type_none        0
 
-#define XS_watch_event_typeid   100
+#define XS_watch_event_type_inotify   100
 
 
 typedef struct xs_watch_event_t
 {
     EXTENDS_REFOBJECT_TYPE();
 
+    /* inotify event identifier */
+    int               ineventid;
 
+    /* task serial id */
+    int64_t          taskid;
+
+    /* reference of XS_client */
+    XS_client        client;
+
+    /* reference of XS_watch_entry */
+    XS_watch_entry  entry;
+
+    /* reference of server opts for read only */
+    XS_server_opts  server;
 
 } * XS_watch_event, xs_watch_event_t;
 
 
-extern int XS_watch_event_create (XS_watch_event * event);
+extern XS_RESULT XS_watch_event_create (int eventid, XS_client client, XS_watch_entry entry, XS_watch_event *outEvent);
 
-extern void XS_watch_event_release (XS_watch_event * event);
+extern XS_VOID XS_watch_event_release (XS_watch_event *inEvent);
 
 
 #if defined(__cplusplus)

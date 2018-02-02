@@ -104,161 +104,22 @@
 #include "../common/common_util.h"
 
 
-/**
- * insert wd into wd_table of client
- */
-__attribute__((used))
-static inline void client_wd_table_insert (XS_client client, XS_watch_path wp)
-{
-    int hash = XS_watch_id_hash_get(wp->watch_wd);
-    assert(wp->watch_wd != -1 && hash >= 0 && hash <= XSYNC_WATCH_PATH_HASHMAX);
-
-    wp->next = client->wd_table[hash];
-    client->wd_table[hash] = wp;
-}
-
-
-__attribute__((used))
-static inline xs_watch_path_t * client_wd_table_lookup (XS_client client, int wd)
-{
-    xs_watch_path_t * wp;
-
-    int hash = XS_watch_id_hash_get(wd);
-    assert(wd != -1 && hash >= 0 && hash <= XSYNC_WATCH_PATH_HASHMAX);
-
-    wp = client->wd_table[hash];
-    while (wp) {
-        if (wp->watch_wd == wd) {
-            return wp;
-        }
-        wp = wp->next;
-    }
-    return wp;
-}
-
-
-__attribute__((used))
-static inline XS_watch_path client_wd_table_remove (XS_client client, XS_watch_path wp)
-{
-    xs_watch_path_t * lead;
-    xs_watch_path_t * node;
-
-    int hash = XS_watch_id_hash_get(wp->watch_wd);
-    assert(wp->watch_wd != -1 && hash >= 0 && hash <= XSYNC_WATCH_PATH_HASHMAX);
-
-    // 特殊处理头节点
-    lead = client->wd_table[hash];
-    if (! lead || lead == wp) {
-        if (lead) {
-            client->wd_table[hash] = lead->next;
-            lead->next = 0;
-        }
-        return lead;
-    }
-
-    // lead->node->...
-    node = lead->next;
-    while (node && node != wp) {
-        lead = node;
-        node = node->next;
-    }
-
-    if (node == wp) {
-        // found wd
-        lead->next = node->next;
-        node->next = 0;
-    }
-
-    return node;
-}
-
-
-__attribute__((used))
-static XS_RESULT client_add_watch_entry (XS_client client, XS_watch_entry entry)
-{
-    //XS_entry_map_hash_get
-
-
-    return 0;
-}
-
-
-__attribute__((used))
-static int client_create_events (XS_client client, struct inotify_event * inevent, XS_watch_event events[], int maxsid)
-{
-
-    return 0;
-}
-
-
-__attribute__((used))
-static void xs_client_delete (void *pv)
-{
-    int i, sid;
-    XS_client client = (XS_client) pv;
-
-    LOGGER_TRACE("pthread_cond_destroy");
-    pthread_cond_destroy(&client->condition);
-
-    int infd = client->infd;
-    if (infd != -1) {
-        client->infd = -1;
-
-        LOGGER_DEBUG("close inotify");
-        close(infd);
-    }
-
-    if (client->pool) {
-        LOGGER_DEBUG("threadpool_destroy");
-        threadpool_destroy(client->pool, 0);
-    }
-
-    if (client->thread_args) {
-        perthread_data * perdata;
-        int sockfd, sid_max;
-
-        for (i = 0; i < client->threads; ++i) {
-            perdata = client->thread_args[i];
-            client->thread_args[i] = 0;
-
-            sid_max = perdata->sockfds[0] + 1;
-
-            for (sid = 1; sid < sid_max; sid++) {
-                sockfd = perdata->sockfds[sid];
-
-                perdata->sockfds[sid] = SOCKAPI_ERROR_SOCKET;
-
-                if (sockfd != SOCKAPI_ERROR_SOCKET) {
-                    close(sockfd);
-                }
-            }
-
-            free(perdata);
-        }
-
-        free(client->thread_args);
-    }
-
-    // 删除全部路径
-    XS_client_clearall_watch_paths(client);
-
-    LOGGER_TRACE("~xclient=%p", client);
-
-    free(client);
-}
-
-
 __attribute__((used))
 static void watch_event_task (thread_context_t * thread_ctx)
 {
     threadpool_task_t * task = thread_ctx->task;
 
-    if (task->flags == XS_watch_event_typeid) {
+    if (task->flags == XS_watch_event_type_inotify) {
         XS_watch_event event = (XS_watch_event) task->argument;
-        task->flags = 0;
+
+        task->flags = XS_watch_event_type_none;
+
+        LOGGER_WARN("TODO: sendfile to server");
 
         // MUST release event after using
         XS_watch_event_release(&event);
+    } else {
+        LOGGER_ERROR("unknown event type(=%d)", task->flags);
     }
 }
 
@@ -282,23 +143,23 @@ static XS_RESULT client_on_inotify_event (XS_client client, struct inotify_event
     LOGGER_TRACE("threadpool_unused_queues=%d", num);
 
     if (num > 0) {
-        int i, err;
+        int sid, err;
 
         err = XS_client_lock(client);
         if (! err) {
 
-            XS_watch_event events[XSYNC_SERVER_MAXID + 1];
+            XS_watch_event events[XSYNC_SERVER_MAXID + 1] = {0};
 
             // client_info_makeup_events
-            num = client_create_events(client, inevent, events, XSYNC_SERVER_MAXID);
+            int sidmax = client_populate_events_inlock(client, inevent, events);
 
             // unlock immediately
             XS_client_unlock(client);
 
-            for (i = 0; i < num; ++i) {
-                XS_watch_event event = events[i];
+            for (sid = 1; sid <= sidmax; sid++) {
+                XS_watch_event event = events[sid];
 
-                err = threadpool_add(client->pool, watch_event_task, (void*) event, 100);
+                err = threadpool_add(client->pool, watch_event_task, (void*) event, XS_watch_event_type_inotify);
 
                 if (! err) {
                     // success
@@ -306,6 +167,7 @@ static XS_RESULT client_on_inotify_event (XS_client client, struct inotify_event
                 } else {
                     // error
                     XS_watch_event_release(&event);
+
                     LOGGER_WARN("threadpool_add event error(%d): %s", err, threadpool_error_messages[-err]);
                 }
             }
@@ -346,16 +208,16 @@ extern XS_RESULT XS_client_create (clientapp_opts *opts, XS_client *outClient)
 
     /* init dhlist for watch path */
     LOGGER_TRACE("dhlist_init");
-    INIT_LIST_HEAD(&client->list1);
+    INIT_LIST_HEAD(&client->wp_dlist);
     for (i = 0; i <= XSYNC_WATCH_PATH_HASHMAX; i++) {
-        INIT_HLIST_HEAD(&client->hlist[i]);
+        INIT_HLIST_HEAD(&client->wp_hlist[i]);
     }
 
     client->servers_opts->sidmax = 0;
     client->infd = -1;
 
     /* http://www.cnblogs.com/jimmychange/p/3498862.html */
-    LOGGER_DEBUG("inotify_init");
+    LOGGER_DEBUG("inotify init");
     client->infd = inotify_init();
     if (client->infd == -1) {
         LOGGER_ERROR("inotify_init() error(%d): %s", errno, strerror(errno));
@@ -413,7 +275,7 @@ extern XS_RESULT XS_client_create (clientapp_opts *opts, XS_client *outClient)
     }
 
     /**
-     * output xs_client_t object
+     * output XS_client
      */
     if ((err = RefObjectInit(client)) == 0) {
         *outClient = client;
@@ -525,7 +387,15 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
                         inevent = (struct inotify_event *) (inevent_buf + at);
 
                         /* handle the inevent */
-                        handled = client_on_inotify_event(client, inevent);
+                        if (inevent->len > 0 && inevent->len < XSYNC_IO_BUFSIZE - 64) {
+                            handled = client_on_inotify_event(client, inevent);
+                        } else {
+                            if (inevent->len) {
+                                LOGGER_ERROR("bad filename: %s", inevent->name);
+                            } else {
+                                LOGGER_ERROR("empty filename");
+                            }
+                        }
 
                         handled += 0;
 
@@ -544,11 +414,11 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
 }
 
 
-extern XS_VOID XS_client_listall_watch_paths (XS_client client, list_watch_path_cb_t list_wp_cb, void * data)
+extern XS_VOID XS_client_list_watch_paths (XS_client client, list_watch_path_cb_t list_wp_cb, void * data)
 {
     struct list_head *list;
 
-    list_for_each(list, &client->list1) {
+    list_for_each(list, &client->wp_dlist) {
         struct xs_watch_path_t *wp = list_entry(list, struct xs_watch_path_t, i_list);
         if (list_wp_cb(wp, data) != 1) {
             return;
@@ -557,13 +427,13 @@ extern XS_VOID XS_client_listall_watch_paths (XS_client client, list_watch_path_
 }
 
 
-extern XS_VOID XS_client_clearall_watch_paths (XS_client client)
+extern XS_VOID XS_client_clear_watch_paths (XS_client client)
 {
     struct list_head *list, *node;
 
     LOGGER_TRACE0();
 
-    list_for_each_safe(list, node, &client->list1) {
+    list_for_each_safe(list, node, &client->wp_dlist) {
         struct xs_watch_path_t * wp = list_entry(list, struct xs_watch_path_t, i_list);
 
         /* remove from inotify watch */
@@ -610,16 +480,16 @@ extern XS_BOOL XS_client_add_watch_path (XS_client client, XS_watch_path wp)
         client_wd_table_insert(client, wp);
 
         /**
-         * add dlist and hlist
+         * add dlist and wp_hlist
          */
         hash = XS_watch_path_hash_get(wp->fullpath);
         assert(hash >= 0 && hash <= XSYNC_WATCH_PATH_HASHMAX);
 
         // 串入长串
-        list_add(&wp->i_list, &client->list1);
+        list_add(&wp->i_list, &client->wp_dlist);
 
         // 串入HASH短串
-        hlist_add_head(&wp->i_hash, &client->hlist[hash]);
+        hlist_add_head(&wp->i_hash, &client->wp_hlist[hash]);
 
         // 成功
         LOGGER_TRACE("xpath=%p, wd=%d. (%s)", wp, wp->watch_wd, wp->fullpath);
@@ -640,7 +510,7 @@ extern XS_BOOL XS_client_find_watch_path (XS_client client, char * path, XS_watc
 
     LOGGER_TRACE("fullpath=%s", path);
 
-    hlist_for_each(hp, &client->hlist[hash]) {
+    hlist_for_each(hp, &client->wp_hlist[hash]) {
         struct xs_watch_path_t * wp = hlist_entry(hp, struct xs_watch_path_t, i_hash);
 
         LOGGER_TRACE("xpath=%p (%s)", wp, wp->fullpath);
@@ -667,7 +537,7 @@ extern XS_BOOL XS_client_remove_watch_path (XS_client client, char * path)
 
     int hash = XS_watch_path_hash_get(path);
 
-    hlist_for_each_safe(hp, hn, &client->hlist[hash]) {
+    hlist_for_each_safe(hp, hn, &client->wp_hlist[hash]) {
         struct xs_watch_path_t * wp = hlist_entry(hp, struct xs_watch_path_t, i_hash);
         if (! strcmp(wp->fullpath, path)) {
             /* remove from inotify watch */

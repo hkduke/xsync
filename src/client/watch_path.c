@@ -20,8 +20,6 @@
 ***********************************************************************/
 #include "client_api.h"
 
-#include "watch_path.h"
-
 #include "server_opts.h"
 #include "watch_path.h"
 #include "watch_entry.h"

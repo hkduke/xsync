@@ -21,22 +21,67 @@
 #include "client_api.h"
 
 #include "watch_event.h"
-
 #include "server_opts.h"
 #include "watch_path.h"
 #include "watch_entry.h"
-#include "watch_event.h"
+
+#include "client_conf.h"
 
 #include "../common/common_util.h"
 
 
-int XS_watch_event_create (XS_watch_event * event)
+__attribute__((used))
+static void xs_watch_event_delete (void *pv)
 {
-    // TODO:
-    return 0;
+    XS_watch_event event = (XS_watch_event) pv;
+
+    XS_watch_entry_release(&event->entry);
+    XS_client_release(&event->client);
+
+    // DONOT release XS_server_opts since it not a RefObject !
+
+    free(pv);
+
+    LOGGER_TRACE0();
 }
 
 
-void XS_watch_event_release (XS_watch_event * event)
+extern XS_RESULT XS_watch_event_create (int eventid, XS_client client, XS_watch_entry entry, XS_watch_event *outEvent)
 {
+    int err;
+
+    XS_watch_event event;
+
+    *outEvent = 0;
+
+    event = (XS_watch_event) mem_alloc(1, sizeof(struct xs_watch_event_t));
+
+    event->client = (XS_client) RefObjectRetain((void**) &client);
+    event->entry = (XS_watch_entry) RefObjectRetain((void**) &entry);
+
+    if (event->client && event->entry) {
+        event->server = XS_client_get_server_opts(client, entry->sid);
+        event->ineventid = eventid;
+        event->taskid = client_fetch_task_counter(client);
+
+        if ((err = RefObjectInit(event)) == 0) {
+            *outEvent = event;
+            LOGGER_TRACE("xevent=%p", event);
+            return XS_SUCCESS;
+        }
+    }
+
+    LOGGER_FATAL("RefObjectInit error(%d): %s", err, strerror(err));
+    xs_watch_event_delete((void*) event);
+    return XS_ERROR;
 }
+
+
+extern XS_VOID XS_watch_event_release (XS_watch_event *inEvent)
+{
+    LOGGER_TRACE0();
+
+    RefObjectRelease((void**)inEvent, xs_watch_event_delete);
+}
+
+

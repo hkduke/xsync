@@ -35,12 +35,7 @@
 
 #include "client_conf.h"
 
-#include "watch_path.h"
-#include "watch_entry.h"
-#include "watch_event.h"
-
 #include "../xsync-xmlconf.h"
-
 #include "../common/readconf.h"
 
 #include "../common/common_util.h"
@@ -652,7 +647,7 @@ extern XS_RESULT XS_client_conf_save_xml (XS_client client, const char * config_
 
     watchpathsNode = mxmlNewElement(root, "xs:watch-path-list");
 
-    XS_client_listall_watch_paths(client, watch_path_set_xmlnode_cb, watchpathsNode);
+    XS_client_list_watch_paths(client, watch_path_set_xmlnode_cb, watchpathsNode);
 
     do {
         FILE * fp;
@@ -827,7 +822,7 @@ extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watchd
         err = listdir(watchdir, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_init_watch_path, (void*) client);
 
         if (! err) {
-            XS_client_listall_watch_paths(client, watch_path_set_sid_masks_cb, client);
+            XS_client_list_watch_paths(client, watch_path_set_sid_masks_cb, client);
 
             return XS_SUCCESS;
         }

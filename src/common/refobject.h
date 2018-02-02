@@ -36,6 +36,8 @@ extern "C" {
 #include <pthread.h>
 #include <unistd.h>
 
+#define REF_OBJECT_INVALID    0
+
 #define REF_OBJECT_NOERROR    0
 
 #define REF_OBJECT_ERROR    (-1)
@@ -94,7 +96,8 @@ static inline RefObjectPtr RefObjectRetain (void **ppv)
         }
     }
 
-    return REF_OBJECT_NOERROR;
+    /* NULL object */
+    return REF_OBJECT_INVALID;
 }
 
 

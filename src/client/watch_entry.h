@@ -26,7 +26,7 @@
  *     master@pepstack.com
  *
  * create: 2018-01-24
- * update: 2018-02-01
+ * update: 2018-02-02
  *
  */
 #ifndef WATCH_ENTRY_H_INCLUDED
@@ -42,6 +42,13 @@ extern "C" {
 #include "../common/common_util.h"
 
 
+#define  MD5_HASH_FIXLEN     32
+
+
+#define XS_watch_entry_hash_get(path)   \
+    ((int)(BKDRHash(path) & XSYNC_WATCH_ENTRY_HASHMAX))
+
+
 /**
  * xs_watch_entry_t
  *
@@ -50,22 +57,66 @@ typedef struct xs_watch_entry_t
 {
     EXTENDS_REFOBJECT_TYPE();
 
+    struct xs_watch_entry_t *next;
+
     uint64_t entryid;                   /* server-side entry id for file, must valid (> 0) */
 
     /* read only members */
-    int  wd;                            /* watch path descriptor */
     int  sid;                           /* server id receive event */
+    int  wd;                            /* watch path descriptor */
 
     time_t cretime;                     /* creation time of the entry */
     time_t curtime;                     /* current time of the entry */
 
     uint64_t offset;                    /* current offset position */
 
+    int rofd;                           /* read only file descriptor */
+
     int status;                         /* status code */
 
+    int hash;
 
-    struct xs_watch_entry_t * next;
+    /**
+     * name
+     *   entry 的系统唯一名称
+     *
+     * [sid:wd/filename\0md5hash\0\0]
+     *
+     * [1:8/abc.log\0d963cac3278ea9adf57cc1a816542913\0\0]
+     * namelen = strlen("1:8/abc.log") = 11
+     * md5hash = name + namelen + 1 = 'd963cac3278ea9adf57cc1a816542913'
+     */
+    int namelen;
+    char name[0];
 } * XS_watch_entry, xs_watch_entry_t;
+
+
+// 得到 md5 签名的字符串的位置
+#define XS_watch_entry_md5hash(entry)   (& entry->name[namelen + 1])
+
+// 得到 file 文件名字符串的位置
+#define XS_watch_entry_filename(entry)  (strchr(entry->name, '/') + 1)
+
+
+__attribute__((used))
+static void xs_watch_entry_delete(void *pv)
+{
+    XS_watch_entry entry = (XS_watch_entry) pv;
+
+    assert(entry->next == 0);
+
+    // TODO:
+
+
+    free(pv);
+
+    LOGGER_TRACE0();
+}
+
+
+extern XS_RESULT XS_watch_entry_create (int wd, int sid, char *filename, int namelen, XS_watch_entry * outEntry);
+
+extern void XS_watch_entry_release (XS_watch_entry * inEntry);
 
 
 #if defined(__cplusplus)
