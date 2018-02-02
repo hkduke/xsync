@@ -26,8 +26,49 @@
 extern "C" {
 #endif
 
-#include "../common/common_incl.h"
+#define LOGGER_CATEGORY_NAME  XSYNC_SERVER_APPNAME
+#include "../common/log4c_logger.h"
 
+#include "../xsync-error.h"
+#include "../xsync-config.h"
+
+
+typedef struct xs_server_t        * XS_server;
+
+
+typedef struct serverapp_opts
+{
+    // singleton
+
+    char *startcmd;
+
+    int isdaemon;
+
+    int threads;
+    int queues;
+
+    char config[XSYNC_PATHFILE_MAXLEN + 1];
+} serverapp_opts;
+
+
+/**
+ * XS_server application api
+ */
+
+
+
+/**
+ * XS_server configuration api
+ *
+ * implemented in:
+ *   server_conf.c
+ */
+
+
+
+/**
+ * XS_server internal api
+ */
 
 
 
@@ -35,4 +76,4 @@ extern "C" {
 }
 #endif
 
-#endif /* SERVER_API_H_INCLUDED */
+#endif /* CLIENT_API_H_INCLUDED */

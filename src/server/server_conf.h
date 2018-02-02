@@ -19,66 +19,46 @@
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
 
-#include "server.h"
+#ifndef SERVER_CONF_H_INCLUDED
+#define SERVER_CONF_H_INCLUDED
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+#include "../common/common_util.h"
+
+// #include "client_info.h"
+
+#include "../xsync-error.h"
+#include "../xsync-config.h"
 
 
-void sig_chld (int signo)
+typedef struct perthread_data
 {
-    pid_t    pid;
-    int      stat;
+    int    threadid;
 
-    /* must call waitpid() */
-    while ((pid = waitpid(-1, &stat, WNOHANG)) > 0) {
-        /* UNUSED:
-         * printf ("[%d] child process terminated", pid);
-         */
-    }
-    return;
-}
+    int    sessions[XSYNC_SERVER_MAXID + 1];
+    int    sockfds[XSYNC_SERVER_MAXID + 1];
+
+    byte_t buffer[XSYNC_IO_BUFSIZE];
+} perthread_data;
 
 
 /**
- * kill -15 pid
+ * xs_server_t type
  */
-void sig_term (int signo)
+typedef struct xs_server_t
 {
-    void print_cpu_time(void);
-    print_cpu_time();
-    exit(signo);
+    EXTENDS_REFOBJECT_TYPE();
+
+
+} * XS_server, xs_server_t;
+
+
+
+#if defined(__cplusplus)
 }
+#endif
 
-
-/**
- * kill -2 pid
- */
-void sig_int (int signo)
-{
-    void print_cpu_time(void);
-    print_cpu_time();
-    exit(signo);
-}
-
-
-/**
- * 程序退出时调用: exit_handler
- */
-void exit_handler (int exitCode, void *ppData)
-{
-    //TODO:
-}
-
-
-/**
- * server main entry
- *
- * Run Commands:
- * 1) Debug:
- *     $ ../target/server-client-0.0.1 -Ptrace -Astdout
- *
- */
-int main (int argc, char *argv[])
-{
-    printf("TODO: %s-%s start ...\n", APP_NAME, APP_VERSION);
-
-    return (XS_ERROR);
-}
+#endif /* SERVER_CONF_H_INCLUDED */

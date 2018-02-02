@@ -19,66 +19,9 @@
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
 
-#include "server.h"
+#include "server_api.h"
+
+#include "server_conf.h"
 
 
-void sig_chld (int signo)
-{
-    pid_t    pid;
-    int      stat;
-
-    /* must call waitpid() */
-    while ((pid = waitpid(-1, &stat, WNOHANG)) > 0) {
-        /* UNUSED:
-         * printf ("[%d] child process terminated", pid);
-         */
-    }
-    return;
-}
-
-
-/**
- * kill -15 pid
- */
-void sig_term (int signo)
-{
-    void print_cpu_time(void);
-    print_cpu_time();
-    exit(signo);
-}
-
-
-/**
- * kill -2 pid
- */
-void sig_int (int signo)
-{
-    void print_cpu_time(void);
-    print_cpu_time();
-    exit(signo);
-}
-
-
-/**
- * 程序退出时调用: exit_handler
- */
-void exit_handler (int exitCode, void *ppData)
-{
-    //TODO:
-}
-
-
-/**
- * server main entry
- *
- * Run Commands:
- * 1) Debug:
- *     $ ../target/server-client-0.0.1 -Ptrace -Astdout
- *
- */
-int main (int argc, char *argv[])
-{
-    printf("TODO: %s-%s start ...\n", APP_NAME, APP_VERSION);
-
-    return (XS_ERROR);
-}
+#include "../common/common_util.h"

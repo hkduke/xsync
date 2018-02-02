@@ -30,12 +30,14 @@ TGT_LDLIBS  := \
 
 
 SOURCES := \
-    server.c
+    server.c \
+    server_api.c \
+    server_conf.c
 
 
 # see "../xsync-config.h" for definitions
 SRC_DEFS := DEBUG \
-	XSYNC_SERVER_APPNAME='"${TARGET}"' \
+	XSYNC_SERVER_APPNAME='"${APPNAME}"' \
 	XSYNC_SERVER_VERSION='"${VERSION}"' \
     XSYNC_SERVER_THREADS_MAX=128 \
 	XSYNC_SERVER_QUEUES_MAX=4096

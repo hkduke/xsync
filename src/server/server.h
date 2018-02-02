@@ -22,21 +22,21 @@
 #ifndef SERVER_H_INCLUDED
 #define SERVER_H_INCLUDED
 
-#include "../xsync-config.h"
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
+#define APP_NAME              XSYNC_SERVER_APPNAME
+#define APP_VERSION           XSYNC_SERVER_VERSION
 
-#define APP_NAME       XSYNC_SERVER_APPNAME
-#define APP_VERSION    XSYNC_SERVER_VERSION
+#define XS_DEFAULT_TasksPrethreadMin   8
+#define XS_DEFAULT_NumberThreadsMin    2
 
-#ifndef LOGGER_CATEGORY_NAME
-#  define LOGGER_CATEGORY_NAME  APP_NAME
-#endif
 
 #include "server_api.h"
+
+#include "../common/common_util.h"
 
 
 

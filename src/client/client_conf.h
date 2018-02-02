@@ -26,7 +26,7 @@
 extern "C" {
 #endif
 
-#include "../common/common_incl.h"
+#include "../common/common_util.h"
 
 #include "server_opts.h"
 
