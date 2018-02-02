@@ -73,7 +73,7 @@ typedef struct xs_watch_event_t
     /* reference of server opts for read only */
     XS_server_opts  server;
 
-} * XS_watch_event, xs_watch_event_t;
+} xs_watch_event_t;
 
 
 extern XS_RESULT XS_watch_event_create (int eventid, XS_client client, XS_watch_entry entry, XS_watch_event *outEvent);

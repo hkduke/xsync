@@ -96,7 +96,7 @@ typedef struct xs_path_filter_t
     ssize_t patterns_used;
     ssize_t patterns_capacity;
     struct xs_pattern_t ** patterns;
-} * XS_path_filter, xs_path_filter_t;
+} xs_path_filter_t;
 
 
 __attribute__((used))

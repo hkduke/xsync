@@ -106,7 +106,7 @@ typedef struct xs_watch_path_t
 
     /* absolute path for watch */
     char fullpath[0];
-} * XS_watch_path, xs_watch_path_t;
+} xs_watch_path_t;
 
 
 __attribute__((used))

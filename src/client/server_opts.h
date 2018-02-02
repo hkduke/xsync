@@ -44,7 +44,7 @@ typedef struct xs_server_opts_t
     ushort port;
 
     struct sockconn_opts sockopts;
-} * XS_server_opts, xs_server_opts_t;
+} xs_server_opts_t;
 
 
 __attribute__((used))

@@ -119,7 +119,7 @@ typedef struct xs_client_t
 
     /* buffer must be in lock */
     char inlock_buffer[XSYNC_IO_BUFSIZE];
-} * XS_client, xs_client_t;
+} xs_client_t;
 
 
 __attribute__((used))

@@ -88,7 +88,7 @@ typedef struct xs_watch_entry_t
      */
     int namelen;
     char name[0];
-} * XS_watch_entry, xs_watch_entry_t;
+} xs_watch_entry_t;
 
 
 // 得到 md5 签名的字符串的位置

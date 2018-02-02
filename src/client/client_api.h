@@ -38,6 +38,8 @@ typedef struct xs_server_opts_t         * XS_server_opts;
 typedef struct xs_watch_path_t          * XS_watch_path;
 typedef struct xs_watch_entry_t         * XS_watch_entry;
 typedef struct xs_watch_event_t         * XS_watch_event;
+typedef struct xs_path_filter_t         * XS_path_filter;
+
 
 typedef XS_RESULT (*list_watch_path_cb_t)(XS_watch_path wp, void * data);
 
