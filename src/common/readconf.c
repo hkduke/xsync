@@ -40,7 +40,7 @@ typedef struct _conf_position_t
     FILE *_fp;
     char  _section[CONF_MAX_SECNAME+4];
     char  _buf[CONF_MAX_BUFSIZE+2];
-} * CONF_position, conf_position_t;
+} conf_position_t;
 
 
 __attribute__((used))
