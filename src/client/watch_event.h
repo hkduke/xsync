@@ -42,11 +42,6 @@ extern "C" {
 #include "server_opts.h"
 
 
-typedef struct xs_client_t * XS_client;
-
-typedef struct xs_watch_entry_t * XS_watch_entry;
-
-
 #include "../common/common_util.h"
 
 #define XS_watch_event_type_none        0
