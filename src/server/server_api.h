@@ -33,7 +33,7 @@ extern "C" {
 #include "../xsync-config.h"
 
 
-typedef struct xs_server_t        * XS_server;
+typedef struct xs_server_t * XS_server;
 
 
 typedef struct serverapp_opts

@@ -28,7 +28,6 @@ extern "C" {
 
 #include "../common/common_util.h"
 
-// #include "client_info.h"
 
 #include "../xsync-error.h"
 #include "../xsync-config.h"
@@ -53,7 +52,7 @@ typedef struct xs_server_t
     EXTENDS_REFOBJECT_TYPE();
 
 
-} * XS_server, xs_server_t;
+} xs_server_t;
 
 
 
