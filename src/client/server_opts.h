@@ -26,7 +26,11 @@
 extern "C" {
 #endif
 
-#include "../common.h"
+#include "../xsync-error.h"
+#include "../xsync-config.h"
+
+#include "../common/common_util.h"
+#include "../common/sockapi.h"
 
 
 typedef struct xs_server_opts_t

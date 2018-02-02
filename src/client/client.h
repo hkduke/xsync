@@ -22,9 +22,6 @@
 #ifndef CLIENT_H_INCLUDED
 #define CLIENT_H_INCLUDED
 
-#include "../xsync-config.h"
-#include "../xsync-error.h"
-
 
 #if defined(__cplusplus)
 extern "C" {
@@ -33,14 +30,13 @@ extern "C" {
 #define APP_NAME              XSYNC_CLIENT_APPNAME
 #define APP_VERSION           XSYNC_CLIENT_VERSION
 
-#define LOGGER_CATEGORY_NAME  APP_NAME
-
 #define XS_DEFAULT_TasksPrethreadMin   8
 #define XS_DEFAULT_NumberThreadsMin    2
 
-/* clientapp_opts */
+
 #include "client_api.h"
 
+#include "../common/common_util.h"
 
 /**
  * print usage for app

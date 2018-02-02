@@ -26,12 +26,20 @@
 extern "C" {
 #endif
 
-#include "../xsync-error.h"
+#define LOGGER_CATEGORY_NAME  XSYNC_CLIENT_APPNAME
+#include "../common/log4c_logger.h"
 
-#include "server_opts.h"
-#include "watch_path.h"
-#include "watch_entry.h"
-#include "watch_event.h"
+#include "../xsync-error.h"
+#include "../xsync-config.h"
+
+
+typedef struct xs_client_t        * XS_client;
+typedef struct xs_server_opts_t    * XS_server_opts;
+typedef struct xs_watch_path_t   * XS_watch_path;
+typedef struct xs_watch_entry_t  * XS_watch_entry;
+typedef struct xs_watch_event_t  * XS_watch_event;
+
+typedef XS_RESULT (*list_watch_path_cb_t)(XS_watch_path wp, void * data);
 
 
 typedef struct clientapp_opts
@@ -49,81 +57,6 @@ typedef struct clientapp_opts
 
     char config[XSYNC_PATHFILE_MAXLEN + 1];
 } clientapp_opts;
-
-
-typedef struct perthread_data
-{
-    int    threadid;
-
-    int    sessions[XSYNC_SERVER_MAXID + 1];
-    int    sockfds[XSYNC_SERVER_MAXID + 1];
-
-    byte_t buffer[XSYNC_IO_BUFSIZE];
-} perthread_data;
-
-
-/**
- * xs_client_t type
- */
-typedef struct xs_client_t
-{
-    EXTENDS_REFOBJECT_TYPE();
-
-    pthread_cond_t  condition;
-
-    char clientid[XSYNC_CLIENTID_MAXLEN + 1];
-
-    /**
-     * servers_opts[0].servers
-     * total connections in server_conns
-     */
-    xs_server_opts_t  servers_opts[XSYNC_SERVER_MAXID + 1];
-
-    /**
-     * number of threads
-     */
-    int threads;
-
-    /**
-     * queue size per thread
-     */
-    int queues;
-
-    /**
-     * inotify fd
-     */
-    int infd;
-
-    /**
-     * thread pool for handlers */
-    threadpool_t * pool;
-    void        ** thread_args;
-
-    /**
-     * hash table for wd (watch descriptor) -> watch_path
-     */
-    XS_watch_path wd_table[XSYNC_WATCH_PATH_HASHMAX + 1];
-
-    /**
-     * hash map for watch_entry -> watch_entry
-     */
-    XS_watch_entry * entry_map[XSYNC_WATCH_ENTRY_HASHMAX + 1];
-
-    /**
-     * dhlist for watch path:
-     *    watch_path list and hashmap
-     */
-    struct list_head list1;
-    struct hlist_head hlist[XSYNC_WATCH_PATH_HASHMAX + 1];
-} * XS_client, xs_client_t;
-
-
-typedef XS_RESULT (*list_watch_path_cb_t)(XS_watch_path wp, void * data);
-
-
-#define XS_client_get_server_maxid(client)    (client->servers_opts->sidmax)
-
-#define XS_client_get_server_opts(client, sid /* 1 based */)    (client->servers_opts + sid)
 
 
 /**

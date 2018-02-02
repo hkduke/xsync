@@ -20,7 +20,7 @@
 ***********************************************************************/
 
 /**
- * xmlconf.h
+ * xsync-xsync-xmlconf.h
  *
  * author: master@pepstack.com
  *
@@ -28,10 +28,10 @@
  *   - https://www.systutorials.com/docs/linux/man/3-mxml/
  *
  * create: 2016-07-06
- * update: 2018-01-29
+ * update: 2018-02-02
  */
-#ifndef XML_CONF_H_INCLUDED
-#define XML_CONF_H_INCLUDED
+#ifndef XSYNC_XML_CONF_H_INCLUDED
+#define XSYNC_XML_CONF_H_INCLUDED
 
 #if defined(__cplusplus)
 extern "C" {
@@ -108,4 +108,4 @@ static int xmlconf_list_mxml_nodes (mxml_node_t *parent, const char * child_name
 }
 #endif
 
-#endif /* XML_CONF_H_INCLUDED */
+#endif /* XSYNC_XML_CONF_H_INCLUDED */

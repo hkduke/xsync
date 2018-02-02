@@ -30,12 +30,16 @@
  * update: 2018-01-26
  *
  */
-
-/* log4c */
-#include "client.h"
+#include "client_api.h"
 
 #include "path_filter.h"
 
+#include "server_opts.h"
+#include "watch_path.h"
+#include "watch_entry.h"
+#include "watch_event.h"
+
+#include "../common/common_util.h"
 
 
 static void free_path_filter (void *pv)

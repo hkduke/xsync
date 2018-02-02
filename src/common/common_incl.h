@@ -20,7 +20,7 @@
 ***********************************************************************/
 
 /**
- * header.h
+ * common_incl.h
  *   common linux header files
  *
  * author: master@pepstack.com
@@ -28,8 +28,8 @@
  * create: 2014-08-01
  * update: 2017-01-09
  */
-#ifndef HEADER_H_INCLUDED
-#define HEADER_H_INCLUDED
+#ifndef COMMON_INCL_H_INCLUDED
+#define COMMON_INCL_H_INCLUDED
 
 #include <assert.h>  /* assert */
 #include <string.h>  /* memset */
@@ -86,4 +86,4 @@
   #include <openssl/md5.h>
 #endif
 
-#endif /* HEADER_H_INCLUDED */
+#endif /* COMMON_INCL_H_INCLUDED */

@@ -18,10 +18,16 @@
 *
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
-
-#include "client.h"
+#include "client_api.h"
 
 #include "watch_path.h"
+
+#include "server_opts.h"
+#include "watch_path.h"
+#include "watch_entry.h"
+#include "watch_event.h"
+
+#include "../common/common_util.h"
 
 
 static inline void free_watch_path (void *pv)
@@ -89,6 +95,8 @@ XS_VOID XS_watch_path_release (xs_watch_path_t ** wp)
 
 XS_path_filter XS_watch_path_get_included_filter (XS_watch_path wp, int sid)
 {
+    LOGGER_TRACE0();
+
     assert(sid > 0 && sid <= XSYNC_SERVER_MAXID);
 
     if (! wp->included_filters[sid]) {
@@ -104,6 +112,8 @@ XS_path_filter XS_watch_path_get_included_filter (XS_watch_path wp, int sid)
 
 XS_path_filter XS_watch_path_get_excluded_filter (XS_watch_path wp, int sid)
 {
+    LOGGER_TRACE0();
+
     assert(sid > 0 && sid <= XSYNC_SERVER_MAXID);
 
     if (! wp->excluded_filters[sid]) {

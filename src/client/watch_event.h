@@ -36,9 +36,10 @@
 extern "C" {
 #endif
 
-#include "../common.h"
+#include "../xsync-error.h"
+#include "../xsync-config.h"
 
-#include "xsync-error.h"
+#include "../common/common_util.h"
 
 
 #define XS_watch_event_typeid   100

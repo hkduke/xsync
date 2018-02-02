@@ -18,8 +18,16 @@
 *
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
+#include "client_api.h"
 
 #include "watch_event.h"
+
+#include "server_opts.h"
+#include "watch_path.h"
+#include "watch_entry.h"
+#include "watch_event.h"
+
+#include "../common/common_util.h"
 
 
 int XS_watch_event_create (XS_watch_event * event)

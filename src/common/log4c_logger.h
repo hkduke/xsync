@@ -20,7 +20,7 @@
 ***********************************************************************/
 
 /**
- * logger.h
+ * log4c_logger.h
  *   - A wrapper for LOG4C
  *
  * create: 2014-08-01
@@ -46,8 +46,8 @@
  *   http://blog.sina.com.cn/s/blog_4171e80d01010rtr.html
  */
 
-#ifndef LOGGER_H_INCLUDED
-#define LOGGER_H_INCLUDED
+#ifndef LOG4C_LOGGER_H_INCLUDED
+#define LOG4C_LOGGER_H_INCLUDED
 
 #include <stdio.h>
 #include <string.h>
@@ -310,4 +310,4 @@ __attribute__((unused)) static void LOGGER_FINI ()
 #  define LOGGER_TRACE0()    LOGGER_TRACE("-")
 #endif
 
-#endif /* LOGGER_H_INCLUDED */
+#endif /* LOG4C_LOGGER_H_INCLUDED */

@@ -93,20 +93,15 @@
  *                           ...
  *
  */
+#include "client_api.h"
 
-#include "client.h"
+#include "client_conf.h"
 
-#include "../common/readconf.h"
-#include "../xmlconf.h"
+#include "watch_path.h"
+#include "watch_entry.h"
+#include "watch_event.h"
 
-
-#define XS_watch_path_hash_get(path)   ((int)(BKDRHash(path) & XSYNC_WATCH_PATH_HASHMAX))
-
-#define XS_watch_id_hash_get(wd)       ((int)((wd) & XSYNC_WATCH_PATH_HASHMAX))
-
-#define XS_entry_map_hash_get(path)    ((int)(BKDRHash(path) & XSYNC_WATCH_ENTRY_HASHMAX))
-
-#define XS_client_threadpool_unused_queues(client)    threadpool_unused_queues(client->pool)
+#include "../common/common_util.h"
 
 
 /**

@@ -36,10 +36,10 @@
 extern "C" {
 #endif
 
-#include "../common.h"
-#include "../common/dhlist.h"
+#include "../xsync-error.h"
+#include "../xsync-config.h"
 
-#include "xsync-error.h"
+#include "../common/common_util.h"
 
 #include "path_filter.h"
 

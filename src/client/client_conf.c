@@ -31,11 +31,19 @@
  * update: 2018-02-02
  *
  */
+#include "client_api.h"
+
+#include "client_conf.h"
+
+#include "watch_path.h"
+#include "watch_entry.h"
+#include "watch_event.h"
+
+#include "../xsync-xmlconf.h"
 
 #include "../common/readconf.h"
-#include "../xmlconf.h"
 
-#include "client_api.h"
+#include "../common/common_util.h"
 
 
 static XS_RESULT client_read_filter_file (XS_client client, const char * filter_file, int sid, int filter_type)

@@ -26,7 +26,7 @@
 extern "C" {
 #endif
 
-#include "../common.h"
+#include "../common/common_incl.h"
 
 
 

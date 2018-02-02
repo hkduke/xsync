@@ -20,39 +20,39 @@
 ***********************************************************************/
 
 /**
- * common.h
- *   common api
+ * common_util.h
+ *   common utility api
  *
  * author: master@pepstack.com
  *
  * create: 2017-01-09
- * update: 2018-01-29
+ * update: 2018-02-02
  */
-#ifndef COMMON_H_INCLUDED
-#define COMMON_H_INCLUDED
-
-#include "xsync-config.h"
+#ifndef COMMON_UTIL_H_INCLUDED
+#define COMMON_UTIL_H_INCLUDED
 
 #if defined(__cplusplus)
 extern "C"
 {
 #endif
 
-#include "header.h"
-#include "logger.h"
+#include "common_incl.h"
 
-/* common */
-#include "common/refobject.h"
-#include "common/byteorder.h"
-#include "common/readconf.h"
-#include "common/threadpool.h"
-
-/* socket api */
-#include "sockapi.h"
-//#include "sslapi.h"
+/* common headers */
+#include "refobject.h"
+#include "byteorder.h"
+#include "threadpool.h"
+#include "dhlist.h"
 
 /* inotify api */
 #include "inotiapi.h"
+
+/* socket api */
+#include "sockapi.h"
+
+/* sslapi
+#include "sslapi.h"
+*/
 
 
 #ifndef HAVE_GETRUSAGE_PROTO
@@ -955,9 +955,8 @@ static int md5sum_file (const char * filename, char * sbbuf, size_t bufsize)
     }
 }
 
-
 #if defined(__cplusplus)
 }
 #endif
 
-#endif /* COMMON_H_INCLUDED */
+#endif /* COMMON_UTIL_H_INCLUDED */

@@ -37,11 +37,12 @@
 extern "C" {
 #endif
 
-#include "../common.h"
+#include "../xsync-error.h"
+#include "../xsync-config.h"
 
-#include "../xmlconf.h"
+#include "../common/common_util.h"
 
-#include "xsync-error.h"
+#include "../xsync-xmlconf.h"
 
 
 #define XS_path_filter_type_excluded   0
