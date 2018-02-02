@@ -33,13 +33,14 @@ TGT_LDLIBS  := \
 SOURCES := \
     client.c \
     client_api.c \
+    client_conf.c \
     watch_path.c \
     watch_event.c \
     path_filter.c
 
 
 # see "../xsync-config.h" for definitions
-SRC_DEFS := DEBUG \
+SRC_DEFS := _DEBUG \
 	XSYNC_CLIENT_APPNAME='"${APPNAME}"' \
 	XSYNC_SERVER_VERSION='"${VERSION}"' \
 	XSYNC_PATH_MAX_SIZE=1024 \

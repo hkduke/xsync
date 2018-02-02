@@ -117,12 +117,17 @@ typedef struct xs_client_t
     struct hlist_head hlist[XSYNC_WATCH_PATH_HASHMAX + 1];
 } * XS_client, xs_client_t;
 
+
+typedef XS_RESULT (*list_watch_path_cb_t)(XS_watch_path wp, void * data);
+
+
+#define XS_client_get_server_maxid(client)    (client->servers_opts->sidmax)
+
+#define XS_client_get_server_opts(client, sid /* 1 based */)    (client->servers_opts + sid)
+
+
 /**
- * public api
-
-extern XS_RESULT XS_client_create (char *config, int config_type, XS_client *outclient);
-
-extern XS_RESULT XS_client_bootstrap (XS_client client);
+ * XS_client application api
  */
 extern XS_RESULT XS_client_create (clientapp_opts *opts, XS_client *outClient);
 
@@ -132,34 +137,39 @@ extern int XS_client_lock (XS_client client);
 
 extern void XS_client_unlock (XS_client client);
 
-
-
-
-extern XS_VOID XS_client_clear_all_paths (XS_client client);
-
-typedef XS_RESULT (*traverse_watch_path_callback_t)(XS_watch_path wp, void * data);
-
-extern XS_VOID XS_client_traverse_watch_paths (XS_client client, traverse_watch_path_callback_t traverse_path_cb, void * data);
-
-extern XS_BOOL XS_client_find_path (XS_client client, char * path, XS_watch_path * outPath);
-
-extern XS_BOOL XS_client_add_path (XS_client client, XS_watch_path wp);
-
-extern XS_BOOL XS_client_remove_path (XS_client client, char * path);
-
 extern XS_VOID XS_client_bootstrap (XS_client client);
 
-extern XS_RESULT XS_client_on_inotify_event (XS_client client, struct inotify_event * inevent);
 
-extern XS_RESULT XS_client_read_filter_file (XS_client client, const char * filter_file, int sid, int filter_type);
+/**
+ * XS_client configuration api
+ *
+ * implemented in:
+ *   client_conf.c
+ */
+extern XS_RESULT XS_client_conf_load_xml (XS_client client, const char *xmlfile);
 
-extern XS_RESULT XS_client_load_conf_xml (XS_client client, const char * config_xml);
+extern XS_RESULT XS_client_conf_save_xml (XS_client client, const char *xmlfile);
 
-extern XS_RESULT XS_client_save_conf_xml (XS_client client, const char * config_xml);
+extern XS_RESULT XS_client_conf_load_ini (XS_client client, const char *inifile);
 
-extern XS_RESULT XS_client_load_conf_ini (XS_client client, const char * config_ini);
+extern XS_RESULT XS_client_conf_save_ini (XS_client client, const char *inifile);
 
-extern XS_RESULT XS_client_save_conf_ini (XS_client client, const char * config_ini);
+extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watchdir);
+
+
+/**
+ * XS_client internal api
+ */
+extern XS_VOID XS_client_listall_watch_paths (XS_client client, list_watch_path_cb_t list_wp_cb, void *data);
+
+extern XS_VOID XS_client_clearall_watch_paths (XS_client client);
+
+extern XS_BOOL XS_client_add_watch_path (XS_client client, XS_watch_path wp);
+
+extern XS_BOOL XS_client_find_watch_path (XS_client client, char *fullpath, XS_watch_path *outwp);
+
+extern XS_BOOL XS_client_remove_watch_path (XS_client client, char *fullpath);
+
 
 #if defined(__cplusplus)
 }

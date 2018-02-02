@@ -165,6 +165,12 @@ int main (int argc, char *argv[])
      * 创建客户端
      */
     if (XS_client_create(&opts, &client) == XS_SUCCESS) {
+
+#ifdef _DEBUG
+        XS_client_conf_save_xml(client, "/tmp/xsync-client-conf_DEBUG.xml");
+        XS_client_conf_save_ini(client, "/tmp/xsync-client-conf_DEBUG.ini");
+#endif
+
         /**
          * 启动客户端服务程序, 永远运行...
          */

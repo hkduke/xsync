@@ -38,7 +38,7 @@ extern "C" {
 #define XS_DEFAULT_TasksPrethreadMin   8
 #define XS_DEFAULT_NumberThreadsMin    2
 
-
+/* clientapp_opts */
 #include "client_api.h"
 
 
@@ -71,7 +71,7 @@ static void print_usage(void)
         "\t-V, --version                   \033[35m print version information\033[0m\n"
         "\n"
         "\t-C, --config=PATHFILE           \033[35m specify path file to conf. '../conf/%s.conf' (default)\033[0m\n"
-        "\t-W, --force-watch               \033[35m force to use watch path as an override of config(-C, --config).\033[0m\n"
+        "\t-W, --from-watch                \033[35m config client from watch path no matter if specify config(-C, --config) or not.\033[0m\n"
         "\t                                  \033[35m if enable watch path by '--use-watch', config=PATHFILE will be ignored.\033[0m\n"
         "\t                                  \033[35m NOTE: watch/ folder lives alway in the sibling directory of config PATHFILE, for example:\033[0m\n"
         "\t                                  \033[35m client_home/\033[0m\n"
@@ -237,7 +237,7 @@ static void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opt
         {"help", no_argument, 0, 'h'},
         {"version", no_argument, 0, 'V'},
         {"config", required_argument, 0, 'C'},
-        {"force-watch", no_argument, 0, 'W'},
+        {"from-watch", no_argument, 0, 'W'},
         {"log4c-rcpath", required_argument, 0, 'O'},
         {"priority", required_argument, 0, 'P'},
         {"appender", required_argument, 0, 'A'},
@@ -463,6 +463,7 @@ static void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opt
 __attribute__((used))
 static void clientapp_opts_cleanup (clientapp_opts *opts)
 {
+    // TODO:
 }
 
 
