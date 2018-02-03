@@ -38,21 +38,24 @@ extern "C"
 
 #include "common_incl.h"
 
-/* common headers */
+/** common headers */
 #include "refobject.h"
 #include "byteorder.h"
 #include "threadpool.h"
 #include "dhlist.h"
 
-/* inotify api */
+/** inotify api */
 #include "inotiapi.h"
 
-/* socket api */
+/** socket api */
 #include "sockapi.h"
 
 /* sslapi
 #include "sslapi.h"
 */
+
+/** multi wheel timer */
+#include "mul_wheel_timer.h"
 
 
 #ifndef HAVE_GETRUSAGE_PROTO

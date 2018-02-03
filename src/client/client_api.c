@@ -447,7 +447,9 @@ extern XS_VOID XS_client_clear_watch_paths (XS_client client)
             wp->watch_wd = -1;
 
             hlist_del(&wp->i_hash);
-            list_del(list);
+
+            list_del(&wp->i_list);
+            //?? list_del(list);
 
             XS_watch_path_release(&wp);
         } else {
@@ -550,7 +552,7 @@ extern XS_BOOL XS_client_remove_watch_path (XS_client client, char * path)
                 assert(wp->watch_wd == wd);
                 wp->watch_wd = -1;
 
-                hlist_del(hp);
+                hlist_del(&wp->i_hash);  //?? hlist_del(hp);
                 list_del(&wp->i_list);
 
                 XS_watch_path_release(&wp);

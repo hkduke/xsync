@@ -2,7 +2,7 @@
  * spinlock.c
  *
  * for MSVC and GNUC
- * 
+ *
  * created by cheungmine
  * 2013-4-24
  */
@@ -61,7 +61,7 @@ void spin_unlock(spin_lock_t *lock)
 #ifdef _MSC_VER
   InterlockedExchange((volatile long*)lock->spin_, 0);
 #elif defined(__GNUC__)
-  __sync_and_and_fetch(lock->spin_, 0);
+  __sync_add_and_fetch(lock->spin_, 0);
 #endif
 }
 

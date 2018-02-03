@@ -6,7 +6,7 @@
  * for Windows and Linux
  *
  * modified by cheungmine
- * 2013-4, 2018-01-23
+ * 2013-4, 2018-02-03
  */
 #ifndef _DH_LIST_H
 #define _DH_LIST_H
@@ -40,6 +40,20 @@ static inline unsigned int BKDRHash (char *str)
 }
 
 
+static inline unsigned int BKDRHash2 (char *str, int hashlen)
+{
+    /* seed: 31 131 1313 13131 131313 etc.. */
+    unsigned int seed = 131;
+    unsigned int hash = 0;
+
+    while (*str) {
+        hash = hash * seed + (*str++);
+    }
+
+    return ((hash & 0x7FFFFFFF) & hashlen);
+}
+
+
 #ifdef CONFIG_ILLEGAL_POINTER_VALUE
 #  define POISON_POINTER_DELTA  _AC(CONFIG_ILLEGAL_POINTER_VALUE, UL)
 #else
@@ -60,6 +74,9 @@ static inline unsigned int BKDRHash (char *str)
 static inline void prefetch(const void *x) {;}
 static inline void prefetchw(const void *x) {;}
 
+/**
+ * filename: linux-2.6.7/include/linux/stddef.h
+ */
 #define OFFSET_OF(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
 
 #define CONTAINER_OF(ptr, type, member) ( { \
