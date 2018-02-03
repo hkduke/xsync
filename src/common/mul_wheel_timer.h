@@ -546,12 +546,15 @@ static int mul_wheel_timer_remove_event (mul_event_handle eventhdl)
  *   on_counter - 当前激发的计数器
  *
  * returns:
+ *   count of fired
  */
 __attribute__((used))
-static mul_timer_event_t * mul_wheel_timer_fire_event (int64_t fire_counter)
+static int mul_wheel_timer_fire_event (int64_t fire_counter)
 {
     struct hlist_node *hp;
     struct hlist_node *hn;
+
+    int cnt = 0;
 
     int hash = (int) (fire_counter & MUL_WHEEL_TIMER_HASHLEN_MAX);
 
@@ -573,6 +576,8 @@ static mul_timer_event_t * mul_wheel_timer_fire_event (int64_t fire_counter)
                 /** 激发事件回调函数 */
                 event->timer_event_cb(&event->eventid, event->eventarg);
 
+                cnt++;
+
                 if (event->value.it_interval.tv_sec == 0) {
                     /* 只使用一次, 下次不再激发，删除事件 */
                     free_timer_event(event);
@@ -590,7 +595,7 @@ static mul_timer_event_t * mul_wheel_timer_fire_event (int64_t fire_counter)
         }
     }
 
-    return 0;
+    return cnt;
 }
 
 
