@@ -107,8 +107,6 @@ typedef struct mul_timer_event_t
     /* 指定定时器首次激发时间和以后每次间隔激发时间 */
     struct itimerval value;
 
-    unsigned int timeout;
-
     int hash;
 
     /** dhlist node */
