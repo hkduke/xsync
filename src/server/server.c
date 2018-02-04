@@ -92,17 +92,20 @@ int main (int argc, char *argv[])
 
     printf("TODO: %s-%s start ...\n", APP_NAME, APP_VERSION);
 
-    err = mul_wheel_timer_create(MUL_WHEEL_TIMER_TIMEUNIT_DEFAULT, 0, 0);
+    err = mul_wheel_timer_init(mwt_timeunit_sec, 1, 10, 0);
     assert(! err);
 
     // 添加首次20秒激发，以后间隔3秒激发的定时器
-    mul_wheel_timer_set_event(20, 3, on_timer_event, 0);
+    mul_wheel_timer_set_event(20, 3, MUL_WHEEL_TIMER_EVENT_INFINITE, on_timer_event, 0);
 
     // 添加首次30秒激发，以后间隔5秒激发的定时器
-    mul_wheel_timer_set_event(30, 5, on_timer_event, 0);
+    mul_wheel_timer_set_event(30, 5, MUL_WHEEL_TIMER_EVENT_INFINITE, on_timer_event, 0);
 
-    // 添加一次性定时器，仅在第10秒激发一次
-    mul_wheel_timer_set_event(10, 0, on_timer_event, 0);
+    // 添加首次35秒激发，以后间隔1秒激发的定时器，但是只激发一次
+    mul_wheel_timer_set_event(30, 1, MUL_WHEEL_TIMER_EVENT_ONEOFF, on_timer_event, 0);
+
+    // 添加一次性定时器，仅在第10秒激发一次，忽略 MUL_WHEEL_TIMER_EVENT_INFINITE
+    mul_wheel_timer_set_event(10, 0, MUL_WHEEL_TIMER_EVENT_INFINITE, on_timer_event, 0);
 
     mul_wheel_timer_start();
 
