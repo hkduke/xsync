@@ -6,7 +6,7 @@
  * for Windows and Linux
  *
  * modified by cheungmine
- * 2013-4, 2018-02-03
+ * 2013-4, 2018-02-05
  */
 #ifndef _DH_LIST_H
 #define _DH_LIST_H
@@ -65,9 +65,13 @@ static inline unsigned int BKDRHash2 (char *str, int hashlen)
  * under normal circumstances, used to verify that nobody uses
  * non-initialized list entries.
  */
-#define LIST_POISON1  ((void *) 0x00100100 + POISON_POINTER_DELTA)
-#define LIST_POISON2  ((void *) 0x00200200 + POISON_POINTER_DELTA)
-
+#if defined _MSC_VER || WIN32
+#  define LIST_POISON1  ((void *) 0x00100100)
+#  define LIST_POISON2  ((void *) 0x00200200)
+#else
+#  define LIST_POISON1  ((void *) 0x00100100 + POISON_POINTER_DELTA)
+#  define LIST_POISON2  ((void *) 0x00200200 + POISON_POINTER_DELTA)
+#endif
 
 #ifdef typeof
 
@@ -426,12 +430,19 @@ static inline void hlist_add_after(struct hlist_node *n, struct hlist_node *next
 #define hlist_for_each(pos, head) \
     for (pos = (head)->first; pos && prefetch(pos->next); pos = pos->next)
 
-/** warning: operation on â€˜hnâ€™ may be undefined [-Wsequence-point]
-#define hlist_for_each_safe(pos, n, head) \
-    for (pos = (head)->first; pos && ((n=pos->next) == n); pos = n)
-*/
-#define hlist_for_each_safe(pos, n, head) \
-    for (pos = (head)->first; pos && ({ n = pos->next; 1; }); pos = n)
+
+#if defined _MSC_VER || WIN32
+    /**
+     * fix warning on gcc: operation on ¡®hn¡¯ may be undefined [-Wsequence-point
+     * but will cause error on Windows MSVC
+     */
+    #define hlist_for_each_safe(pos, n, head) \
+        for (pos = (head)->first; pos && ((n=pos->next) == n); pos = n)
+#else
+    #define hlist_for_each_safe(pos, n, head) \
+        for (pos = (head)->first; pos && ({ n = pos->next; 1; }); pos = n)
+#endif
+
 
 #define hlist_for_each_entry(tpos, typeof_tpos, pos, head, member) \
     for (pos = (head)->first; \

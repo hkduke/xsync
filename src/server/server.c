@@ -68,11 +68,11 @@ void exit_handler (int exitCode, void *ppData)
 }
 
 
-int on_timer_event (mul_event_handle eventhdl, void *eventarg)
+int on_timer_event (mwt_event_hdl eventhdl, void *eventarg, void *timerarg)
 {
     printf(" ==> on_timer_event_%lld\n", (long long) * eventhdl);
 
-    //mul_wheel_timer_remove_event(eventhdl);
+    mul_wheel_timer_remove_event(eventhdl);
 
     return 0;
 }
@@ -92,7 +92,7 @@ int main (int argc, char *argv[])
 
     printf("TODO: %s-%s start ...\n", APP_NAME, APP_VERSION);
 
-    err = mul_wheel_timer_init(mwt_timeunit_sec, 1, 10, 0);
+    err = mul_wheel_timer_init(mwt_timeunit_sec, 1, 10, 0, 0);
     assert(! err);
 
     // 添加首次20秒激发，以后间隔3秒激发的定时器
@@ -108,6 +108,7 @@ int main (int argc, char *argv[])
     mul_wheel_timer_set_event(10, 0, MUL_WHEEL_TIMER_EVENT_INFINITE, on_timer_event, 0);
 
     mul_wheel_timer_start();
+
 
     while (1)
     {

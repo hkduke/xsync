@@ -19,11 +19,13 @@
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
 
-/**
+/***********************************************************************
  * mul_wheel_timer.h
- *   multi wheel timer for linux
+ *   multiply wheel timer for linux and windows
  *
- *   秒级多定时器的工业级实现
+ *  多定时器的工业级实现, 支持时间单位自定义:
+ *      Linux:   微秒级
+ *      Windows: 毫秒级
  *
  * refer:
  *   http://blog.csdn.net/zhangxinrun/article/details/5914191
@@ -32,8 +34,8 @@
  * author: master@pepstack.com
  *
  * create: 2018-02-03 11:00
- * update: 2018-02-03 22:09
- */
+ * update: 2018-02-04
+ **********************************************************************/
 #ifndef MUL_WHEEL_TIMER_H_INCLUDED
 #define MUL_WHEEL_TIMER_H_INCLUDED
 
@@ -42,63 +44,214 @@ extern "C"
 {
 #endif
 
+
+#if defined _MSC_VER || WIN32
+    #undef MWT_OS_LINUX
+    #define MWT_OS_WINDOWS
+    #pragma message("build for windows ...")
+#else
+    #undef MWT_OS_WINDOWS
+    #define MWT_OS_LINUX
+#endif
+
+
+/**
+ * thread lock
+ */
+#ifdef MWT_OS_WINDOWS
+    // Windows
+    //   https://msdn.microsoft.com/en-us/library/windows/desktop/ms687003(v=vs.85).aspx
+    #include <windows.h>
+    #include <process.h>
+
+#if _WIN32_WINNT  < 0x0500
+    #undef _WIN32_WINNT
+    #define _WIN32_WINNT    0x0500
+    #pragma message("windows version is too low")
+#endif
+
+    typedef CRITICAL_SECTION thread_lock_t;
+
+    typedef LONGLONG mwt_bigint_t;
+
+    typedef LONGLONG volatile mwt_counter_t;
+
+    typedef struct itimerval {
+        struct timeval it_value;
+        struct timeval it_interval;
+    } itimerval;
+
+
+    #define __disable_warning_unused_static  static \
+
+    static inline void bzero(void * pv, size_t size)
+    {
+        memset(pv, 0, size);
+    }
+
+    /* CriticalSection */
+    static inline int threadlock_init(thread_lock_t *lock)
+    {
+        InitializeCriticalSection(lock);
+        return 0;
+    }
+
+    #define threadlock_fini(lock)    DeleteCriticalSection(lock)
+
+    static inline int threadlock_enter(thread_lock_t *lock)
+    {
+        EnterCriticalSection(lock);
+        return 0;
+    }
+
+    #define threadlock_tryenter(lock)   (TryEnterCriticalSection(lock)? 0:(-1))
+    #define threadlock_leave(lock)      LeaveCriticalSection(lock)
+
+    /* refcount */
+    #define __interlock_add(add)        InterlockedIncrement64(add)
+    #define __interlock_sub(sub)        InterlockedDecrement64(sub)
+    #define __interlock_release(val)    InterlockedExchange64(val, 0)
+
+    void __stdcall win_sigalrm_handler (PVOID lpParameter, BOOLEAN TimerOrWaitFired);
+
+#else
+    /* linux */
+
+    #include <pthread.h>
+    #include <unistd.h>
+    #include <sys/time.h>
+
+    typedef pthread_mutex_t  thread_lock_t;
+
+    typedef int64_t volatile mwt_counter_t;
+
+    typedef int64_t mwt_bigint_t;
+
+    #define __disable_warning_unused_static    __attribute__((used)) static \
+
+    /* pthread mutex */
+    #define threadlock_init(lock)        pthread_mutex_init(lock, 0)
+    #define threadlock_fini(lock)        pthread_mutex_destroy(lock)
+
+    #define threadlock_enter(lock)       pthread_mutex_lock(lock)
+    #define threadlock_tryenter(lock)    pthread_mutex_trylock(lock)
+    #define threadlock_leave(lock)       pthread_mutex_unlock(lock)
+
+    /* refcount */
+    #define __interlock_add(add)         __sync_add_and_fetch(add, 1)
+    #define __interlock_sub(sub)         __sync_sub_and_fetch(sub, 1)
+    #define __interlock_release(val)     __sync_lock_release(val)
+
+    __disable_warning_unused_static void sigalarm_handler(int signo);
+#endif
+
+#include <stdint.h>
+#include <time.h>
+
 #include "dhlist.h"
 
-#include <inttypes.h>
-#include <pthread.h>
-#include <unistd.h>
 
-#include <time.h>
-#include <sys/time.h>
-
-
-/**
- * 是否使用双链表：如果不需要按次序遍历定时器不要启用它
+/***********************************************************************
+ * 多定时器是否支持毫秒级?
  *
- * MUL_WHEEL_TIMER_HAS_DLIST == 1
- *   use dlist for traversing by sequence
+ * 下面声明 多定时器不支持毫秒级：
  *
- * MUL_WHEEL_TIMER_HAS_DLIST == 0
- *   DONOT use dlist since we need not traversing by sequence
- */
-#define MUL_WHEEL_TIMER_HAS_DLIST   0
+ * #define MWTIMER_MILLI_SECOND  0
+ * #include <mul_wheel_timer.h>
+ *
+ **********************************************************************/
+#ifndef MWTIMER_MILLI_SECOND
+#  define MWTIMER_MILLI_SECOND    1000
+#endif
 
 
-/**
- * MUL_WHEEL_TIMER_HASHLEN_MAX
+/***********************************************************************
+ * 多定时器是否支持微秒级?
+ *
+ * 下面声明 多定时器不支持微秒级：
+ *
+ * #define MWTIMER_MICRO_SECOND  0
+ * #include <mul_wheel_timer.h>
+ *
+ **********************************************************************/
+#ifndef MWTIMER_MICRO_SECOND
+#  define MWTIMER_MICRO_SECOND    1000000
+#endif
+
+
+#ifdef MWT_OS_WINDOWS
+/* windows 不支持微秒级的定时器, 取消之 */
+    #undef MWTIMER_MICRO_SECOND
+#endif
+
+
+/***********************************************************************
+ * 是否打印信息?
+ *
+ * 下面声明 不包含打印信息 (正式使用情况下)
+ *
+ * #define  MWTIMER_PRINTF   0
+ * #include <mul_wheel_timer.h>
+ *
+ **********************************************************************/
+#ifndef MWTIMER_PRINTF
+#  define MWTIMER_PRINTF   1
+#endif
+
+
+/***********************************************************************
+ * MWTIMER_HASHLEN_MAX
  *
  * 定义 hash 桶的大小 (2^n -1) = [255, 1023, 4095, 8191]
  * 可以根据需要在编译时指定。桶越大，查找速度越快。
- */
-#ifndef MUL_WHEEL_TIMER_HASHLEN_MAX
-#  define MUL_WHEEL_TIMER_HASHLEN_MAX     1023
+ **********************************************************************/
+#ifndef MWTIMER_HASHLEN_MAX
+#  define MWTIMER_HASHLEN_MAX     1023
 #endif
+
+
+/***********************************************************************
+ * 是否使用双链表：如果不需要按次序遍历定时器不要启用它
+ *
+ * MWTIMER_HAS_DLIST == 1
+ *   use dlist for traversing by sequence
+ *
+ * MWTIMER_HAS_DLIST == 0
+ *   DONOT use dlist since we need not traversing by sequence
+ **********************************************************************/
+#define MWTIMER_HAS_DLIST   0
+
+
+typedef mwt_bigint_t mwt_eventid_t;
+
+typedef mwt_eventid_t * mwt_event_hdl;
 
 
 typedef enum
 {
-    mwt_timeunit_sec =  0,
-    mwt_timeunit_msec = 1,
-    mwt_timeunit_usec = 2
+    mwt_timeunit_sec =  0
+
+#if MWTIMER_MILLI_SECOND == 1000
+    ,mwt_timeunit_msec = 1
+#endif
+
+#if MWTIMER_MICRO_SECOND == 1000000
+    ,mwt_timeunit_usec = 2
+#endif
 } mwt_timeunit_t;
 
 
-typedef int64_t mul_eventid_t;
-
-typedef mul_eventid_t * mul_event_handle;
-
-
-typedef struct mul_timer_event_t
+typedef struct mwt_event_t
 {
-    mul_eventid_t eventid;
+    mwt_eventid_t eventid;
 
     /* 引用计数： 0 删除, 1 保留 */
-    int64_t refc;
+    mwt_counter_t refc;
 
     void *eventarg;
-    int (*timer_event_cb) (mul_event_handle eventhdl, void *eventarg);
+    int (*timer_event_cb) (mwt_event_hdl eventhdl, void *eventarg, void *lpParameter);
 
-    int64_t on_counter;
+    mwt_counter_t on_counter;
 
     /* 指定定时器首次激发时间和以后每次间隔激发时间 */
     struct itimerval value;
@@ -106,92 +259,102 @@ typedef struct mul_timer_event_t
     int hash;
 
     /** dhlist node */
-#if MUL_WHEEL_TIMER_HAS_DLIST == 1
+#if MWTIMER_HAS_DLIST == 1
     struct list_head  i_list;
 #endif
     struct hlist_node i_hash;
-} mul_timer_event_t;
+} mwt_event_t;
 
 
 typedef struct mul_wheel_timer_t
 {
-    pthread_mutex_t lock;
+    mwt_eventid_t volatile eventid;
+
+    mwt_counter_t counter;
+
+    thread_lock_t lock;
 
     /**
      * 定时器状态:
-     *    1: 启动
+     *    1: 启动. (windows: status== 1)
      *    0: 暂停
      */
     int status;
 
-    volatile mul_eventid_t eventid;
+    /** 最小时间单元值: 微秒 */
+    mwt_bigint_t    timeunit_usec;
+    mwt_timeunit_t  timeunit_type;
 
-    volatile int64_t counter;
+    struct itimerval value;
+
+#ifdef MWT_OS_LINUX
+    struct itimerval ovalue;
 
     void (* old_sigalarm)(int);
     void (* new_sigalarm)(int);
+#endif
 
-    unsigned int timeunit;
+#ifdef MWT_OS_WINDOWS
+    HANDLE hTimerQueue;
+#endif
 
-    /** 最小时间单元值: 微秒 */
-    int64_t timeunit_usec;
-
-    mwt_timeunit_t  timeunit_type;
-
-    struct itimerval value, ovalue;
+    void * lpParameter;
 
     /** dhlist for timer entry */
-#if MUL_WHEEL_TIMER_HAS_DLIST == 1
+#if MWTIMER_HAS_DLIST == 1
     struct list_head dlist;
 #endif
-    struct hlist_head hlist[MUL_WHEEL_TIMER_HASHLEN_MAX + 1];
+
+    struct hlist_head hlist[MWTIMER_HASHLEN_MAX + 1];
 } mul_wheel_timer_t;
 
 
 /* global timer variable for one linux process */
-__attribute__((used))
-static struct mul_wheel_timer_t  mulwheeltimer;
+__disable_warning_unused_static
+struct mul_wheel_timer_t  mulwheeltimer;
 
 
-__attribute__((used))
-static void sigalarm_handler(int signo);
-
-
-__attribute__((used))
-static inline void free_timer_event (struct mul_timer_event_t * event)
+__disable_warning_unused_static
+inline void free_timer_event (struct mwt_event_t * event)
 {
-    printf("\033[32m-delete event_%llu\033[0m\n", (unsigned long long) event->eventid);
+#if MWTIMER_PRINTF == 1
+    printf("\033[32m-delete event_%lld\033[0m\n", (long long) event->eventid);
+#endif
+
     free(event);
 }
 
 
-__attribute__((used))
-static inline mul_timer_event_t * mul_handle_cast_event (mul_event_handle eventhdl)
+__disable_warning_unused_static
+inline mwt_event_t * mul_handle_cast_event (mwt_event_hdl eventhdl)
 {
-    struct mul_timer_event_t * event = CONTAINER_OF(eventhdl, struct mul_timer_event_t, eventid);
+    struct mwt_event_t * event = CONTAINER_OF(eventhdl, struct mwt_event_t, eventid);
     return event;
 }
 
 
-__attribute__((used))
-static inline int64_t mwt_hash_on_counter (mul_wheel_timer_t * mwt, int64_t timeval_usec, int *hash)
+__disable_warning_unused_static
+inline mwt_bigint_t mwt_hash_on_counter (mul_wheel_timer_t * mwt, mwt_bigint_t timeval_usec, int *hash)
 {
-    int64_t on_counter = (int64_t) (timeval_usec / mwt->timeunit_usec + mwt->counter);
-    *hash = (on_counter & MUL_WHEEL_TIMER_HASHLEN_MAX);
+    mwt_bigint_t on_counter = (mwt_bigint_t) (timeval_usec / mwt->timeunit_usec + mwt->counter);
+    *hash = (on_counter & MWTIMER_HASHLEN_MAX);
 
-    //printf(" * \033[36m on_counter=%" PRI64d ", hash=%d\033[0m\n", on_counter, (*hash));
+#if MWTIMER_PRINTF == 1
+    printf(" * \033[36m on_counter=%lld, hash=%d\033[0m\n", (long long) on_counter, (*hash));
+#endif
+
     return on_counter;
 }
 
 
-__attribute__((used))
-static int timer_select_sleep (int sec, int ms)
+__disable_warning_unused_static
+int timer_select_sleep (int sec, int ms)
 {
     if (sec || ms) {
         struct timeval tv = {0};
 
         tv.tv_sec = sec;
-        tv.tv_usec = ms * 1000;
+        tv.tv_usec = ms * MWTIMER_MILLI_SECOND;
 
         return select (0, NULL, NULL, NULL, &tv);
     } else {
@@ -200,8 +363,32 @@ static int timer_select_sleep (int sec, int ms)
 }
 
 
-__attribute__((used))
-static int mul_wheel_timer_init (mwt_timeunit_t timeunit, unsigned int timeintval, unsigned int delay, int start)
+/**
+ * mul_wheel_timer_init
+ *
+ *   初始化定时器。如果初始化不成功，不能使用定时器。
+ *
+ * params:
+ *       timeunit - time unit: second, millisecond or microsecond (for linux)
+ *       timeintval - The period of the timer, in timeunit.
+ *                  If this parameter is zero, the timer is signaled once.
+ *                  If this parameter is greater than zero, the timer is periodic.
+ *                  A periodic timer automatically reactivates each time the period
+*                     elapses, until the timer is canceled.
+ *       delay - The amount of time in timeunit relative to the current time that
+ *                 must elapse before the timer is signaled for the first time.
+ *       start - only for linux:
+ *          = 0 (do not start timer);
+ *          = 1 (start immediately when init success)
+ *
+ *       lpParameter - A single parameter value that will be passed to the callback function.
+ *
+ * returns:
+ *    0: success  初始化成功
+ *   -1: error    初始化失败
+ */
+__disable_warning_unused_static
+int mul_wheel_timer_init (mwt_timeunit_t timeunit, unsigned int timeintval, unsigned int delay, void *timerParameter ,int start)
 {
     int i, err;
 
@@ -209,33 +396,45 @@ static int mul_wheel_timer_init (mwt_timeunit_t timeunit, unsigned int timeintva
 
     mulwheeltimer.eventid = 1;
 
-#if MUL_WHEEL_TIMER_HAS_DLIST == 1
+#if MWTIMER_HAS_DLIST == 1
     INIT_LIST_HEAD(&mulwheeltimer.dlist);
 #endif
-    for (i = 0; i <= MUL_WHEEL_TIMER_HASHLEN_MAX; i++) {
+    for (i = 0; i <= MWTIMER_HASHLEN_MAX; i++) {
         INIT_HLIST_HEAD(&mulwheeltimer.hlist[i]);
     }
 
-    err = pthread_mutex_init(&mulwheeltimer.lock, 0);
+    err = threadlock_init(&mulwheeltimer.lock);
     if (err) {
         /* nerver run to this ! */
-        printf("[mwt:error(%d)] pthread_mutex_init: %s.\n", err, strerror(err));
+    #if MWTIMER_PRINTF == 1
+        printf("[mwt:error(%d)] threadlock_init: %s.\n", err, strerror(err));
+    #endif
         return (-1);
     }
 
-    err = pthread_mutex_lock(&mulwheeltimer.lock);
+    err = threadlock_enter(&mulwheeltimer.lock);
     if (err) {
-        printf("[mwt:error(%d)] pthread_mutex_lock: %s.\n", err, strerror(err));
+    #if MWTIMER_PRINTF == 1
+        printf("[mwt:error(%d)] threadlock_enter: %s.\n", err, strerror(err));
+    #endif
         return (-1);
     }
 
+
+#ifdef MWT_OS_LINUX
     if ( (mulwheeltimer.old_sigalarm = signal(SIGALRM, sigalarm_handler)) == SIG_ERR ) {
-        pthread_mutex_destroy(&mulwheeltimer.lock);
+        threadlock_fini(&mulwheeltimer.lock);
+    #if MWTIMER_PRINTF == 1
         printf("[mwt:error(%d)] signal: %s.\n", errno, strerror(errno));
+    #endif
         return (-1);
     }
+#endif
 
+
+#ifdef MWT_OS_LINUX
     mulwheeltimer.new_sigalarm = sigalarm_handler;
+#endif
 
     if (timeunit == mwt_timeunit_sec) {
         /** 定义首次激发延迟时间: setitimer 之后 timeval_delay 首次激发 */
@@ -245,26 +444,43 @@ static int mul_wheel_timer_init (mwt_timeunit_t timeunit, unsigned int timeintva
         /** 定义间隔激发时间: 首次激发之后每隔 timeval_interval 激发 */
         mulwheeltimer.value.it_interval.tv_sec = timeintval;
         mulwheeltimer.value.it_interval.tv_usec = 0;
-    } else if (timeunit == mwt_timeunit_msec) {
+    }
+
+#if MWTIMER_MILLI_SECOND == 1000
+    /** 如果支持毫秒定时器 */
+    else if (timeunit == mwt_timeunit_msec) {
         /** 定义首次激发延迟时间: setitimer 之后 timeval_delay 首次激发 */
-        mulwheeltimer.value.it_value.tv_sec = delay / 1000;
-        mulwheeltimer.value.it_value.tv_usec = (delay % 1000) * 1000;
+        mulwheeltimer.value.it_value.tv_sec = delay / MWTIMER_MILLI_SECOND;
+        mulwheeltimer.value.it_value.tv_usec = (delay % MWTIMER_MILLI_SECOND) * MWTIMER_MILLI_SECOND;
 
         /** 定义间隔激发时间: 首次激发之后每隔 timeval_interval 激发 */
-        mulwheeltimer.value.it_interval.tv_sec = timeintval / 1000;
-        mulwheeltimer.value.it_interval.tv_usec = (timeintval % 1000) * 1000;
-    } else if (timeunit == mwt_timeunit_usec) {
-        mulwheeltimer.value.it_value.tv_sec = delay / 1000000;
-        mulwheeltimer.value.it_value.tv_usec = (delay % 1000000) * 1000000;
+        mulwheeltimer.value.it_interval.tv_sec = timeintval / MWTIMER_MILLI_SECOND;
+        mulwheeltimer.value.it_interval.tv_usec = (timeintval % MWTIMER_MILLI_SECOND) * MWTIMER_MILLI_SECOND;
+    }
+#endif
+
+#if MWTIMER_MICRO_SECOND == 1000000
+    /** 如果支持微秒定时器 */
+    else if (timeunit == mwt_timeunit_usec) {
+        mulwheeltimer.value.it_value.tv_sec = delay / MWTIMER_MICRO_SECOND;
+        mulwheeltimer.value.it_value.tv_usec = (delay % MWTIMER_MICRO_SECOND) * MWTIMER_MICRO_SECOND;
 
         /** 定义间隔激发时间: 首次激发之后每隔 timeval_interval 激发 */
-        mulwheeltimer.value.it_interval.tv_sec = timeintval / 1000000;
-        mulwheeltimer.value.it_interval.tv_usec = (timeintval % 1000000) * 1000000;
-    } else {
+        mulwheeltimer.value.it_interval.tv_sec = timeintval / MWTIMER_MICRO_SECOND;
+        mulwheeltimer.value.it_interval.tv_usec = (timeintval % MWTIMER_MICRO_SECOND) * MWTIMER_MICRO_SECOND;
+    }
+#endif
+
+    else {
+#ifdef MWT_OS_LINUX
         signal(SIGALRM, mulwheeltimer.old_sigalarm);
-        pthread_mutex_destroy(&mulwheeltimer.lock);
+#endif
+        threadlock_fini(&mulwheeltimer.lock);
 
+    #if MWTIMER_PRINTF == 1
         printf("[mwt:error] invalid timeunit: %d.", timeunit);
+    #endif
+
         return (-1);
     }
 
@@ -274,38 +490,102 @@ static int mul_wheel_timer_init (mwt_timeunit_t timeunit, unsigned int timeintva
     /** 自动转化为微妙的时间单元 */
     mulwheeltimer.timeunit_usec = mulwheeltimer.value.it_interval.tv_usec + mulwheeltimer.value.it_interval.tv_sec * 1000000;
 
-    printf("[] timeunit=%" PRId64 " microseconds.\n", mulwheeltimer.timeunit_usec);
+#if MWTIMER_PRINTF == 1
+    printf("[] timeunit=%lld microseconds.\n", (long long) mulwheeltimer.timeunit_usec);
+#endif
 
+#ifdef MWT_OS_LINUX
     if (start) {
+#endif
+
+#ifdef MWT_OS_WINDOWS
+    if (1) {
+#endif
+        err = -1;
+
+    #ifdef MWT_OS_LINUX
         err = setitimer(ITIMER_REAL, &mulwheeltimer.value, &mulwheeltimer.ovalue);
+    #endif
+
+    #ifdef MWT_OS_WINDOWS
+        do {
+            DWORD delay_ms = (DWORD) (mulwheeltimer.value.it_value.tv_sec * 1000 + mulwheeltimer.value.it_value.tv_usec / 1000);
+            DWORD interval_ms = (DWORD) (mulwheeltimer.value.it_interval.tv_sec * 1000 + mulwheeltimer.value.it_interval.tv_usec / 1000);
+
+            HANDLE hTimer;
+
+            // Create the timer queue
+            HANDLE hTimerQueue = CreateTimerQueue();
+
+            if (! hTimerQueue) {
+                printf("CreateTimerQueue failed (%d)\n", GetLastError());
+
+                threadlock_fini(&mulwheeltimer.lock);
+
+                return (-1);
+            }
+
+            // Set a timer to call the timer routine in 10 seconds.
+            if (! CreateTimerQueueTimer(&hTimer, hTimerQueue,
+                    (WAITORTIMERCALLBACK) win_sigalrm_handler,
+                    timerParameter,
+                    (DWORD) delay_ms,
+                    (DWORD) interval_ms,
+                    WT_EXECUTEDEFAULT)) {
+                printf("CreateTimerQueueTimer failed (%d)\n", GetLastError());
+                err = -1;
+            } else {
+                // Success
+                mulwheeltimer.hTimerQueue = hTimerQueue;
+                mulwheeltimer.lpParameter = timerParameter;
+                err = 0;
+            }
+        } while(0);
+    #endif
+
         if (! err) {
             /** 定时器成功创建并启动 */
             mulwheeltimer.status = 1;
 
-            pthread_mutex_unlock(&mulwheeltimer.lock);
-
+            threadlock_leave(&mulwheeltimer.lock);
+        #if MWTIMER_PRINTF == 1
             printf("[mwt:info] mul_wheel_timer_init success.\n");
-
+        #endif
             return 0;
         } else {
             /** 定时器创建但启动失败 */
             mulwheeltimer.status = 0;
 
+        #ifdef MWT_OS_LINUX
             /** 定时器不可用，自动销毁 */
             signal(SIGALRM, mulwheeltimer.old_sigalarm);
-            pthread_mutex_destroy(&mulwheeltimer.lock);
+        #endif
 
+        #ifdef MWT_OS_WINDOWS
+            DeleteTimerQueue(mulwheeltimer.hTimerQueue);
+        #endif
+
+            threadlock_fini(&mulwheeltimer.lock);
+
+        #if MWTIMER_PRINTF == 1
             printf("[mwt:error] mul_wheel_timer_init failed. setitimer error(%d): %s.\n", err, strerror(err));
+        #endif
 
             return (-1);
         }
     } else {
         /** 定时器成功创建, 但不要求启动 */
         mulwheeltimer.status = 0;
-        pthread_mutex_unlock(&mulwheeltimer.lock);
+        threadlock_leave(&mulwheeltimer.lock);
 
+    #if MWTIMER_PRINTF == 1
         printf("[mwt:info] mul_wheel_timer_init success without starting.\n");
+    #endif
 
+    #ifdef MWT_OS_WINDOWS
+        // Windows 不支持随后启动定时器
+        #pragma message ("warnings: windows always start timer when init success")
+    #endif
         return 0;
     }
 }
@@ -313,29 +593,39 @@ static int mul_wheel_timer_init (mwt_timeunit_t timeunit, unsigned int timeintva
 
 /**
  * mul_wheel_timer_start
- *   启动定时器
+ *   启动定时器，仅对Linux有效。Windows自动启动定时器。
  *
  * returns:
  *    0: success  成功启动
  *    1: sfalse   已经启动
  *   -1: error    启动失败
  */
-__attribute__((used))
-static int mul_wheel_timer_start (void)
+__disable_warning_unused_static
+int mul_wheel_timer_start (void)
 {
+#ifdef MWT_OS_WINDOWS
+    #pragma message("windows always return success(0) for this.")
+    return 0;
+#endif
+
+#ifdef MWT_OS_LINUX
     int err;
 
-    err = pthread_mutex_trylock(&mulwheeltimer.lock);
+    err = threadlock_tryenter(&mulwheeltimer.lock);
     if (err) {
         /** 多线程锁定失败 */
-        printf("[mwt:error(%d)] pthread_mutex_trylock: %s\n", err, strerror(err));
+    #if MWTIMER_PRINTF == 1
+        printf("[mwt:error(%d)] threadlock_tryenter: %s\n", err, strerror(err));
+    #endif
         return (-1);
     }
 
     if (mulwheeltimer.status == 1) {
         /** 已经启动 */
-        pthread_mutex_unlock(&mulwheeltimer.lock);
+        threadlock_leave(&mulwheeltimer.lock);
+    #if MWTIMER_PRINTF == 1
         printf("[mwt:warn] already start.\n");
+    #endif
         return 1;
     }
 
@@ -343,16 +633,21 @@ static int mul_wheel_timer_start (void)
     if (! err) {
         /** 定时器成功启动 */
         mulwheeltimer.status = 1;
-        pthread_mutex_unlock(&mulwheeltimer.lock);
+        threadlock_leave(&mulwheeltimer.lock);
+    #if MWTIMER_PRINTF == 1
         printf("[mwt:info] mul_wheel_timer_start success.\n");
+    #endif
         return 0;
     } else {
         /** 定时器启动失败 */
         mulwheeltimer.status = 0;
-        pthread_mutex_unlock(&mulwheeltimer.lock);
+        threadlock_leave(&mulwheeltimer.lock);
+    #if MWTIMER_PRINTF == 1
         printf("[mwt:error] mul_wheel_timer_start. setitimer error(%d): %s.\n", err, strerror(err));
+    #endif
         return (-1);
     }
+#endif
 }
 
 
@@ -364,38 +659,55 @@ static int mul_wheel_timer_start (void)
  *   -1: failed.
  *      use strerror(errno) for error message.
  */
-__attribute__((used))
-static int mul_wheel_timer_destroy (void)
+__disable_warning_unused_static
+int mul_wheel_timer_destroy (void)
 {
     int err;
 
-    err = pthread_mutex_lock(&mulwheeltimer.lock);
+    err = threadlock_enter(&mulwheeltimer.lock);
     if (err) {
-        printf("[mwt] pthread_mutex_lock error(%d): %s\n", err, strerror(err));
+    #if MWTIMER_PRINTF == 1
+        printf("[mwt] threadlock_enter error(%d): %s\n", err, strerror(err));
+    #endif
         return (-1);
     }
 
+#ifdef MWT_OS_LINUX
     if ((signal(SIGALRM, mulwheeltimer.new_sigalarm)) == SIG_ERR) {
-        pthread_mutex_unlock(&mulwheeltimer.lock);
+        threadlock_leave(&mulwheeltimer.lock);
+    #if MWTIMER_PRINTF == 1
         printf("[mwt] destroy failed. signal error.\n");
+    #endif
         return (-1);
     }
 
     /** 恢复进程原有的定时器 */
     err = setitimer(ITIMER_REAL, &mulwheeltimer.ovalue, &mulwheeltimer.value);
     if (err < 0) {
-        pthread_mutex_unlock(&mulwheeltimer.lock);
+        threadlock_leave(&mulwheeltimer.lock);
+    #if MWTIMER_PRINTF == 1
         printf("[mwt] destroy failed. setitimer error(%d): %s.\n", errno, strerror(errno));
+    #endif
         return (-1);
     }
+#endif
+
+#ifdef MWT_OS_WINDOWS
+    // Delete all timers in the timer queue.
+    if (! DeleteTimerQueue(mulwheeltimer.hTimerQueue)) {
+        printf("DeleteTimerQueue failed (%d)\n", GetLastError());
+        threadlock_leave(&mulwheeltimer.lock);
+        return (-1);
+    }
+#endif
 
     /** 清空定时器链表 */
-#if MUL_WHEEL_TIMER_HAS_DLIST == 1
+#if MWTIMER_HAS_DLIST == 1
     do {
         struct list_head *list, *node;
 
         list_for_each_safe(list, node, &mulwheeltimer.dlist) {
-            struct mul_timer_event_t * event = list_entry(list, struct mul_timer_event_t, i_list);
+            struct mwt_event_t * event = list_entry(list, struct mwt_event_t, i_list);
 
             hlist_del(&event->i_hash);
             list_del(&event->i_list);
@@ -408,9 +720,9 @@ static int mul_wheel_timer_destroy (void)
         int hash;
         struct hlist_node *hp, *hn;
 
-        for (hash = 0; hash <= MUL_WHEEL_TIMER_HASHLEN_MAX; hash++) {
+        for (hash = 0; hash <= MWTIMER_HASHLEN_MAX; hash++) {
             hlist_for_each_safe(hp, hn, &mulwheeltimer.hlist[hash]) {
-                struct mul_timer_event_t * event = hlist_entry(hp, struct mul_timer_event_t, i_hash);
+                struct mwt_event_t * event = hlist_entry(hp, struct mwt_event_t, i_hash);
 
                 hlist_del(&event->i_hash);
 
@@ -420,11 +732,14 @@ static int mul_wheel_timer_destroy (void)
     } while(0);
 #endif
 
-    pthread_mutex_destroy(&mulwheeltimer.lock);
+    threadlock_fini(&mulwheeltimer.lock);
 
     bzero(&mulwheeltimer, sizeof(struct mul_wheel_timer_t));
 
+#if MWTIMER_PRINTF == 1
     printf("[mwt] destroy success.\n");
+#endif
+
     return(0);
 }
 
@@ -447,23 +762,23 @@ static int mul_wheel_timer_destroy (void)
  *     > 0 : 次数
  *
  * returns:
- *    > 0: mul_eventid_t, success
+ *    > 0: mwt_eventid_t, success
  *    < 0: failed
  */
 #define MUL_WHEEL_TIMER_EVENT_ONEOFF       (1)
 #define MUL_WHEEL_TIMER_EVENT_INFINITE    (-1)
 
 
-__attribute__((used))
-static mul_eventid_t mul_wheel_timer_set_event (int64_t delay, int64_t interval, int64_t count,
-    int (*on_event_cb)(mul_event_handle eventhdl, void *eventarg), void *eventarg)
+__disable_warning_unused_static
+mwt_eventid_t mul_wheel_timer_set_event (mwt_bigint_t delay, mwt_bigint_t interval, mwt_bigint_t count,
+    int (*on_event_cb)(mwt_event_hdl eventhdl, void *eventarg, void *timerarg), void *eventarg)
 {
     int err, hash;
-    int64_t on_counter;
-    mul_timer_event_t *new_event;
+    mwt_bigint_t on_counter;
+    mwt_event_t *new_event;
 
-    int64_t delay_usec = 0;
-    int64_t interval_usec = 0;
+    mwt_bigint_t delay_usec = 0;
+    mwt_bigint_t interval_usec = 0;
 
     if (count == MUL_WHEEL_TIMER_EVENT_INFINITE) {
         count = INT64_MAX;
@@ -477,23 +792,33 @@ static mul_eventid_t mul_wheel_timer_set_event (int64_t delay, int64_t interval,
     if (mulwheeltimer.timeunit_type == mwt_timeunit_sec) {
         delay_usec = delay * 1000000;
         interval_usec = interval * 1000000;
-    } else if (mulwheeltimer.timeunit_type == mwt_timeunit_msec) {
-        delay_usec = delay * 1000;
-        interval_usec = interval * 1000;
-    } else if (mulwheeltimer.timeunit_type == mwt_timeunit_usec) {
+    }
+
+#if MWTIMER_MILLI_SECOND == 1000
+    else if (mulwheeltimer.timeunit_type == mwt_timeunit_msec) {
+        delay_usec = delay * MWTIMER_MILLI_SECOND;
+        interval_usec = interval * MWTIMER_MILLI_SECOND;
+    }
+#endif
+
+#if MWTIMER_MICRO_SECOND == 1000000
+    else if (mulwheeltimer.timeunit_type == mwt_timeunit_usec) {
         delay_usec = delay;
         interval_usec = interval;
     }
+#endif
 
     if (delay_usec == 0 && interval_usec == 0) {
         /** 无效的定时器 */
         return (-2);
     }
 
-    err = pthread_mutex_trylock(&mulwheeltimer.lock);
+    err = threadlock_tryenter(&mulwheeltimer.lock);
     if (err) {
         /** 多线程锁定失败 */
-        printf("[mwt] pthread_mutex_trylock error(%d): %s\n", err, strerror(err));
+    #if MWTIMER_PRINTF == 1
+        printf("[mwt] threadlock_tryenter error(%d): %s\n", err, strerror(err));
+    #endif
         return (-1);
     }
 
@@ -503,26 +828,26 @@ static mul_eventid_t mul_wheel_timer_set_event (int64_t delay, int64_t interval,
      */
     on_counter = mwt_hash_on_counter(&mulwheeltimer, delay_usec, &hash);
 
-    new_event = (mul_timer_event_t *) malloc(sizeof(mul_timer_event_t));
+    new_event = (mwt_event_t *) malloc(sizeof(mwt_event_t));
     if (! new_event) {
         /** out of memory */
-        pthread_mutex_unlock(&mulwheeltimer.lock);
+        threadlock_leave(&mulwheeltimer.lock);
         return (-4);
     }
 
-    bzero(new_event, sizeof(mul_timer_event_t));
+    bzero(new_event, sizeof(mwt_event_t));
 
     new_event->eventid = mulwheeltimer.eventid++;
 
     new_event->on_counter = on_counter;
 
     /** 首次激发时间 */
-    new_event->value.it_value.tv_sec = delay_usec / 1000000;
-    new_event->value.it_value.tv_usec = delay_usec % 1000000;
+    new_event->value.it_value.tv_sec = (long) (delay_usec / 1000000);
+    new_event->value.it_value.tv_usec = (long) (delay_usec % 1000000);
 
     /** 间隔激发时间 */
-    new_event->value.it_interval.tv_sec = interval_usec / 1000000;
-    new_event->value.it_interval.tv_usec = interval_usec % 1000000;
+    new_event->value.it_interval.tv_sec = (long) (interval_usec / 1000000);
+    new_event->value.it_interval.tv_usec = (long) (interval_usec % 1000000);
 
     new_event->hash = hash;
 
@@ -530,12 +855,14 @@ static mul_eventid_t mul_wheel_timer_set_event (int64_t delay, int64_t interval,
     new_event->eventarg = eventarg;
     new_event->timer_event_cb = on_event_cb;
 
-    //printf("\033[31m+create event_%" PRI64d "\033[0m\n", new_event->eventid);
+#if MWTIMER_PRINTF == 1
+    printf("\033[31m+create event_%lld\033[0m\n", (long long) new_event->eventid);
 
-    //printf("\033[31m+create event_%" PRI64d ". (%d : %d)\033[0m\n", new_event->eventid,
-    //    (int) new_event->value.it_value.tv_sec, (int) new_event->value.it_interval.tv_sec);
+    printf("\033[31m+create event_%lld. (%d : %d)\033[0m\n", (long long) new_event->eventid,
+        (int) new_event->value.it_value.tv_sec, (int) new_event->value.it_interval.tv_sec);
+#endif
 
-#if MUL_WHEEL_TIMER_HAS_DLIST == 1
+#if MWTIMER_HAS_DLIST == 1
     /** 串入长串 */
     list_add(&new_event->i_list, &mulwheeltimer.dlist);
 #endif
@@ -546,12 +873,14 @@ static mul_eventid_t mul_wheel_timer_set_event (int64_t delay, int64_t interval,
     /** 设置引用计数为 1 */
     new_event->refc = count;
 
+#if MWTIMER_PRINTF == 1
     // 演示如何删除自身：
     ////hlist_del(&new_event->i_hash);
     ////list_del(&new_event->i_list);
     ////free_timer_event(new_event);
+#endif
 
-    pthread_mutex_unlock(&mulwheeltimer.lock);
+    threadlock_leave(&mulwheeltimer.lock);
 
     return new_event->eventid;
 }
@@ -565,15 +894,17 @@ static mul_eventid_t mul_wheel_timer_set_event (int64_t delay, int64_t interval,
  *    0: success
  *   -1: failed.
  */
-__attribute__((used))
-static int mul_wheel_timer_remove_event (mul_event_handle eventhdl)
+__disable_warning_unused_static
+int mul_wheel_timer_remove_event (mwt_event_hdl eventhdl)
 {
-    mul_timer_event_t * event = mul_handle_cast_event(eventhdl);
+    mwt_event_t * event = mul_handle_cast_event(eventhdl);
 
+#if MWTIMER_PRINTF == 1
     printf("remove event-%lld\n", (long long) event->eventid);
+#endif
 
     /** 设置引用计数为 0，当有事件触发时自动删除 */
-    __sync_lock_release(&event->refc);
+    __interlock_release(&event->refc);
 
     return 0;
 }
@@ -589,36 +920,35 @@ static int mul_wheel_timer_remove_event (mul_event_handle eventhdl)
  * returns:
  *   number of events have been fired
  */
-__attribute__((used))
-static int mul_wheel_timer_fire_event (int64_t fire_counter)
+__disable_warning_unused_static
+int mul_wheel_timer_fire_event (mwt_bigint_t fire_counter, void * lpParamter)
 {
     struct hlist_node *hp;
     struct hlist_node *hn;
 
     int num_events_fired = 0;
 
-    int hash = (int) (fire_counter & MUL_WHEEL_TIMER_HASHLEN_MAX);
+    int hash = (int) (fire_counter & MWTIMER_HASHLEN_MAX);
 
     hlist_for_each_safe(hp, hn, &mulwheeltimer.hlist[hash]) {
-        struct mul_timer_event_t * event = hlist_entry(hp, struct mul_timer_event_t, i_hash);
+        struct mwt_event_t * event = hlist_entry(hp, struct mwt_event_t, i_hash);
 
         if (event->on_counter == fire_counter) {
             /** 首先从链表中删除自己 */
             hlist_del(&event->i_hash);
 
-        #if MUL_WHEEL_TIMER_HAS_DLIST == 1
+        #if MWTIMER_HAS_DLIST == 1
             list_del(&event->i_list);
         #endif
 
-            if (__sync_fetch_and_sub(&event->refc, 1) <= 0) {
+            /** 激发事件回调函数 */
+            event->timer_event_cb(&event->eventid, event->eventarg, lpParamter);
+            num_events_fired++;
+
+            if (__interlock_sub(&event->refc) <= 0) {
                 /** 要求删除事件 */
                 free_timer_event(event);
             } else {
-                /** 激发事件回调函数 */
-                event->timer_event_cb(&event->eventid, event->eventarg);
-
-                num_events_fired++;
-
                 if (event->value.it_interval.tv_sec == 0) {
                     /* 只使用一次, 下次不再激发，删除事件 */
                     free_timer_event(event);
@@ -627,7 +957,7 @@ static int mul_wheel_timer_fire_event (int64_t fire_counter)
                         event->value.it_interval.tv_sec * 1000000 + event->value.it_interval.tv_usec,
                         &event->hash);
 
-                #if MUL_WHEEL_TIMER_HAS_DLIST == 1
+                #if MWTIMER_HAS_DLIST == 1
                     /** 串入长串 */
                     list_add(&event->i_list, &mulwheeltimer.dlist);
                 #endif
@@ -642,16 +972,19 @@ static int mul_wheel_timer_fire_event (int64_t fire_counter)
 }
 
 
-__attribute__((used))
-static void sigalarm_handler(int signo)
+#ifdef MWT_OS_LINUX
+__disable_warning_unused_static
+void sigalarm_handler(int signo)
 {
     int err;
-    int64_t on_counter;
+    mwt_bigint_t on_counter;
 
-    err = pthread_mutex_trylock(&mulwheeltimer.lock);
+    err = threadlock_tryenter(&mulwheeltimer.lock);
     if (err) {
         /** 多线程锁定失败 */
+    #if MWTIMER_PRINTF == 1
         printf("[mwt]\033[33m lock error: %llu\033[0m\n", (unsigned long long) mulwheeltimer.counter);
+    #endif
         return;
     }
 
@@ -664,12 +997,63 @@ static void sigalarm_handler(int signo)
      *
      * !! 因此不可以在on_timer_event中执行长时间的操作 !!
      */
-    mul_wheel_timer_fire_event(on_counter);
+    mul_wheel_timer_fire_event(on_counter, mulwheeltimer.lpParameter);
 
-    pthread_mutex_unlock(&mulwheeltimer.lock);
+    threadlock_leave(&mulwheeltimer.lock);
 
+#if MWTIMER_PRINTF == 1
     printf(" * alarm: %llu\n", (unsigned long long) on_counter);
+#endif
 }
+#endif
+
+
+#ifdef MWT_OS_WINDOWS
+
+void __stdcall win_sigalrm_handler (PVOID lpParameter, BOOLEAN TimerOrWaitFired)
+{
+    if (TimerOrWaitFired) {
+        // TimerOrWaitFired:
+        //   If this parameter is TRUE, the wait timed out.
+        //   If this parameter is FALSE, the wait event has been signaled.
+        // This parameter is always TRUE for timer callbacks.
+
+        int err;
+        mwt_bigint_t on_counter;
+
+        // The wait timed out
+        err = threadlock_tryenter(&mulwheeltimer.lock);
+        if (err) {
+            /** 多线程锁定失败 */
+        #if MWTIMER_PRINTF == 1
+            printf("[mwt]\033[33m lock error: %llu\033[0m\n", (unsigned long long) mulwheeltimer.counter);
+        #endif
+            return;
+        }
+
+        /** 当前激发的计数器 */
+        on_counter = mulwheeltimer.counter++;
+
+        /**
+         * 激发事件：此事件在锁定状态下调用用户提供的回调函数：
+         *   on_timer_event
+         *
+         * !! 因此不可以在on_timer_event中执行长时间的操作 !!
+         */
+        mul_wheel_timer_fire_event(on_counter, lpParameter);
+
+        threadlock_leave(&mulwheeltimer.lock);
+
+    #if MWTIMER_PRINTF == 1
+        printf(" * alarm: %llu\n", (unsigned long long) on_counter);
+    #endif
+
+        printf(" * alarm: %lld\n", on_counter);
+    }
+}
+
+
+#endif
 
 
 #if defined(__cplusplus)
