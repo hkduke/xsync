@@ -109,6 +109,8 @@ static void watch_event_task (thread_context_t * thread_ctx)
 {
     threadpool_task_t * task = thread_ctx->task;
 
+    get_multimer_singleton();
+
     if (task->flags == XS_watch_event_type_inotify) {
         XS_watch_event event = (XS_watch_event) task->argument;
 
@@ -273,6 +275,8 @@ extern XS_RESULT XS_client_create (clientapp_opts *opts, XS_client *outClient)
         xs_client_delete((void*) client);
         return XS_ERROR;
     }
+
+    get_multimer_singleton();
 
     /**
      * output XS_client

@@ -54,10 +54,6 @@ extern "C"
 #include "sslapi.h"
 */
 
-/** multi wheel timer */
-#include "mul_wheel_timer.h"
-
-
 #ifndef HAVE_GETRUSAGE_PROTO
 int  getrusage (int, struct rusage *);
 #endif

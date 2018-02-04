@@ -26,13 +26,13 @@
 extern "C" {
 #endif
 
+#include "../common/mul_timer.h"
 #include "../common/common_util.h"
 
 #include "server_opts.h"
 #include "watch_path.h"
 #include "watch_entry.h"
 #include "watch_event.h"
-
 
 #include "../xsync-error.h"
 #include "../xsync-config.h"
@@ -66,7 +66,7 @@ typedef struct perthread_data
 
 
 /**
- * xs_client_t type
+ * xs_client_t singleton
  */
 typedef struct xs_client_t
 {

@@ -21,6 +21,7 @@
 
 #include "server.h"
 
+#include "../common/mul_timer.h"
 
 void sig_chld (int signo)
 {
@@ -68,11 +69,11 @@ void exit_handler (int exitCode, void *ppData)
 }
 
 
-int on_timer_event (mwt_event_hdl eventhdl, void *eventarg, void *timerarg)
+int on_timer_event (mul_event_hdl eventhdl, void *eventarg, void *timerarg)
 {
     printf(" ==> on_timer_event_%lld\n", (long long) * eventhdl);
 
-    mul_wheel_timer_remove_event(eventhdl);
+    //mul_timer_remove_event(eventhdl);
 
     return 0;
 }
@@ -92,30 +93,31 @@ int main (int argc, char *argv[])
 
     printf("TODO: %s-%s start ...\n", APP_NAME, APP_VERSION);
 
-    err = mul_wheel_timer_init(mwt_timeunit_sec, 1, 10, 0, 0);
+    struct mul_timer_t *mtimer = get_multimer_singleton();
+
+    err = mul_timer_init(mtimer, mul_timeunit_sec, 1, 10, sigalarm_handler, 0, 0);
     assert(! err);
 
     // 添加首次20秒激发，以后间隔3秒激发的定时器
-    mul_wheel_timer_set_event(20, 3, MUL_WHEEL_TIMER_EVENT_INFINITE, on_timer_event, 0);
+    mul_timer_set_event(mtimer, 20, 3, MULTIMER_EVENT_INFINITE, on_timer_event, 0);
 
     // 添加首次30秒激发，以后间隔5秒激发的定时器
-    mul_wheel_timer_set_event(30, 5, MUL_WHEEL_TIMER_EVENT_INFINITE, on_timer_event, 0);
+    mul_timer_set_event(mtimer, 30, 5, MULTIMER_EVENT_INFINITE, on_timer_event, 0);
 
     // 添加首次35秒激发，以后间隔1秒激发的定时器，但是只激发一次
-    mul_wheel_timer_set_event(30, 1, MUL_WHEEL_TIMER_EVENT_ONEOFF, on_timer_event, 0);
+    mul_timer_set_event(mtimer, 30, 1, MULTIMER_EVENT_ONCEOFF, on_timer_event, 0);
 
-    // 添加一次性定时器，仅在第10秒激发一次，忽略 MUL_WHEEL_TIMER_EVENT_INFINITE
-    mul_wheel_timer_set_event(10, 0, MUL_WHEEL_TIMER_EVENT_INFINITE, on_timer_event, 0);
+    // 添加一次性定时器，仅在第10秒激发一次，忽略 MULTIMER_EVENT_INFINITE
+    mul_timer_set_event(mtimer, 10, 0, MULTIMER_EVENT_INFINITE, on_timer_event, 0);
 
-    mul_wheel_timer_start();
-
+    mul_timer_start(mtimer);
 
     while (1)
     {
         pause();
     }
 
-    err = mul_wheel_timer_destroy();
+    err = mul_timer_destroy(mtimer);
     assert(! err);
 
     printf("TODO: %s-%s end.\n", APP_NAME, APP_VERSION);

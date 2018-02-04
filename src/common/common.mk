@@ -5,7 +5,9 @@ SOURCES := \
 	getopt_longw.c \
 	getoptw.c \
 	base64.c \
-	readconf.c
+	readconf.c \
+	mul_timer.c
+
 
 
 SRC_INCDIRS := .

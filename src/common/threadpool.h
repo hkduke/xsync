@@ -40,7 +40,7 @@ extern "C" {
 #endif
 
 #ifndef POOL_MAX_QUEUES
-#   define POOL_MAX_QUEUES   65536
+#   define POOL_MAX_QUEUES   16384
 #endif
 
 #ifndef POOL_DEFAULT_THREADS

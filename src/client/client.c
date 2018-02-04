@@ -21,6 +21,8 @@
 
 #include "client.h"
 
+#include "../common/mul_timer.h"
+
 
 void sig_chld (int signo)
 {
@@ -96,6 +98,8 @@ int main (int argc, char *argv[])
     XS_client client;
 
     clientapp_opts opts;
+
+    get_multimer_singleton();
 
     clientapp_opts_initiate(argc, argv, &opts);
 

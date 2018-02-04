@@ -23,7 +23,7 @@
  * refobject.h
  *
  * create: 2017-01-14
- * update: 2018-02-02
+ * update: 2018-02-04
  */
 
 #ifndef _REF_OBJECT_H_INCLUDED
@@ -33,15 +33,16 @@
 extern "C" {
 #endif
 
-#include <pthread.h>
-#include <unistd.h>
 
-#define REF_OBJECT_INVALID    0
+#include "threadlock.h"
 
-#define REF_OBJECT_NOERROR    0
 
-#define REF_OBJECT_ERROR    (-1)
-#define REF_OBJECT_ESYSTEM  (-4)
+#define REF_OBJECT_INVALID     0
+
+#define REF_OBJECT_NOERROR     0
+
+#define REF_OBJECT_ERROR     (-1)
+#define REF_OBJECT_ESYSTEM   (-4)
 
 #define REF_OBJECT_EINVAL    EINVAL
 #define REF_OBJECT_ENOMEM    ENOMEM
@@ -49,30 +50,30 @@ extern "C" {
 
 typedef struct RefObjectType
 {
-    int __refc;                       /* reference count */
-    pthread_mutex_t __lock;          /* global thread mutex */
+    ref_counter_t refc__;            /* reference count */
+    thread_lock_t lock__;            /* global thread mutex */
 } * RefObjectPtr;
 
 
 #define EXTENDS_REFOBJECT_TYPE() \
     union { \
         struct { \
-            int __refc; \
-            pthread_mutex_t __lock; \
+            ref_counter_t refc__; \
+            thread_lock_t lock__; \
         }; \
-        struct RefObjectType  __notused; \
+        struct RefObjectType  _notused_; \
     }
 
 
-typedef void (* FinalizeObjectFunc) (void *);
+typedef void (* FinalObjectFunc) (void *);
 
 
 __attribute__((unused))
 static inline int RefObjectInit (void *pv)
 {
-    int err = pthread_mutex_init(& ((RefObjectPtr) pv)->__lock, 0);
+    int err = threadlock_init(&((RefObjectPtr) pv)->lock__);
 
-    ((RefObjectPtr) pv)->__refc = 1;
+    ((RefObjectPtr) pv)->refc__ = 1;
 
     /**
      * success: REF_OBJECT_NOERROR
@@ -88,7 +89,7 @@ static inline RefObjectPtr RefObjectRetain (void **ppv)
     RefObjectPtr obj = *((RefObjectPtr *) ppv);
 
     if (obj) {
-        if (__sync_add_and_fetch(&obj->__refc, 1) > 0) {
+        if (__interlock_add(&obj->refc__) > 0) {
             return obj;
         } else {
             /* should never run to this */
@@ -105,9 +106,9 @@ __attribute__((unused))
 static inline int RefObjectLock (void *pv, int try)
 {
     if (try) {
-        return pthread_mutex_trylock(&((RefObjectPtr) pv)->__lock);
+        return threadlock_trylock(&((RefObjectPtr) pv)->lock__);
     } else {
-        return pthread_mutex_lock(&((RefObjectPtr) pv)->__lock);
+        return threadlock_lock(&((RefObjectPtr) pv)->lock__);
     }
 }
 
@@ -115,21 +116,21 @@ static inline int RefObjectLock (void *pv, int try)
 __attribute__((unused))
 static inline void RefObjectUnlock (void *pv)
 {
-    pthread_mutex_unlock(&((RefObjectPtr) pv)->__lock);
+    threadlock_unlock(&((RefObjectPtr) pv)->lock__);
 }
 
 
 __attribute__((unused))
-static inline void RefObjectRelease (void **ppv, FinalizeObjectFunc pfnFinalObject)
+static inline void RefObjectRelease (void **ppv, FinalObjectFunc pfnFinalObject)
 {
     RefObjectPtr obj = *((RefObjectPtr *) ppv);
 
     if (obj) {
-        if (0 == __sync_sub_and_fetch(&obj->__refc, 1)) {
+        if (0 == __interlock_sub(&obj->refc__)) {
             *ppv = 0;
 
-            pthread_mutex_lock(&obj->__lock);
-            pthread_mutex_destroy(&obj->__lock);
+            threadlock_lock(&obj->lock__);
+            threadlock_destroy(&obj->lock__);
 
             pfnFinalObject(obj);
         }
