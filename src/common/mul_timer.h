@@ -130,13 +130,24 @@ extern "C"
 #define MULTIMER_HAS_DLIST   0
 
 /* 激发 1 次 */
-#define MULTIMER_EVENT_ONCEOFF     ((bigint_t)(1))
+#define MULTIMER_EVENT_ONCEOFF     ((mul_counter_t)(1))
 
 /* 永远激发 */
-#define MULTIMER_EVENT_INFINITE    ((bigint_t)(-1))
+#define MULTIMER_EVENT_INFINITE    ((mul_counter_t)(-1))
 
 #define MULTIMER_EVENT_COUNT(n)    \
-    ((bigint_t) ( (n) < MULTIMER_EVENT_INFINITE ? MULTIMER_EVENT_INFINITE : ((n) == 0 ? MULTIMER_EVENT_ONCEOFF : (n)) ))
+    ((mul_counter_t) ( (n) < MULTIMER_EVENT_INFINITE ? MULTIMER_EVENT_INFINITE : ((n) == 0 ? MULTIMER_EVENT_ONCEOFF : (n)) ))
+
+
+/* event_cb 阻塞式 */
+#define MULTIMER_EVENT_CB_BLOCK       0
+
+/* event_cb 非阻塞式 */
+#define MULTIMER_EVENT_CB_NONBLOCK    1
+
+/* event_cb 忽略的, 没有特殊用途不要设置这个数值 */
+#define MULTIMER_EVENT_CB_IGNORED    (-1)
+
 
 /**
  * global timer in process-wide
@@ -145,6 +156,8 @@ extern struct mul_timer_t multimer_singleton;
 
 extern struct mul_timer_t * get_multimer_singleton ();
 
+
+typedef bigint_t mul_counter_t;
 
 typedef bigint_t mul_eventid_t;
 
@@ -172,10 +185,20 @@ typedef struct mul_event_t
     /* 引用计数： 0 删除, 1 保留 */
     ref_counter_t refc;
 
+    /** 事件回调函数参数 */
     void *eventarg;
+
+    /** 事件回调函数 */
     int (*timer_event_cb) (mul_event_hdl eventhdl, void *eventarg, void *lpParameter);
 
-    ref_counter_t on_counter;
+    /** 事件回调模式:
+     *    同步阻塞=MULTIMER_EVENT_CB_BLOCK  (默认)
+     *    非阻塞=MULTIMER_EVENT_CB_NONBLOCK
+     *    忽略的=MULTIMER_EVENT_CB_IGNORED
+     */
+    int cb_flag;
+
+    mul_counter_t on_counter;
 
     /* 指定定时器首次激发时间和以后每次间隔激发时间 */
     struct itimerval value;
@@ -194,26 +217,25 @@ typedef struct mul_timer_t
 {
     mul_eventid_t volatile eventid;
 
-    ref_counter_t counter;
+    mul_counter_t counter;
 
     thread_lock_t lock;
 
     /**
      * 定时器状态:
-     *    1: 启动. (windows: status== 1)
+     *    1: 启动
      *    0: 暂停
      */
-    int status;
+    int start_flag;
 
     /** 最小时间单元值: 微秒 */
-    bigint_t    timeunit_usec;
-    mul_timeunit_t  timeunit_type;
+    bigint_t         timeunit_usec;
+    mul_timeunit_t  timeunit_id;
 
     struct itimerval value;
 
 #ifdef _LINUX_GNUC
     struct itimerval ovalue;
-
     void (*old_sighdl)(int);
 #endif
 
@@ -227,7 +249,6 @@ typedef struct mul_timer_t
 #if MULTIMER_HAS_DLIST == 1
     struct list_head dlist;
 #endif
-
     struct hlist_head hlist[MULTIMER_HASHLEN_MAX + 1];
 } mul_timer_t;
 
@@ -252,17 +273,32 @@ inline mul_event_t * mul_handle_cast_event (mul_event_hdl eventhdl)
 
 
 __no_warning_unused_static
-inline bigint_t mul_hash_on_counter (mul_timer_t *mtr, bigint_t timeval_usec, int *hash)
+inline mul_counter_t mul_hash_on_counter (mul_timer_t *mtr, bigint_t timeval_usec, int *hash)
 {
-    bigint_t on_counter = (bigint_t) (timeval_usec / mtr->timeunit_usec + mtr->counter);
-    *hash = (on_counter & MULTIMER_HASHLEN_MAX);
-
-#if MULTIMER_PRINT == 1
-    printf(" * \033[36m on_counter=%lld, hash=%d\033[0m\n", (long long) on_counter, (*hash));
-#endif
-
+    mul_counter_t on_counter = (mul_counter_t) (timeval_usec / mtr->timeunit_usec + mtr->counter);
+    *hash = (int) (on_counter & MULTIMER_HASHLEN_MAX);
     return on_counter;
 }
+
+
+/**
+ * 增加到 timer 的 list 中
+ */
+#define mul_timer_list_attach_event(mtr, evt)    \
+    do {                                         \
+        evt->on_counter = mul_hash_on_counter(mtr, \
+            evt->value.it_interval.tv_sec * 1000000 + evt->value.it_interval.tv_usec, &evt->hash); \
+        list_add(&evt->i_list, &mtr->dlist); \
+        hlist_add_head(&evt->i_hash, &mtr->hlist[evt->hash]); \
+    } while(0)
+
+
+#define mul_timer_hlist_attach_event(mtr, evt)    \
+    do {                                          \
+        evt->on_counter = mul_hash_on_counter(mtr, \
+            evt->value.it_interval.tv_sec * 1000000 + evt->value.it_interval.tv_usec, &evt->hash); \
+        hlist_add_head(&evt->i_hash, &mtr->hlist[evt->hash]); \
+    } while(0)
 
 
 __no_warning_unused_static
@@ -292,59 +328,62 @@ inline int timer_select_sleep (int sec, int ms)
  *   number of events have been fired
  */
 __no_warning_unused_static
-inline int mul_timer_fire_event (mul_timer_t *mtr, bigint_t fire_counter)
+inline int mul_timer_fire_event (mul_timer_t *mtr, mul_counter_t fireon_counter)
 {
     struct hlist_node *hp;
     struct hlist_node *hn;
 
-    int num_events_fired = 0;
-
-    int hash = (int) (fire_counter & MULTIMER_HASHLEN_MAX);
+    int hash = (int) (fireon_counter & MULTIMER_HASHLEN_MAX);
+    int num_events = 0;
 
     hlist_for_each_safe(hp, hn, &mtr->hlist[hash]) {
         struct mul_event_t * event = hlist_entry(hp, struct mul_event_t, i_hash);
 
-        if (event->on_counter == fire_counter) {
-            bigint_t  refc;
-
-            /** 首先从链表中删除自己 */
+        if (event->on_counter == fireon_counter) {
+            /** 首先从 hlist 中解除解除自己 */
+            #if MULTIMER_HAS_DLIST == 1
+                list_del(&event->i_list);
+            #endif
             hlist_del(&event->i_hash);
 
-        #if MULTIMER_HAS_DLIST == 1
-            list_del(&event->i_list);
-        #endif
+            if (event->refc > 0) {
+                if (event->cb_flag == MULTIMER_EVENT_CB_BLOCK) {
+                    /**
+                     * 激发事件回调函数, 目前不处理返回结果
+                     * !! 回调函数不可以在 timer_event_cb 中长时间阻塞执行 !!
+                     */
+                    event->timer_event_cb(&event->eventid, event->eventarg, mtr->lpParameter);
+                } else if (event->cb_flag == MULTIMER_EVENT_CB_NONBLOCK) {
+                    assert("MULTIMER_EVENT_CB_NONBLOCK not support!");
+                } else {
+                #if MULTIMER_PRINT == 1
+                    printf("[mul:warn] event_%lld ignored.\n", (long long) event->eventid);
+                #endif
+                }
 
-            refc = __interlock_sub(&event->refc);
-            if (refc >= 0) {
-                /** 激发事件回调函数 */
-                event->timer_event_cb(&event->eventid, event->eventarg, mtr->lpParameter);
-                num_events_fired++;
+                /** 记录 event 数目 */
+                num_events++;
             }
 
-            if (refc <= 0) {
-                /** 要求删除事件 */
+            if ( __interlock_sub(&event->refc) <= 0 || event->value.it_interval.tv_sec == 0 ) {
+                /**
+                 * 下面 2 种情况删除事件:
+                 *    1) 引用计数不 > 0:            event->refc <= 0
+                 *    2) 只使用 1 次, 下次不再激发: it_interval.tv_sec == 0
+                 */
                 free_timer_event(event);
             } else {
-                if (event->value.it_interval.tv_sec == 0) {
-                    /* 只使用一次, 下次不再激发，删除事件 */
-                    free_timer_event(event);
-                } else {
-                    event->on_counter = mul_hash_on_counter(mtr,
-                        event->value.it_interval.tv_sec * 1000000 + event->value.it_interval.tv_usec,
-                        &event->hash);
-
-                #if MULTIMER_HAS_DLIST == 1
-                    /** 串入长串 */
-                    list_add(&event->i_list, &mtr->dlist);
-                #endif
-                    /** 串入HASH短串 */
-                    hlist_add_head(&event->i_hash, &mtr->hlist[event->hash]);
-                }
+                /** 重新串回链表 */
+            #if MULTIMER_HAS_DLIST == 1
+                mul_timer_list_attach_event(mtr, event);
+            #else
+                mul_timer_hlist_attach_event(mtr, event);
+            #endif
             }
         }
     }
 
-    return num_events_fired;
+    return num_events;
 }
 
 
@@ -362,9 +401,10 @@ inline int mul_timer_fire_event (mul_timer_t *mtr, bigint_t fire_counter)
 *                     elapses, until the timer is canceled.
  *       delay - The amount of time in timeunit relative to the current time that
  *                 must elapse before the timer is signaled for the first time.
- *       start - only for linux:
- *          = 0 (do not start timer);
- *          = 1 (start immediately when init success)
+ *       start_flag - start flag should be one of below:
+ *          0 : do not start timer counter after creating;
+ *          1 : start as synchronous mode (block) immediately when init success.
+ *          2 : start as asynchronous mode (nonblock) immediately when init success.
  *
  *       lpParameter - A single parameter value that will be passed to the callback function.
  *
@@ -380,7 +420,9 @@ extern int mul_timer_init (mul_timeunit_t timeunit, unsigned int timeintval, uns
 #ifdef _WINDOWS_MSVC
     void __stdcall(*win_sigalrm_cb)(PVOID, BOOLEAN),
 #endif
-    void *timerParameter, int start);
+    void *timerParameter,
+    int start_flag
+);
 
 
 /**
@@ -425,12 +467,17 @@ extern int mul_timer_destroy ();
  *      MULTIMER_EVENT_INFINITE: 永久激发
  *      MULTIMER_EVENT_COUNT(n): 指定激发次数
  *
+ *   event_cb_flag:
+ *      0 : MULTIMER_EVENT_CB_BLOCK     (阻塞调用, 默认)
+ *     -1 : MULTIMER_EVENT_CB_IGNORED   (忽略事件处理函数)
+ *      1 : MULTIMER_EVENT_CB_NONBLOCK  (TODO: 异步调用模式, 未实现)
+ *
  * returns:
  *    > 0: mul_eventid_t, success
  *    < 0: failed
  */
-extern mul_eventid_t mul_timer_set_event (bigint_t delay, bigint_t interval, bigint_t count,
-    int (*on_event_cb)(mul_event_hdl eventhdl, void *eventarg, void *timerarg), void *eventarg);
+extern mul_eventid_t mul_timer_set_event (bigint_t delay, bigint_t interval, mul_counter_t count,
+    int (*event_cb)(mul_event_hdl eventhdl, void *eventarg, void *timerarg), void *eventarg, int event_cb_flag);
 
 
 /**

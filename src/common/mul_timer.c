@@ -57,11 +57,12 @@ extern struct mul_timer_t * get_multimer_singleton ()
 extern void sigalarm_handler (int signo)
 {
     int err;
-    bigint_t on_counter;
+
+    mul_counter_t on_counter;
 
     mul_timer_t *mtr = get_multimer_singleton();
 
-    if (mtr->status == 0) {
+    if (mtr->start_flag == 0) {
     #if MULTIMER_PRINT == 1
         printf("[mul:warn]\033[33m timer not start counting !\033[0m\n");
     #endif
@@ -79,15 +80,17 @@ extern void sigalarm_handler (int signo)
     }
 
     /** 当前激发的计数器 */
-    on_counter = __interlock_add(&mtr->counter) - 1;
+    on_counter = mtr->counter;
 
     /**
      * 激发事件：此事件在锁定状态下调用用户提供的回调函数：
      *   on_timer_event
      *
-     * !! 因此不可以在on_timer_event中执行长时间的操作 !!
+     * !! 因此不可以在on_timer_event中执行长时间的操作，会阻塞系统调用 !!
      */
     mul_timer_fire_event(mtr, on_counter);
+
+    mtr->counter++;
 
     /** 解锁定时器 */
     threadlock_unlock(&mtr->lock);
@@ -109,9 +112,16 @@ extern void __stdcall win_sigalarm_handler_example (PVOID lpParameter, BOOLEAN T
         // This parameter is always TRUE for timer callbacks.
 
         int err;
-        bigint_t on_counter;
+        mul_counter_t on_counter;
 
         mul_timer_t *mtr = get_multimer_singleton();
+
+        if (mtr->start_flag == 0) {
+        #if MULTIMER_PRINT == 1
+            printf("[mul:warn]\033[33m timer not start counting !\033[0m\n");
+        #endif
+            return;
+        }
 
         // The wait timed out
         err = threadlock_trylock(&mtr->lock);
@@ -124,15 +134,17 @@ extern void __stdcall win_sigalarm_handler_example (PVOID lpParameter, BOOLEAN T
         }
 
         /** 当前激发的计数器 */
-        on_counter = __interlock_add(&mtr->counter) - 1;
+        on_counter = mtr->counter;
 
         /**
-         * 激发事件：此事件在锁定状态下调用用户提供的回调函数：
+         * 阻塞式激发事件：此事件在锁定状态下调用用户提供的回调函数：
          *   on_timer_event
          *
          * !! 因此不可以在on_timer_event中执行长时间的操作 !!
          */
         mul_timer_fire_event(mtr, on_counter);
+
+        mtr->counter++;
 
         threadlock_unlock(&mtr->lock);
 
@@ -261,7 +273,7 @@ extern int mul_timer_init (mul_timeunit_t timeunit, unsigned int timeintval, uns
     }
 
     /** 时间单位：秒，毫秒，微秒 */
-    mtr->timeunit_type = timeunit;
+    mtr->timeunit_id = timeunit;
 
     /** 自动转化为微妙的时间单元 */
     mtr->timeunit_usec = mtr->value.it_interval.tv_usec + mtr->value.it_interval.tv_sec * 1000000;
@@ -339,9 +351,9 @@ extern int mul_timer_init (mul_timeunit_t timeunit, unsigned int timeintval, uns
     mtr->eventid = 0;
 
     /** 定时器成功创建并启动 */
-    assert(mtr->status == 0);
+    assert(mtr->start_flag == 0);
     if (start) {
-        mtr->status = 1;
+        mtr->start_flag = 1;
     }
 
     /** 解锁定时器 */
@@ -358,14 +370,14 @@ extern int mul_timer_init (mul_timeunit_t timeunit, unsigned int timeintval, uns
 extern void mul_timer_start (void)
 {
     mul_timer_t *mtr = get_multimer_singleton();
-    mtr->status = 1;
+    mtr->start_flag = 1;
 }
 
 
 extern void mul_timer_pause ()
 {
     mul_timer_t *mtr = get_multimer_singleton();
-    mtr->status = 0;
+    mtr->start_flag = 0;
 }
 
 
@@ -476,11 +488,12 @@ extern int mul_timer_destroy ()
 }
 
 
-extern mul_eventid_t mul_timer_set_event (bigint_t delay, bigint_t interval, bigint_t count,
-    int (*on_event_cb)(mul_event_hdl eventhdl, void *eventarg, void *timerarg), void *eventarg)
+extern mul_eventid_t mul_timer_set_event (bigint_t delay, bigint_t interval, mul_counter_t count,
+    int (*event_cb)(mul_event_hdl eventhdl, void *eventarg, void *timerarg), void *eventarg, int event_cb_flag)
 {
     int err, hash;
-    bigint_t on_counter;
+
+    mul_counter_t on_counter;
     mul_event_t *new_event;
 
     bigint_t delay_usec = 0;
@@ -492,25 +505,29 @@ extern mul_eventid_t mul_timer_set_event (bigint_t delay, bigint_t interval, big
         count = INT64_MAX;
     }
 
+    assert(event_cb_flag == MULTIMER_EVENT_CB_BLOCK ||
+        event_cb_flag == MULTIMER_EVENT_CB_NONBLOCK ||
+        event_cb_flag == MULTIMER_EVENT_CB_IGNORED);
+
     if (delay < 0 || interval < 0 || count <= 0) {
         /** 无效的定时器 */
         return (-2);
     }
 
-    if (mtr->timeunit_type == mul_timeunit_sec) {
+    if (mtr->timeunit_id == mul_timeunit_sec) {
         delay_usec = delay * 1000000;
         interval_usec = interval * 1000000;
     }
 
 #if MULTIMER_MILLI_SECOND == 1000
-    else if (mtr->timeunit_type == mul_timeunit_msec) {
+    else if (mtr->timeunit_id == mul_timeunit_msec) {
         delay_usec = delay * MULTIMER_MILLI_SECOND;
         interval_usec = interval * MULTIMER_MILLI_SECOND;
     }
 #endif
 
 #if MULTIMER_MICRO_SECOND == 1000000
-    else if (mtr->timeunit_type == mul_timeunit_usec) {
+    else if (mtr->timeunit_id == mul_timeunit_usec) {
         delay_usec = delay;
         interval_usec = interval;
     }
@@ -546,7 +563,6 @@ extern mul_eventid_t mul_timer_set_event (bigint_t delay, bigint_t interval, big
     bzero(new_event, sizeof(mul_event_t));
 
     new_event->eventid = __interlock_add(&mtr->eventid);
-
     new_event->on_counter = on_counter;
 
     /** 首次激发时间 */
@@ -560,8 +576,9 @@ extern mul_eventid_t mul_timer_set_event (bigint_t delay, bigint_t interval, big
     new_event->hash = hash;
 
     /** 设置回调参数和函数，回调函数由用户自己实现 */
+    new_event->cb_flag = MULTIMER_EVENT_CB_IGNORED;
     new_event->eventarg = eventarg;
-    new_event->timer_event_cb = on_event_cb;
+    new_event->timer_event_cb = event_cb;
 
 #if MULTIMER_PRINT == 1
     printf("\033[31m+create event_%lld\033[0m\n", (long long) new_event->eventid);
@@ -578,15 +595,17 @@ extern mul_eventid_t mul_timer_set_event (bigint_t delay, bigint_t interval, big
     /** 串入HASH短串 */
     hlist_add_head(&new_event->i_hash, &mtr->hlist[hash]);
 
-    /** 设置引用计数为 1 */
-    new_event->refc = count;
-
 #if MULTIMER_PRINT == 1
     // 演示如何删除自身：
     ////hlist_del(&new_event->i_hash);
     ////list_del(&new_event->i_list);
     ////free_timer_event(new_event);
 #endif
+
+    /** 设置引用计数 */
+    new_event->refc = count;
+
+    new_event->cb_flag = event_cb_flag;
 
     threadlock_unlock(&mtr->lock);
 

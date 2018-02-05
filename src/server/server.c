@@ -71,7 +71,9 @@ void exit_handler (int exitCode, void *ppData)
 
 int on_timer_event (mul_event_hdl eventhdl, void *eventarg, void *timerarg)
 {
-    printf(" ==> on_timer_event_%lld\n", (long long) * eventhdl);
+    mul_event_t *event = mul_handle_cast_event(eventhdl);
+    printf("    => event_%lld: on_counter=%lld hash=%d\n",
+        (long long) event->eventid, (long long) event->on_counter, event->hash);
 
     //mul_timer_remove_event(eventhdl);
 
@@ -110,14 +112,15 @@ int main (int argc, char *argv[])
     mul_timer_set_event(10, 0, MULTIMER_EVENT_INFINITE, on_timer_event, 0);
     */
 
-    for (int i = 0; i < 1; i++) {
-        mul_timer_set_event(0, 10, 10, on_timer_event, 0);
+    for (int i = 0; i < 5; i++) {
+        mul_timer_set_event(0, 10, 10, on_timer_event, 0, MULTIMER_EVENT_CB_BLOCK);
     }
 
     mul_timer_start();
 
     while (1)
     {
+        sleep(100);
         pause();
     }
 
