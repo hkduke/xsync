@@ -99,7 +99,8 @@ int main (int argc, char *argv[])
 
     clientapp_opts opts;
 
-    get_multimer_singleton();
+    //mul_timer_init(get_multimer_singleton(),
+
 
     clientapp_opts_initiate(argc, argv, &opts);
 

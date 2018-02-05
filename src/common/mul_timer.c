@@ -43,35 +43,43 @@
 struct mul_timer_t multimer_singleton = {0};
 
 
-struct mul_timer_t * get_multimer_singleton ()
+extern struct mul_timer_t * get_multimer_singleton ()
 {
     struct mul_timer_t *mtr = &multimer_singleton;
-
+#if 0
     printf("\033[32m* mul_timer=%p\033[0m\n", mtr);
-
+#endif
     return mtr;
 }
 
 
 #ifdef _LINUX_GNUC
-void sigalarm_handler (int signo)
+extern void sigalarm_handler (int signo)
 {
     int err;
     bigint_t on_counter;
 
-    mul_timer_t *ptimer = get_multimer_singleton();
+    mul_timer_t *mtr = get_multimer_singleton();
 
-    err = threadlock_trylock(&ptimer->lock);
+    if (mtr->status == 0) {
+    #if MULTIMER_PRINT == 1
+        printf("[mul:warn]\033[33m timer not start counting !\033[0m\n");
+    #endif
+        return;
+    }
+
+    /** 锁定使用定时器 */
+    err = threadlock_trylock(&mtr->lock);
     if (err) {
         /** 多线程锁定失败 */
     #if MULTIMER_PRINT == 1
-        printf("[mul]\033[33m lock error: %lld\033[0m\n", (long long) ptimer->counter);
+        printf("[mul:error(%d)]\033[33m threadlock_trylock failed: %s.\033[0m\n", err, strerror(err));
     #endif
         return;
     }
 
     /** 当前激发的计数器 */
-    on_counter = ptimer->counter++;
+    on_counter = __interlock_add(&mtr->counter) - 1;
 
     /**
      * 激发事件：此事件在锁定状态下调用用户提供的回调函数：
@@ -79,19 +87,20 @@ void sigalarm_handler (int signo)
      *
      * !! 因此不可以在on_timer_event中执行长时间的操作 !!
      */
-    mul_timer_fire_event(ptimer, on_counter, ptimer->lpParameter);
+    mul_timer_fire_event(mtr, on_counter);
 
-    threadlock_unlock(&ptimer->lock);
+    /** 解锁定时器 */
+    threadlock_unlock(&mtr->lock);
 
 #if MULTIMER_PRINT == 1
-    printf(" * alarm: %llu\n", (unsigned long long) on_counter);
+    printf(" * [mul: %p] alarm: %lld\n", mtr, (long long) on_counter);
 #endif
 }
 #endif
 
 
 #ifdef _WINDOWS_MSVC
-void __stdcall win_sigalarm_handler_example (PVOID lpParameter, BOOLEAN TimerOrWaitFired)
+extern void __stdcall win_sigalarm_handler_example (PVOID lpParameter, BOOLEAN TimerOrWaitFired)
 {
     if (TimerOrWaitFired) {
         // TimerOrWaitFired:
@@ -102,20 +111,20 @@ void __stdcall win_sigalarm_handler_example (PVOID lpParameter, BOOLEAN TimerOrW
         int err;
         bigint_t on_counter;
 
-        mul_timer_t *ptimer = get_multimer_singleton();
+        mul_timer_t *mtr = get_multimer_singleton();
 
         // The wait timed out
-        err = threadlock_trylock(&ptimer->lock);
+        err = threadlock_trylock(&mtr->lock);
         if (err) {
             /** 多线程锁定失败 */
         #if MULTIMER_PRINT == 1
-            printf("[mul]\033[33m lock error: %lld\033[0m\n", (long long) ptimer->counter);
+            printf("[mul]\033[33m lock error: %lld\033[0m\n", (long long) mtr->counter);
         #endif
             return;
         }
 
         /** 当前激发的计数器 */
-        on_counter = ptimer->counter++;
+        on_counter = __interlock_add(&mtr->counter) - 1;
 
         /**
          * 激发事件：此事件在锁定状态下调用用户提供的回调函数：
@@ -123,16 +132,478 @@ void __stdcall win_sigalarm_handler_example (PVOID lpParameter, BOOLEAN TimerOrW
          *
          * !! 因此不可以在on_timer_event中执行长时间的操作 !!
          */
-        mul_timer_fire_event(ptimer, on_counter, lpParameter);
+        mul_timer_fire_event(mtr, on_counter);
 
-        threadlock_unlock(&ptimer->lock);
+        threadlock_unlock(&mtr->lock);
 
     #if MULTIMER_PRINT == 1
-        printf(" * alarm: %llu\n", (unsigned long long) on_counter);
+        printf(" * [mul: %p] alarm: %lld\n", mtr, (long long) on_counter);
     #endif
-
-        printf(" * alarm: %lld\n", on_counter);
     }
 }
 #endif
 
+
+/**
+ * mul_timer_init
+ *
+ *   初始化定时器。如果初始化不成功，不能使用定时器。
+ *
+ * params:
+ *       timeunit - time unit: second, millisecond or microsecond (for linux)
+ *       timeintval - The period of the timer, in timeunit.
+ *                  If this parameter is zero, the timer is signaled once.
+ *                  If this parameter is greater than zero, the timer is periodic.
+ *                  A periodic timer automatically reactivates each time the period
+*                     elapses, until the timer is canceled.
+ *       delay - The amount of time in timeunit relative to the current time that
+ *                 must elapse before the timer is signaled for the first time.
+ *       start - only for linux:
+ *          = 0 (do not start timer);
+ *          = 1 (start immediately when init success)
+ *
+ *       lpParameter - A single parameter value that will be passed to the callback function.
+ *
+ * returns:
+ *    0: success  初始化成功
+ *   -1: error    初始化失败
+ */
+extern int mul_timer_init (mul_timeunit_t timeunit, unsigned int timeintval, unsigned int delay,
+#ifdef _LINUX_GNUC
+    void (*sigalrm_cb)(int),
+#endif
+
+#ifdef _WINDOWS_MSVC
+    void __stdcall(*win_sigalrm_cb)(PVOID, BOOLEAN),
+#endif
+    void *timerParameter, int start)
+{
+    int i, err;
+
+    mul_timer_t *mtr = get_multimer_singleton();
+
+    bzero(mtr, sizeof(*mtr));
+
+    err = threadlock_init(&mtr->lock);
+    if (err) {
+        /* nerver run to this ! */
+    #if MULTIMER_PRINT == 1
+        printf("[mul:error(%d)] threadlock_init: %s.\n", err, strerror(err));
+    #endif
+        return (-1);
+    }
+
+    err = threadlock_lock(&mtr->lock);
+    if (err) {
+    #if MULTIMER_PRINT == 1
+        printf("[mul:error(%d)] threadlock_lock: %s.\n", err, strerror(err));
+    #endif
+        threadlock_destroy(&mtr->lock);
+        return (-1);
+    }
+
+#ifdef _LINUX_GNUC
+    if ( (mtr->old_sighdl = signal(SIGALRM, sigalrm_cb)) == SIG_ERR ) {
+        threadlock_destroy(&mtr->lock);
+    #if MULTIMER_PRINT == 1
+        printf("[mul:error(%d)] signal: %s.\n", errno, strerror(errno));
+    #endif
+        return (-1);
+    }
+#endif
+
+    if (timeunit == mul_timeunit_sec) {
+        /** 定义首次激发延迟时间: setitimer 之后 timeval_delay 首次激发 */
+        mtr->value.it_value.tv_sec = delay;
+        mtr->value.it_value.tv_usec = 0;
+
+        /** 定义间隔激发时间: 首次激发之后每隔 timeval_interval 激发 */
+        mtr->value.it_interval.tv_sec = timeintval;
+        mtr->value.it_interval.tv_usec = 0;
+    }
+
+#if MULTIMER_MILLI_SECOND == 1000
+    /** 如果支持毫秒定时器 */
+    else if (timeunit == mul_timeunit_msec) {
+        /** 定义首次激发延迟时间: setitimer 之后 timeval_delay 首次激发 */
+        mtr->value.it_value.tv_sec = delay / MULTIMER_MILLI_SECOND;
+        mtr->value.it_value.tv_usec = (delay % MULTIMER_MILLI_SECOND) * MULTIMER_MILLI_SECOND;
+
+        /** 定义间隔激发时间: 首次激发之后每隔 timeval_interval 激发 */
+        mtr->value.it_interval.tv_sec = timeintval / MULTIMER_MILLI_SECOND;
+        mtr->value.it_interval.tv_usec = (timeintval % MULTIMER_MILLI_SECOND) * MULTIMER_MILLI_SECOND;
+    }
+#endif
+
+#if MULTIMER_MICRO_SECOND == 1000000
+    /** 如果支持微秒定时器 */
+    else if (timeunit == mul_timeunit_usec) {
+        mtr->value.it_value.tv_sec = delay / MULTIMER_MICRO_SECOND;
+        mtr->value.it_value.tv_usec = (delay % MULTIMER_MICRO_SECOND) * MULTIMER_MICRO_SECOND;
+
+        /** 定义间隔激发时间: 首次激发之后每隔 timeval_interval 激发 */
+        mtr->value.it_interval.tv_sec = timeintval / MULTIMER_MICRO_SECOND;
+        mtr->value.it_interval.tv_usec = (timeintval % MULTIMER_MICRO_SECOND) * MULTIMER_MICRO_SECOND;
+    }
+#endif
+
+    else {
+#ifdef _LINUX_GNUC
+        /** 恢复原有的信号处理函数 */
+        signal(SIGALRM, mtr->old_sighdl);
+#endif
+        threadlock_destroy(&mtr->lock);
+
+    #if MULTIMER_PRINT == 1
+        printf("[mul:error] invalid timeunit: %d.", timeunit);
+    #endif
+        return (-1);
+    }
+
+    /** 时间单位：秒，毫秒，微秒 */
+    mtr->timeunit_type = timeunit;
+
+    /** 自动转化为微妙的时间单元 */
+    mtr->timeunit_usec = mtr->value.it_interval.tv_usec + mtr->value.it_interval.tv_sec * 1000000;
+
+#if MULTIMER_PRINT == 1
+    printf("[] timeunit=%lld microseconds.\n", (long long) mtr->timeunit_usec);
+#endif
+
+    err = -1;
+
+#ifdef _WINDOWS_MSVC
+    do {
+        DWORD delay_ms = (DWORD) (mtr->value.it_value.tv_sec * 1000 + mtr->value.it_value.tv_usec / 1000);
+        DWORD interval_ms = (DWORD) (mtr->value.it_interval.tv_sec * 1000 + mtr->value.it_interval.tv_usec / 1000);
+
+        HANDLE hTimer;
+
+        // Create the timer queue
+        HANDLE hTimerQueue = CreateTimerQueue();
+
+        if (! hTimerQueue) {
+        #if MULTIMER_PRINT == 1
+            printf("CreateTimerQueue failed (%d)\n", GetLastError());
+        #endif
+            threadlock_destroy(&mtr->lock);
+            return (-1);
+        }
+
+        // Set a timer to call the timer routine in 10 seconds.
+        if (! CreateTimerQueueTimer(&hTimer, hTimerQueue,
+                (WAITORTIMERCALLBACK) win_sigalrm_cb,
+                timerParameter,
+                (DWORD) delay_ms,
+                (DWORD) interval_ms,
+                WT_EXECUTEDEFAULT))
+        {
+        #if MULTIMER_PRINT == 1
+            printf("CreateTimerQueueTimer failed (%d)\n", GetLastError());
+        #endif
+            DeleteTimerQueue(hTimerQueue);
+            threadlock_destroy(&mtr->lock);
+            return (-1);
+        } else {
+            // Success
+            mtr->hTimerQueue = hTimerQueue;
+            mtr->lpParameter = timerParameter;
+            err = 0;
+        }
+    } while(0);
+#endif
+
+#ifdef _LINUX_GNUC
+    err = setitimer(ITIMER_REAL, &mtr->value, &mtr->ovalue);
+    if (err) {
+        /** 定时器不可用，自动销毁 */
+        signal(SIGALRM, mtr->old_sighdl);
+        threadlock_destroy(&mtr->lock);
+
+    #if MULTIMER_PRINT == 1
+        printf("[mul:error] mul_timer_init failed. setitimer error(%d): %s.\n", err, strerror(err));
+    #endif
+        return (-1);
+    }
+#endif
+
+    /** 定时器创建成功：初始化链表 */
+#if MULTIMER_HAS_DLIST == 1
+    INIT_LIST_HEAD(&mtr->dlist);
+#endif
+    for (i = 0; i <= MULTIMER_HASHLEN_MAX; i++) {
+        INIT_HLIST_HEAD(&mtr->hlist[i]);
+    }
+
+    /** 设置初始事件id */
+    mtr->eventid = 0;
+
+    /** 定时器成功创建并启动 */
+    assert(mtr->status == 0);
+    if (start) {
+        mtr->status = 1;
+    }
+
+    /** 解锁定时器 */
+    threadlock_unlock(&mtr->lock);
+
+    #if MULTIMER_PRINT == 1
+        printf("[mul:info] mul_timer_init success.\n");
+    #endif
+
+    return 0;
+}
+
+
+extern void mul_timer_start (void)
+{
+    mul_timer_t *mtr = get_multimer_singleton();
+    mtr->status = 1;
+}
+
+
+extern void mul_timer_pause ()
+{
+    mul_timer_t *mtr = get_multimer_singleton();
+    mtr->status = 0;
+}
+
+
+extern int mul_timer_destroy ()
+{
+    int err;
+
+    void (* saved_sighdl)(int);
+
+    mul_timer_t *mtr = get_multimer_singleton();
+
+    mul_timer_pause();
+
+    err = threadlock_lock(&mtr->lock);
+    if (err) {
+    #if MULTIMER_PRINT == 1
+        printf("[mul] threadlock_lock error(%d): %s\n", err, strerror(err));
+    #endif
+        mul_timer_start();
+        return (-1);
+    }
+
+#ifdef _LINUX_GNUC
+    /** 先忽略信号处理函数 */
+    if ((saved_sighdl = signal(SIGALRM, SIG_IGN)) == SIG_ERR) {
+        threadlock_unlock(&mtr->lock);
+
+    #if MULTIMER_PRINT == 1
+        printf("[mul] destroy failed. signal error.\n");
+    #endif
+        mul_timer_start();
+        return (-1);
+    }
+
+    /** 恢复进程原有的定时器 */
+    err = setitimer(ITIMER_REAL, &mtr->ovalue, &mtr->value);
+    if (err < 0) {
+        /** 恢复失败，重新设置信号函数 */
+        signal(SIGALRM, saved_sighdl);
+
+        threadlock_unlock(&mtr->lock);
+
+    #if MULTIMER_PRINT == 1
+        printf("[mul] destroy failed. setitimer error(%d): %s.\n", errno, strerror(errno));
+    #endif
+
+        mul_timer_start();
+        return (-1);
+    }
+
+    /** 恢复进程原有信号处理函数: 不用检查失败 */
+    signal(SIGALRM, mtr->old_sighdl);
+#endif
+
+#ifdef _WINDOWS_MSVC
+    // Delete all timers in the timer queue.
+    if (! DeleteTimerQueue(mtr->hTimerQueue)) {
+        printf("DeleteTimerQueue failed (%d)\n", GetLastError());
+        threadlock_unlock(&mtr->lock);
+        mul_timer_start();
+        return (-1);
+    }
+#endif
+
+    /** 清空定时器链表 */
+#if MULTIMER_HAS_DLIST == 1
+    do {
+        struct list_head *list, *node;
+
+        list_for_each_safe(list, node, &mtr->dlist) {
+            struct mul_event_t * event = list_entry(list, struct mul_event_t, i_list);
+
+            hlist_del(&event->i_hash);
+            list_del(&event->i_list);
+
+            free_timer_event(event);
+        }
+    } while(0);
+
+#else
+
+    do {
+        int hash;
+        struct hlist_node *hp, *hn;
+
+        for (hash = 0; hash <= MULTIMER_HASHLEN_MAX; hash++) {
+            hlist_for_each_safe(hp, hn, &mtr->hlist[hash]) {
+                struct mul_event_t * event = hlist_entry(hp, struct mul_event_t, i_hash);
+
+                hlist_del(&event->i_hash);
+
+                free_timer_event(event);
+            }
+        }
+    } while(0);
+
+#endif
+
+    /** 销毁定时器 */
+    threadlock_destroy(&mtr->lock);
+    bzero(mtr, sizeof(*mtr));
+
+#if MULTIMER_PRINT == 1
+    printf("[mul] destroy success.\n");
+#endif
+
+    return(0);
+}
+
+
+extern mul_eventid_t mul_timer_set_event (bigint_t delay, bigint_t interval, bigint_t count,
+    int (*on_event_cb)(mul_event_hdl eventhdl, void *eventarg, void *timerarg), void *eventarg)
+{
+    int err, hash;
+    bigint_t on_counter;
+    mul_event_t *new_event;
+
+    bigint_t delay_usec = 0;
+    bigint_t interval_usec = 0;
+
+    mul_timer_t *mtr = get_multimer_singleton();
+
+    if (count == MULTIMER_EVENT_INFINITE) {
+        count = INT64_MAX;
+    }
+
+    if (delay < 0 || interval < 0 || count <= 0) {
+        /** 无效的定时器 */
+        return (-2);
+    }
+
+    if (mtr->timeunit_type == mul_timeunit_sec) {
+        delay_usec = delay * 1000000;
+        interval_usec = interval * 1000000;
+    }
+
+#if MULTIMER_MILLI_SECOND == 1000
+    else if (mtr->timeunit_type == mul_timeunit_msec) {
+        delay_usec = delay * MULTIMER_MILLI_SECOND;
+        interval_usec = interval * MULTIMER_MILLI_SECOND;
+    }
+#endif
+
+#if MULTIMER_MICRO_SECOND == 1000000
+    else if (mtr->timeunit_type == mul_timeunit_usec) {
+        delay_usec = delay;
+        interval_usec = interval;
+    }
+#endif
+
+    if (delay_usec == 0 && interval_usec == 0) {
+        /** 无效的定时器 */
+        return (-2);
+    }
+
+    err = threadlock_trylock(&mtr->lock);
+    if (err) {
+        /** 多线程锁定失败 */
+    #if MULTIMER_PRINT == 1
+        printf("[mul] threadlock_trylock error(%d): %s\n", err, strerror(err));
+    #endif
+        return (-1);
+    }
+
+    /**
+     * 当 mtr->counter == on_counter 时激发
+     * 因此设置以 on_counter 为 hash 键保存 event
+     */
+    on_counter = mul_hash_on_counter(mtr, delay_usec, &hash);
+
+    new_event = (mul_event_t *) malloc(sizeof(mul_event_t));
+    if (! new_event) {
+        /** out of memory */
+        threadlock_unlock(&mtr->lock);
+        return (-4);
+    }
+
+    bzero(new_event, sizeof(mul_event_t));
+
+    new_event->eventid = __interlock_add(&mtr->eventid);
+
+    new_event->on_counter = on_counter;
+
+    /** 首次激发时间 */
+    new_event->value.it_value.tv_sec = (long) (delay_usec / 1000000);
+    new_event->value.it_value.tv_usec = (long) (delay_usec % 1000000);
+
+    /** 间隔激发时间 */
+    new_event->value.it_interval.tv_sec = (long) (interval_usec / 1000000);
+    new_event->value.it_interval.tv_usec = (long) (interval_usec % 1000000);
+
+    new_event->hash = hash;
+
+    /** 设置回调参数和函数，回调函数由用户自己实现 */
+    new_event->eventarg = eventarg;
+    new_event->timer_event_cb = on_event_cb;
+
+#if MULTIMER_PRINT == 1
+    printf("\033[31m+create event_%lld\033[0m\n", (long long) new_event->eventid);
+
+    printf("\033[31m+create event_%lld. (%d : %d)\033[0m\n", (long long) new_event->eventid,
+        (int) new_event->value.it_value.tv_sec, (int) new_event->value.it_interval.tv_sec);
+#endif
+
+#if MULTIMER_HAS_DLIST == 1
+    /** 串入长串 */
+    list_add(&new_event->i_list, &mtr->dlist);
+#endif
+
+    /** 串入HASH短串 */
+    hlist_add_head(&new_event->i_hash, &mtr->hlist[hash]);
+
+    /** 设置引用计数为 1 */
+    new_event->refc = count;
+
+#if MULTIMER_PRINT == 1
+    // 演示如何删除自身：
+    ////hlist_del(&new_event->i_hash);
+    ////list_del(&new_event->i_list);
+    ////free_timer_event(new_event);
+#endif
+
+    threadlock_unlock(&mtr->lock);
+
+    return new_event->eventid;
+}
+
+
+extern int mul_timer_remove_event (mul_event_hdl eventhdl)
+{
+    mul_event_t *event = mul_handle_cast_event(eventhdl);
+
+#if MULTIMER_PRINT == 1
+    printf("remove event_%lld\n", (long long) event->eventid);
+#endif
+
+    /** 设置引用计数为 0，当有事件触发时自动删除 */
+    __interlock_release(&event->refc);
+
+    return 0;
+}
