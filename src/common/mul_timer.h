@@ -163,6 +163,8 @@ typedef bigint_t mul_eventid_t;
 
 typedef mul_eventid_t * mul_event_hdl;
 
+typedef int (*mul_event_cb_func)(mul_event_hdl eventhdl, int event_argid, void * event_arg, void *timer_parameter);
+
 
 typedef enum
 {
@@ -185,11 +187,14 @@ typedef struct mul_event_t
     /* 引用计数： 0 删除, 1 保留 */
     ref_counter_t refc;
 
+    /** 事件回调函数参数ID */
+    int eventargid;
+
     /** 事件回调函数参数 */
     void *eventarg;
 
     /** 事件回调函数 */
-    int (*timer_event_cb) (mul_event_hdl eventhdl, void *eventarg, void *lpParameter);
+    mul_event_cb_func timer_event_cb;
 
     /** 事件回调模式:
      *    同步阻塞=MULTIMER_EVENT_CB_BLOCK  (默认)
@@ -352,7 +357,7 @@ inline int mul_timer_fire_event (mul_timer_t *mtr, mul_counter_t fireon_counter)
                      * 激发事件回调函数, 目前不处理返回结果
                      * !! 回调函数不可以在 timer_event_cb 中长时间阻塞执行 !!
                      */
-                    event->timer_event_cb(&event->eventid, event->eventarg, mtr->lpParameter);
+                    event->timer_event_cb(&event->eventid, event->eventargid, event->eventarg, mtr->lpParameter);
                 } else if (event->cb_flag == MULTIMER_EVENT_CB_NONBLOCK) {
                     assert("MULTIMER_EVENT_CB_NONBLOCK not support!");
                 } else {
@@ -477,7 +482,7 @@ extern int mul_timer_destroy ();
  *    < 0: failed
  */
 extern mul_eventid_t mul_timer_set_event (bigint_t delay, bigint_t interval, mul_counter_t count,
-    int (*event_cb)(mul_event_hdl eventhdl, void *eventarg, void *timerarg), void *eventarg, int event_cb_flag);
+    mul_event_cb_func event_cb, int event_argid, void *event_arg, int event_cb_flag);
 
 
 /**

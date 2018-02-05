@@ -99,8 +99,10 @@ int main (int argc, char *argv[])
 
     clientapp_opts opts;
 
-    //mul_timer_init(get_multimer_singleton(),
-
+    if (mul_timer_init(mul_timeunit_sec, 1, 10, sigalarm_handler, 0, 0) != 0) {
+        fprintf(stderr, "\033[1;31m[error]\033[0m mul_timer_init failed.\033[0m\n");
+        return (-1);
+    }
 
     clientapp_opts_initiate(argc, argv, &opts);
 
@@ -191,6 +193,11 @@ int main (int argc, char *argv[])
      * 客户端异常退出!
      */
 on_error_exit:
+
+    if (mul_timer_destroy() != 0) {
+        LOGGER_ERROR("mul_timer_destrpy failed");
+    }
+
     clientapp_opts_cleanup(&opts);
 
     LOGGER_FATAL("%s (v%s) shutdown !", APP_NAME, APP_VERSION);

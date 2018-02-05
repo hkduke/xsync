@@ -104,6 +104,19 @@
 #include "../common/common_util.h"
 
 
+int on_timer_event (mul_event_hdl eventhdl, int eventargid, void *eventarg, void *timerarg)
+{
+    mul_event_t *event = mul_handle_cast_event(eventhdl);
+    printf("    => event_%lld: on_counter=%lld hash=%d\n",
+        (long long) event->eventid, (long long) event->on_counter, event->hash);
+
+    //mul_timer_remove_event(eventhdl);
+
+    return 0;
+}
+
+
+
 __attribute__((used))
 static void watch_event_task (thread_context_t * thread_ctx)
 {
@@ -363,8 +376,13 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
 
             perdata->sockfds[sid] = sockfd;
         }
+
+        // 设置时间定时器事件
+        mul_timer_set_event(i, 10, -1, on_timer_event, i, (void*) client, MULTIMER_EVENT_CB_BLOCK);
     }
 
+    //TODO: 设置时间定时器事件
+    mul_timer_start();
 
     for ( ; ; ) {
 
@@ -405,7 +423,7 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
 
                         if (inevent->mask & IN_Q_OVERFLOW) {
                             /* inotify is overflow. do getting rid of overflow in queue. */
-                            // select_sleep(0, 1);
+                            // timer_select_sleep(0, 1);
                         }
 
                         /* update the index to the start of the next event */
