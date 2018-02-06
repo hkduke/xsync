@@ -39,15 +39,28 @@ extern "C" {
 #include "../xsync-error.h"
 #include "../xsync-config.h"
 
+#include "../common/mul_timer.h"
 #include "../common/common_util.h"
 
 
 #define  MD5_HASH_FIXLEN     32
 
+// 得到 nameid 的 hash
+#define xs_watch_entry_hash(path)   BKDRHash2(path, XSYNC_WATCH_ENTRY_HASHMAX)
 
-#define XS_watch_entry_hash_get(path)   \
-    ((int)(BKDRHash(path) & XSYNC_WATCH_ENTRY_HASHMAX))
+// 得到 file 文件名字符串的位置
+#define xs_entry_nameid(entry)    (entry->namebuf)
 
+// 得到 file 文件名字符串的位置
+#define xs_entry_filename(entry)    (&entry->namebuf[entry->nameoff])
+
+// 得到 md5 签名的字符串的位置
+#define xs_entry_md5sig(entry)     (&entry->namebuf[entry->nameoff + entry->namelen + sizeof('\0')])
+
+// 得到 file 全路径字符串的位置: /var/log/abc.log
+#define xs_entry_fullpath(entry)    (&entry->namebuf[entry->nameoff + entry->namelen + sizeof('\0') + MD5_HASH_FIXLEN + sizeof('\0')])
+
+#define xs_entry_path_endpos(entry)    (entry->pathsize - 1)
 
 /**
  * xs_watch_entry_t
@@ -77,25 +90,17 @@ typedef struct xs_watch_entry_t
     int hash;
 
     /**
-     * name
+     * namebuf
      *   entry 的系统唯一名称
      *
-     * [sid:wd/filename\0md5hash\0\0]
-     *
-     * [1:8/abc.log\0d963cac3278ea9adf57cc1a816542913\0\0]
-     * namelen = strlen("1:8/abc.log") = 11
-     * md5hash = name + namelen + 1 = 'd963cac3278ea9adf57cc1a816542913'
+     * [sid:wd/filename\0md5hash\0fullpath\0\0]
+     * [1:23/abc.log\0d963cac3278ea9adf57cc1a816542913\0/var/log/abc.log\0\0]
      */
-    int namelen;
-    char name[0];
+    int nameoff;       // = 0 + strlen("1:23/") = 5
+    int namelen;       // = strlen("abc.log")   = 7
+    int pathsize;      // = strlen("/var/log/abc.log") + sizeof('\0')
+    char namebuf[0];
 } xs_watch_entry_t;
-
-
-// 得到 md5 签名的字符串的位置
-#define XS_watch_entry_md5hash(entry)   (& entry->name[namelen + 1])
-
-// 得到 file 文件名字符串的位置
-#define XS_watch_entry_filename(entry)  (strchr(entry->name, '/') + 1)
 
 
 __attribute__((used))
@@ -114,7 +119,7 @@ static void xs_watch_entry_delete(void *pv)
 }
 
 
-extern XS_RESULT XS_watch_entry_create (int wd, int sid, char *filename, int namelen, XS_watch_entry * outEntry);
+extern XS_RESULT XS_watch_entry_create (const XS_watch_path wp, int sid, char *filename, int namelen, XS_watch_entry * outEntry);
 
 extern void XS_watch_entry_release (XS_watch_entry * inEntry);
 

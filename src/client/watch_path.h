@@ -104,7 +104,8 @@ typedef struct xs_watch_path_t
      */
     struct xs_watch_path_t * next;
 
-    /* absolute path for watch */
+    /** absolute path for watch */
+    int pathsize;
     char fullpath[0];
 } xs_watch_path_t;
 

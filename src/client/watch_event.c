@@ -62,11 +62,14 @@ extern XS_RESULT XS_watch_event_create (int eventid, XS_client client, XS_watch_
     if (event->client && event->entry) {
         event->server = XS_client_get_server_opts(client, entry->sid);
         event->ineventid = eventid;
-        event->taskid = client_fetch_task_counter(client);
 
         if ((err = RefObjectInit(event)) == 0) {
+            event->taskid = __interlock_add(&client->task_counter);
+
             *outEvent = event;
-            LOGGER_TRACE("xevent=%p", event);
+
+            LOGGER_TRACE("xevent=%p, task=%lld", event, (long long) event->taskid);
+
             return XS_SUCCESS;
         }
     }

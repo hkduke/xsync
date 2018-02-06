@@ -26,9 +26,6 @@
 extern "C" {
 #endif
 
-#include "../common/mul_timer.h"
-#include "../common/common_util.h"
-
 #include "server_opts.h"
 #include "watch_path.h"
 #include "watch_entry.h"
@@ -77,9 +74,6 @@ typedef struct xs_client_t
     /* 任务数量 */
     int64_t task_counter;
 
-    /* 重置次数 */
-    int64_t reset_times;
-
     /* 客户端唯一 ID */
     char clientid[XSYNC_CLIENTID_MAXLEN + 1];
 
@@ -114,33 +108,11 @@ typedef struct xs_client_t
      * dhlist for watch path:
      *    watch_path list and hashmap
      */
-    struct list_head wp_dlist;
     struct hlist_head wp_hlist[XSYNC_WATCH_PATH_HASHMAX + 1];
 
     /* buffer must be in lock */
     char inlock_buffer[XSYNC_IO_BUFSIZE];
 } xs_client_t;
-
-
-__attribute__((used))
-static int64_t client_fetch_task_counter (XS_client client)
-{
-    int64_t old = __sync_add_and_fetch(&client->task_counter, (int64_t) 0);
-
-    if (old == INT64_MAX) {
-        int64_t rts = __sync_add_and_fetch(&client->reset_times, (int64_t) 0);
-        if (rts == INT64_MAX) {
-            rts = 0;
-        } else {
-            rts++;
-        }
-        __sync_lock_test_and_set(&client->reset_times, (int64_t) rts);
-
-        __sync_lock_test_and_set(&client->task_counter, (int64_t) 0);
-    }
-
-    return __sync_add_and_fetch(&client->task_counter, (int64_t) 1);
-}
 
 
 /**
@@ -312,11 +284,11 @@ static XS_BOOL client_find_watch_entry_inlock (XS_client client, int sid, int wd
     snprintf(client->inlock_buffer, XSYNC_IO_BUFSIZE, "%d:%d/%s", sid, wd, filename);
     client->inlock_buffer[XSYNC_IO_BUFSIZE - 1] = 0;
 
-    int hash = XS_watch_entry_hash_get(client->inlock_buffer);
+    int hash = xs_watch_entry_hash(client->inlock_buffer);
 
     entry = client->entry_map[hash];
     while (entry) {
-        if (! strcmp(entry->name, client->inlock_buffer)) {
+        if (! strcmp(entry->namebuf, client->inlock_buffer)) {
             if (outEntry) {
                 *outEntry = entry;
             }
@@ -340,7 +312,7 @@ static XS_BOOL client_add_watch_entry_inlock (XS_client client, XS_watch_entry e
 
     first = client->entry_map[entry->hash];
     while (first) {
-        if (first == entry || !strcmp(entry->name, first->name)) {
+        if (first == entry || ! strcmp(entry->namebuf, first->namebuf)) {
             return XS_FALSE;
         }
         first = first->next;
@@ -355,7 +327,7 @@ static XS_BOOL client_add_watch_entry_inlock (XS_client client, XS_watch_entry e
 
 
 __attribute__((used))
-static int client_populate_events_inlock (XS_client client, struct inotify_event * inevent, XS_watch_event events[])
+static int client_populate_events_inlock (XS_client client, const XS_watch_path wp, struct inotify_event * inevent, XS_watch_event events[])
 {
     XS_RESULT err;
 
@@ -369,7 +341,7 @@ static int client_populate_events_inlock (XS_client client, struct inotify_event
         if (! client_find_watch_entry_inlock(client, sid, inevent->wd, inevent->name, 0)) {
             XS_watch_entry entry;
 
-            err = XS_watch_entry_create(inevent->wd, sid, inevent->name, inevent->len, &entry);
+            err = XS_watch_entry_create(wp, sid, inevent->name, inevent->len, &entry);
 
             if (! err) {
                 if (client_add_watch_entry_inlock(client, entry)) {

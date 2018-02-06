@@ -489,7 +489,7 @@ extern int mul_timer_destroy ()
 
 
 extern mul_eventid_t mul_timer_set_event (bigint_t delay, bigint_t interval, mul_counter_t count,
-    mul_event_cb_func event_cb, int argid, void *eventarg, int event_cb_flag)
+    mul_event_cb_func event_cb, int eventargid, void *eventarg, int event_cb_flag)
 {
     int err, hash;
 
@@ -577,7 +577,7 @@ extern mul_eventid_t mul_timer_set_event (bigint_t delay, bigint_t interval, mul
 
     /** 设置回调参数和函数，回调函数由用户自己实现 */
     new_event->cb_flag = MULTIMER_EVENT_CB_IGNORED;
-    new_event->eventargid;
+    new_event->eventargid = eventargid;
     new_event->eventarg = eventarg;
     new_event->timer_event_cb = event_cb;
 

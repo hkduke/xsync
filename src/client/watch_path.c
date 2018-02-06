@@ -53,6 +53,9 @@ XS_RESULT XS_watch_path_create (const char * pathid, const char * fullpath, uint
 
     wpath = (XS_watch_path) mem_alloc(1, sizeof(*wpath) + sizeof(char) * cb);
 
+    // size of fullpath including '\0'
+    wpath->pathsize = cb;
+
     // 必须初始化=-1
     wpath->watch_wd = -1;
 
