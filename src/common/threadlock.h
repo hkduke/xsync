@@ -133,8 +133,7 @@ extern "C"
     /* get current process id */
     #define getpid()  GetCurrentProcessId(void)
 
-    #define __no_warning_unused_static  static
-
+    #define __no_warning_unused(prefix)   prefix
 #endif
 
 
@@ -165,7 +164,7 @@ extern "C"
     /* get current thread id */
     #define gettid()    syscall(__NR_gettid)
 
-    #define __no_warning_unused_static    __attribute__((used)) static
+    #define __no_warning_unused(prefix)    __attribute__((used))  prefix
 
 #endif
 

@@ -41,6 +41,7 @@ extern "C"
 /** common headers */
 #include "refobject.h"
 #include "byteorder.h"
+#include "threadlock.h"
 #include "threadpool.h"
 #include "dhlist.h"
 

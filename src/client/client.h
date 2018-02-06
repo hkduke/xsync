@@ -55,8 +55,8 @@ extern "C" {
  * "\033[32m GREEN \033[0m"
  * "\033[33m YELLOW \033[0m"
  */
-__attribute__((used))
-static void print_usage(void)
+__no_warning_unused(static)
+void print_usage(void)
 {
     #ifdef NDEBUG
         printf("\033[47;35m* %s, NDEBUG version: %s, build: %s %s\033[0m\n",
@@ -134,8 +134,8 @@ static void print_usage(void)
 }
 
 
-__attribute__((used))
-static int validate_arg_threads (int arg_threads)
+__no_warning_unused(static)
+int validate_arg_threads (int arg_threads)
 {
     int threads = 0;
 
@@ -159,8 +159,8 @@ static int validate_arg_threads (int arg_threads)
 }
 
 
-__attribute__((used))
-static int validate_arg_queues (int arg_queues, int threads)
+__no_warning_unused(static)
+int validate_arg_queues (int arg_queues, int threads)
 {
     int queues = 0;
 
@@ -198,8 +198,8 @@ static int validate_arg_queues (int arg_queues, int threads)
 }
 
 
-__attribute__((used))
-static void clientapp_opts_checkup (clientapp_opts *opts)
+__no_warning_unused(static)
+void clientapp_opts_checkup (clientapp_opts *opts)
 {
     if (opts->threads > XSYNC_CLIENT_THREADS_MAX) {
         LOGGER_WARN("too many THREADS(%d) expected. coerce THREADS=%d", opts->threads, XSYNC_CLIENT_THREADS_MAX);
@@ -219,8 +219,8 @@ static void clientapp_opts_checkup (clientapp_opts *opts)
 }
 
 
-__attribute__((used))
-static void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
+__no_warning_unused(static)
+void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
 {
     int ret;
 
@@ -469,8 +469,8 @@ static void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opt
 }
 
 
-__attribute__((used))
-static void clientapp_opts_cleanup (clientapp_opts *opts)
+__no_warning_unused(static)
+void clientapp_opts_cleanup (clientapp_opts *opts)
 {
     // TODO:
 }

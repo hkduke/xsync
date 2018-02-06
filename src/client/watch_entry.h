@@ -103,8 +103,8 @@ typedef struct xs_watch_entry_t
 } xs_watch_entry_t;
 
 
-__attribute__((used))
-static void xs_watch_entry_delete(void *pv)
+__no_warning_unused(static)
+void xs_watch_entry_delete(void *pv)
 {
     XS_watch_entry entry = (XS_watch_entry) pv;
 

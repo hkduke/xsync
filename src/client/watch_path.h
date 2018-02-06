@@ -110,8 +110,8 @@ typedef struct xs_watch_path_t
 } xs_watch_path_t;
 
 
-__attribute__((used))
-static inline int watch_path_get_sid_max (XS_watch_path wp)
+__no_warning_unused(static)
+inline int watch_path_get_sid_max (XS_watch_path wp)
 {
     return wp->sid_masks[0];
 }

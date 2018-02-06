@@ -358,8 +358,8 @@ static int watch_path_set_xmlnode_cb (XS_watch_path wp, void *data)
 }
 
 
-__attribute__((used))
-static int list_server_cb (mxml_node_t *server_node, XS_client client)
+__no_warning_unused(static)
+int list_server_cb (mxml_node_t *server_node, XS_client client)
 {
     const char * attr;
 
@@ -372,8 +372,8 @@ static int list_server_cb (mxml_node_t *server_node, XS_client client)
 }
 
 
-__attribute__((used))
-static int list_sub_pattern_cb (mxml_node_t *subpattern_node, XS_client client)
+__no_warning_unused(static)
+int list_sub_pattern_cb (mxml_node_t *subpattern_node, XS_client client)
 {
     const char * attr;
 
@@ -384,8 +384,8 @@ static int list_sub_pattern_cb (mxml_node_t *subpattern_node, XS_client client)
 }
 
 
-__attribute__((used))
-static int list_pattern_cb (mxml_node_t *pattern_node, XS_client client)
+__no_warning_unused(static)
+int list_pattern_cb (mxml_node_t *pattern_node, XS_client client)
 {
     const char * attr;
 
@@ -398,8 +398,8 @@ static int list_pattern_cb (mxml_node_t *pattern_node, XS_client client)
 }
 
 
-__attribute__((used))
-static int list_included_filter_cb (mxml_node_t *filter_node, XS_client client)
+__no_warning_unused(static)
+int list_included_filter_cb (mxml_node_t *filter_node, XS_client client)
 {
     const char * attr;
     xmlconf_element_attr_read(filter_node, "sid", 0, attr);
@@ -409,8 +409,8 @@ static int list_included_filter_cb (mxml_node_t *filter_node, XS_client client)
 }
 
 
-__attribute__((used))
-static int list_excluded_filter_cb (mxml_node_t *filter_node, XS_client client)
+__no_warning_unused(static)
+int list_excluded_filter_cb (mxml_node_t *filter_node, XS_client client)
 {
     const char * attr;
     xmlconf_element_attr_read(filter_node, "sid", 0, attr);
@@ -422,8 +422,8 @@ static int list_excluded_filter_cb (mxml_node_t *filter_node, XS_client client)
 }
 
 
-__attribute__((used))
-static int list_watch_path_cb (mxml_node_t *wp_node, XS_client client)
+__no_warning_unused(static)
+int list_watch_path_cb (mxml_node_t *wp_node, XS_client client)
 {
     const char * attr;
     mxml_node_t * node;

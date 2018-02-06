@@ -30,8 +30,8 @@
 #include "../common/common_util.h"
 
 
-__attribute__((used))
-static void xs_watch_event_delete (void *pv)
+__no_warning_unused(static)
+void xs_watch_event_delete (void *pv)
 {
     XS_watch_event event = (XS_watch_event) pv;
 

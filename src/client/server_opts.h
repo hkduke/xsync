@@ -47,8 +47,8 @@ typedef struct xs_server_opts_t
 } xs_server_opts_t;
 
 
-__attribute__((used))
-static int server_opt_init (XS_server_opts opts, int sid, const char * sidfile)
+__no_warning_unused(static)
+int server_opt_init (XS_server_opts opts, int sid, const char * sidfile)
 {
     bzero(opts, sizeof(xs_server_opts_t));
 

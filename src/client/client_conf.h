@@ -119,8 +119,8 @@ typedef struct xs_client_t
  * private functions
  */
 
-__attribute__((used))
-static XS_VOID client_clear_entry_map (XS_client client)
+__no_warning_unused(static)
+XS_VOID client_clear_entry_map (XS_client client)
 {
     int i;
     XS_watch_entry first, next;
@@ -143,8 +143,8 @@ static XS_VOID client_clear_entry_map (XS_client client)
 }
 
 
-__attribute__((used))
-static void xs_client_delete (void *pv)
+__no_warning_unused(static)
+void xs_client_delete (void *pv)
 {
     int i, sid, infd;
 
@@ -205,8 +205,8 @@ static void xs_client_delete (void *pv)
 /**
  * insert wd into wd_table of client
  */
-__attribute__((used))
-static inline void client_wd_table_insert (XS_client client, XS_watch_path wp)
+__no_warning_unused(static)
+inline void client_wd_table_insert (XS_client client, XS_watch_path wp)
 {
     int hash = XS_watch_id_hash_get(wp->watch_wd);
     assert(wp->watch_wd != -1 && hash >= 0 && hash <= XSYNC_WATCH_PATH_HASHMAX);
@@ -219,8 +219,8 @@ static inline void client_wd_table_insert (XS_client client, XS_watch_path wp)
 
 
 
-__attribute__((used))
-static inline xs_watch_path_t * client_wd_table_lookup (XS_client client, int wd)
+__no_warning_unused(static)
+inline xs_watch_path_t * client_wd_table_lookup (XS_client client, int wd)
 {
     xs_watch_path_t * wp;
 
@@ -238,8 +238,8 @@ static inline xs_watch_path_t * client_wd_table_lookup (XS_client client, int wd
 }
 
 
-__attribute__((used))
-static inline XS_watch_path client_wd_table_remove (XS_client client, XS_watch_path wp)
+__no_warning_unused(static)
+inline XS_watch_path client_wd_table_remove (XS_client client, XS_watch_path wp)
 {
     xs_watch_path_t * lead;
     xs_watch_path_t * node;
@@ -276,8 +276,8 @@ static inline XS_watch_path client_wd_table_remove (XS_client client, XS_watch_p
 }
 
 
-__attribute__((used))
-static XS_BOOL client_find_watch_entry_inlock (XS_client client, int sid, int wd, const char *filename, XS_watch_entry *outEntry)
+__no_warning_unused(static)
+XS_BOOL client_find_watch_entry_inlock (XS_client client, int sid, int wd, const char *filename, XS_watch_entry *outEntry)
 {
     XS_watch_entry entry;
 
@@ -303,8 +303,8 @@ static XS_BOOL client_find_watch_entry_inlock (XS_client client, int sid, int wd
 }
 
 
-__attribute__((used))
-static XS_BOOL client_add_watch_entry_inlock (XS_client client, XS_watch_entry entry)
+__no_warning_unused(static)
+XS_BOOL client_add_watch_entry_inlock (XS_client client, XS_watch_entry entry)
 {
     XS_watch_entry first;
 
@@ -326,8 +326,8 @@ static XS_BOOL client_add_watch_entry_inlock (XS_client client, XS_watch_entry e
 }
 
 
-__attribute__((used))
-static int client_prepare_events (XS_client client, const XS_watch_path wp, struct inotify_event * inevent, XS_watch_event events[])
+__no_warning_unused(static)
+int client_prepare_events (XS_client client, const XS_watch_path wp, struct inotify_event * inevent, XS_watch_event events[])
 {
     XS_RESULT err;
 

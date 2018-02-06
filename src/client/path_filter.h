@@ -99,8 +99,8 @@ typedef struct xs_path_filter_t
 } xs_path_filter_t;
 
 
-__attribute__((used))
-static XS_pattern xs_pattern_create (const char * pattern, ssize_t pattern_len)
+__no_warning_unused(static)
+XS_pattern xs_pattern_create (const char * pattern, ssize_t pattern_len)
 {
     if (pattern_len > 4 &&
         pattern[0] == '{' && pattern[1] == '{' &&
@@ -132,8 +132,8 @@ static XS_pattern xs_pattern_create (const char * pattern, ssize_t pattern_len)
 }
 
 
-__attribute__((used))
-static void xs_pattern_free (xs_pattern_t * p)
+__no_warning_unused(static)
+void xs_pattern_free (xs_pattern_t * p)
 {
     while (p) {
         if (p->target == XS_pattern_target_regex) {
@@ -149,8 +149,8 @@ static void xs_pattern_free (xs_pattern_t * p)
 }
 
 
-__attribute__((used))
-static int xs_pattern_build_and_add (XS_path_filter pf, int at, XS_pattern p)
+__no_warning_unused(static)
+int xs_pattern_build_and_add (XS_path_filter pf, int at, XS_pattern p)
 {
     int err;
 
@@ -184,8 +184,8 @@ static int xs_pattern_build_and_add (XS_path_filter pf, int at, XS_pattern p)
 }
 
 
-__attribute__((used))
-static void xs_filter_set_xmlnode (XS_path_filter filter, mxml_node_t *filter_node)
+__no_warning_unused(static)
+void xs_filter_set_xmlnode (XS_path_filter filter, mxml_node_t *filter_node)
 {
     int i;
 

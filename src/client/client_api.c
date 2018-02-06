@@ -117,8 +117,8 @@ int on_timer_event (mul_event_hdl eventhdl, int eventargid, void *eventarg, void
 
 
 
-__attribute__((used))
-static void watch_event_task (thread_context_t * thread_ctx)
+__no_warning_unused(static)
+void watch_event_task (thread_context_t * thread_ctx)
 {
     threadpool_task_t * task = thread_ctx->task;
 
@@ -139,8 +139,8 @@ static void watch_event_task (thread_context_t * thread_ctx)
 }
 
 
-__attribute__((used))
-static XS_RESULT client_on_inotify_event (XS_client client, struct inotify_event * inevent)
+__no_warning_unused(static)
+XS_RESULT client_on_inotify_event (XS_client client, struct inotify_event * inevent)
 {
     int num;
 

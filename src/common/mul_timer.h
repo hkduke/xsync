@@ -258,7 +258,7 @@ typedef struct mul_timer_t
 } mul_timer_t;
 
 
-__no_warning_unused_static
+__no_warning_unused(static)
 inline void free_timer_event (struct mul_event_t * event)
 {
 #if MULTIMER_PRINT == 1
@@ -269,7 +269,7 @@ inline void free_timer_event (struct mul_event_t * event)
 }
 
 
-__no_warning_unused_static
+__no_warning_unused(static)
 inline mul_event_t * mul_handle_cast_event (mul_event_hdl eventhdl)
 {
     struct mul_event_t *event = CONTAINER_OF(eventhdl, struct mul_event_t, eventid);
@@ -277,7 +277,7 @@ inline mul_event_t * mul_handle_cast_event (mul_event_hdl eventhdl)
 }
 
 
-__no_warning_unused_static
+__no_warning_unused(static)
 inline mul_counter_t mul_hash_on_counter (mul_timer_t *mtr, bigint_t timeval_usec, int *hash)
 {
     mul_counter_t on_counter = (mul_counter_t) (timeval_usec / mtr->timeunit_usec + mtr->counter);
@@ -306,7 +306,7 @@ inline mul_counter_t mul_hash_on_counter (mul_timer_t *mtr, bigint_t timeval_use
     } while(0)
 
 
-__no_warning_unused_static
+__no_warning_unused(static)
 inline int timer_select_sleep (int sec, int ms)
 {
     if (sec || ms) {
@@ -332,7 +332,7 @@ inline int timer_select_sleep (int sec, int ms)
  * returns:
  *   number of events have been fired
  */
-__no_warning_unused_static
+__no_warning_unused(static)
 inline int mul_timer_fire_event (mul_timer_t *mtr, mul_counter_t fireon_counter)
 {
     struct hlist_node *hp;
