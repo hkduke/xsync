@@ -165,8 +165,8 @@ static XS_RESULT client_on_inotify_event (XS_client client, struct inotify_event
 
             XS_watch_event events[XSYNC_SERVER_MAXID + 1] = {0};
 
-            // client_info_makeup_events
-            int sidmax = client_populate_events_inlock(client, wp, inevent, events);
+            // makeup events
+            int sidmax = client_prepare_events(client, wp, inevent, events);
 
             // unlock immediately
             XS_client_unlock(client);

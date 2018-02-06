@@ -32,56 +32,47 @@
 
 extern XS_RESULT XS_watch_entry_create (const XS_watch_path wp, int sid, char *filename, int namelen, XS_watch_entry *outEntry)
 {
-    if (! filename || namelen == 0) {
-        LOGGER_WARN("invalid file name");
-        *outEntry = 0;
-        return XS_E_FILE;
+    XS_watch_entry entry;
+
+    char nameid[20];
+
+    int nameoff = snprintf(nameid, sizeof(nameid), "%d:%d/", sid, wp->watch_wd);
+
+    ssize_t nbsize = nameoff + namelen + sizeof('\0') + MD5_HASH_FIXLEN + sizeof('\0') + wp->pathsize + namelen + sizeof('\0');
+
+    entry = (XS_watch_entry) mem_alloc(1, sizeof(struct xs_watch_entry_t) + sizeof(char) * nbsize);
+
+    entry->nameoff = nameoff;
+    entry->namelen = namelen;
+    entry->pathsize = wp->pathsize;
+
+    memcpy(xs_entry_nameid(entry), nameid, entry->nameoff);
+    memcpy(xs_entry_filename(entry), filename, namelen);
+    memcpy(xs_entry_fullpath(entry), wp->fullpath, wp->pathsize);
+    memcpy(xs_entry_fullpath(entry) + wp->pathsize, filename, namelen);
+
+    // xs_entry_fullpath(entry)[xs_entry_path_endpos(entry)] = '/';
+
+    entry->rofd = -1;
+
+    entry->wd = wp->watch_wd;
+    entry->sid = sid;
+
+    entry->hash = xs_watch_entry_hash(entry->namebuf);
+
+    entry->cretime = time(0);
+
+    LOGGER_TRACE("'%s' (hash=%d fullpath='%s')", xs_entry_nameid(entry), entry->hash, xs_entry_fullpath(entry));
+
+    if (RefObjectInit(entry) == 0) {
+        *outEntry = entry;
+        LOGGER_TRACE("entry=%p", entry);
+        return XS_SUCCESS;
     } else {
-        XS_watch_entry entry;
-
-        char nameid[20];
-
-        int nameoff = snprintf(nameid, sizeof(nameid), "%d:%d/", sid, wp->watch_wd);
-
-        ssize_t nbsize = nameoff + namelen + sizeof('\0') + MD5_HASH_FIXLEN + sizeof('\0') + wp->pathsize + namelen + sizeof('\0');
-
-        entry = (XS_watch_entry) mem_alloc(1, sizeof(struct xs_watch_entry_t) + sizeof(char) * nbsize);
-
-        entry->nameoff = nameoff;
-        entry->namelen = namelen;
-        entry->pathsize = wp->pathsize;
-
-        memcpy(xs_entry_nameid(entry), nameid, entry->nameoff);
-        memcpy(xs_entry_filename(entry), filename, namelen);
-        memcpy(xs_entry_fullpath(entry), wp->fullpath, wp->pathsize);
-        memcpy(xs_entry_fullpath(entry) + wp->pathsize, filename, namelen);
-
-        // xs_entry_fullpath(entry)[xs_entry_path_endpos(entry)] = '/';
-
-        entry->rofd = -1;
-
-        entry->wd = wp->watch_wd;
-        entry->sid = sid;
-
-        entry->hash = xs_watch_entry_hash(entry->namebuf);
-
-        entry->cretime = time(0);
-
-        LOGGER_TRACE("'%s' (hash=%d fullpath='%s')", xs_entry_nameid(entry), entry->hash, xs_entry_fullpath(entry));
-
-        /**
-         * output XS_watch_entry
-         */
-        if (RefObjectInit(entry) == 0) {
-            *outEntry = entry;
-            LOGGER_TRACE("entry=%p", entry);
-            return XS_SUCCESS;
-        } else {
-            LOGGER_FATAL("RefObjectInit");
-            *outEntry = 0;
-            xs_watch_entry_delete((void*) entry);
-            return XS_ERROR;
-        }
+        LOGGER_FATAL("RefObjectInit");
+        *outEntry = 0;
+        xs_watch_entry_delete((void*) entry);
+        return XS_ERROR;
     }
 }
 

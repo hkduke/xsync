@@ -327,7 +327,7 @@ static XS_BOOL client_add_watch_entry_inlock (XS_client client, XS_watch_entry e
 
 
 __attribute__((used))
-static int client_populate_events_inlock (XS_client client, const XS_watch_path wp, struct inotify_event * inevent, XS_watch_event events[])
+static int client_prepare_events (XS_client client, const XS_watch_path wp, struct inotify_event * inevent, XS_watch_event events[])
 {
     XS_RESULT err;
 

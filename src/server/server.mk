@@ -36,6 +36,9 @@ SOURCES := \
 
 
 # see "../xsync-config.h" for definitions
+#   If the macro NDEBUG is defined at the moment <assert.h> was last
+#     included, the macro assert() generates no code, and hence does
+#     nothing at all.
 SRC_DEFS := DEBUG \
 	XSYNC_SERVER_APPNAME='"${APPNAME}"' \
 	XSYNC_SERVER_VERSION='"${VERSION}"' \

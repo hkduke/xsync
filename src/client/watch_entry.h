@@ -85,7 +85,7 @@ typedef struct xs_watch_entry_t
 
     int rofd;                           /* read only file descriptor */
 
-    int status;                         /* status code */
+    int status;                         /* status code: */
 
     int hash;
 
@@ -108,14 +108,14 @@ static void xs_watch_entry_delete(void *pv)
 {
     XS_watch_entry entry = (XS_watch_entry) pv;
 
+    LOGGER_TRACE0();
+
     assert(entry->next == 0);
 
     // TODO:
 
 
-    free(pv);
-
-    LOGGER_TRACE0();
+    free((void *) entry);
 }
 
 

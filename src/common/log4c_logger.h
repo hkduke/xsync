@@ -24,7 +24,7 @@
  *   - A wrapper for LOG4C
  *
  * create: 2014-08-01
- * update: 2017-01-29
+ * update: 2018-02-07
  * fixbug: 2018-01-31   'buf' as temp variable will cause conflicts with other files
  *
  * 2015-11-17: add color output
@@ -71,6 +71,59 @@
     #define LOGGER_COLOR_OUTPUT
 #else
     #undef LOGGER_COLOR_OUTPUT
+#endif
+
+
+#ifdef LOGGER_LEVEL_TRACE
+#  undef LOGGER_TRACE_DISABLED
+#  undef LOGGER_DEBUG_DISABLED
+#  undef LOGGER_INFO_DISABLED
+#  undef LOGGER_WARN_DISABLED
+#endif
+
+
+#ifdef LOGGER_LEVEL_DEBUG
+#  undef LOGGER_TRACE_DISABLED
+#  undef LOGGER_DEBUG_DISABLED
+#  undef LOGGER_INFO_DISABLED
+#  undef LOGGER_WARN_DISABLED
+
+#  define LOGGER_TRACE_DISABLED
+#endif
+
+
+#ifdef LOGGER_LEVEL_INFO
+#  undef LOGGER_TRACE_DISABLED
+#  undef LOGGER_DEBUG_DISABLED
+#  undef LOGGER_INFO_DISABLED
+#  undef LOGGER_WARN_DISABLED
+
+#  define LOGGER_TRACE_DISABLED
+#  define LOGGER_DEBUG_DISABLED
+#endif
+
+
+#ifdef LOGGER_LEVEL_WARN
+#  undef LOGGER_TRACE_DISABLED
+#  undef LOGGER_DEBUG_DISABLED
+#  undef LOGGER_INFO_DISABLED
+#  undef LOGGER_WARN_DISABLED
+
+#  define LOGGER_TRACE_DISABLED
+#  define LOGGER_DEBUG_DISABLED
+#  define LOGGER_INFO_DISABLED
+#endif
+
+#ifdef LOGGER_LEVEL_ERROR
+#  undef LOGGER_TRACE_DISABLED
+#  undef LOGGER_DEBUG_DISABLED
+#  undef LOGGER_INFO_DISABLED
+#  undef LOGGER_WARN_DISABLED
+
+#  define LOGGER_TRACE_DISABLED
+#  define LOGGER_DEBUG_DISABLED
+#  define LOGGER_INFO_DISABLED
+#  define LOGGER_WARN_DISABLED
 #endif
 
 

@@ -128,5 +128,5 @@ int main (int argc, char *argv[])
     assert(! err);
 
     printf("TODO: %s-%s end.\n", APP_NAME, APP_VERSION);
-    return (XS_ERROR);
+    return (err);
 }

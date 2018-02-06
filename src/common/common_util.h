@@ -397,6 +397,7 @@ static int getfullpath (char * path, char * outpath, size_t size_outpath)
     if (! p) {
         snprintf(outpath, size_outpath, "getcwd error(%d): %s", errno, strerror(errno));
         outpath[size_outpath - 1] = 0;
+
         chdir(savedcwd);
         return (-1);
     }

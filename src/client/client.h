@@ -58,8 +58,16 @@ extern "C" {
 __attribute__((used))
 static void print_usage(void)
 {
-    printf("\033[47;35m* %s, Version: %s, Build: %s %s\033[0m\n",
-        APP_NAME, APP_VERSION, __DATE__, __TIME__);
+    #ifdef NDEBUG
+        printf("\033[47;35m* %s, NDEBUG version: %s, build: %s %s\033[0m\n",
+            APP_NAME, APP_VERSION, __DATE__, __TIME__);
+
+        assert(0 && "RELEASE VERSION SHOULD NOT ENABLE assert() MARCO !");
+    #else
+        printf("\033[47;35m* %s, DEBUG version: %s, build: %s %s\033[0m\n",
+            APP_NAME, APP_VERSION, __DATE__, __TIME__);
+    #endif
+
     printf("\033[35mUsage:\033[0m %s [Options]\n", APP_NAME);
     printf("\t\033[35m extremely synchronize files among servers.\033[0m\n");
     printf("\033[35mOptions:\033[0m\n"
@@ -118,6 +126,11 @@ static void print_usage(void)
         "\n"
         "\033[47;35m* COPYRIGHT (c) 2014-2020 PEPSTACK.COM, ALL RIGHTS RESERVED.\033[0m\n",
         APP_NAME, APP_NAME, APP_VERSION, APP_NAME);
+
+#ifdef DEBUG
+    printf("\033[31m**** Caution: DEBUG compiling mode only used in develop stage ! ****\033[0m\n");
+    assert(0 && "DEBUG compiling mode enabled.");
+#endif
 }
 
 

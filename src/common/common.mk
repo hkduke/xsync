@@ -9,6 +9,11 @@ SOURCES := \
 	mul_timer.c
 
 
+#   If the macro NDEBUG is defined at the moment <assert.h> was last
+#     included, the macro assert() generates no code, and hence does
+#     nothing at all.
+SRC_DEFS := NDEBUG
+
 
 SRC_INCDIRS := .
 
