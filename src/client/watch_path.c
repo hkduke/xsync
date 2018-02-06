@@ -42,7 +42,7 @@ static inline void free_watch_path (void *pv)
 
 XS_RESULT XS_watch_path_create (const char * pathid, const char * fullpath, uint32_t events_mask, XS_watch_path * outwp)
 {
-    int sid, err;
+    int sid;
     size_t cb;
 
     XS_watch_path wpath;
@@ -74,15 +74,10 @@ XS_RESULT XS_watch_path_create (const char * pathid, const char * fullpath, uint
         wpath->sid_masks[sid] = 0;
     }
 
-    if ((err = RefObjectInit(wpath)) == 0) {
-        LOGGER_TRACE("xpath=%p (%s=>%s)", wpath, wpath->pathid, wpath->fullpath);
-        *outwp = wpath;
-        return XS_SUCCESS;
-    } else {
-        LOGGER_FATAL("RefObjectInit error(%d): %s", err, strerror(err));
-        free_watch_path((void*) wpath);
-        return XS_ERROR;
-    }
+    *outwp = (XS_watch_path) RefObjectInit(wpath);
+
+    LOGGER_TRACE("xpath=%p (%s=>%s)", wpath, wpath->pathid, wpath->fullpath);
+    return XS_SUCCESS;
 }
 
 

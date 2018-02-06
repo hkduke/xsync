@@ -64,16 +64,10 @@ extern XS_RESULT XS_watch_entry_create (const XS_watch_path wp, int sid, char *f
 
     LOGGER_TRACE("'%s' (hash=%d fullpath='%s')", xs_entry_nameid(entry), entry->hash, xs_entry_fullpath(entry));
 
-    if (RefObjectInit(entry) == 0) {
-        *outEntry = entry;
-        LOGGER_TRACE("entry=%p", entry);
-        return XS_SUCCESS;
-    } else {
-        LOGGER_FATAL("RefObjectInit");
-        *outEntry = 0;
-        xs_watch_entry_delete((void*) entry);
-        return XS_ERROR;
-    }
+    *outEntry = (XS_watch_entry) RefObjectInit(entry);
+
+    LOGGER_TRACE("entry=%p", entry);
+    return XS_SUCCESS;
 }
 
 

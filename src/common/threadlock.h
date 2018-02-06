@@ -127,6 +127,12 @@ extern "C"
     #define __interlock_sub(sub)        InterlockedDecrement64(sub)
     #define __interlock_release(val)    InterlockedExchange64(val, 0)
 
+    /**
+     * InterlockedCompareExchange64
+     *   https://msdn.microsoft.com/en-us/library/windows/desktop/ms683562(v=vs.85).aspx
+     */
+    #define __interlock_get(val)        InterlockedCompareExchange64(val, 0, 0)
+
     /* get current thread id */
     #define gettid()  GetCurrentThreadId(void)
 
@@ -139,6 +145,7 @@ extern "C"
 
 /**
  * Linux
+ *   http://gcc.gnu.org/onlinedocs/gcc-4.1.0/gcc/Atomic-Builtins.html#Atomic-Builtins
  */
 #if defined(_LINUX_GNUC)
 
@@ -160,6 +167,8 @@ extern "C"
     #define __interlock_add(add)         __sync_add_and_fetch(add, 1)
     #define __interlock_sub(sub)         __sync_sub_and_fetch(sub, 1)
     #define __interlock_release(val)     __sync_lock_release(val)
+
+    #define __interlock_get(val)         __sync_fetch_and_add(val, 0)
 
     /* get current thread id */
     #define gettid()    syscall(__NR_gettid)

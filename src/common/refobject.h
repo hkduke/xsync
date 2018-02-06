@@ -69,36 +69,34 @@ typedef void (* FinalObjectFunc) (void *);
 
 
 __attribute__((unused))
-static inline int RefObjectInit (void *pv)
+static inline RefObjectPtr RefObjectInit (void *pv)
 {
-    int err = threadlock_init(&((RefObjectPtr) pv)->lock__);
+    threadlock_init(&((RefObjectPtr) pv)->lock__);
 
-    ((RefObjectPtr) pv)->refc__ = 1;
+    /* As the moment of init the refcount alway == 1 */
+    ((RefObjectPtr) pv)->refc__ = 1LL;
 
-    /**
-     * success: REF_OBJECT_NOERROR
-     * failed: REF_OBJECT_EINVAL, REF_OBJECT_ENOMEM
-     */
-    return err;
+    return ((RefObjectPtr) pv);
 }
 
 
 __attribute__((unused))
 static inline RefObjectPtr RefObjectRetain (void **ppv)
 {
-    RefObjectPtr obj = *((RefObjectPtr *) ppv);
+    RefObjectPtr obj = *((RefObjectPtr*) ppv);
 
     if (obj) {
-        if (__interlock_add(&obj->refc__) > 0) {
+        if (__interlock_add(&obj->refc__) > 1) {
+            /* fix bug: __interlock_add(&obj->refc__) > 0 */
             return obj;
-        } else {
-            /* should never run to this */
-            exit(REF_OBJECT_ESYSTEM);
         }
+
+        /* should never run to this */
+        exit(REF_OBJECT_ESYSTEM);
     }
 
     /* NULL object */
-    return REF_OBJECT_INVALID;
+    return ((RefObjectPtr) 0);
 }
 
 

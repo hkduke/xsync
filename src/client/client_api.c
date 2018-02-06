@@ -295,15 +295,10 @@ extern XS_RESULT XS_client_create (clientapp_opts *opts, XS_client *outClient)
     /**
      * output XS_client
      */
-    if ((err = RefObjectInit(client)) == 0) {
-        *outClient = client;
-        LOGGER_TRACE("xclient=%p", client);
-        return XS_SUCCESS;
-    } else {
-        LOGGER_FATAL("RefObjectInit error(%d): %s", err, strerror(err));
-        xs_client_delete((void*) client);
-        return XS_ERROR;
-    }
+    *outClient = (XS_client) RefObjectInit(client);
+
+    LOGGER_TRACE("client=%p", client);
+    return XS_SUCCESS;
 }
 
 
@@ -544,9 +539,7 @@ extern XS_BOOL XS_client_find_watch_path (XS_client client, char * path, XS_watc
 
         if (! strcmp(wp->fullpath, path)) {
             if (outwp) {
-                RefObjectRetain((void**) &wp);
-
-                *outwp = wp;
+                *outwp = (XS_watch_path) RefObjectRetain((void**) &wp);
             }
 
             return XS_TRUE;

@@ -345,6 +345,7 @@ int client_prepare_events (XS_client client, const XS_watch_path wp, struct inot
 
             if (! err) {
                 if (client_add_watch_entry_inlock(client, entry)) {
+                    // 成功添加 watch_entry 到 client 的 entry_map 中
                     XS_watch_event wevent;
 
                     err = XS_watch_event_create(inevent->mask, client, entry, &wevent);
