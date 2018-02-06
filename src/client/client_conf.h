@@ -329,8 +329,6 @@ XS_BOOL client_add_watch_entry_inlock (XS_client client, XS_watch_entry entry)
 __no_warning_unused(static)
 int client_prepare_events (XS_client client, const XS_watch_path wp, struct inotify_event * inevent, XS_watch_event events[])
 {
-    XS_RESULT err;
-
     int sid;
     int events_maxsid = 0;
     int maxsid = XS_client_get_server_maxid(client);
@@ -341,23 +339,20 @@ int client_prepare_events (XS_client client, const XS_watch_path wp, struct inot
         if (! client_find_watch_entry_inlock(client, sid, inevent->wd, inevent->name, 0)) {
             XS_watch_entry entry;
 
-            err = XS_watch_entry_create(wp, sid, inevent->name, inevent->len, &entry);
+            // Alway Success
+            XS_watch_entry_create(wp, sid, inevent->name, inevent->len, &entry);
 
-            if (! err) {
-                if (client_add_watch_entry_inlock(client, entry)) {
-                    // 成功添加 watch_entry 到 client 的 entry_map 中
-                    XS_watch_event wevent;
+            if (client_add_watch_entry_inlock(client, entry)) {
+                // 成功添加 watch_entry 到 client 的 entry_map 中
+                XS_watch_event watch_event;
 
-                    err = XS_watch_event_create(inevent->mask, client, entry, &wevent);
-                    if (! err) {
-                        events[sid] = wevent;
-                        events_maxsid = sid;
-                    } else {
-                        XS_watch_entry_release(&entry);
-                    }
-                } else {
-                    XS_watch_entry_release(&entry);
-                }
+                // Alway Success
+                XS_watch_event_create(inevent->mask, client, entry, &watch_event);
+
+                events[sid] = watch_event;
+                events_maxsid = sid;
+            } else {
+                XS_watch_entry_release(&entry);
             }
         }
     }

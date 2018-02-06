@@ -46,7 +46,7 @@ void xs_watch_event_delete (void *pv)
 }
 
 
-extern XS_RESULT XS_watch_event_create (int eventid, XS_client client, XS_watch_entry entry, XS_watch_event *outEvent)
+extern XS_VOID XS_watch_event_create (int eventid, XS_client client, XS_watch_entry entry, XS_watch_event *outEvent)
 {
     XS_watch_event event;
 
@@ -57,20 +57,18 @@ extern XS_RESULT XS_watch_event_create (int eventid, XS_client client, XS_watch_
     event->client = (XS_client) RefObjectRetain((void**) &client);
     event->entry = (XS_watch_entry) RefObjectRetain((void**) &entry);
 
-    if (event->client && event->entry) {
-        event->server = XS_client_get_server_opts(client, entry->sid);
-        event->ineventid = eventid;
-        event->taskid = __interlock_add(&client->task_counter);
-
-        *outEvent = (XS_watch_event) RefObjectInit(event);
-
-        LOGGER_TRACE("xevent=%p, task=%lld", event, (long long) event->taskid);
-        return XS_SUCCESS;
+    if (! event->client || ! event->entry) {
+        LOGGER_FATAL("exit for application error");
+        exit(XS_ERROR);
     }
 
-    LOGGER_FATAL("exit for application error");
-    exit(XS_ERROR);
-    return XS_ERROR;
+    event->server = XS_client_get_server_opts(client, entry->sid);
+    event->ineventid = eventid;
+    event->taskid = __interlock_add(&client->task_counter);
+
+    *outEvent = (XS_watch_event) RefObjectInit(event);
+
+    LOGGER_TRACE("wevent=%p (task=%lld)", event, (long long) event->taskid);
 }
 
 
