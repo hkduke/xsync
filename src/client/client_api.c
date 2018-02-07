@@ -157,41 +157,57 @@ XS_RESULT client_on_inotify_event (XS_client client, struct inotify_event * inev
 {
     int err, sid, num;
 
-    xs_watch_path_t *wp = client_wd_table_lookup(client, inevent->wd);
-    assert(wp && wp->watch_wd == inevent->wd);
+    if (inevent->mask & IN_ISDIR) {
+        XS_watch_path wp;
 
-    LOGGER_DEBUG("TODO: wd=%d mask=%d cookie=%d len=%d dir=%s. (%s/%s)",
-        inevent->wd, inevent->mask, inevent->cookie, inevent->len, ((inevent->mask & IN_ISDIR) ? "yes" : "no"),
-        wp->fullpath, (inevent->len > 0 ? inevent->name : "None"));
+        if (inevent->len <= 0) {
+            LOGGER_FATAL("inotify error");
+            return XS_E_INOTIFY;
+        }
 
-    /**
-     * 如果队列空闲才能加入事件
-     */
-    num = XS_client_threadpool_unused_queues(client);
-    LOGGER_TRACE("threadpool_unused_queues=%d", num);
+        wp = client_wd_table_lookup(client, inevent->wd);
+        assert(wp && wp->watch_wd == inevent->wd);
 
-    if (num > 0) {
-        XS_watch_event events[XSYNC_SERVER_MAXID + 1] = {0};
+        LOGGER_DEBUG("wd=%d mask=%d cookie=%d len=%d dir=yes. (%s/%s)",
+            inevent->wd, inevent->mask, inevent->cookie, inevent->len,
+            wp->fullpath, inevent->name);
 
-        num = XS_client_prepare_events(client, wp, inevent, events);
+        /**
+         * 如果队列空闲才能加入事件
+         */
+        num = XS_client_threadpool_unused_queues(client);
+        LOGGER_TRACE("threadpool_unused_queues=%d", num);
 
-        for (sid = 1; sid <= num; sid++) {
-            XS_watch_event event = events[sid];
+        if (num > 0) {
+            XS_watch_event events[XSYNC_SERVER_MAXID + 1] = {0};
 
-            err = threadpool_add(client->pool, watch_event_task, (void*) event, XS_watch_event_type_inotify);
+            num = XS_client_prepare_events(client, wp, inevent, events);
 
-            if (err) {
-                // 增加到线程池失败
-                XS_watch_event_release(&event);
-                LOGGER_WARN("threadpool_add event error(%d): %s", err, threadpool_error_messages[-err]);
-            } else {
-                // 增加到线程池成功
-                LOGGER_TRACE("threadpool_add event success");
+            for (sid = 1; sid <= num; sid++) {
+                XS_watch_event event = events[sid];
+
+                err = threadpool_add(client->pool, watch_event_task, (void*) event, XS_watch_event_type_inotify);
+
+                if (err) {
+                    // 增加到线程池失败
+                    XS_watch_event_release(&event);
+
+                    LOGGER_ERROR("threadpool_add error(%d): %s", err, threadpool_error_messages[-err]);
+                    return XS_E_POOL;
+                } else {
+                    // 增加到线程池成功
+                    LOGGER_TRACE("threadpool_add event success");
+
+                    return XS_SUCCESS;
+                }
             }
+        } else {
+            LOGGER_WARN("threadpool is full");
+            return XS_E_POOL;
         }
     }
 
-    return 0;
+    return XS_E_NOTIMP;
 }
 
 
@@ -348,7 +364,7 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
 {
     fd_set set;
 
-    int i, sid, err, handled;
+    int i, sid, err;
 
     int wait_seconds = 6;
 
@@ -405,8 +421,6 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
         if (select(client->infd + 1, &set, 0, 0, &timeout) > 0) {
 
             if (FD_ISSET(client->infd, &set)) {
-                handled = 0;
-
                 /* read XSYNC_EVENT_BUFSIZE bytes’ worth of events */
                 while ((len = read(client->infd, &inevent_buf, XSYNC_INEVENT_BUFSIZE)) > 0) {
 
@@ -417,26 +431,18 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
                         /* here we get an inevent */
                         inevent = (struct inotify_event *) (inevent_buf + at);
 
-                        /* handle the inevent */
-                        if (inevent->len > 0 && inevent->len < XSYNC_IO_BUFSIZE - 64) {
-                            handled = client_on_inotify_event(client, inevent);
-                        } else {
-                            if (inevent->len) {
-                                LOGGER_ERROR("bad filename: %s", inevent->name);
-                            } else {
-                                LOGGER_ERROR("empty filename");
-                            }
-                        }
-
-                        handled += 0;
-
                         if (inevent->mask & IN_Q_OVERFLOW) {
-                            /* inotify is overflow. do getting rid of overflow in queue. */
-                            // timer_select_sleep(0, 1);
-                        }
+                            /* inotify is overflow */
+                            LOGGER_WARN("IN_Q_OVERFLOW");
 
-                        /* update the index to the start of the next event */
-                        at += sizeof(struct inotify_event) + inevent->len;
+                            break;
+                        } else {
+                            /* handle the inevent */
+                            client_on_inotify_event(client, inevent);
+
+                            /* update the index to the start of the next event */
+                            at += sizeof(struct inotify_event) + inevent->len;
+                        }
                     }
                 }
             }
@@ -545,7 +551,7 @@ extern XS_BOOL XS_client_add_watch_path (XS_client client, XS_watch_path wp)
 
         hlist_add_head(&wp->i_hash, &client->wp_hlist[hash]);
 
-        LOGGER_TRACE("xpath=%p, wd=%d. (%s)", wp, wp->watch_wd, wp->fullpath);
+        LOGGER_TRACE("%p, wd=%d. (%s)", wp, wp->watch_wd, wp->fullpath);
         return XS_TRUE;
     }
 

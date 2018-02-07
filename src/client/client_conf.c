@@ -264,8 +264,7 @@ error_exit:
 __no_warning_unused(static)
 int lscb_add_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client)
 {
-    int  lnk, err;
-
+    int  lnk;
     char resolved_path[XSYNC_PATH_MAX_SIZE];
 
     lnk = fileislink(path, 0, 0);
@@ -281,18 +280,13 @@ int lscb_add_watch_path (const char * path, int pathlen, struct dirent *ent, XS_
 
                 LOGGER_DEBUG("watch pathid=[%s] -> (%s)", pathid, abspath);
 
-                err = XS_watch_path_create(pathid, abspath, IN_ACCESS | IN_MODIFY, &wp);
+                if (XS_watch_path_create(pathid, abspath, IN_ACCESS | IN_MODIFY | IN_ONLYDIR, &wp) == XS_SUCCESS) {
+                    if (! XS_client_add_watch_path(client, wp)) {
+                        XS_watch_path_release(&wp);
 
-                if (err) {
-                    // error
-                    return 0;
-                }
-
-                if (! XS_client_add_watch_path(client, wp)) {
-                    XS_watch_path_release(&wp);
-
-                    // error
-                    return 0;
+                        // break on error
+                        return 0;
+                    }
                 }
             } else {
                 LOGGER_ERROR("realpath error(%d): %s", errno, strerror(errno));
@@ -948,7 +942,7 @@ extern int XS_client_prepare_events (XS_client client, const XS_watch_path wp, s
             if (! client_find_watch_entry_inlock(client, sid, inevent->wd, inevent->name, &entry)) {
                 // 没有发现 watch_entry
                 // alway success for create watch entry
-                XS_watch_entry_create(wp, sid, inevent->name, inevent->len, &entry);
+                XS_watch_entry_create(wp, sid, inevent->name, &entry);
 
                 if (client_add_watch_entry_inlock(client, entry)) {
                     // 成功添加 watch_entry 到 client 的 entry_map 中, 添加到定时器. 增加 entry 计数

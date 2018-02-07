@@ -30,14 +30,18 @@
 #include "../common/common_util.h"
 
 
-extern XS_VOID XS_watch_entry_create (const XS_watch_path wp, int sid, char *filename, int namelen, XS_watch_entry *outEntry)
+extern XS_VOID XS_watch_entry_create (const XS_watch_path wp, int sid, const char *filename, XS_watch_entry *outEntry)
 {
     XS_watch_entry entry;
+
     char nameid[20];
     int nameoff;
     ssize_t nbsize;
+    int namelen;
 
     *outEntry = 0;
+
+    namelen = strlen(filename);
 
     nameoff = snprintf(nameid, sizeof(nameid), "%d:%d/", sid, wp->watch_wd);
 

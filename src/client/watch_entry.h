@@ -121,7 +121,7 @@ void xs_watch_entry_delete(void *pv)
 }
 
 
-extern XS_VOID XS_watch_entry_create (const XS_watch_path wp, int sid, char *filename, int namelen, XS_watch_entry * outEntry);
+extern XS_VOID XS_watch_entry_create (const XS_watch_path wp, int sid, const char *filename, XS_watch_entry * outEntry);
 
 extern XS_VOID XS_watch_entry_release (XS_watch_entry * inEntry);
 

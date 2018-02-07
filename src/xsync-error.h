@@ -59,6 +59,8 @@ typedef int XS_RESULT;
 #define XS_E_FILE                 (-11)
 #define XS_E_NOTIMP               (-12)
 #define XS_E_APPERR               (-13)
+#define XS_E_INOTIFY              (-14)
+#define XS_E_POOL                 (-15)
 
 
 typedef int XS_BOOL;

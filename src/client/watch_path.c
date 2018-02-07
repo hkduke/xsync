@@ -76,7 +76,8 @@ XS_RESULT XS_watch_path_create (const char * pathid, const char * fullpath, uint
 
     *outwp = (XS_watch_path) RefObjectInit(wpath);
 
-    LOGGER_TRACE("xpath=%p (%s=>%s)", wpath, wpath->pathid, wpath->fullpath);
+    LOGGER_TRACE("path=%p (%s=>%s)", wpath, wpath->pathid, wpath->fullpath);
+
     return XS_SUCCESS;
 }
 
