@@ -188,7 +188,7 @@ extern int mul_timer_init (mul_timeunit_t timeunit, unsigned int timeintval, uns
 #ifdef _WINDOWS_MSVC
     void __stdcall(*win_sigalrm_cb)(PVOID, BOOLEAN),
 #endif
-    void *timerParameter, int start)
+    void *timerarg, int start)
 {
     int i, err;
 
@@ -305,7 +305,7 @@ extern int mul_timer_init (mul_timeunit_t timeunit, unsigned int timeintval, uns
         // Set a timer to call the timer routine in 10 seconds.
         if (! CreateTimerQueueTimer(&hTimer, hTimerQueue,
                 (WAITORTIMERCALLBACK) win_sigalrm_cb,
-                timerParameter,
+                timerarg,
                 (DWORD) delay_ms,
                 (DWORD) interval_ms,
                 WT_EXECUTEDEFAULT))
@@ -319,7 +319,7 @@ extern int mul_timer_init (mul_timeunit_t timeunit, unsigned int timeintval, uns
         } else {
             // Success
             mtr->hTimerQueue = hTimerQueue;
-            mtr->lpParameter = timerParameter;
+            mtr->lpParameter = timerarg;
             err = 0;
         }
     } while(0);
@@ -347,8 +347,9 @@ extern int mul_timer_init (mul_timeunit_t timeunit, unsigned int timeintval, uns
         INIT_HLIST_HEAD(&mtr->hlist[i]);
     }
 
-    /** 设置初始事件id */
+    /** 设置初始事件id 和 多定时器全局参数 */
     mtr->eventid = 0;
+    mtr->lpParameter = timerarg;
 
     /** 定时器成功创建并启动 */
     assert(mtr->start_flag == 0);
@@ -384,19 +385,23 @@ extern void mul_timer_pause ()
 extern int mul_timer_destroy ()
 {
     int err;
+    int saved_start_flag;
 
     void (* saved_sighdl)(int);
 
     mul_timer_t *mtr = get_multimer_singleton();
 
-    mul_timer_pause();
+    saved_start_flag = mtr->start_flag;
+
+    /* first pause it */
+    mtr->start_flag = 0;
 
     err = threadlock_lock(&mtr->lock);
     if (err) {
     #if MULTIMER_PRINT == 1
         printf("[mul] threadlock_lock error(%d): %s\n", err, strerror(err));
     #endif
-        mul_timer_start();
+        mtr->start_flag = saved_start_flag;
         return (-1);
     }
 
@@ -408,7 +413,7 @@ extern int mul_timer_destroy ()
     #if MULTIMER_PRINT == 1
         printf("[mul] destroy failed. signal error.\n");
     #endif
-        mul_timer_start();
+        mtr->start_flag = saved_start_flag;
         return (-1);
     }
 
@@ -424,7 +429,7 @@ extern int mul_timer_destroy ()
         printf("[mul] destroy failed. setitimer error(%d): %s.\n", errno, strerror(errno));
     #endif
 
-        mul_timer_start();
+        mtr->start_flag = saved_start_flag;
         return (-1);
     }
 
@@ -437,7 +442,8 @@ extern int mul_timer_destroy ()
     if (! DeleteTimerQueue(mtr->hTimerQueue)) {
         printf("DeleteTimerQueue failed (%d)\n", GetLastError());
         threadlock_unlock(&mtr->lock);
-        mul_timer_start();
+
+        mtr->start_flag = saved_start_flag;
         return (-1);
     }
 #endif

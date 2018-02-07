@@ -118,6 +118,8 @@ typedef struct xs_client_t
 /**
  * private functions
  */
+extern void xs_client_delete (void *pv);
+
 
 __no_warning_unused(static)
 XS_VOID client_clear_entry_map (XS_client client)
@@ -140,65 +142,6 @@ XS_VOID client_clear_entry_map (XS_client client)
             first = next;
         }
     }
-}
-
-
-__no_warning_unused(static)
-void xs_client_delete (void *pv)
-{
-    int i, sid, infd;
-
-    XS_client client = (XS_client) pv;
-
-    LOGGER_TRACE("pthread_cond_destroy");
-    pthread_cond_destroy(&client->condition);
-
-    if (client->pool) {
-        LOGGER_DEBUG("threadpool_destroy");
-        threadpool_destroy(client->pool, 0);
-    }
-
-    if (client->thread_args) {
-        perthread_data * perdata;
-        int sockfd, sid_max;
-
-        for (i = 0; i < client->threads; ++i) {
-            perdata = client->thread_args[i];
-            client->thread_args[i] = 0;
-
-            sid_max = perdata->sockfds[0] + 1;
-
-            for (sid = 1; sid < sid_max; sid++) {
-                sockfd = perdata->sockfds[sid];
-
-                perdata->sockfds[sid] = SOCKAPI_ERROR_SOCKET;
-
-                if (sockfd != SOCKAPI_ERROR_SOCKET) {
-                    close(sockfd);
-                }
-            }
-
-            free(perdata);
-        }
-
-        free(client->thread_args);
-    }
-
-    client_clear_entry_map(client);
-
-    XS_client_clear_watch_paths(client);
-
-    infd = client->infd;
-    if (infd != -1) {
-        client->infd = -1;
-
-        LOGGER_DEBUG("inotify closed");
-        close(infd);
-    }
-
-    LOGGER_TRACE("~xclient=%p", client);
-
-    free(client);
 }
 
 

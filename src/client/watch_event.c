@@ -38,7 +38,9 @@ void xs_watch_event_delete (void *pv)
     LOGGER_TRACE0();
 
     // 本对象(event)即将被删除, 先设置本对象不再被 entry 使用
-    *(event->entry->event_addr) = 0;
+    assert(event->entry);
+
+    __interlock_release(&event->entry->in_use);
 
     // 释放引用计数
     XS_watch_entry_release(&event->entry);
@@ -78,10 +80,7 @@ extern XS_VOID XS_watch_event_create (int eventid, XS_client client, XS_watch_en
 
     *outEvent = (XS_watch_event) RefObjectInit(event);
 
-    // 保存 event 的地址, 不要增加引用计数
-    *(entry->event_addr) = event;
-
-    LOGGER_TRACE("wevent=%p (task=%lld)", event, (long long) event->taskid);
+    LOGGER_TRACE("event=%p (task=%lld)", event, (long long) event->taskid);
 }
 
 

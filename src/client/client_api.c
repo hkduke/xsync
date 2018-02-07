@@ -110,9 +110,8 @@ int on_timer_event (mul_event_hdl eventhdl, int eventargid, void *eventarg, void
     printf("    => event_%lld: on_counter=%lld hash=%d\n",
         (long long) event->eventid, (long long) event->on_counter, event->hash);
 
-    //mul_timer_remove_event(eventhdl);
 
-    return 0;
+    return 1;
 }
 
 
@@ -377,7 +376,7 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
         }
 
         // 设置时间定时器事件
-        mul_timer_set_event(i, 10, -1, on_timer_event, i, (void*) client, MULTIMER_EVENT_CB_BLOCK);
+        //// mul_timer_set_event(i, 10, -1, on_timer_event, i, (void*) client, MULTIMER_EVENT_CB_BLOCK);
     }
 
     //TODO: 设置时间定时器事件

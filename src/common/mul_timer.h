@@ -417,7 +417,7 @@ inline int mul_timer_fire_event (mul_timer_t *mtr, mul_counter_t fireon_counter)
  *          1 : start as synchronous mode (block) immediately when init success.
  *          2 : start as asynchronous mode (nonblock) immediately when init success.
  *
- *       lpParameter - A single parameter value that will be passed to the callback function.
+ *       timerarg - A single parameter value that will be passed to the callback function.
  *
  * returns:
  *    0: success  初始化成功
@@ -431,7 +431,7 @@ extern int mul_timer_init (mul_timeunit_t timeunit, unsigned int timeintval, uns
 #ifdef _WINDOWS_MSVC
     void __stdcall(*win_sigalrm_cb)(PVOID, BOOLEAN),
 #endif
-    void *timerParameter,
+    void *timerarg,
     int start_flag
 );
 

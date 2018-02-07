@@ -63,7 +63,7 @@ extern "C" {
 #define xs_entry_path_endpos(entry)    (entry->pathsize - 1)
 
 // entry 是否在使用中
-#define xs_entry_not_inuse(entry)    (*(entry->event_addr) == 0)
+#define xs_entry_not_inuse(entry)    (__interlock_get(&entry->in_use) == 0)
 
 
 /**
@@ -89,7 +89,7 @@ typedef struct xs_watch_entry_t
 
     int rofd;                           /* read only file descriptor */
 
-    XS_watch_event *event_addr;         /* XS_watch_event reference address */
+    int volatile in_use;               /* 1: in use, 0: not in use */
 
     int hash;
 
