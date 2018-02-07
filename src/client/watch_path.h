@@ -58,24 +58,6 @@ typedef struct xs_watch_path_t
     uint32_t  events_mask;
     int watch_wd;
 
-//    char pathprefix[FSYNC_PATHPREFIX_LEN + 1];
-
-    /* path-pattern */
-    //filter_pattern_t path_included;
-    //filter_pattern_t path_excluded;
-
-    /* file-pattern
-    filter_pattern_t file_included;
-    filter_pattern_t file_excluded;
- */
-
-    /* Sync file timeout in seconds
-    uint32_t synctimeo;
-*/
-    /* Zombie file timeout in seconds
-    uint32_t zombietimeo;
-*/
-
     /**
      * 指定该目录下的文件需要同步到那些服务器
      * sid_masks[0] = sid_max
@@ -94,9 +76,8 @@ typedef struct xs_watch_path_t
     XS_path_filter excluded_filters[XSYNC_SERVER_MAXID + 1];
 
     /**
-     * dhlist node
+     * hlist node
      */
-    struct list_head  i_list;
     struct hlist_node i_hash;
 
     /**
@@ -124,6 +105,8 @@ extern XS_VOID XS_watch_path_release (XS_watch_path * wp);
 extern XS_path_filter XS_watch_path_get_included_filter (XS_watch_path wp, int sid);
 
 extern XS_path_filter XS_watch_path_get_excluded_filter (XS_watch_path wp, int sid);
+
+extern XS_RESULT XS_watch_path_sweep (XS_watch_path wp);
 
 #if defined(__cplusplus)
 }

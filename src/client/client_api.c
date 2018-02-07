@@ -104,16 +104,30 @@
 #include "../common/common_util.h"
 
 
-int on_timer_event (mul_event_hdl eventhdl, int eventargid, void *eventarg, void *timerarg)
+__no_warning_unused(static)
+int OnEventSweepWatchPath (mul_event_hdl eventhdl, int eventargid, void *eventarg, void *timerarg)
 {
     mul_event_t *event = mul_handle_cast_event(eventhdl);
     printf("    => event_%lld: on_counter=%lld hash=%d\n",
         (long long) event->eventid, (long long) event->on_counter, event->hash);
 
+    //XS_client client = (XS_client) timerarg;
+    XS_watch_path wp = (XS_watch_path) eventarg;
+
+    if (XS_watch_path_sweep(wp) != XS_SUCCESS) {
+        // 如果刷新目录失败
+
+        // 删除事件
+        mul_timer_remove_event(eventhdl);
+
+        // 释放 watch_path
+        XS_watch_path_release(&wp);
+
+        return (-1);
+    }
 
     return 1;
 }
-
 
 
 __no_warning_unused(static)
@@ -225,10 +239,20 @@ extern XS_RESULT XS_client_create (clientapp_opts *opts, XS_client *outClient)
     client->infd = inotify_init();
     if (client->infd == -1) {
         LOGGER_ERROR("inotify_init() error(%d): %s", errno, strerror(errno));
+
         xs_client_delete((void*) client);
         return XS_ERROR;
     }
 
+    // 创建定时器, 60秒之后启动. 失败退出程序
+    if (mul_timer_init(MUL_TIMEUNIT_SEC, 1, 60, MULTIMER_DEFAULT_HANDLER, client, 0) != 0) {
+        LOGGER_FATAL("mul_timer_init error");
+
+        xs_client_delete((void*) client);
+        exit(XS_ERROR);
+    }
+
+    // 初始化监控目录
     if (opts->force_watch) {
         err = XS_client_conf_from_watch(client, opts->config);
     } else {
@@ -285,16 +309,6 @@ extern XS_RESULT XS_client_create (clientapp_opts *opts, XS_client *outClient)
      * output XS_client
      */
     *outClient = (XS_client) RefObjectInit(client);
-
-    // 创建定时器
-    if (mul_timer_init(MUL_TIMEUNIT_SEC, 1, 60, MULTIMER_DEFAULT_HANDLER, client, 0) != 0) {
-        XS_client_release(&client);
-
-        LOGGER_FATAL("mul_timer_init error");
-
-        // 失败退出程序
-        exit(XS_ERROR);
-    }
 
     LOGGER_TRACE("client=%p", client);
 
@@ -374,12 +388,9 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
 
             perdata->sockfds[sid] = sockfd;
         }
-
-        // 设置时间定时器事件
-        //// mul_timer_set_event(i, 10, -1, on_timer_event, i, (void*) client, MULTIMER_EVENT_CB_BLOCK);
     }
 
-    //TODO: 设置时间定时器事件
+    // 启动定时器
     mul_timer_start();
 
     for ( ; ; ) {
@@ -494,30 +505,47 @@ extern XS_BOOL XS_client_add_watch_path (XS_client client, XS_watch_path wp)
          * add inotify watch
          */
         assert(client->infd != -1);
+
         wp->watch_wd = inotify_add_watch(client->infd, wp->fullpath, wp->events_mask);
+
         if (wp->watch_wd == -1) {
             LOGGER_ERROR("inotify_add_watch error(%d): %s", errno, strerror(errno));
             return XS_FALSE;
         }
 
-        /**
-         * add wd_table
-         */
+        // 设置多定时器: 刷新目录事件. 增加 watch_path 计数
+        RefObjectRetain((void**) &wp);
+
+        if (mul_timer_set_event(XSYNC_SWEEP_PATH_INTERVAL +
+                    (wp->watch_wd & XSYNC_WATCH_PATH_HASHMAX),
+                XSYNC_SWEEP_PATH_INTERVAL,
+                MULTIMER_EVENT_INFINITE,
+                OnEventSweepWatchPath,
+                wp->watch_wd,
+                (void*) wp,
+                MULTIMER_EVENT_CB_BLOCK) <= 0)
+        {
+            int wd = wp->watch_wd;
+            wp->watch_wd = -1;
+
+            inotify_rm_watch(client->infd, wd);
+
+            XS_watch_path_release(&wp);
+
+            LOGGER_FATAL("mul_timer_set_event failed");
+            exit(XS_ERROR);
+        }
+
+        LOGGER_DEBUG("mul_timer_set_event ok. (%s)", wp->fullpath);
+
         client_wd_table_insert(client, wp);
 
-        /**
-         * add dlist and wp_hlist
-         */
         hash = XS_watch_path_hash_get(wp->fullpath);
         assert(hash >= 0 && hash <= XSYNC_WATCH_PATH_HASHMAX);
 
-#ifdef XSYNC_CLIENT_HAS_DLIST
-        list_add(&wp->i_list, &client->wp_dlist);
-#endif
         hlist_add_head(&wp->i_hash, &client->wp_hlist[hash]);
 
         LOGGER_TRACE("xpath=%p, wd=%d. (%s)", wp, wp->watch_wd, wp->fullpath);
-
         return XS_TRUE;
     }
 
@@ -572,8 +600,8 @@ extern XS_BOOL XS_client_remove_watch_path (XS_client client, char * path)
                 assert(wp->watch_wd == wd);
                 wp->watch_wd = -1;
 
-                hlist_del(&wp->i_hash);  //?? hlist_del(hp);
-                list_del(&wp->i_list);
+                //?? hlist_del(hp);
+                hlist_del(&wp->i_hash);
 
                 XS_watch_path_release(&wp);
 

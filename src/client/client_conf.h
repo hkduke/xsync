@@ -233,10 +233,7 @@ XS_BOOL client_find_watch_entry_inlock (XS_client client, int sid, int wd, const
     entry = client->entry_map[hash];
     while (entry) {
         if (! strcmp(entry->namebuf, nameid)) {
-            if (outEntry) {
-                *outEntry = entry;
-            }
-
+            *outEntry = entry;
             return XS_TRUE;
         }
 

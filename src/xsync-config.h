@@ -187,12 +187,12 @@ extern "C"
 
 
 #ifndef XSYNC_ERRBUF_MAXLEN
-#  define XSYNC_ERRBUF_MAXLEN        255
+#  define XSYNC_ERRBUF_MAXLEN           255
 #endif
 
 
 #ifndef XSYNC_HOSTNAME_MAXLEN
-#  define XSYNC_HOSTNAME_MAXLEN      128
+#  define XSYNC_HOSTNAME_MAXLEN        128
 #endif
 
 
@@ -203,6 +203,24 @@ extern "C"
 
 #ifndef XSYNC_WATCH_ENTRY_HASHMAX
 #  define XSYNC_WATCH_ENTRY_HASHMAX    1023
+#endif
+
+
+/**
+ * watch path sweeping interval in seconds
+ *   should in [60, 300]
+ */
+#ifndef XSYNC_SWEEP_PATH_INTERVAL
+#  define XSYNC_SWEEP_PATH_INTERVAL       10
+#endif
+
+
+/**
+ * watch entry session timeout in seconds:
+ *    should in [300, 900]
+ */
+#ifndef XSYNC_ENTRY_SESSION_TIMEOUT
+#  define XSYNC_ENTRY_SESSION_TIMEOUT    30
 #endif
 
 

@@ -103,12 +103,11 @@ inline RefObjectPtr RefObjectRetain (void **ppv)
             return obj;
         }
 
-        /* should never run to this */
         exit(REF_OBJECT_ESYSTEM);
     }
 
-    /* NULL object */
-    return ((RefObjectPtr) 0);
+    /* should never run to this! */
+    return (RefObjectPtr) 0;
 }
 
 

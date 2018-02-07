@@ -79,3 +79,11 @@ extern XS_VOID XS_watch_entry_release (XS_watch_entry * inEntry)
 
     RefObjectRelease((void**) inEntry, xs_watch_entry_delete);
 }
+
+
+extern XS_BOOL XS_watch_entry_not_in_use (XS_watch_entry entry)
+{
+    int in_use = __interlock_get(&entry->in_use);
+
+    return (in_use == 0? 1 : 0);
+}

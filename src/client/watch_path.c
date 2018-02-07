@@ -30,11 +30,11 @@
 
 static inline void free_watch_path (void *pv)
 {
-    xs_watch_path_t * wpath = (xs_watch_path_t *) pv;
+    XS_watch_path wp = (XS_watch_path) pv;
 
-    // TODO:
+    // TODO: free included_filters, excluded_filters
 
-    LOGGER_TRACE("~xpath=%p", wpath);
+    LOGGER_TRACE("~xpath=%p", wp);
 
     free(pv);
 }
@@ -108,8 +108,6 @@ XS_path_filter XS_watch_path_get_included_filter (XS_watch_path wp, int sid)
 
 XS_path_filter XS_watch_path_get_excluded_filter (XS_watch_path wp, int sid)
 {
-    LOGGER_TRACE0();
-
     assert(sid > 0 && sid <= XSYNC_SERVER_MAXID);
 
     if (! wp->excluded_filters[sid]) {
@@ -121,3 +119,12 @@ XS_path_filter XS_watch_path_get_excluded_filter (XS_watch_path wp, int sid)
 
     return filt;
 }
+
+
+extern XS_RESULT XS_watch_path_sweep (XS_watch_path wp)
+{
+    LOGGER_WARN("TODO: sweep %s", wp->fullpath);
+
+    return XS_SUCCESS;
+}
+

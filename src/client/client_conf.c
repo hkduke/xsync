@@ -105,7 +105,38 @@ extern void xs_client_delete (void *pv)
 }
 
 
-static XS_RESULT client_read_filter_file (XS_client client, const char * filter_file, int sid, int filter_type)
+__no_warning_unused(static)
+int OnEventCheckEntrySession (mul_event_hdl eventhdl, int argid, void *arg, void *param)
+{
+    int ret = 0;
+
+    XS_client client = (XS_client) param;
+    XS_watch_entry entry = (XS_watch_entry) arg;
+
+    assert(client);
+    assert(entry);
+
+    if (XS_watch_entry_not_in_use(entry)) {
+        if (XS_client_lock(client) == 0) {
+
+            if (client_remove_watch_entry_inlock(client, entry)) {
+                // 删除事件成功, 释放增加到定时器中的引用: entry
+                XS_watch_entry_release(&entry);
+
+                // 删除事件成功, 移除本事件
+                ret = -1;
+            }
+
+            XS_client_unlock(client);
+        }
+    }
+
+    return ret;
+}
+
+
+__no_warning_unused(static)
+XS_RESULT client_read_filter_file (XS_client client, const char * filter_file, int sid, int filter_type)
 {
     int ret, lineno, err;
     char * endpath;
@@ -230,7 +261,8 @@ error_exit:
 }
 
 
-static int lscb_add_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client)
+__no_warning_unused(static)
+int lscb_add_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client)
 {
     int  lnk, err;
 
@@ -258,6 +290,7 @@ static int lscb_add_watch_path (const char * path, int pathlen, struct dirent *e
 
                 if (! XS_client_add_watch_path(client, wp)) {
                     XS_watch_path_release(&wp);
+
                     // error
                     return 0;
                 }
@@ -275,7 +308,8 @@ static int lscb_add_watch_path (const char * path, int pathlen, struct dirent *e
 }
 
 
-static int lscb_init_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client)
+__no_warning_unused(static)
+int lscb_init_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client)
 {
     int  lnk, sid, err;
 
@@ -354,7 +388,8 @@ static int lscb_init_watch_path (const char * path, int pathlen, struct dirent *
 }
 
 
-static int watch_path_set_sid_masks_cb (XS_watch_path wp, void * data)
+__no_warning_unused(static)
+int watch_path_set_sid_masks_cb (XS_watch_path wp, void * data)
 {
     int sid;
 
@@ -378,7 +413,8 @@ static int watch_path_set_sid_masks_cb (XS_watch_path wp, void * data)
 }
 
 
-static int watch_path_set_xmlnode_cb (XS_watch_path wp, void *data)
+__no_warning_unused(static)
+int watch_path_set_xmlnode_cb (XS_watch_path wp, void *data)
 {
     int sid, sid_max;
 
@@ -895,35 +931,6 @@ extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watchd
     return err;
 }
 
-__no_warning_unused(static)
-int on_timer_event_clear_entry (mul_event_hdl eventhdl, int argid, void *arg, void *param)
-{
-    int ret = 0;
-
-    XS_client client = (XS_client) param;
-    XS_watch_entry entry = (XS_watch_entry) arg;
-
-    assert(client);
-    assert(entry);
-
-    if (xs_entry_not_inuse(entry)) {
-        if (XS_client_lock(client) == 0) {
-
-            if (client_remove_watch_entry_inlock(client, entry)) {
-                // 删除事件成功, 释放增加到定时器中的引用: entry
-                XS_watch_entry_release(&entry);
-
-                // 删除事件成功, 移除本事件
-                ret = -1;
-            }
-
-            XS_client_unlock(client);
-        }
-    }
-
-    return ret;
-}
-
 
 extern int XS_client_prepare_events (XS_client client, const XS_watch_path wp, struct inotify_event *inevent, XS_watch_event events[])
 {
@@ -934,42 +941,53 @@ extern int XS_client_prepare_events (XS_client client, const XS_watch_path wp, s
         int maxsid = XS_client_get_server_maxid(client);
 
         for (; sid <= maxsid; sid++) {
+            XS_watch_entry entry;
+
             events[sid] = 0;
 
-            if (! client_find_watch_entry_inlock(client, sid, inevent->wd, inevent->name, 0)) {
-                XS_watch_entry entry;
-
+            if (! client_find_watch_entry_inlock(client, sid, inevent->wd, inevent->name, &entry)) {
+                // 没有发现 watch_entry
                 // alway success for create watch entry
                 XS_watch_entry_create(wp, sid, inevent->name, inevent->len, &entry);
 
                 if (client_add_watch_entry_inlock(client, entry)) {
-                    // 成功添加 watch_entry 到 client 的 entry_map 中, 添加到定时器
-                    // 增加 entry 计数
+                    // 成功添加 watch_entry 到 client 的 entry_map 中, 添加到定时器. 增加 entry 计数
                     RefObjectRetain((void**) &entry);
 
-                    if (mul_timer_set_event(sid,
-                            10,
+                    // 设置多定时器: 清理 entry_map 事件
+                    if (mul_timer_set_event(XSYNC_ENTRY_SESSION_TIMEOUT +
+                            (wp->watch_wd & XSYNC_WATCH_PATH_HASHMAX),
+                            XSYNC_ENTRY_SESSION_TIMEOUT,
                             MULTIMER_EVENT_INFINITE,
-                            on_timer_event_clear_entry,
-                            entry->hash,
+                            OnEventCheckEntrySession,
+                            sid,
                             (void*) entry,
                             MULTIMER_EVENT_CB_BLOCK) > 0)
                     {
+                        // XS_watch_event_create alway success
                         XS_watch_event watch_event;
 
-                        // alway success to create watch event
                         XS_watch_event_create(inevent->mask, client, entry, &watch_event);
 
                         events[sid] = watch_event;
                         events_maxsid = sid;
                     } else {
                         XS_watch_entry_release(&entry);
-
-                        LOGGER_ERROR("mul_timer_set_event failed");
+                        LOGGER_FATAL("should nerver run to this: mul_timer_set_event failed");
                     }
                 } else {
                     XS_watch_entry_release(&entry);
+                    LOGGER_FATAL("should nerver run to this: client_add_watch_entry_inlock failed");
                 }
+            } else if (XS_watch_entry_not_in_use(entry)) {
+                // 发现存在 watch_entry, 且未被使用
+                // XS_watch_event_create alway success
+                XS_watch_event watch_event;
+
+                XS_watch_event_create(inevent->mask, client, entry, &watch_event);
+
+                events[sid] = watch_event;
+                events_maxsid = sid;
             }
         }
 
