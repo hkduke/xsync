@@ -404,7 +404,14 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
             break;
 
         case 'V':
-            fprintf(stdout, "\033[1;35m%s, Version: %s, Build: %s %s\033[0m\n\n", APP_NAME, APP_VERSION, __DATE__, __TIME__);
+        #ifdef NDEBUG
+            fprintf(stdout, "\033[1;35m%s, NDEBUG version: %s, build: %s %s\033[0m\n\n", APP_NAME, APP_VERSION, __DATE__, __TIME__);
+            assert(0 && "RELEASE VERSION SHOULD NOT ENABLE assert() MARCO !");
+        #else
+            fprintf(stdout, "\033[1;35m%s, DEBUG version: %s, build: %s %s\033[0m\n\n", APP_NAME, APP_VERSION, __DATE__, __TIME__);
+            fprintf(stdout, "\033[31m**** Caution: DEBUG compiling mode only used in develop stage ! ****\033[0m\n");
+            assert(0 && "DEBUG compiling mode enabled.");
+        #endif
             exit(0);
             break;
         }

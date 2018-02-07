@@ -460,14 +460,17 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
                             LOGGER_WARN("IN_Q_OVERFLOW");
 
                             break;
-                        } else {
-                            LOGGER_DEBUG("inevent: wd=%d mask=%d cookie=%d len=%d dir=%c name='%s'",
-                                inevent->wd, inevent->mask, inevent->cookie, inevent->len,
-                                ((inevent->mask & IN_ISDIR)? 'Y' : 'N'),
-                                (inevent->len? inevent->name : ""));
+                        } else if (inevent->len) {
+                            //TODO: why '/tmp/#25'
+                            if (inevent->name[0] != '#') {
+                                LOGGER_DEBUG("inevent: wd=%d mask=%d cookie=%d len=%d dir=%c name='%s'",
+                                    inevent->wd, inevent->mask, inevent->cookie, inevent->len,
+                                    ((inevent->mask & IN_ISDIR)? 'Y' : 'N'),
+                                    (inevent->len? inevent->name : ""));
 
-                            /* handle the inevent */
-                            client_on_inotify_event(client, inevent);
+                                /* handle the inevent */
+                                client_on_inotify_event(client, inevent);
+                            }
                         }
 
                         /* update the index to the start of the next event */
