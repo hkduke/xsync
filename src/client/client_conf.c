@@ -831,12 +831,38 @@ extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watchd
     return err;
 }
 
+__no_warning_unused(static)
+int on_timer_event_clear_entry (mul_event_hdl eventhdl, int argid, void *arg, void *param)
+{
+    int ret = 0;
+
+    XS_client client = (XS_client) param;
+    XS_watch_entry entry = (XS_watch_entry) arg;
+
+    if (xs_entry_not_inuse(entry)) {
+        if (XS_client_lock(client) == 0) {
+
+            if (client_remove_watch_entry_inlock(client, entry)) {
+                // 删除事件成功, 释放增加到定时器中的引用: entry
+                XS_watch_entry_release(&entry);
+
+                // 删除事件成功, 移除本事件
+                ret = -1;
+            }
+
+            XS_client_unlock(client);
+        }
+    }
+
+    return ret;
+}
+
 
 extern int XS_client_prepare_events (XS_client client, const XS_watch_path wp, struct inotify_event *inevent, XS_watch_event events[])
 {
     int events_maxsid = 0;
 
-    if (XS_client_trylock(client) == 0) {
+    if (XS_client_lock(client) == 0) {
         int sid = 1;
         int maxsid = XS_client_get_server_maxid(client);
 
@@ -850,16 +876,30 @@ extern int XS_client_prepare_events (XS_client client, const XS_watch_path wp, s
                 XS_watch_entry_create(wp, sid, inevent->name, inevent->len, &entry);
 
                 if (client_add_watch_entry_inlock(client, entry)) {
-                    // 成功添加 watch_entry 到 client 的 entry_map 中
-                    XS_watch_event watch_event;
+                    // 成功添加 watch_entry 到 client 的 entry_map 中, 添加到定时器
+                    // 增加 entry 计数
+                    RefObjectRetain((void**) &entry);
 
-                    // alway success to create watch event
-                    XS_watch_event_create(inevent->mask, client, entry, &watch_event);
+                    if (mul_timer_set_event(sid,
+                            60,
+                            MULTIMER_EVENT_INFINITE,
+                            on_timer_event_clear_entry,
+                            entry->hash,
+                            (void*) entry,
+                            MULTIMER_EVENT_CB_BLOCK) > 0)
+                    {
+                        XS_watch_event watch_event;
 
-                    events[sid] = watch_event;
-                    events_maxsid = sid;
+                        // alway success to create watch event
+                        XS_watch_event_create(inevent->mask, client, entry, &watch_event);
 
-                    //TODO: mul_timer_set_event(20, 3, MULTIMER_EVENT_INFINITE, on_timer_event, 0);
+                        events[sid] = watch_event;
+                        events_maxsid = sid;
+                    } else {
+                        XS_watch_entry_release(&entry);
+
+                        LOGGER_ERROR("mul_timer_set_event failed");
+                    }
                 } else {
                     XS_watch_entry_release(&entry);
                 }
@@ -871,3 +911,4 @@ extern int XS_client_prepare_events (XS_client client, const XS_watch_path wp, s
 
     return events_maxsid;
 }
+

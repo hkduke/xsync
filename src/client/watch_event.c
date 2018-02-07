@@ -35,14 +35,21 @@ void xs_watch_event_delete (void *pv)
 {
     XS_watch_event event = (XS_watch_event) pv;
 
+    LOGGER_TRACE0();
+
+    // 本对象(event)即将被删除, 先设置本对象不再被 entry 使用
+    *(event->entry->event_addr) = 0;
+
+    // 释放引用计数
     XS_watch_entry_release(&event->entry);
     XS_client_release(&event->client);
+
+    event->entry = 0;
+    event->client = 0;
 
     // DONOT release XS_server_opts since it not a RefObject !
 
     free(pv);
-
-    LOGGER_TRACE0();
 }
 
 
@@ -54,7 +61,10 @@ extern XS_VOID XS_watch_event_create (int eventid, XS_client client, XS_watch_en
 
     event = (XS_watch_event) mem_alloc(1, sizeof(struct xs_watch_event_t));
 
+    // 增加 client 计数
     event->client = (XS_client) RefObjectRetain((void**) &client);
+
+    // 增加 entry 计数
     event->entry = (XS_watch_entry) RefObjectRetain((void**) &entry);
 
     if (! event->client || ! event->entry) {
@@ -67,6 +77,9 @@ extern XS_VOID XS_watch_event_create (int eventid, XS_client client, XS_watch_en
     event->taskid = __interlock_add(&client->task_counter);
 
     *outEvent = (XS_watch_event) RefObjectInit(event);
+
+    // 保存 event 的地址, 不要增加引用计数
+    *(entry->event_addr) = event;
 
     LOGGER_TRACE("wevent=%p (task=%lld)", event, (long long) event->taskid);
 }

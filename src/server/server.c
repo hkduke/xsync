@@ -95,7 +95,7 @@ int main (int argc, char *argv[])
 
     printf("TODO: %s-%s start ...\n", APP_NAME, APP_VERSION);
 
-    err = mul_timer_init(mul_timeunit_sec, 1, 10, sigalarm_handler, 0, 0);
+    err = mul_timer_init(MUL_TIMEUNIT_SEC, 1, 10, sigalarm_handler, 0, 0);
     assert(! err);
 
     /*

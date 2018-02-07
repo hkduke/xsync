@@ -34,7 +34,7 @@
  * author: master@pepstack.com
  *
  * create: 2018-02-03 11:00
- * update: 2018-02-04
+ * update: 2018-02-07
  **********************************************************************/
 #ifndef MUL_TIMER_H_INCLUDED
 #define MUL_TIMER_H_INCLUDED
@@ -50,10 +50,14 @@ extern "C"
 
 #if defined(_WINDOWS_MSVC)
     void __stdcall win_sigalarm_handler (PVOID lpParameter, BOOLEAN TimerOrWaitFired);
+
+    #define MULTIMER_DEFAULT_HANDLER  win_sigalarm_handler
 #endif
 
 #if defined(_LINUX_GNUC)
     extern void sigalarm_handler(int signo);
+
+    #define MULTIMER_DEFAULT_HANDLER  sigalarm_handler
 #endif
 
 
@@ -168,14 +172,14 @@ typedef int (*mul_event_cb_func)(mul_event_hdl eventhdl, int event_argid, void *
 
 typedef enum
 {
-    mul_timeunit_sec =  0
+    MUL_TIMEUNIT_SEC =  0
 
 #if MULTIMER_MILLI_SECOND == 1000
-    ,mul_timeunit_msec = 1
+    ,MUL_TIMEUNIT_MSEC = 1
 #endif
 
 #if MULTIMER_MICRO_SECOND == 1000000
-    ,mul_timeunit_usec = 2
+    ,MUL_TIMEUNIT_USEC = 2
 #endif
 } mul_timeunit_t;
 
@@ -354,10 +358,12 @@ inline int mul_timer_fire_event (mul_timer_t *mtr, mul_counter_t fireon_counter)
             if (event->refc > 0) {
                 if (event->cb_flag == MULTIMER_EVENT_CB_BLOCK) {
                     /**
-                     * 激发事件回调函数, 目前不处理返回结果
+                     * 激发事件回调函数, 返回结果 (-1) 删除事件
                      * !! 回调函数不可以在 timer_event_cb 中长时间阻塞执行 !!
                      */
-                    event->timer_event_cb(&event->eventid, event->eventargid, event->eventarg, mtr->lpParameter);
+                    if (event->timer_event_cb(&event->eventid, event->eventargid, event->eventarg, mtr->lpParameter) == -1) {
+                        __interlock_release(&event->refc);
+                    }
                 } else if (event->cb_flag == MULTIMER_EVENT_CB_NONBLOCK) {
                     assert("MULTIMER_EVENT_CB_NONBLOCK not support!");
                 } else {

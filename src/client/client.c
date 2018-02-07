@@ -99,11 +99,6 @@ int main (int argc, char *argv[])
 
     clientapp_opts opts;
 
-    if (mul_timer_init(mul_timeunit_sec, 1, 10, sigalarm_handler, 0, 0) != 0) {
-        fprintf(stderr, "\033[1;31m[error]\033[0m mul_timer_init failed.\033[0m\n");
-        return (-1);
-    }
-
     clientapp_opts_initiate(argc, argv, &opts);
 
     void sig_chld(int);

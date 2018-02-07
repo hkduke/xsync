@@ -224,7 +224,7 @@ extern int mul_timer_init (mul_timeunit_t timeunit, unsigned int timeintval, uns
     }
 #endif
 
-    if (timeunit == mul_timeunit_sec) {
+    if (timeunit == MUL_TIMEUNIT_SEC) {
         /** 定义首次激发延迟时间: setitimer 之后 timeval_delay 首次激发 */
         mtr->value.it_value.tv_sec = delay;
         mtr->value.it_value.tv_usec = 0;
@@ -236,7 +236,7 @@ extern int mul_timer_init (mul_timeunit_t timeunit, unsigned int timeintval, uns
 
 #if MULTIMER_MILLI_SECOND == 1000
     /** 如果支持毫秒定时器 */
-    else if (timeunit == mul_timeunit_msec) {
+    else if (timeunit == MUL_TIMEUNIT_MSEC) {
         /** 定义首次激发延迟时间: setitimer 之后 timeval_delay 首次激发 */
         mtr->value.it_value.tv_sec = delay / MULTIMER_MILLI_SECOND;
         mtr->value.it_value.tv_usec = (delay % MULTIMER_MILLI_SECOND) * MULTIMER_MILLI_SECOND;
@@ -249,7 +249,7 @@ extern int mul_timer_init (mul_timeunit_t timeunit, unsigned int timeintval, uns
 
 #if MULTIMER_MICRO_SECOND == 1000000
     /** 如果支持微秒定时器 */
-    else if (timeunit == mul_timeunit_usec) {
+    else if (timeunit == MUL_TIMEUNIT_USEC) {
         mtr->value.it_value.tv_sec = delay / MULTIMER_MICRO_SECOND;
         mtr->value.it_value.tv_usec = (delay % MULTIMER_MICRO_SECOND) * MULTIMER_MICRO_SECOND;
 
@@ -511,23 +511,23 @@ extern mul_eventid_t mul_timer_set_event (bigint_t delay, bigint_t interval, mul
 
     if (delay < 0 || interval < 0 || count <= 0) {
         /** 无效的定时器 */
-        return (-2);
+        return (-3);
     }
 
-    if (mtr->timeunit_id == mul_timeunit_sec) {
+    if (mtr->timeunit_id == MUL_TIMEUNIT_SEC) {
         delay_usec = delay * 1000000;
         interval_usec = interval * 1000000;
     }
 
 #if MULTIMER_MILLI_SECOND == 1000
-    else if (mtr->timeunit_id == mul_timeunit_msec) {
+    else if (mtr->timeunit_id == MUL_TIMEUNIT_MSEC) {
         delay_usec = delay * MULTIMER_MILLI_SECOND;
         interval_usec = interval * MULTIMER_MILLI_SECOND;
     }
 #endif
 
 #if MULTIMER_MICRO_SECOND == 1000000
-    else if (mtr->timeunit_id == mul_timeunit_usec) {
+    else if (mtr->timeunit_id == MUL_TIMEUNIT_USEC) {
         delay_usec = delay;
         interval_usec = interval;
     }
@@ -605,7 +605,6 @@ extern mul_eventid_t mul_timer_set_event (bigint_t delay, bigint_t interval, mul
 
     /** 设置引用计数 */
     new_event->refc = count;
-
     new_event->cb_flag = event_cb_flag;
 
     threadlock_unlock(&mtr->lock);

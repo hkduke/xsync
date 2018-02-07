@@ -70,8 +70,6 @@ extern XS_VOID XS_client_release (XS_client *pClient);
 
 extern int XS_client_lock (XS_client client);
 
-extern int XS_client_trylock (XS_client client);
-
 extern void XS_client_unlock (XS_client client);
 
 extern XS_VOID XS_client_bootstrap (XS_client client);

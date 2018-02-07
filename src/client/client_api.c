@@ -168,11 +168,11 @@ XS_RESULT client_on_inotify_event (XS_client client, struct inotify_event * inev
             err = threadpool_add(client->pool, watch_event_task, (void*) event, XS_watch_event_type_inotify);
 
             if (err) {
-                // failed
+                // 增加到线程池失败
                 XS_watch_event_release(&event);
                 LOGGER_WARN("threadpool_add event error(%d): %s", err, threadpool_error_messages[-err]);
             } else {
-                // success
+                // 增加到线程池成功
                 LOGGER_TRACE("threadpool_add event success");
             }
         }
@@ -274,19 +274,33 @@ extern XS_RESULT XS_client_create (clientapp_opts *opts, XS_client *outClient)
     LOGGER_DEBUG("threadpool_create: (threads=%d, queues=%d)", THREADS, QUEUES);
     client->pool = threadpool_create(THREADS, QUEUES, client->thread_args, 0);
     if (! client->pool) {
-        LOGGER_FATAL("threadpool_create error: Out of memory");
         xs_client_delete((void*) client);
-        return XS_ERROR;
-    }
 
-    get_multimer_singleton();
+        LOGGER_FATAL("threadpool_create error: Out of memory");
+
+        // 失败退出程序
+        exit(XS_ERROR);
+    }
 
     /**
      * output XS_client
      */
     *outClient = (XS_client) RefObjectInit(client);
 
+    // 创建定时器
+    if (mul_timer_init(MUL_TIMEUNIT_SEC, 1, 60, MULTIMER_DEFAULT_HANDLER, client, 0) != 0) {
+        XS_client_release(&client);
+
+        LOGGER_FATAL("mul_timer_init error");
+
+        // 失败退出程序
+        exit(XS_ERROR);
+    }
+
     LOGGER_TRACE("client=%p", client);
+
+    mul_timer_start();
+
     return XS_SUCCESS;
 }
 
@@ -299,19 +313,7 @@ extern XS_VOID XS_client_release (XS_client * inClient)
 }
 
 
-extern XS_RESULT XS_client_lock (XS_client client)
-{
-    int err = RefObjectLock(client);
-
-    if (err) {
-        LOGGER_WARN("RefObjectLock error(%d): %s", err, strerror(err));
-    }
-
-    return err;
-}
-
-
-extern int XS_client_trylock (XS_client client)
+extern int XS_client_lock (XS_client client)
 {
     int err = RefObjectTryLock(client);
 

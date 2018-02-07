@@ -281,14 +281,15 @@ XS_BOOL client_find_watch_entry_inlock (XS_client client, int sid, int wd, const
 {
     XS_watch_entry entry;
 
-    snprintf(client->inlock_buffer, XSYNC_IO_BUFSIZE, "%d:%d/%s", sid, wd, filename);
-    client->inlock_buffer[XSYNC_IO_BUFSIZE - 1] = 0;
+    char nameid[XSYNC_IO_BUFSIZE];
+    snprintf(nameid, XSYNC_IO_BUFSIZE, "%d:%d/%s", sid, wd, filename);
+    nameid[XSYNC_IO_BUFSIZE - 1] = 0;
 
-    int hash = xs_watch_entry_hash(client->inlock_buffer);
+    int hash = xs_watch_entry_hash(nameid);
 
     entry = client->entry_map[hash];
     while (entry) {
-        if (! strcmp(entry->namebuf, client->inlock_buffer)) {
+        if (! strcmp(entry->namebuf, nameid)) {
             if (outEntry) {
                 *outEntry = entry;
             }
@@ -324,6 +325,42 @@ XS_BOOL client_add_watch_entry_inlock (XS_client client, XS_watch_entry entry)
     entry->next = first;
     client->entry_map[entry->hash] = entry;
 
+    return XS_TRUE;
+}
+
+
+__no_warning_unused(static)
+XS_BOOL client_remove_watch_entry_inlock (XS_client client, XS_watch_entry entry)
+{
+    XS_watch_entry first;
+
+    first = client->entry_map[entry->hash];
+    if (! first) {
+        LOGGER_ERROR("application error: entry not found. (%s)", xs_entry_nameid(entry));
+        return XS_TRUE;
+    }
+
+    if (first == entry) {
+        client->entry_map[entry->hash] = first->next;
+        first->next = 0;
+
+        XS_watch_entry_release(&entry);
+        return XS_TRUE;
+    }
+
+    while (first->next && first->next != entry) {
+        first = first->next;
+    }
+
+    if (first->next == entry) {
+        first->next = entry->next;
+        entry->next = 0;
+
+        XS_watch_entry_release(&entry);
+        return XS_TRUE;
+    }
+
+    LOGGER_ERROR("application error: entry not found. (%s)", xs_entry_nameid(entry));
     return XS_TRUE;
 }
 
