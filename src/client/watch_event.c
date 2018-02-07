@@ -55,7 +55,7 @@ void xs_watch_event_delete (void *pv)
 }
 
 
-extern XS_VOID XS_watch_event_create (int eventid, XS_client client, XS_watch_entry entry, XS_watch_event *outEvent)
+extern XS_VOID XS_watch_event_create (int inevent_mask, XS_client client, XS_watch_entry entry, XS_watch_event *outEvent)
 {
     XS_watch_event event;
 
@@ -75,7 +75,9 @@ extern XS_VOID XS_watch_event_create (int eventid, XS_client client, XS_watch_en
     }
 
     event->server = XS_client_get_server_opts(client, entry->sid);
-    event->ineventid = eventid;
+
+    event->inevent_mask = inevent_mask;
+
     event->taskid = __interlock_add(&client->task_counter);
 
     *outEvent = (XS_watch_event) RefObjectInit(event);

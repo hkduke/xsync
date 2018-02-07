@@ -157,10 +157,11 @@ XS_RESULT client_on_inotify_event (XS_client client, struct inotify_event * inev
 {
     int err, sid, num;
 
-    if (inevent->mask & IN_ISDIR) {
-        XS_watch_path wp;
+    XS_watch_path wp;
 
-        if (inevent->len <= 0) {
+    if (inevent->mask & IN_ISDIR) {
+        // 目录事件
+        if (! inevent->len) {
             LOGGER_FATAL("inotify error");
             return XS_E_INOTIFY;
         }
@@ -168,9 +169,20 @@ XS_RESULT client_on_inotify_event (XS_client client, struct inotify_event * inev
         wp = client_wd_table_lookup(client, inevent->wd);
         assert(wp && wp->watch_wd == inevent->wd);
 
-        LOGGER_DEBUG("wd=%d mask=%d cookie=%d len=%d dir=yes. (%s/%s)",
-            inevent->wd, inevent->mask, inevent->cookie, inevent->len,
-            wp->fullpath, inevent->name);
+        LOGGER_WARN("TODO: inevent dir: '%s/%s'", wp->fullpath, inevent->name);
+
+        return XS_E_NOTIMP;
+    } else {
+        // 文件事件
+        if (! inevent->len) {
+            LOGGER_FATAL("inotify error");
+            return XS_E_INOTIFY;
+        }
+
+        wp = client_wd_table_lookup(client, inevent->wd);
+        assert(wp && wp->watch_wd == inevent->wd);
+
+        LOGGER_DEBUG("inevent file: '%s/%s'", wp->fullpath, inevent->name);
 
         /**
          * 如果队列空闲才能加入事件
@@ -186,28 +198,30 @@ XS_RESULT client_on_inotify_event (XS_client client, struct inotify_event * inev
             for (sid = 1; sid <= num; sid++) {
                 XS_watch_event event = events[sid];
 
-                err = threadpool_add(client->pool, watch_event_task, (void*) event, XS_watch_event_type_inotify);
+                if (event) {
+                    err = threadpool_add(client->pool, watch_event_task, (void*) event, XS_watch_event_type_inotify);
 
-                if (err) {
-                    // 增加到线程池失败
-                    XS_watch_event_release(&event);
+                    if (err) {
+                        LOGGER_ERROR("threadpool_add task(=%lld) error(%d): %s",
+                            (long long) event->taskid, err, threadpool_error_messages[-err]);
 
-                    LOGGER_ERROR("threadpool_add error(%d): %s", err, threadpool_error_messages[-err]);
-                    return XS_E_POOL;
-                } else {
+                        // 增加到线程池失败
+                        XS_watch_event_release(&event);
+
+                        return XS_E_POOL;
+                    }
+
                     // 增加到线程池成功
-                    LOGGER_TRACE("threadpool_add event success");
-
-                    return XS_SUCCESS;
+                    LOGGER_TRACE("threadpool_add task(=%lld) success", (long long) event->taskid);
                 }
             }
-        } else {
-            LOGGER_WARN("threadpool is full");
-            return XS_E_POOL;
-        }
-    }
 
-    return XS_E_NOTIMP;
+            return XS_SUCCESS;
+        }
+
+        LOGGER_WARN("threadpool is full");
+        return XS_E_POOL;
+    }
 }
 
 
@@ -437,12 +451,17 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
 
                             break;
                         } else {
+                            LOGGER_DEBUG("inevent: wd=%d mask=%d cookie=%d len=%d dir=%c name='%s'",
+                                inevent->wd, inevent->mask, inevent->cookie, inevent->len,
+                                ((inevent->mask & IN_ISDIR)? 'Y' : 'N'),
+                                (inevent->len? inevent->name : ""));
+
                             /* handle the inevent */
                             client_on_inotify_event(client, inevent);
-
-                            /* update the index to the start of the next event */
-                            at += sizeof(struct inotify_event) + inevent->len;
                         }
+
+                        /* update the index to the start of the next event */
+                        at += sizeof(struct inotify_event) + inevent->len;
                     }
                 }
             }

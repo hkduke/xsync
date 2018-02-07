@@ -53,8 +53,8 @@ typedef struct xs_watch_event_t
 {
     EXTENDS_REFOBJECT_TYPE();
 
-    /* inotify event identifier */
-    int               ineventid;
+    /* inotify event mask */
+    int               inevent_mask;
 
     /* task serial id */
     int64_t          taskid;
@@ -71,7 +71,7 @@ typedef struct xs_watch_event_t
 } xs_watch_event_t;
 
 
-extern XS_VOID XS_watch_event_create (int eventid, XS_client client, XS_watch_entry entry, XS_watch_event *outEvent);
+extern XS_VOID XS_watch_event_create (int inevent_mask, XS_client client, XS_watch_entry entry, XS_watch_event *outEvent);
 
 extern XS_VOID XS_watch_event_release (XS_watch_event *inEvent);
 

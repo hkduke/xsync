@@ -72,7 +72,7 @@ typedef struct xs_client_t
     pthread_cond_t  condition;
 
     /* 任务数量 */
-    int64_t task_counter;
+    ref_counter_t task_counter;
 
     /* 客户端唯一 ID */
     char clientid[XSYNC_CLIENTID_MAXLEN + 1];
