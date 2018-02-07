@@ -123,15 +123,16 @@ extern "C"
     #define threadlock_unlock(lock)      LeaveCriticalSection(lock)
 
     /* refcount */
-    #define __interlock_add(add)        InterlockedIncrement64(add)
-    #define __interlock_sub(sub)        InterlockedDecrement64(sub)
-    #define __interlock_release(val)    InterlockedExchange64(val, 0)
+    #define __interlock_add(addr)        InterlockedIncrement64(addr)
+    #define __interlock_sub(addr)        InterlockedDecrement64(addr)
+    #define __interlock_release(addr)    InterlockedExchange64(addr, 0)
 
     /**
      * InterlockedCompareExchange64
      *   https://msdn.microsoft.com/en-us/library/windows/desktop/ms683562(v=vs.85).aspx
      */
-    #define __interlock_get(val)        InterlockedCompareExchange64(val, 0, 0)
+    #define __interlock_get(addr)            InterlockedCompareExchange64(addr, 0, 0)
+    #define __interlock_set(addr, newval)   InterlockedExchange64(addr, newval)
 
     /* get current thread id */
     #define gettid()  GetCurrentThreadId(void)
@@ -164,11 +165,13 @@ extern "C"
     #define threadlock_unlock(lock)       pthread_mutex_unlock(lock)
 
     /* refcount */
-    #define __interlock_add(add)         __sync_add_and_fetch(add, 1)
-    #define __interlock_sub(sub)         __sync_sub_and_fetch(sub, 1)
-    #define __interlock_release(val)     __sync_lock_release(val)
+    #define __interlock_add(addr)         __sync_add_and_fetch(addr, 1)
+    #define __interlock_sub(addr)         __sync_sub_and_fetch(addr, 1)
+    #define __interlock_release(addr)     __sync_lock_release(addr)
 
-    #define __interlock_get(val)         __sync_fetch_and_add(val, 0)
+    #define __interlock_get(addr)         __sync_fetch_and_add(addr, 0)
+    #define __interlock_set(addr, newval)   __sync_lock_test_and_set(addr, newval)
+
 
     /* get current thread id */
     #define gettid()    syscall(__NR_gettid)

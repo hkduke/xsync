@@ -69,7 +69,7 @@ extern XS_VOID XS_watch_entry_create (const XS_watch_path wp, int sid, const cha
 
     entry->cretime = time(0);
 
-    entry->in_use = 1;
+    __interlock_set(&entry->in_use, 1);
 
     *outEntry = (XS_watch_entry) RefObjectInit(entry);
 

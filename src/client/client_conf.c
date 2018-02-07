@@ -959,11 +959,11 @@ extern int XS_client_prepare_events (XS_client client, const XS_watch_path wp, s
                             MULTIMER_EVENT_CB_BLOCK) > 0)
                     {
                         // XS_watch_event_create alway success
-                        XS_watch_event watch_event;
+                        XS_watch_event event;
 
-                        XS_watch_event_create(inevent->mask, client, entry, &watch_event);
+                        XS_watch_event_create(inevent->mask, client, entry, &event);
 
-                        events[sid] = watch_event;
+                        events[sid] = event;
                         events_maxsid = sid;
                     } else {
                         XS_watch_entry_release(&entry);
@@ -976,11 +976,11 @@ extern int XS_client_prepare_events (XS_client client, const XS_watch_path wp, s
             } else if (XS_watch_entry_not_in_use(entry)) {
                 // 发现存在 watch_entry, 且未被使用
                 // XS_watch_event_create alway success
-                XS_watch_event watch_event;
+                XS_watch_event event;
 
-                XS_watch_event_create(inevent->mask, client, entry, &watch_event);
+                XS_watch_event_create(inevent->mask, client, entry, &event);
 
-                events[sid] = watch_event;
+                events[sid] = event;
                 events_maxsid = sid;
             }
         }

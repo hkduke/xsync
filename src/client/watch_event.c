@@ -77,6 +77,8 @@ extern XS_VOID XS_watch_event_create (int inevent_mask, XS_client client, XS_wat
         exit(XS_ERROR);
     }
 
+    __interlock_set(&entry->in_use, 1);
+
     event->server = XS_client_get_server_opts(client, entry->sid);
 
     event->inevent_mask = inevent_mask;
@@ -106,7 +108,8 @@ extern ssize_t XS_watch_event_sync_file (XS_watch_event event, perthread_data *p
     unsigned int sendbytes = 0;
 
     XS_watch_entry entry = event->entry;
-    assert(entry && entry->in_use);
+    assert(entry);
+    assert(entry->in_use);
 
     int sid = entry->sid;
     int sockfd = perdata->sockfds[sid];
