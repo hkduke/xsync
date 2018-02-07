@@ -40,7 +40,9 @@ void xs_watch_event_delete (void *pv)
     // 本对象(event)即将被删除, 先设置本对象不再被 entry 使用
     assert(event->entry);
 
-    // 告诉 entry 不再使用
+    // 告诉 entry 不再使用, 先关闭文件对象
+    watch_entry_close_file(event->entry);
+
     __interlock_release(&event->entry->in_use);
 
     // 释放引用计数
@@ -96,25 +98,46 @@ extern XS_VOID XS_watch_event_release (XS_watch_event *inEvent)
 
 
 /* called in event_task() */
-extern unsigned int XS_watch_event_sync_file (XS_watch_event event, perthread_data *perdata)
+extern ssize_t XS_watch_event_sync_file (XS_watch_event event, perthread_data *perdata)
 {
+    off_t pos;
+    ssize_t cbread;
+
     unsigned int sendbytes = 0;
 
-    int sid = event->entry->sid;
+    XS_watch_entry entry = event->entry;
+    assert(entry && entry->in_use);
 
+    int sid = entry->sid;
     int sockfd = perdata->sockfds[sid];
 
-    while (sendbytes < XSYNC_BATCH_SEND_MAX_SIZE) {
-        #if XSYNC_LINUX_SEND_FILE == 1
-            //watch_entry_read_and_sendfile
-            LOGGER_WARN("TODO: sendfile");
-        #else
-            //watch_entry_read_and_senddata
-            LOGGER_WARN("TODO: sendbytes");
-        #endif
+    if (sockfd == -1) {
+        LOGGER_WARN("TODO: sockfd error");
+    }
 
-        sendbytes = 69123;
-        break;
+    int rofd = watch_entry_open_file(entry);
+
+    if (rofd != -1) {
+        pos = (off_t) entry->offset;
+
+        while (sendbytes < XSYNC_BATCH_SEND_MAX_SIZE &&
+            (cbread = pread_len(rofd, perdata->buffer, sizeof(perdata->buffer), pos)) > 0) {
+
+            #if XSYNC_LINUX_SEND_FILE == 1
+                //watch_entry_read_and_sendfile
+                LOGGER_WARN("TODO: sendfile: %lld bytes", (long long) cbread);
+            #else
+                //watch_entry_read_and_senddata
+                LOGGER_WARN("TODO: sendbytes: %lld bytes", (long long) cbread);
+            #endif
+
+            entry->offset += cbread;
+            sendbytes += cbread;
+
+            pos = (off_t) entry->offset;
+        }
+
+        watch_entry_close_file(event->entry);
     }
 
     return sendbytes;

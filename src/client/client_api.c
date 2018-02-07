@@ -146,7 +146,7 @@ void event_task (thread_context_t *thread_ctx)
             (long long) event->entry->entryid,
             (long long) event->entry->offset);
 
-        unsigned int sendbytes = XS_watch_event_sync_file(event, (perthread_data *) thread_ctx->thread_arg);
+        ssize_t sendbytes = XS_watch_event_sync_file(event, (perthread_data *) thread_ctx->thread_arg);
 
         LOGGER_TRACE("thread-%d: end task=%lld (entryid=%llu,  offset=%llu, send=%lu)",
             thread_ctx->id, (long long) event->taskid,

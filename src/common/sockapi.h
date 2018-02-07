@@ -498,10 +498,10 @@ static inline int recv_bulky (SOCKET s, char* bulk, int len, int rcvl/* length p
 
 
 __attribute__((unused))
-static inline ssize_t pread_len (int fd, char * buf, size_t len, off_t pos)
+static ssize_t pread_len (int fd, unsigned char *buf, size_t len, off_t pos)
 {
     ssize_t rc;
-    char * pb = buf;
+    unsigned char *pb = buf;
 
     while (len != 0 && (rc = pread (fd, (void*) pb, len, pos)) != 0) {
         if (rc == -1) {

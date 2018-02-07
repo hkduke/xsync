@@ -58,7 +58,7 @@ extern XS_VOID XS_watch_entry_create (const XS_watch_path wp, int sid, const cha
     memcpy(xs_entry_fullpath(entry), wp->fullpath, wp->pathsize);
     memcpy(xs_entry_fullpath(entry) + wp->pathsize, filename, namelen);
 
-    // xs_entry_fullpath(entry)[xs_entry_path_endpos(entry)] = '/';
+    xs_entry_fullpath(entry)[xs_entry_path_endpos(entry)] = '/';
 
     entry->rofd = -1;
 
@@ -81,7 +81,7 @@ extern XS_VOID XS_watch_entry_release (XS_watch_entry * inEntry)
 {
     LOGGER_TRACE0();
 
-    RefObjectRelease((void**) inEntry, xs_watch_entry_delete);
+    RefObjectRelease((void**) inEntry, watch_entry_delete);
 }
 
 

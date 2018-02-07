@@ -91,6 +91,7 @@ typedef struct xs_watch_entry_t
     uint64_t entryid;
 
     int rofd;                           /* local file descriptor for read only: -1 error or uninit */
+    struct stat rofd_sb;                /* stat of rofd */
     uint64_t offset;                    /* current offset position */
 
     /* read only members */
@@ -115,8 +116,64 @@ typedef struct xs_watch_entry_t
 } xs_watch_entry_t;
 
 
+/* close entry file */
 __no_warning_unused(static)
-void xs_watch_entry_delete(void *pv)
+void watch_entry_close_file (XS_watch_entry entry)
+{
+    if (entry->rofd != -1) {
+        const char * entryfile = xs_entry_fullpath(entry);
+
+        int fd = entry->rofd;
+        entry->rofd = -1;
+
+        if (close(fd) == -1) {
+            /* exception error */
+            LOGGER_ERROR("close file error(%d): %s. (%s)", errno, strerror(errno), entryfile);
+        } else {
+            LOGGER_DEBUG("close file ok. (%s)", entryfile);
+        }
+    }
+
+    assert(entry->rofd == -1);
+}
+
+
+/* open entry file */
+__no_warning_unused(static)
+int watch_entry_open_file (XS_watch_entry entry)
+{
+    const char *entryfile = xs_entry_fullpath(entry);
+
+    watch_entry_close_file(entry);
+
+    entry->rofd = open(entryfile, O_RDONLY | O_NONBLOCK| O_NOFOLLOW);
+
+    if (entry->rofd == -1) {
+        LOGGER_ERROR("open error(%d): %s. (%s)", errno, strerror(errno), entryfile);
+        return -1;
+    }
+
+    /* update file status for last modification time */
+    if (fstat(entry->rofd, &entry->rofd_sb) != 0) {
+        LOGGER_ERROR("fstat error(%d): %s. (%s)", errno, strerror(errno), entryfile);
+        watch_entry_close_file(entry);
+        return -1;
+    }
+
+    /* update time of entry */
+    entry->curtime = time(0);
+
+    LOGGER_DEBUG("open success: size=%lld, mtime=%lld. (%s)",
+        (long long) entry->rofd_sb.st_size,
+        (long long) entry->rofd_sb.st_mtime,
+        entryfile);
+
+    return entry->rofd;
+}
+
+
+__no_warning_unused(static)
+inline void watch_entry_delete(void *pv)
 {
     XS_watch_entry entry = (XS_watch_entry) pv;
 
@@ -124,9 +181,7 @@ void xs_watch_entry_delete(void *pv)
 
     assert(entry->next == 0);
 
-
-    // TODO:
-
+    watch_entry_close_file(entry);
 
     free((void *) entry);
 }
