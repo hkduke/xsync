@@ -830,3 +830,44 @@ extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watchd
 
     return err;
 }
+
+
+extern int XS_client_prepare_events (XS_client client, const XS_watch_path wp, struct inotify_event *inevent, XS_watch_event events[])
+{
+    int events_maxsid = 0;
+
+    if (XS_client_trylock(client) == 0) {
+        int sid = 1;
+        int maxsid = XS_client_get_server_maxid(client);
+
+        for (; sid <= maxsid; sid++) {
+            events[sid] = 0;
+
+            if (! client_find_watch_entry_inlock(client, sid, inevent->wd, inevent->name, 0)) {
+                XS_watch_entry entry;
+
+                // alway success for create watch entry
+                XS_watch_entry_create(wp, sid, inevent->name, inevent->len, &entry);
+
+                if (client_add_watch_entry_inlock(client, entry)) {
+                    // 成功添加 watch_entry 到 client 的 entry_map 中
+                    XS_watch_event watch_event;
+
+                    // alway success to create watch event
+                    XS_watch_event_create(inevent->mask, client, entry, &watch_event);
+
+                    events[sid] = watch_event;
+                    events_maxsid = sid;
+
+                    //TODO: mul_timer_set_event(20, 3, MULTIMER_EVENT_INFINITE, on_timer_event, 0);
+                } else {
+                    XS_watch_entry_release(&entry);
+                }
+            }
+        }
+
+        XS_client_unlock(client);
+    }
+
+    return events_maxsid;
+}

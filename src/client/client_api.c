@@ -142,7 +142,7 @@ void watch_event_task (thread_context_t * thread_ctx)
 __no_warning_unused(static)
 XS_RESULT client_on_inotify_event (XS_client client, struct inotify_event * inevent)
 {
-    int num;
+    int err, sid, num;
 
     xs_watch_path_t *wp = client_wd_table_lookup(client, inevent->wd);
     assert(wp && wp->watch_wd == inevent->wd);
@@ -158,33 +158,22 @@ XS_RESULT client_on_inotify_event (XS_client client, struct inotify_event * inev
     LOGGER_TRACE("threadpool_unused_queues=%d", num);
 
     if (num > 0) {
-        int sid, err;
+        XS_watch_event events[XSYNC_SERVER_MAXID + 1] = {0};
 
-        err = XS_client_lock(client);
-        if (! err) {
+        num = XS_client_prepare_events(client, wp, inevent, events);
 
-            XS_watch_event events[XSYNC_SERVER_MAXID + 1] = {0};
+        for (sid = 1; sid <= num; sid++) {
+            XS_watch_event event = events[sid];
 
-            // makeup events
-            int sidmax = client_prepare_events(client, wp, inevent, events);
+            err = threadpool_add(client->pool, watch_event_task, (void*) event, XS_watch_event_type_inotify);
 
-            // unlock immediately
-            XS_client_unlock(client);
-
-            for (sid = 1; sid <= sidmax; sid++) {
-                XS_watch_event event = events[sid];
-
-                err = threadpool_add(client->pool, watch_event_task, (void*) event, XS_watch_event_type_inotify);
-
-                if (! err) {
-                    // success
-                    LOGGER_TRACE("threadpool_add event success");
-                } else {
-                    // error
-                    XS_watch_event_release(&event);
-
-                    LOGGER_WARN("threadpool_add event error(%d): %s", err, threadpool_error_messages[-err]);
-                }
+            if (err) {
+                // failed
+                XS_watch_event_release(&event);
+                LOGGER_WARN("threadpool_add event error(%d): %s", err, threadpool_error_messages[-err]);
+            } else {
+                // success
+                LOGGER_TRACE("threadpool_add event success");
             }
         }
     }
@@ -312,10 +301,22 @@ extern XS_VOID XS_client_release (XS_client * inClient)
 
 extern XS_RESULT XS_client_lock (XS_client client)
 {
-    int err = RefObjectLock((void*) client, 1);
+    int err = RefObjectLock(client);
 
     if (err) {
-        LOGGER_WARN("pthread_mutex_trylock error(%d): %s", err, strerror(err));
+        LOGGER_WARN("RefObjectLock error(%d): %s", err, strerror(err));
+    }
+
+    return err;
+}
+
+
+extern int XS_client_trylock (XS_client client)
+{
+    int err = RefObjectTryLock(client);
+
+    if (err) {
+        LOGGER_WARN("RefObjectTryLock error(%d): %s", err, strerror(err));
     }
 
     return err;
@@ -324,7 +325,7 @@ extern XS_RESULT XS_client_lock (XS_client client)
 
 extern XS_VOID XS_client_unlock (XS_client client)
 {
-    RefObjectUnlock((void*) client);
+    RefObjectUnlock(client);
 }
 
 

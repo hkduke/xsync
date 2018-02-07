@@ -68,8 +68,20 @@ typedef struct RefObjectType
 typedef void (* FinalObjectFunc) (void *);
 
 
-__attribute__((unused))
-static inline RefObjectPtr RefObjectInit (void *pv)
+#define RefObjectLock(pvOb)    \
+    threadlock_lock(&((RefObjectPtr) (pvOb))->lock__)
+
+
+#define RefObjectTryLock(pvOb)    \
+    threadlock_trylock(&((RefObjectPtr) (pvOb))->lock__)
+
+
+#define RefObjectUnlock(pvOb)    \
+    threadlock_unlock(&((RefObjectPtr) (pvOb))->lock__)
+
+
+__no_warning_unused(static)
+inline RefObjectPtr RefObjectInit (void *pv)
 {
     threadlock_init(&((RefObjectPtr) pv)->lock__);
 
@@ -80,8 +92,8 @@ static inline RefObjectPtr RefObjectInit (void *pv)
 }
 
 
-__attribute__((unused))
-static inline RefObjectPtr RefObjectRetain (void **ppv)
+__no_warning_unused(static)
+inline RefObjectPtr RefObjectRetain (void **ppv)
 {
     RefObjectPtr obj = *((RefObjectPtr*) ppv);
 
@@ -100,26 +112,8 @@ static inline RefObjectPtr RefObjectRetain (void **ppv)
 }
 
 
-__attribute__((unused))
-static inline int RefObjectLock (void *pv, int try)
-{
-    if (try) {
-        return threadlock_trylock(&((RefObjectPtr) pv)->lock__);
-    } else {
-        return threadlock_lock(&((RefObjectPtr) pv)->lock__);
-    }
-}
-
-
-__attribute__((unused))
-static inline void RefObjectUnlock (void *pv)
-{
-    threadlock_unlock(&((RefObjectPtr) pv)->lock__);
-}
-
-
-__attribute__((unused))
-static inline void RefObjectRelease (void **ppv, FinalObjectFunc pfnFinalObject)
+__no_warning_unused(static)
+inline void RefObjectRelease (void **ppv, FinalObjectFunc pfnFinalObject)
 {
     RefObjectPtr obj = *((RefObjectPtr *) ppv);
 
