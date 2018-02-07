@@ -73,22 +73,33 @@ typedef struct xs_watch_entry_t
 
     struct xs_watch_entry_t *next;
 
-    uint64_t entryid;                   /* server-side entry id for file, must valid (> 0) */
+    /**
+     * 是否处于使用中
+     *
+     *   1: in use
+     *   0: not in use
+     */
+    int volatile in_use;
+
+    /**
+     * server-side entry id for file, must valid ( > 0)
+     * 服务端返回的唯一文件代码, 必须 > 0. 否则需要向服务端请求这个代码
+     *   0 - 未初始化
+     * > 0 - 初始化
+     *  -1 - 有错误
+     */
+    uint64_t entryid;
+
+    int rofd;                           /* local file descriptor for read only: -1 error or uninit */
+    uint64_t offset;                    /* current offset position */
 
     /* read only members */
     int  sid;                           /* server id receive event */
     int  wd;                            /* watch path descriptor */
+    int hash;                           /* hash id */
 
     time_t cretime;                     /* creation time of the entry */
     time_t curtime;                     /* current time of the entry */
-
-    uint64_t offset;                    /* current offset position */
-
-    int rofd;                           /* read only file descriptor */
-
-    int volatile in_use;               /* 1: in use, 0: not in use */
-
-    int hash;
 
     /**
      * namebuf

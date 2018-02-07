@@ -67,14 +67,32 @@ extern "C"
 /**
  * DO NOT CHANGE BELOW VALUE
  */
-#define XSYNC_IO_BUFSIZE          4096
+#define XSYNC_IO_BUFSIZE        4096
 
 
 /**
  * define max size of path file
  */
 #ifndef XSYNC_PATH_MAX_SIZE
-#  define XSYNC_PATH_MAX_SIZE        PATH_MAX
+#  define XSYNC_PATH_MAX_SIZE   PATH_MAX
+#endif
+
+
+/**
+ * 是否使用 sendfile 直接传输文件. sendfile 只在 Linux 平台支持
+ */
+#ifndef XSYNC_LINUX_SEND_FILE
+#  define XSYNC_LINUX_SEND_FILE   1
+#endif
+
+
+/**
+ * 定义 1 次 (ONE BATCH) 传送文件的最大字节数
+ * 文件应该分次传送，因此 1 次不宜过大.
+ * 默认=INT_MAX : 2GB (=2147483647 Bytes)
+ */
+#ifndef XSYNC_BATCH_SEND_MAX_SIZE
+#  define XSYNC_BATCH_SEND_MAX_SIZE   INT_MAX
 #endif
 
 

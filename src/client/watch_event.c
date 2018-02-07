@@ -40,6 +40,7 @@ void xs_watch_event_delete (void *pv)
     // 本对象(event)即将被删除, 先设置本对象不再被 entry 使用
     assert(event->entry);
 
+    // 告诉 entry 不再使用
     __interlock_release(&event->entry->in_use);
 
     // 释放引用计数
@@ -93,4 +94,29 @@ extern XS_VOID XS_watch_event_release (XS_watch_event *inEvent)
     RefObjectRelease((void**)inEvent, xs_watch_event_delete);
 }
 
+
+/* called in event_task() */
+extern unsigned int XS_watch_event_sync_file (XS_watch_event event, perthread_data *perdata)
+{
+    unsigned int sendbytes = 0;
+
+    int sid = event->entry->sid;
+
+    int sockfd = perdata->sockfds[sid];
+
+    while (sendbytes < XSYNC_BATCH_SEND_MAX_SIZE) {
+        #if XSYNC_LINUX_SEND_FILE == 1
+            //watch_entry_read_and_sendfile
+            LOGGER_WARN("TODO: sendfile");
+        #else
+            //watch_entry_read_and_senddata
+            LOGGER_WARN("TODO: sendbytes");
+        #endif
+
+        sendbytes = 69123;
+        break;
+    }
+
+    return sendbytes;
+}
 

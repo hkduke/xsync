@@ -131,23 +131,33 @@ int OnEventSweepWatchPath (mul_event_hdl eventhdl, int eventargid, void *eventar
 
 
 __no_warning_unused(static)
-void watch_event_task (thread_context_t * thread_ctx)
+void event_task (thread_context_t *thread_ctx)
 {
-    threadpool_task_t * task = thread_ctx->task;
+    threadpool_task_t *task = thread_ctx->task;
 
-    get_multimer_singleton();
-
-    if (task->flags == XS_watch_event_type_inotify) {
+    if (task->flags == 100) {
         XS_watch_event event = (XS_watch_event) task->argument;
 
-        task->flags = XS_watch_event_type_none;
+        task->argument = 0;
+        task->flags = 0;
 
-        LOGGER_WARN("TODO: sendfile to server");
+        LOGGER_TRACE("thread-%d: start task=%lld (entryid=%llu, offset=%llu)",
+            thread_ctx->id, (long long) event->taskid,
+            (long long) event->entry->entryid,
+            (long long) event->entry->offset);
 
-        // MUST release event after using
+        unsigned int sendbytes = XS_watch_event_sync_file(event, (perthread_data *) thread_ctx->thread_arg);
+
+        LOGGER_TRACE("thread-%d: end task=%lld (entryid=%llu,  offset=%llu, send=%lu)",
+            thread_ctx->id, (long long) event->taskid,
+            (long long) event->entry->entryid,
+            (long long) event->entry->offset,
+            (long unsigned int) sendbytes);
+
+        /* MUST release event after use */
         XS_watch_event_release(&event);
     } else {
-        LOGGER_ERROR("unknown event type(=%d)", task->flags);
+        LOGGER_ERROR("unknown event task flags(=%d)", task->flags);
     }
 }
 
@@ -199,7 +209,7 @@ XS_RESULT client_on_inotify_event (XS_client client, struct inotify_event * inev
                 XS_watch_event event = events[sid];
 
                 if (event) {
-                    err = threadpool_add(client->pool, watch_event_task, (void*) event, XS_watch_event_type_inotify);
+                    err = threadpool_add(client->pool, event_task, (void*) event, 100);
 
                     if (err) {
                         LOGGER_ERROR("threadpool_add task(=%lld) error(%d): %s",

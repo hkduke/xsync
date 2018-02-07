@@ -132,7 +132,7 @@ threadpool_t *threadpool_create(int thread_count, int queue_size, void **thread_
         thread_context_t * pctx = & pool->thread_ctxs[i];
 
         /* set thread id: 1 based */
-        pctx->id = i+1;
+        pctx->id = i + 1;
 
         /* set pool to each thread context */
         pctx->pool = (void*) pool;

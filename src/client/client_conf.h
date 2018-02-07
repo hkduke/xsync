@@ -51,17 +51,6 @@ extern "C" {
     (client->servers_opts + sid)
 
 
-typedef struct perthread_data
-{
-    int    threadid;
-
-    int    sessions[XSYNC_SERVER_MAXID + 1];
-    int    sockfds[XSYNC_SERVER_MAXID + 1];
-
-    byte_t buffer[XSYNC_IO_BUFSIZE];
-} perthread_data;
-
-
 /**
  * xs_client_t singleton
  */

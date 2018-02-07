@@ -44,9 +44,16 @@ extern "C" {
 
 #include "../common/common_util.h"
 
-#define XS_watch_event_type_none        0
 
-#define XS_watch_event_type_inotify   100
+typedef struct perthread_data
+{
+    int    threadid;
+
+    int    sessions[XSYNC_SERVER_MAXID + 1];
+    int    sockfds[XSYNC_SERVER_MAXID + 1];
+
+    byte_t buffer[XSYNC_IO_BUFSIZE];
+} perthread_data;
 
 
 typedef struct xs_watch_event_t
@@ -74,6 +81,9 @@ typedef struct xs_watch_event_t
 extern XS_VOID XS_watch_event_create (int inevent_mask, XS_client client, XS_watch_entry entry, XS_watch_event *outEvent);
 
 extern XS_VOID XS_watch_event_release (XS_watch_event *inEvent);
+
+/* called in event_task() */
+extern unsigned int XS_watch_event_sync_file (XS_watch_event event, perthread_data *perdata);
 
 
 #if defined(__cplusplus)
