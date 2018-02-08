@@ -39,8 +39,6 @@ extern "C" {
 #include "../common/common_util.h"
 
 
-
-
 #if defined(__cplusplus)
 }
 #endif

@@ -38,43 +38,43 @@ extern "C"
 #endif
 
 #ifndef XSYNC_CLIENT_APPNAME
-#  define XSYNC_CLIENT_APPNAME   "xsync-client"
+#  define XSYNC_CLIENT_APPNAME          "xsync-client"
 #endif
 
 #ifndef XSYNC_CLIENT_VERSION
-#  define XSYNC_CLIENT_VERSION   "0.0.1"
+#  define XSYNC_CLIENT_VERSION          "0.0.1"
 #endif
 
 
 #ifndef XSYNC_SERVER_APPNAME
-#  define XSYNC_SERVER_APPNAME   "xsync-server"
+#  define XSYNC_SERVER_APPNAME          "xsync-server"
 #endif
 
 #ifndef XSYNC_SERVER_VERSION
-#  define XSYNC_SERVER_VERSION   "0.0.1"
+#  define XSYNC_SERVER_VERSION          "0.0.1"
 #endif
 
 
-#define XSYNC_CLIENT_XMLNS    "http://github.com/pepstack/xsync/client"
+#define XSYNC_CLIENT_XMLNS              "http://github.com/pepstack/xsync/client"
 
-#define XSYNC_SERVER_XMLNS    "http://github.com/pepstack/xsync/server"
+#define XSYNC_SERVER_XMLNS             "http://github.com/pepstack/xsync/server"
 
-#define XSYNC_COPYRIGHT       "pepstack.com"
+#define XSYNC_COPYRIGHT                 "pepstack.com"
 
-#define XSYNC_AUTHOR          "master@pepstack.com"
+#define XSYNC_AUTHOR                    "master@pepstack.com"
 
 
 /**
  * DO NOT CHANGE BELOW VALUE
  */
-#define XSYNC_IO_BUFSIZE        4096
+#define XSYNC_IO_BUFSIZE                4096
 
 
 /**
  * define max size of path file
  */
 #ifndef XSYNC_PATH_MAX_SIZE
-#  define XSYNC_PATH_MAX_SIZE   PATH_MAX
+#  define XSYNC_PATH_MAX_SIZE           PATH_MAX
 #endif
 
 
@@ -82,7 +82,7 @@ extern "C"
  * 是否使用 sendfile 直接传输文件. sendfile 只在 Linux 平台支持
  */
 #ifndef XSYNC_LINUX_SEND_FILE
-#  define XSYNC_LINUX_SEND_FILE   1
+#  define XSYNC_LINUX_SEND_FILE         1
 #endif
 
 
@@ -92,7 +92,7 @@ extern "C"
  * 默认=INT_MAX : 2GB (=2147483647 Bytes)
  */
 #ifndef XSYNC_BATCH_SEND_MAX_SIZE
-#  define XSYNC_BATCH_SEND_MAX_SIZE   INT_MAX
+#  define XSYNC_BATCH_SEND_MAX_SIZE     INT_MAX
 #endif
 
 
@@ -101,7 +101,7 @@ extern "C"
  *   must has R|W permission for current runuser.
  */
 #ifndef XSYNC_PID_PREFIX
-#  define XSYNC_PID_PREFIX  "/var/run/xsync"
+#  define XSYNC_PID_PREFIX              "/var/run/xsync"
 #endif
 
 
@@ -112,83 +112,54 @@ extern "C"
  * Note that you should not set it less than 4096 or more than 65536
  */
 #ifndef XSYNC_INEVENT_BUFSIZE
-#  define XSYNC_INEVENT_BUFSIZE   8192
+#  define XSYNC_INEVENT_BUFSIZE         8192
 #endif
 
 
 /**
  * max threads and queues for client
  */
-#define XSYNC_TASKS_PERTHREAD_MIN      8
+#define XSYNC_TASKS_PERTHREAD_MIN       16
+#define XSYNC_TASKS_PERTHREAD_MAX       128
 
-#define XSYNC_CLIENT_THREADS_MIN       2
-
-
-#ifndef XSYNC_TASKS_PERTHREAD_MAX
-#  define XSYNC_TASKS_PERTHREAD_MAX   (XSYNC_TASKS_PERTHREAD_MIN * 32)
-#elif XSYNC_TASKS_PERTHREAD_MAX < (XSYNC_TASKS_PERTHREAD_MIN * 2)
-#  error XSYNC_TASKS_PERTHREAD_MAX is too less
-#elif XSYNC_TASKS_PERTHREAD_MAX > (XSYNC_TASKS_PERTHREAD_MIN * 64)
-#  error XSYNC_TASKS_PERTHREAD_MAX is too many
-#endif
+#define XSYNC_CLIENT_THREADS_MIN        2
 
 
 #ifndef XSYNC_CLIENT_THREADS_MAX
-#  define XSYNC_CLIENT_THREADS_MAX    16
-#elif XSYNC_CLIENT_THREADS_MAX > 128
-#  error XSYNC_CLIENT_THREADS_MAX is too many
-#elif XSYNC_CLIENT_THREADS_MAX < XSYNC_CLIENT_THREADS_MIN
-#  error XSYNC_CLIENT_THREADS_MAX is too less
+#  define XSYNC_CLIENT_THREADS_MAX      64
 #endif
 
 
-/**
- * XSYNC_CLIENT_QUEUES_MAX = XSYNC_CLIENT_THREADS_MAX * tasks_per_thread
- * 512 = 16 * 32, tasks_per_thread = 32
- */
 #ifndef XSYNC_CLIENT_QUEUES_MAX
-#  define XSYNC_CLIENT_QUEUES_MAX    (XSYNC_CLIENT_THREADS_MAX * XSYNC_TASKS_PERTHREAD_MAX)
-#elif XSYNC_CLIENT_QUEUES_MAX > (XSYNC_CLIENT_THREADS_MAX * XSYNC_TASKS_PERTHREAD_MAX)
-#  error XSYNC_CLIENT_QUEUES_MAX is too many
-#elif XSYNC_CLIENT_QUEUES_MAX < (XSYNC_CLIENT_THREADS_MAX * XSYNC_TASKS_PERTHREAD_MIN)
-#  error XSYNC_CLIENT_QUEUES_MAX is too less
+#  define XSYNC_CLIENT_QUEUES_MAX       4096
 #endif
 
 
 /**
  * max threads and queues for server
  */
-#define XSYNC_SERVER_THREADS_MIN       8
-
-#ifndef XSYNC_SERVER_THREADS_MAX
-#  define XSYNC_SERVER_THREADS_MAX    256
-#elif XSYNC_SERVER_THREADS_MAX > 1024
-#  error XSYNC_SERVER_THREADS_MAX is too many
-#elif XSYNC_SERVER_THREADS_MAX < XSYNC_SERVER_THREADS_MIN
-#  error XSYNC_SERVER_THREADS_MAX is too less
+#ifndef XSYNC_SERVER_THREADS_MIN
+#  define XSYNC_SERVER_THREADS_MIN      8
 #endif
 
 
-/**
- * XSYNC_SERVER_QUEUES_MAX = XSYNC_SERVER_THREADS_MAX * tasks_per_thread
- * 8192 = 256 * 32, tasks_per_thread = 32
- */
+#ifndef XSYNC_SERVER_THREADS_MAX
+#  define XSYNC_SERVER_THREADS_MAX      512
+#endif
+
+
 #ifndef XSYNC_SERVER_QUEUES_MAX
-#  define XSYNC_SERVER_QUEUES_MAX    (XSYNC_SERVER_THREADS_MAX * XSYNC_TASKS_PERTHREAD_MAX)
-#elif XSYNC_SERVER_QUEUES_MAX > (XSYNC_SERVER_THREADS_MAX * XSYNC_TASKS_PERTHREAD_MAX)
-#  error XSYNC_SERVER_QUEUES_MAX is too many
-#elif XSYNC_SERVER_QUEUES_MAX < (XSYNC_SERVER_THREADS_MAX * XSYNC_TASKS_PERTHREAD_MIN)
-#  error XSYNC_SERVER_QUEUES_MAX is too less
+#  define XSYNC_SERVER_QUEUES_MAX       8192
 #endif
 
 
 #ifndef XSYNC_CLIENTID_MAXLEN
-#  define XSYNC_CLIENTID_MAXLEN     40
+#  define XSYNC_CLIENTID_MAXLEN         40
 #endif
 
 
 #ifndef XSYNC_PATHFILE_MAXLEN
-#  define XSYNC_PATHFILE_MAXLEN     0xff
+#  define XSYNC_PATHFILE_MAXLEN         255
 #endif
 
 
@@ -196,11 +167,7 @@ extern "C"
  * 支持的最大的服务器数目. 根据需要可以更改这个值 (不可以大于 30)
  */
 #ifndef XSYNC_SERVER_MAXID
-#  define XSYNC_SERVER_MAXID             10
-#elif XSYNC_SERVER_MAXID > 30
-#  error XSYNC_SERVER_MAXID is more than 30
-#elif XSYNC_SERVER_MAXID < 8
-#  error XSYNC_SERVER_MAXID is less than  8
+#  define XSYNC_SERVER_MAXID            255
 #endif
 
 
@@ -210,7 +177,7 @@ extern "C"
 
 
 #ifndef XSYNC_HOSTNAME_MAXLEN
-#  define XSYNC_HOSTNAME_MAXLEN        128
+#  define XSYNC_HOSTNAME_MAXLEN         128
 #endif
 
 
@@ -220,7 +187,7 @@ extern "C"
 
 
 #ifndef XSYNC_WATCH_ENTRY_HASHMAX
-#  define XSYNC_WATCH_ENTRY_HASHMAX    1023
+#  define XSYNC_WATCH_ENTRY_HASHMAX     1023
 #endif
 
 
@@ -229,7 +196,7 @@ extern "C"
  *   should in [60, 300]
  */
 #ifndef XSYNC_SWEEP_PATH_INTERVAL
-#  define XSYNC_SWEEP_PATH_INTERVAL       10
+#  define XSYNC_SWEEP_PATH_INTERVAL     10
 #endif
 
 
@@ -238,7 +205,7 @@ extern "C"
  *    should in [300, 900]
  */
 #ifndef XSYNC_ENTRY_SESSION_TIMEOUT
-#  define XSYNC_ENTRY_SESSION_TIMEOUT    30
+#  define XSYNC_ENTRY_SESSION_TIMEOUT   30
 #endif
 
 

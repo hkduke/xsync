@@ -437,6 +437,9 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
 
         FD_ZERO(&set);
 
+        // TODO: https://stackoverflow.com/questions/7976388/increasing-limit-of-fd-setsize-and-select
+        assert(client->infd < FD_SETSIZE);
+
         FD_SET(client->infd, &set);
 
         timeout.tv_sec =  wait_seconds;

@@ -24,6 +24,14 @@
 #include "../common/mul_timer.h"
 
 
+void run_client_forever (clientapp_opts *opts);
+
+/**
+ * ${app} -T'127.0.0.1:8960#123456' -Astdout
+ */
+void run_diagnose_server (clientapp_opts *opts);
+
+
 void sig_chld (int signo)
 {
     pid_t    pid;
@@ -85,18 +93,16 @@ void exit_handler (int exitCode, void *ppData)
 }
 
 
-/**
- * client main entry
+/***********************************************************************
+ * client application
  *
  * Run Commands:
  * 1) Debug:
  *     $ ../target/xsync-client-0.0.1 -Ptrace -Astdout
  *
- */
+ **********************************************************************/
 int main (int argc, char *argv[])
 {
-    XS_client client;
-
     clientapp_opts opts;
 
     clientapp_opts_initiate(argc, argv, &opts);
@@ -124,7 +130,7 @@ int main (int argc, char *argv[])
          */
         if ( daemon(1, 1) ) {
             LOGGER_ERROR("daemon error(%d): %s", errno, strerror(errno));
-            goto on_error_exit;
+            goto onerror_exit;
         } else {
             LOGGER_INFO("daemon ok. pid=%d", getpid());
         }
@@ -163,39 +169,52 @@ int main (int argc, char *argv[])
         exit(-1);
     }
 
-    /**
-     * 创建客户端
-     */
-    if (XS_client_create(&opts, &client) == XS_SUCCESS) {
+    if (opts.isdiagnose) {
+        run_diagnose_server(&opts);
+
+        clientapp_opts_cleanup(&opts);
+
+        LOGGER_FATAL("%s (v%s) shutdown !", APP_NAME, APP_VERSION);
+        LOGGER_FINI();
+
+        exit(0);
+    } else {
+        run_client_forever(&opts);
+    }
+
+    /** 客户端异常退出 */
+onerror_exit:
+
+    clientapp_opts_cleanup(&opts);
+
+    LOGGER_FATAL("%s (v%s) shutdown !", APP_NAME, APP_VERSION);
+    LOGGER_FINI();
+
+    return (XS_ERROR);
+}
+
+
+void run_client_forever (clientapp_opts *opts)
+{
+    XS_client client;
+
+    if (XS_client_create(opts, &client) == XS_SUCCESS) {
 
 #ifdef DEBUG
         XS_client_conf_save_xml(client, "/tmp/xsync-client-conf_DEBUG.xml");
         XS_client_conf_save_ini(client, "/tmp/xsync-client-conf_DEBUG.ini");
 #endif
 
-        /**
-         * 启动客户端服务程序, 永远运行...
-         */
+        /** 启动客户端服务程序, 永远运行 */
         XS_client_bootstrap(client);
 
-        /**
-         * 使用完毕, 释放客户端
-         */
+        /** 使用完毕, 释放客户端 */
         XS_client_release(&client);
     }
+}
 
-    /**
-     * 客户端异常退出!
-     */
-on_error_exit:
 
-    if (mul_timer_destroy() != 0) {
-        LOGGER_ERROR("mul_timer_destrpy failed");
-    }
-
-    clientapp_opts_cleanup(&opts);
-
-    LOGGER_FATAL("%s (v%s) shutdown !", APP_NAME, APP_VERSION);
-    LOGGER_FINI();
-    return (XS_ERROR);
+void run_diagnose_server (clientapp_opts *opts)
+{
+    LOGGER_WARN("diagnose server={%s}", opts->diagnose_server);
 }

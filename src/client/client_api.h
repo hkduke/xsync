@@ -19,6 +19,17 @@
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
 
+/**
+ * client_api.h
+ *
+ * author:
+ *     master@pepstack.com
+ *
+ * create: 2018-01-24
+ * update: 2018-02-08
+ *
+ */
+
 #ifndef CLIENT_API_H_INCLUDED
 #define CLIENT_API_H_INCLUDED
 
@@ -51,11 +62,16 @@ typedef struct clientapp_opts
     char *startcmd;
 
     int isdaemon;
+    int isdiagnose;
 
     int threads;
     int queues;
 
     int force_watch;
+
+    char clientid[XSYNC_CLIENTID_MAXLEN + 1];
+
+    char diagnose_server[XSYNC_PATHFILE_MAXLEN + 1];
 
     char config[XSYNC_PATHFILE_MAXLEN + 1];
 } clientapp_opts;

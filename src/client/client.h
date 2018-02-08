@@ -13,11 +13,22 @@
 *   in a product, an acknowledgment in the product documentation would be
 *   appreciated but is not required.
 *
-* 2. Altered source versions must be plainly marked as such, and must not be
-*   misrepresented as being the original software.
+* 2. Altered source versions must be plainly marked as such, and must not
+*   be misrepresented as being the original software.
 *
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
+
+/**
+ * client.h
+ *
+ * author:
+ *     master@pepstack.com
+ *
+ * create: 2018-01-24
+ * update: 2018-02-08
+ *
+ */
 
 #ifndef CLIENT_H_INCLUDED
 #define CLIENT_H_INCLUDED
@@ -71,58 +82,66 @@ void print_usage(void)
     printf("\033[35mUsage:\033[0m %s [Options]\n", APP_NAME);
     printf("\t\033[35m extremely synchronize files among servers.\033[0m\n");
     printf("\033[35mOptions:\033[0m\n"
-        "\t-h, --help                      \033[35m display help messages\033[0m\n"
-        "\t-V, --version                   \033[35m print version information\033[0m\n"
+        "\t-h, --help                   \033[35m display help messages\033[0m\n"
+        "\t-V, --version                \033[35m print version information\033[0m\n"
         "\n"
-        "\t-C, --config=PATHFILE           \033[35m specify path file to conf. '../conf/%s.conf' (default)\033[0m\n"
-        "\t-W, --from-watch                \033[35m config client from watch path no matter if specify config(-C, --config) or not.\033[0m\n"
-        "\t                                  \033[35m if enable watch path by '--use-watch', config=PATHFILE will be ignored.\033[0m\n"
-        "\t                                  \033[35m NOTE: watch/ folder lives alway in the sibling directory of config PATHFILE, for example:\033[0m\n"
-        "\t                                  \033[35m client_home/\033[0m\n"
-        "\t                                        \033[35m |\033[0m\n"
-        "\t                                        \033[35m +--- CLIENTID    (client id file)\033[0m\n"
-        "\t                                        \033[35m |\033[0m\n"
-        "\t                                        \033[35m +--- bin/%s-%s\033[0m\n"
-        "\t                                        \033[35m |\033[0m\n"
-        "\t                                        \033[35m +--- conf/%s.conf    (default config file)\033[0m\n"
-        "\t                                        \033[35m |\033[0m\n"
-        "\t                                        \033[35m +--- watch/\033[0m\n"
-        "\t                                        \033[35m       |\033[0m\n"
-        "\t                                        \033[35m       +--- pathlinkA/ -> A    (symlink to path A)\033[0m\n"
-        "\t                                        \033[35m       +--- pathlinkB/ -> B    (symlink to path A)\033[0m\n"
-        "\t                                        \033[35m       ...\033[0m\n"
+        "\t-C, --config=PATHFILE        \033[35m specify path file to conf. '../conf/%s.conf' (default)\033[0m\n"
+        "\t-W, --from-watch             \033[35m config client from watch path no matter if specify config(-C, --config) or not.\033[0m\n"
+        "\t                               \033[35m if enable watch path by '--use-watch', config=PATHFILE will be ignored.\033[0m\n"
+        "\t                               \033[35m NOTE: watch/ folder lives alway in the sibling directory of config PATHFILE, for example:\033[0m\n"
+        "\t                               \033[35m client_home/\033[0m\n"
+        "\t                                     \033[35m |\033[0m\n"
+        "\t                                     \033[35m +--- CLIENTID    (client id file)\033[0m\n"
+        "\t                                     \033[35m |\033[0m\n"
+        "\t                                     \033[35m +--- bin/%s-%s\033[0m\n"
+        "\t                                     \033[35m |\033[0m\n"
+        "\t                                     \033[35m +--- conf/%s.conf    (default config file)\033[0m\n"
+        "\t                                     \033[35m |\033[0m\n"
+        "\t                                     \033[35m +--- watch/\033[0m\n"
+        "\t                                     \033[35m       |\033[0m\n"
+        "\t                                     \033[35m       +--- pathlinkA/ -> A    (symlink to path A)\033[0m\n"
+        "\t                                     \033[35m       +--- pathlinkB/ -> B    (symlink to path A)\033[0m\n"
+        "\t                                     \033[35m       ...\033[0m\n"
         "\n"
-        "\t-O, --log4c-rcpath=PATH         \033[35m specify path of log4crc file. '../conf/' (default)\033[0m\n"
-        "\t-P, --priority=<PRIORITY>       \033[35m overwrite priority in log4crc, available PRIORITY:\033[0m\n"
-        "\t                                      \033[35m 'fatal'\033[0m\n"
-        "\t                                      \033[35m 'error' - used in stable release stage\033[0m\n"
-        "\t                                      \033[35m 'warn'\033[0m\n"
-        "\t                                      \033[35m 'info'  - used in release stage\033[0m\n"
-        "\t                                      \033[35m 'debug' - used only in devel\033[0m\n"
-        "\t                                      \033[35m 'trace' - show all details\033[0m\n"
+        "\t-O, --log4c-rcpath=PATH      \033[35m specify path of log4crc file. '../conf/' (default)\033[0m\n"
+        "\t-P, --priority=<PRIORITY>    \033[35m overwrite priority in log4crc, available PRIORITY:\033[0m\n"
+        "\t                                    \033[35m 'fatal'\033[0m\n"
+        "\t                                    \033[35m 'error' - used in stable release stage\033[0m\n"
+        "\t                                    \033[35m 'warn'\033[0m\n"
+        "\t                                    \033[35m 'info'  - used in release stage\033[0m\n"
+        "\t                                    \033[35m 'debug' - used only in devel\033[0m\n"
+        "\t                                    \033[35m 'trace' - show all details\033[0m\n"
         "\n"
-        "\t-A, --appender=<APPENDER>       \033[35m overwrite appender in log4crc, available APPENDER:\033[0m\n"
-        "\t                                      \033[35m 'default' - using appender specified in log4crc\033[0m\n"
-        "\t                                      \033[35m 'stdout' - using appender stdout\033[0m\n"
-        "\t                                      \033[35m 'stderr' - using appender stderr\033[0m\n"
-        "\t                                      \033[35m 'syslog' - using appender syslog\033[0m\n"
+        "\t-A, --appender=<APPENDER>    \033[35m overwrite appender in log4crc, available APPENDER:\033[0m\n"
+        "\t                                    \033[35m 'default' - using appender specified in log4crc\033[0m\n"
+        "\t                                    \033[35m 'stdout' - using appender stdout\033[0m\n"
+        "\t                                    \033[35m 'stderr' - using appender stderr\033[0m\n"
+        "\t                                    \033[35m 'syslog' - using appender syslog\033[0m\n"
         "\n"
-        "\t-t, --threads=<THREADS>         \033[35m specify number of threads. THREADS can also be:\033[0m\n"
-        "\t                                      \033[35m  0 - using minimum threads\033[0m\n"
-        "\t                                      \033[35m -1 - using maximum threads\033[0m\n"
+        "\t-t, --threads=<THREADS>      \033[35m specify number of threads. THREADS can also be:\033[0m\n"
+        "\t                                    \033[35m  0 - using minimum threads\033[0m\n"
+        "\t                                    \033[35m -1 - using maximum threads\033[0m\n"
         "\n"
-        "\t-q, --queues=<QUEUES>           \033[35m specify total queues for all threads. QUEUES can also be:\033[0m\n"
-        "\t                                      \033[35m  0 - using available minimum queues\033[0m\n"
-        "\t                                      \033[35m -1 - using available maximum queues\033[0m\n"
+        "\t-q, --queues=<QUEUES>        \033[35m specify total queues for all threads. QUEUES can also be:\033[0m\n"
+        "\t                                    \033[35m  0 - using available minimum queues\033[0m\n"
+        "\t                                    \033[35m -1 - using available maximum queues\033[0m\n"
         "\n"
-        "\t-I, --replace-clientid=<CLIENTID>\033[35m CAUTION: replace clientid in file CLIENTID\033[0m\n"
+        "\t-T, --diagnose-server=SID    \033[35m run as a test client to diagnose connectivity to server(SID).\033[0m\n"
+        "\t                             \033[35m   available SID listed in the following:\033[0m\n"
+        "\t                                    \033[35m  IPv4:PORT#MAGIC - a form fixed string to express server host ip with port and magic.\033[0m\n"
+        "\t                                    \033[35m  sid - a representation of number for server. (for example: 1, 2 or 3, ...).\033[0m\n"
+        "\t                                    \033[35m      available sid can be found in either '../watch/' dir or config file.\033[0m\n"
+        "\t                                    \033[35m  server - a representation of name for server. (for example: pepstack-server).\033[0m\n"
+        "\t                                    \033[35m      available server name (i.e. child directory name) can be found in '../sid/' dir.\033[0m\n"
         "\n"
-        "\t-D, --daemon                \033[35m run as daemon process\033[0m\n"
-        "\t-K, --kill                  \033[35m kill all processes for this program\033[0m\n"
-        "\t-L, --list                  \033[35m list of pids for this program\033[0m\n"
+        "\t-I, --clientid=<CLIENTID>    \033[35m CAUTION: replace clientid in file CLIENTID\033[0m\n"
         "\n"
-        "\t-m, --md5=FILE              \033[35m md5sum on given FILE\033[0m\n"
-        "\t-r, --regexp=PATTERN        \033[35m use pattern for matching on <express>\033[0m\n"
+        "\t-D, --daemon                 \033[35m run as daemon process.\033[0m\n"
+        "\t-K, --kill                   \033[35m kill all processes for this program.\033[0m\n"
+        "\t-L, --list                   \033[35m list of pids for this program.\033[0m\n"
+        "\n"
+        "\t-m, --md5=FILE               \033[35m md5sum on given file.\033[0m\n"
+        "\t-r, --regexp=PATTERN         \033[35m use pattern for matching on <express>.\033[0m\n"
         "\n"
         "\033[47;35m* COPYRIGHT (c) 2014-2020 PEPSTACK.COM, ALL RIGHTS RESERVED.\033[0m\n",
         APP_NAME, APP_NAME, APP_VERSION, APP_NAME);
@@ -234,6 +253,8 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
 
     int force_watch = 0;
 
+    int isdiagnose = 0;
+
     int isdaemon = 0;
 
     int threads = 0;
@@ -252,7 +273,8 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
         {"appender", required_argument, 0, 'A'},
         {"threads", required_argument, 0, 't'},
         {"queues", required_argument, 0, 'q'},
-        {"update-clientid", required_argument, 0, 'I'},
+        {"diagnose-server", required_argument, 0, 'T'},
+        {"clientid", required_argument, 0, 'I'},
         {"daemon", no_argument, 0, 'D'},
         {"kill", no_argument, 0, 'K'},
         {"list", no_argument, 0, 'L'},
@@ -291,7 +313,7 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
     }
 
     /* parse command arguments */
-    while ((ret = getopt_long(argc, argv, "DKLhVC:WO:P:A:t:q:I:m:r:", lopts, 0)) != EOF) {
+    while ((ret = getopt_long(argc, argv, "DKLhVC:WO:P:A:t:q:I:T:m:r:", lopts, 0)) != EOF) {
         switch (ret) {
         case 'D':
             isdaemon = 1;
@@ -391,6 +413,15 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
             exit(ret);
             break;
 
+        case 'T':
+            isdiagnose = 1;
+            ret = snprintf(opts->diagnose_server, sizeof(opts->diagnose_server), "%s", optarg);
+            if (ret < 0 || ret >= sizeof(opts->diagnose_server)) {
+                fprintf(stderr, "\033[1;31m[error]\033[0m specified invalid diagnose server: %s\n", optarg);
+                exit(-1);
+            }
+            break;
+
         case 'K':
             exit(0);
             break;
@@ -421,6 +452,16 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
     fprintf(stdout, "\033[1;34m* Default config file: %s\033[0m\n\n", config);
     fprintf(stdout, "\033[1;32m* Using log4c path   : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
     fprintf(stdout, "\033[1;32m* Using config file  : %s\033[0m\n", config);
+
+    if (isdiagnose) {
+        fprintf(stdout, "\033[1;33m* Diagnose server    : %s\033[0m\n", opts->diagnose_server);
+
+        if (isdaemon) {
+            isdaemon = 0;
+
+            fprintf(stdout, "\033[1;31m* daemon mode ignored due to specify diagnose server. (-T,--diagnose-server)\033[0m\n");
+        }
+    }
 
     if (threads > 0) {
         // 用户指定了线程和队列用于覆盖配置文件
@@ -470,8 +511,10 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
     opts->threads = threads;
     opts->queues = queues;
     opts->force_watch = force_watch;
+    opts->isdiagnose = isdiagnose;
 
     memcpy(opts->config, config, XSYNC_PATHFILE_MAXLEN);
+
     opts->config[XSYNC_PATHFILE_MAXLEN] = 0;
 }
 
