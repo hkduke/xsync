@@ -44,6 +44,10 @@ SOURCES := \
 #   If the macro NDEBUG is defined at the moment <assert.h> was last
 #     included, the macro assert() generates no code, and hence does
 #     nothing at all.
+#
+#  XSYNC_CLIENT_THREADS=4
+#  XSYNC_CLIENT_QUEUES=256
+#
 SRC_DEFS := DEBUG \
 	XSYNC_CLIENT_APPNAME='"${APPNAME}"' \
 	XSYNC_SERVER_VERSION='"${VERSION}"' \

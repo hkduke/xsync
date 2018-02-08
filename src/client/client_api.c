@@ -292,10 +292,12 @@ extern XS_RESULT XS_client_create (clientapp_opts *opts, XS_client *outClient)
         exit(XS_ERROR);
     }
 
-    // 初始化监控目录
+    // 初始化客户端
     if (opts->force_watch) {
+        // 从监控目录初始化客户端
         err = XS_client_conf_from_watch(client, opts->config);
     } else {
+        // 从配置文件初始化客户端
         if ( ! strcmp(strrchr(opts->config, '.'), ".xml") ) {
             err = XS_client_conf_load_xml(client, opts->config);
         } else if ( ! strcmp(strrchr(opts->config, '.'), ".ini") ) {
@@ -311,12 +313,21 @@ extern XS_RESULT XS_client_create (clientapp_opts *opts, XS_client *outClient)
         return XS_ERROR;
     }
 
-    client->threads = opts->threads;
-    client->queues = opts->queues;
+    // 要求覆盖配置
+    if (opts->threads != INT_MAX) {
+        client->threads = clientapp_validate_threads(opts->threads);
+        client->queues = clientapp_validate_queues(client->threads, opts->queues);
+    }
+
+    if (opts->queues != INT_MAX) {
+        client->queues = clientapp_validate_queues(client->threads, opts->queues);
+    }
 
     SERVERS = XS_client_get_server_maxid(client);
     THREADS = client->threads;
     QUEUES = client->queues;
+
+    LOGGER_INFO("threads=%d queues=%d servers=%d", THREADS, QUEUES, SERVERS);
 
     /* create per thread data */
     client->thread_args = (void **) mem_alloc(THREADS, sizeof(void*));

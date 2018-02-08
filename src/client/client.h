@@ -44,27 +44,16 @@ extern "C" {
 #define XS_DEFAULT_TasksPrethreadMin   8
 #define XS_DEFAULT_NumberThreadsMin    2
 
-
 #include "client_api.h"
 
+#include "../common/cshell.h"
+#include "../common/mul_timer.h"
 #include "../common/common_util.h"
+
 
 /**
  * print usage for app
  *
- * ------ color output ------
- * 30: black
- * 31: red
- * 32: green
- * 33: yellow
- * 34: blue
- * 35: purple
- * 36: cyan
- * 37: white
- * --------------------------
- * "\033[31m RED   \033[0m"
- * "\033[32m GREEN \033[0m"
- * "\033[33m YELLOW \033[0m"
  */
 __no_warning_unused(static)
 void print_usage(void)
@@ -104,12 +93,12 @@ void print_usage(void)
         "\t                                     \033[35m       ...\033[0m\n"
         "\n"
         "\t-O, --log4c-rcpath=PATH      \033[35m specify path of log4crc file. '../conf/' (default)\033[0m\n"
-        "\t-P, --priority=<PRIORITY>    \033[35m overwrite priority in log4crc, available PRIORITY:\033[0m\n"
+        "\t-P, --priority=<PRIORITY>    \033[35m overwrite priority in log4crc. available PRIORITY:\033[0m\n"
         "\t                                    \033[35m 'fatal'\033[0m\n"
         "\t                                    \033[35m 'error' - used in stable release stage\033[0m\n"
         "\t                                    \033[35m 'warn'\033[0m\n"
         "\t                                    \033[35m 'info'  - used in release stage\033[0m\n"
-        "\t                                    \033[35m 'debug' - used only in devel\033[0m\n"
+        "\t                                    \033[35m 'debug' - used only in devel. (default)\033[0m\n"
         "\t                                    \033[35m 'trace' - show all details\033[0m\n"
         "\n"
         "\t-A, --appender=<APPENDER>    \033[35m overwrite appender in log4crc, available APPENDER:\033[0m\n"
@@ -119,26 +108,19 @@ void print_usage(void)
         "\t                                    \033[35m 'syslog' - using appender syslog\033[0m\n"
         "\n"
         "\t-t, --threads=<THREADS>      \033[35m specify number of threads. THREADS can also be:\033[0m\n"
-        "\t                                    \033[35m  0 - using minimum threads\033[0m\n"
+        "\t                                    \033[35m  0 - using default threads\033[0m\n"
         "\t                                    \033[35m -1 - using maximum threads\033[0m\n"
         "\n"
         "\t-q, --queues=<QUEUES>        \033[35m specify total queues for all threads. QUEUES can also be:\033[0m\n"
-        "\t                                    \033[35m  0 - using available minimum queues\033[0m\n"
-        "\t                                    \033[35m -1 - using available maximum queues\033[0m\n"
-        "\n"
-        "\t-T, --diagnose-server=SID    \033[35m run as a test client to diagnose connectivity to server(SID).\033[0m\n"
-        "\t                             \033[35m   available SID listed in the following:\033[0m\n"
-        "\t                                    \033[35m  IPv4:PORT#MAGIC - a form fixed string to express server host ip with port and magic.\033[0m\n"
-        "\t                                    \033[35m  sid - a representation of number for server. (for example: 1, 2 or 3, ...).\033[0m\n"
-        "\t                                    \033[35m      available sid can be found in either '../watch/' dir or config file.\033[0m\n"
-        "\t                                    \033[35m  server - a representation of name for server. (for example: pepstack-server).\033[0m\n"
-        "\t                                    \033[35m      available server name (i.e. child directory name) can be found in '../sid/' dir.\033[0m\n"
+        "\t                                    \033[35m  0 - using default queues\033[0m\n"
+        "\t                                    \033[35m -1 - using maximum queues\033[0m\n"
         "\n"
         "\t-I, --clientid=<CLIENTID>    \033[35m CAUTION: replace clientid in file CLIENTID\033[0m\n"
         "\n"
         "\t-D, --daemon                 \033[35m run as daemon process.\033[0m\n"
         "\t-K, --kill                   \033[35m kill all processes for this program.\033[0m\n"
         "\t-L, --list                   \033[35m list of pids for this program.\033[0m\n"
+        "\t-S, --shell                  \033[35m run client as diagnostic shell for connectivity to server.\033[0m\n"
         "\n"
         "\t-m, --md5=FILE               \033[35m md5sum on given file.\033[0m\n"
         "\t-r, --regexp=PATTERN         \033[35m use pattern for matching on <express>.\033[0m\n"
@@ -154,91 +136,6 @@ void print_usage(void)
 
 
 __no_warning_unused(static)
-int validate_arg_threads (int arg_threads)
-{
-    int threads = 0;
-
-    if (arg_threads == 0) {
-        threads = XSYNC_CLIENT_THREADS_MIN;
-    } else if (arg_threads == -1) {
-        threads = XSYNC_CLIENT_THREADS_MAX;
-    } else if (arg_threads > XSYNC_CLIENT_THREADS_MAX) {
-        fprintf(stderr, "\033[1;31m[error]\033[0m too many threads(%d) > %d\033[0m\n",
-            arg_threads, XSYNC_CLIENT_THREADS_MAX);
-        exit(XS_E_PARAM);
-    } else if (arg_threads < XSYNC_CLIENT_THREADS_MIN) {
-        fprintf(stderr, "\033[1;31m[error]\033[0m too less threads(%d) < %d\033[0m\n",
-            arg_threads, XSYNC_CLIENT_THREADS_MIN);
-        exit(XS_E_PARAM);
-    } else {
-        threads = arg_threads;
-    }
-
-    return threads;
-}
-
-
-__no_warning_unused(static)
-int validate_arg_queues (int arg_queues, int threads)
-{
-    int queues = 0;
-
-    if (threads) {
-        if (arg_queues == 0) {
-            queues = threads * XSYNC_TASKS_PERTHREAD_MIN;
-        } else if (arg_queues == -1) {
-            queues = threads * XSYNC_TASKS_PERTHREAD_MAX;
-        } else if (arg_queues < threads * XSYNC_TASKS_PERTHREAD_MIN) {
-            queues = threads * XSYNC_TASKS_PERTHREAD_MIN;
-        } else if (arg_queues > threads * XSYNC_TASKS_PERTHREAD_MAX) {
-            queues = threads * XSYNC_TASKS_PERTHREAD_MAX;
-        } else {
-            queues = arg_queues;
-        }
-    } else {
-        if (arg_queues != 0 && arg_queues != -1) {
-            if (arg_queues > XSYNC_CLIENT_QUEUES_MAX) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m too many queues(%d > %d)\033[0m\n",
-                    arg_queues, XSYNC_CLIENT_QUEUES_MAX);
-                exit(XS_E_PARAM);
-            }
-
-            if (arg_queues < XSYNC_CLIENT_THREADS_MIN * XSYNC_TASKS_PERTHREAD_MIN) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m too less queues(%d < %d)\033[0m\n",
-                    arg_queues, XSYNC_CLIENT_THREADS_MIN * XSYNC_TASKS_PERTHREAD_MIN);
-                exit(XS_E_PARAM);
-            }
-
-            queues = arg_queues;
-        }
-    }
-
-    return queues;
-}
-
-
-__no_warning_unused(static)
-void clientapp_opts_checkup (clientapp_opts *opts)
-{
-    if (opts->threads > XSYNC_CLIENT_THREADS_MAX) {
-        LOGGER_WARN("too many THREADS(%d) expected. coerce THREADS=%d", opts->threads, XSYNC_CLIENT_THREADS_MAX);
-        opts->threads = XSYNC_CLIENT_THREADS_MAX;
-    } else if (opts->threads < XS_DEFAULT_NumberThreadsMin) {
-        LOGGER_WARN("too less THREADS(%d) expected. coerce THREADS=%d", opts->threads, XS_DEFAULT_NumberThreadsMin);
-        opts->threads = XS_DEFAULT_NumberThreadsMin;
-    }
-
-    if (opts->queues > XSYNC_CLIENT_QUEUES_MAX) {
-        LOGGER_WARN("too many QUEUES(%d) expected. coerce QUEUES=%d", opts->threads, XSYNC_CLIENT_QUEUES_MAX);
-        opts->queues = XSYNC_CLIENT_QUEUES_MAX;
-    } else if (opts->queues < opts->threads * XS_DEFAULT_TasksPrethreadMin) {
-        LOGGER_WARN("too less QUEUES(%d) expected. coerce QUEUES=%d", opts->queues, opts->threads * XS_DEFAULT_TasksPrethreadMin);
-        opts->queues = opts->threads * XS_DEFAULT_TasksPrethreadMin;
-    }
-}
-
-
-__no_warning_unused(static)
 void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
 {
     int ret;
@@ -248,19 +145,21 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
     char config[XSYNC_PATHFILE_MAXLEN + 1];
     char log4crc[XSYNC_PATHFILE_MAXLEN + 1];
 
-    char priority[20] = {0};
-    char appender[60] = {0};
+    char priority[20] = { "debug" };
+    char appender[60] = { "stdout" };
 
     int force_watch = 0;
 
-    int isdiagnose = 0;
+    int isshell = 0;
 
     int isdaemon = 0;
 
-    int threads = 0;
-    int queues = 0;
+    int threads = INT_MAX;
+    int queues = INT_MAX;
 
     bzero(opts, sizeof(*opts));
+    opts->threads = INT_MAX;
+    opts->queues = INT_MAX;
 
     /* command arguments */
     const struct option lopts[] = {
@@ -273,11 +172,11 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
         {"appender", required_argument, 0, 'A'},
         {"threads", required_argument, 0, 't'},
         {"queues", required_argument, 0, 'q'},
-        {"diagnose-server", required_argument, 0, 'T'},
         {"clientid", required_argument, 0, 'I'},
         {"daemon", no_argument, 0, 'D'},
         {"kill", no_argument, 0, 'K'},
         {"list", no_argument, 0, 'L'},
+        {"shell", no_argument, 0, 'S'},
         {"md5", required_argument, 0, 'm'},
         {"regexp", required_argument, 0, 'r'},
         {0, 0, 0, 0}
@@ -313,7 +212,7 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
     }
 
     /* parse command arguments */
-    while ((ret = getopt_long(argc, argv, "DKLhVC:WO:P:A:t:q:I:T:m:r:", lopts, 0)) != EOF) {
+    while ((ret = getopt_long(argc, argv, "DKLhVSC:WO:P:A:t:q:I:m:r:", lopts, 0)) != EOF) {
         switch (ret) {
         case 'D':
             isdaemon = 1;
@@ -385,11 +284,11 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
             break;
 
         case 't':
-            threads = validate_arg_threads(atoi(optarg));
+            threads = atoi(optarg);
             break;
 
         case 'q':
-            queues = validate_arg_queues(atoi(optarg), threads);
+            queues = atoi(optarg);
             break;
 
         case 'I':
@@ -413,13 +312,8 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
             exit(ret);
             break;
 
-        case 'T':
-            isdiagnose = 1;
-            ret = snprintf(opts->diagnose_server, sizeof(opts->diagnose_server), "%s", optarg);
-            if (ret < 0 || ret >= sizeof(opts->diagnose_server)) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m specified invalid diagnose server: %s\n", optarg);
-                exit(-1);
-            }
+        case 'S':
+            isshell = 1;
             break;
 
         case 'K':
@@ -451,22 +345,39 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
     fprintf(stdout, "\033[1;34m* Default log4c path : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
     fprintf(stdout, "\033[1;34m* Default config file: %s\033[0m\n\n", config);
     fprintf(stdout, "\033[1;32m* Using log4c path   : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
-    fprintf(stdout, "\033[1;32m* Using config file  : %s\033[0m\n", config);
+    fprintf(stdout, "\033[1;32m* Using config file  : %s\033[0m\n\n", config);
 
-    if (isdiagnose) {
-        fprintf(stdout, "\033[1;33m* Diagnose server    : %s\033[0m\n", opts->diagnose_server);
-
+    if (isshell) {
         if (isdaemon) {
             isdaemon = 0;
+            fprintf(stdout, "\033[1;31m* daemon mode ignored due to specify '-S,--shell'.\033[0m\n");
+        }
 
-            fprintf(stdout, "\033[1;31m* daemon mode ignored due to specify diagnose server. (-T,--diagnose-server)\033[0m\n");
+        if (strcmp(appender, "stdout")) {
+            fprintf(stdout, "\033[1;31m* appender ('%s') redesignated to 'stdout' due to specify '-S,--shell'.\033[0m\n", appender);
+            strcpy(appender, "stdout");
         }
     }
 
-    if (threads > 0) {
-        // 用户指定了线程和队列用于覆盖配置文件
-        queues = validate_arg_queues(queues, threads);
-        fprintf(stdout, "\033[1;32m* Overwritten config : (threads=%d, queues=%d)\033[0m\n\n", threads, queues);
+    if (threads != INT_MAX) {
+        // 用户指定了线程覆盖配置文件, 此时队列也必须覆盖
+        //
+        opts->threads = clientapp_validate_threads(threads);
+        opts->queues = clientapp_validate_queues(opts->threads, queues);
+
+        fprintf(stdout, "\033[1;33m* Overwritten config : threads=%d queues=%d\033[0m\n\n", opts->threads, opts->queues);
+    } else if (queues != INT_MAX) {
+        // 用户只指定了队列覆盖配置文件, 坚持范围
+        //
+        if (queues > XSYNC_QUEUES_MAXIMUM) {
+            opts->queues = XSYNC_QUEUES_MAXIMUM;
+        } else if (queues < XSYNC_TASKS_PERTHREAD) {
+            opts->queues = XSYNC_TASKS_PERTHREAD;
+        } else {
+            opts->queues = queues;
+        }
+
+        fprintf(stdout, "\033[1;33m* Overwritten config : threads=? queues=%d\033[0m\n\n", opts->queues);
     }
 
     if (force_watch) {
@@ -511,7 +422,7 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
     opts->threads = threads;
     opts->queues = queues;
     opts->force_watch = force_watch;
-    opts->isdiagnose = isdiagnose;
+    opts->isshell = isshell;
 
     memcpy(opts->config, config, XSYNC_PATHFILE_MAXLEN);
 

@@ -30,9 +30,6 @@ extern "C" {
 #define APP_NAME              XSYNC_SERVER_APPNAME
 #define APP_VERSION           XSYNC_SERVER_VERSION
 
-#define XS_DEFAULT_TasksPrethreadMin   8
-#define XS_DEFAULT_NumberThreadsMin    2
-
 
 #include "server_api.h"
 

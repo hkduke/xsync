@@ -40,6 +40,8 @@ extern "C" {
 #define LOGGER_CATEGORY_NAME  XSYNC_CLIENT_APPNAME
 #include "../common/log4c_logger.h"
 
+#include "../common/threadlock.h"
+
 #include "../xsync-error.h"
 #include "../xsync-config.h"
 
@@ -62,7 +64,7 @@ typedef struct clientapp_opts
     char *startcmd;
 
     int isdaemon;
-    int isdiagnose;
+    int isshell;
 
     int threads;
     int queues;
@@ -75,6 +77,58 @@ typedef struct clientapp_opts
 
     char config[XSYNC_PATHFILE_MAXLEN + 1];
 } clientapp_opts;
+
+
+__no_warning_unused(static)
+int clientapp_validate_threads (int threads)
+{
+    int valid_threads = threads;
+
+    if (threads == 0 || threads == INT_MAX) {
+        valid_threads = XSYNC_CLIENT_THREADS;
+    } else if (threads == -1) {
+        valid_threads = XSYNC_THREADS_MAXIMUM;
+    }
+
+    if (valid_threads > XSYNC_THREADS_MAXIMUM) {
+        LOGGER_WARN("too many THREADS(%d) expected. coerce THREADS=%d", valid_threads, XSYNC_THREADS_MAXIMUM);
+        valid_threads = XSYNC_THREADS_MAXIMUM;
+    } else if (valid_threads < 1) {
+        LOGGER_WARN("too less THREADS(%d) expected. coerce THREADS=%d", valid_threads, 1);
+        valid_threads = 1;
+    }
+
+    return valid_threads;
+}
+
+
+__no_warning_unused(static)
+int clientapp_validate_queues (int threads, int queues)
+{
+    int valid_queues = queues;
+
+    threads = clientapp_validate_threads(threads);
+
+    if (queues == 0 || queues == INT_MAX) {
+        valid_queues = threads * XSYNC_TASKS_PERTHREAD;
+    } else if (queues == -1) {
+        valid_queues = XSYNC_QUEUES_MAXIMUM;
+    }
+
+    if (valid_queues > XSYNC_QUEUES_MAXIMUM) {
+        LOGGER_WARN("too many QUEUES(%d) expected. coerce QUEUES=%d", valid_queues, XSYNC_QUEUES_MAXIMUM);
+        valid_queues = XSYNC_QUEUES_MAXIMUM;
+    } else if (valid_queues < XSYNC_TASKS_PERTHREAD) {
+        LOGGER_WARN("too less QUEUES(%d) expected. coerce QUEUES=%d", valid_queues, XSYNC_TASKS_PERTHREAD);
+        valid_queues = XSYNC_TASKS_PERTHREAD;
+    }
+
+    if (valid_queues < threads * 8) {
+        valid_queues = threads * 8;
+    }
+
+    return valid_queues;
+}
 
 
 /**

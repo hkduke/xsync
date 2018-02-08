@@ -40,6 +40,7 @@ extern "C"
     #include <process.h>
     #include <stdint.h>
     #include <time.h>
+    #include <limits.h>
 
     #if _WIN32_WINNT  < 0x0500
         #error  Windows version is too lower than 0x0500
@@ -66,6 +67,7 @@ extern "C"
     #include <time.h>
     #include <signal.h>
     #include <errno.h>
+    #include <limits.h>
 
     #include <sys/time.h>
     #include <sys/syscall.h>

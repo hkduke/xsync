@@ -19,17 +19,26 @@
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
 
-#include "client.h"
+/**
+ * client.c
+ *
+ * author:
+ *     master@pepstack.com
+ *
+ * create: 2018-01-24
+ * update: 2018-02-08
+ *
+ */
 
-#include "../common/mul_timer.h"
+#include "client.h"
 
 
 void run_client_forever (clientapp_opts *opts);
 
 /**
- * ${app} -T'127.0.0.1:8960#123456' -Astdout
+ * ${app} --shell
  */
-void run_diagnose_server (clientapp_opts *opts);
+void run_client_shell (clientapp_opts *opts);
 
 
 void sig_chld (int signo)
@@ -114,8 +123,6 @@ int main (int argc, char *argv[])
     LOGGER_INFO("%s-%s startup %s", APP_NAME, APP_VERSION, (opts.isdaemon? "as daemon..." : "..."));
     LOGGER_INFO("startcmd={%s}", opts.startcmd);
 
-    clientapp_opts_checkup(&opts);
-
     /**
      * 注册退出函数
      */
@@ -169,8 +176,13 @@ int main (int argc, char *argv[])
         exit(-1);
     }
 
-    if (opts.isdiagnose) {
-        run_diagnose_server(&opts);
+    if (opts.isshell) {
+        opts.threads = clientapp_validate_threads(opts.threads);
+        opts.queues = clientapp_validate_queues(opts.threads, opts.queues);
+
+        LOGGER_INFO("threads=%d queues=%d", opts.threads, opts.queues);
+
+        run_client_shell(&opts);
 
         clientapp_opts_cleanup(&opts);
 
@@ -214,7 +226,31 @@ void run_client_forever (clientapp_opts *opts)
 }
 
 
-void run_diagnose_server (clientapp_opts *opts)
+void run_client_shell (clientapp_opts *opts)
 {
-    LOGGER_WARN("diagnose server={%s}", opts->diagnose_server);
+#define XSCLIAPP    csh_green_msg("["APP_NAME"] ")
+
+    LOGGER_INFO("interactive shell [%s] start ...", APP_NAME);
+
+    char host[XSYNC_HOSTNAME_MAXLEN + 1];
+    char port[20];
+    char magic[20];
+    char answer[256];
+
+    getinputline(XSCLIAPP CSH_CYAN_MSG("Input server host: "), host, sizeof(host));
+
+    getinputline(XSCLIAPP CSH_CYAN_MSG("Input server port: "), port, sizeof(port));
+
+    getinputline(XSCLIAPP CSH_CYAN_MSG("Input server magic: "), magic, sizeof(magic));
+
+    printf(XSCLIAPP CSH_GREEN_MSG("SERVERID={%s:%s#%s}\n"), host, port, magic);
+
+    getinputline(XSCLIAPP CSH_CYAN_MSG("Is that server correct? [Y/N]: "), answer, sizeof(answer));
+
+    getinputline(XSCLIAPP CSH_CYAN_MSG("Connecting to server...\n"), 0, 0);
+
+
+    LOGGER_INFO("interactive shell [%s] exit.", APP_NAME);
+
+#undef XSCLIAPP
 }
