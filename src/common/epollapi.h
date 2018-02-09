@@ -26,6 +26,9 @@
  *
  * reference:
  *
+ *  - linux socket:
+ *      https://linux.die.net/man/3/getaddrinfo
+ *
  *  - epoll man:
  *      https://linux.die.net/man/4/epoll
  *
@@ -248,7 +251,9 @@ static void * epoll_conn_handler (void* arg)
              *   from the set of descriptors which are monitored.
              **/
             close(sockfd);
-            printf("close sock: %d\n", sockfd);
+
+            printf("* close sock: %d\n", sockfd);
+
             break;
         } else if (size < 0) {
             if (errno == EAGAIN) {
@@ -265,11 +270,11 @@ static void * epoll_conn_handler (void* arg)
             printf("buf: %s\n", buf);
 
             // 采用睡眠是为了在1s内若有新数据到来则该线程继续处理，否则线程退出
-            sleep(1);
+            // sleep(1);
         }
     }
 
-    printf("thread exit.\n");
+    printf("* thread exit.\n");
     return NULL;
 }
 
@@ -305,12 +310,11 @@ static int loop_epoll_events (int epollfd, int listenfd, struct epoll_event *eve
             status_msg_cb(status, msg);
             break;
         } else {
-            status_msg_cb(0, "epoll_pwait ok.\n");
+            status_msg_cb(ret, "epoll_pwait ok.\n");
         }
 
-
         for (i = 0; i < ret; i++) {
-            ev = events;
+            ev = &events[i];
 
             sockfd = ev->data.fd;
 
@@ -372,6 +376,8 @@ static int loop_epoll_events (int epollfd, int listenfd, struct epoll_event *eve
                 assert(err == 0);
                 status_msg_cb(err, msg);
             } else if (ev->events & EPOLLIN) {
+                status_msg_cb(0, "epoll_conn_handler handle client...\n");
+
                 // 客户端有数据发送的事件发生
                 pthread_t thread;
 
@@ -383,7 +389,7 @@ static int loop_epoll_events (int epollfd, int listenfd, struct epoll_event *eve
                 // 调用工作者线程处理数据
                 pthread_create(&thread, NULL, epoll_conn_handler, (void*) fdpair);
 
-                status_msg_cb(0, "epoll_conn_handler handle client...\n");
+                pthread_join(thread, NULL);
             } else {
                 status_msg_cb(-1, "something wrong.\n");
                 printf("something wrong.\n");

@@ -98,7 +98,7 @@ void print_status_msg (int status, const char *msg)
 
 
 void run_server_shell ()
-{
+{//https://linux.die.net/man/3/getaddrinfo
 #define XSSRVAPP    csh_green_msg("["APP_NAME"] ")
 
     int epollfd, listenfd;

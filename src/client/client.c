@@ -233,22 +233,117 @@ void run_client_shell (clientapp_opts *opts)
     LOGGER_INFO("interactive shell [%s] start ...", APP_NAME);
 
     char host[XSYNC_HOSTNAME_MAXLEN + 1];
-    char port[20];
-    char magic[20];
-    char answer[256];
+    char port[6];
+    char magic[10];
 
-    getinputline(XSCLIAPP CSH_CYAN_MSG("Input server host: "), host, sizeof(host));
+    char msg[256];
 
-    getinputline(XSCLIAPP CSH_CYAN_MSG("Input server port: "), port, sizeof(port));
+    const char *result;
 
-    getinputline(XSCLIAPP CSH_CYAN_MSG("Input server magic: "), magic, sizeof(magic));
+    int portno = 8960;
 
-    printf(XSCLIAPP CSH_GREEN_MSG("SERVERID={%s:%s#%s}\n"), host, port, magic);
+    result = getinputline(XSCLIAPP CSH_CYAN_MSG("Input server ip [localhost]: "), msg, sizeof(msg));
+    if (result) {
+        strncpy(host, result, sizeof(host) - 1);
+    } else {
+        strncpy(host, "localhost", strlen("localhost") + 1);
+    }
+    host[sizeof(host) - 1] = '\0';
 
-    getinputline(XSCLIAPP CSH_CYAN_MSG("Is that server correct? [Y/N]: "), answer, sizeof(answer));
+    result = getinputline(XSCLIAPP CSH_CYAN_MSG("Input server port ["XSYNC_PORT_DEFAULT"]: "), msg, sizeof(msg));
+    if (result) {
+        strncpy(port, result, sizeof(port) - 1);
+    } else {
+        strncpy(port, XSYNC_PORT_DEFAULT, sizeof(port) - 1);
+    }
+    port[sizeof(port) - 1] = '\0';
+    portno = atoi(port);
 
-    getinputline(XSCLIAPP CSH_CYAN_MSG("Connecting to server...\n"), 0, 0);
+    result = getinputline(XSCLIAPP CSH_CYAN_MSG("Input server magic ["XSYNC_MAGIC_DEFAULT"]: "), msg, sizeof(msg));
+    if (result) {
+        strncpy(magic, result, sizeof(magic) - 1);
+    } else {
+        strncpy(magic, XSYNC_MAGIC_DEFAULT, sizeof(magic) - 1);
+    }
+    magic[sizeof(magic) - 1] = '\0';
 
+    result = getinputline(XSCLIAPP CSH_CYAN_MSG("Is that options correct? [Y for yes | N for no]: "), msg, sizeof(msg));
+    if (yes_or_no(result, 0) == 0) {
+        getinputline(XSCLIAPP CSH_CYAN_MSG("User cancelded.\n"), 0, 0);
+        exit(0);
+    }
+
+    snprintf(msg, sizeof(msg), XSCLIAPP CSH_CYAN_MSG("Connect to server {%s:%d#%s} ...\n"), host, portno, magic);
+    getinputline(msg, 0, 0);
+
+    ////////////////////////////////////////////////////////////////////
+    struct addrinfo hints;
+    struct addrinfo *res, *rp;
+    int sfd, s, id;
+    size_t len;
+
+    id = 1;
+    do {
+        /* Obtain address(es) matching host/port */
+        memset(&hints, 0, sizeof(struct addrinfo));
+
+        hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
+        hints.ai_socktype = SOCK_STREAM; /* We want a TCP socket */
+        hints.ai_flags = 0;
+        hints.ai_protocol = 0;          /* Any protocol */
+
+        s = getaddrinfo(host, port, &hints, &res);
+
+        if (s != 0) {
+            fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+            exit(EXIT_FAILURE);
+        }
+
+        /**
+         * getaddrinfo() returns a list of address structures.
+         *
+         * Try each address until we successfully connect(2).
+         * If socket(2) (or connect(2)) fails, we (close the socket and)
+         *   try the next address.
+         **/
+
+        for (rp = res; rp != NULL; rp = rp->ai_next) {
+            sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+
+            if (sfd == -1) {
+                continue;
+            }
+
+            if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != -1) {
+                printf("socket ok.\n");
+                break;
+            }
+
+            close(sfd);
+        }
+
+        if (rp == NULL) {
+            /* No address succeeded */
+            fprintf(stderr, "Could not connect\n");
+            exit(-1);
+        }
+
+        /* No longer needed */
+        freeaddrinfo(res);
+
+        len = snprintf(msg, sizeof(msg), "*************** hello: %d ****************\n", id);
+        msg[len] = 0;
+
+        if (write(sfd, msg, len + 1) != len + 1) {
+            perror("write");
+            close(sfd);
+            exit(-1);
+        } else {
+            printf("send msg:%s\n", msg);
+        }
+
+        close(sfd);
+    } while(id++ < 1000000000);
 
     LOGGER_INFO("interactive shell [%s] exit.", APP_NAME);
 
