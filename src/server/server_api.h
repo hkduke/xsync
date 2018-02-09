@@ -32,7 +32,7 @@ extern "C" {
 #include "../xsync-error.h"
 #include "../xsync-config.h"
 
-
+#include "../common/epollapi.h"
 
 
 typedef struct xs_server_t * XS_server;

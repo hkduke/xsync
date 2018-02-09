@@ -45,6 +45,8 @@ extern "C"
 #include "threadpool.h"
 #include "dhlist.h"
 
+#include "cshell.h"
+
 /** inotify api */
 #include "inotiapi.h"
 
@@ -175,6 +177,27 @@ __attribute__((used))
 static inline char * trim (char * s, char c)
 {
     return (*s==0)?s:(((*s!=c)?(((trim(s+1,c)-1)==s)?s:(*(trim(s+1,c)-1)=*s,*s=c,trim(s+1,c))):trim(s+1,c)));
+}
+
+
+__attribute__((used))
+static inline char * lrtrim (char * s, char c)
+{
+    char * l, *r;
+
+    l = strchr(s, c);
+    r = strrchr(s, c);
+
+    while ( r != 0 ) {
+        *r = '\0';
+        r = strrchr(s, c);
+    }
+
+    if (l) {
+        return ++l;
+    }
+
+    return s;
 }
 
 

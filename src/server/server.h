@@ -30,9 +30,10 @@ extern "C" {
 #define APP_NAME              XSYNC_SERVER_APPNAME
 #define APP_VERSION           XSYNC_SERVER_VERSION
 
-
 #include "server_api.h"
 
+#include "../common/cshell.h"
+#include "../common/mul_timer.h"
 #include "../common/common_util.h"
 
 

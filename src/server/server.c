@@ -21,13 +21,8 @@
 
 #include "server.h"
 
-#include "../common/mul_timer.h"
 
-/**
- * https://linux.die.net/man/4/epoll
- *
- */
-#include <sys/epoll.h>
+void run_server_shell ();
 
 
 void sig_chld (int signo)
@@ -76,203 +71,120 @@ void exit_handler (int exitCode, void *ppData)
 }
 
 
-struct fds
-{
-    //文件描述符结构体，用作传递给子线程的参数
-    int epollfd;
-    int sockfd;
-};
-
-
-int setnonblocking (int fd)
-{
-    //设置文件描述符为非阻塞
-    int old_option = fcntl (fd, F_GETFL);
-    int new_option = old_option | O_NONBLOCK;
-
-    fcntl(fd, F_SETFL, new_option);
-
-    return old_option;
-}
-
-
-void addfd (int epollfd, int fd, bool oneshot)
-{
-    //为文件描述符添加事件
-    struct epoll_event event;
-    event.data.fd = fd;
-    event.events = EPOLLIN | EPOLLET;
-
-    if (oneshot) {
-        // 采用EPOLLONETSHOT事件
-        event.events |= EPOLLONESHOT;
-    }
-
-    epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &event);
-
-    setnonblocking(fd);
-}
-
-
-void reset_oneshot (int epollfd, int fd)
-{
-    //重置事件
-    struct epoll_event event;
-    event.data.fd = fd;
-    event.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
-
-    epoll_ctl (epollfd, EPOLL_CTL_MOD, fd, &event);
-}
-
-#define BUFFER_SIZE      1024
-#define MAX_EVENT_NUMBER 2048
-
-
-void * worker(void* arg)
-{
-    //工作者线程(子线程)接收socket上的数据并重置事件
-    int sockfd = ((struct fds *) arg)->sockfd;
-
-    //事件表描述符从arg参数(结构体fds)得来
-    int epollfd = ((struct fds*) arg)->epollfd;
-
-    free(arg);
-
-    printf("start new thread to receive data on fd: %d\n", sockfd);
-
-    char buf[BUFFER_SIZE];
-
-    memset(buf, 0, BUFFER_SIZE);
-
-    while (1) {
-        //接收数据
-        int ret = recv(sockfd, buf, BUFFER_SIZE - 1, 0);
-
-        if (ret == 0) {
-            //关闭连接
-            close(sockfd);
-            printf("close sock: %d\n", sockfd);
-            break;
-        } else if (ret < 0) {
-            if (errno == EAGAIN) {
-                //并非网络出错，而是可以再次注册事件
-                reset_oneshot(epollfd, sockfd);
-                printf("reset epollfd\n");
-                break;
-            }
-        } else {
-            printf("buf: %s\n", buf);
-
-            //采用睡眠是为了在5s内若有新数据到来则该线程继续处理，否则线程退出
-            sleep(5);
-        }
-    }
-
-    printf("thread exit on fd: %d\n", sockfd);
-
-    return 0;
-}
-
-
-/**
+/***********************************************************************
  * epoll refer:
  *
  *   1) http://blog.csdn.net/liuxuejiang158blog/article/details/12422471
  *   2) http://www.cnblogs.com/haippy/archive/2012/01/09/2317269.html
  *
+ *
  * Run Commands:
  * 1) Debug:
  *     $ ../target/server-client-0.0.1 -Ptrace -Astdout
  *
- */
+ **********************************************************************/
 int main (int argc, char *argv[])
 {
-    const char* ip = "127.0.0.1";
+    run_server_shell();
 
-    int port = 8960;
+    exit(-1);
+}
 
-    int ret = 0;
 
-    struct sockaddr_in address;
-    bzero(&address, sizeof(address));
+void print_status_msg (int status, const char *msg)
+{
+    printf("%s", msg);
+}
 
-    address.sin_family = AF_INET;
-    inet_pton(AF_INET, ip, &address.sin_addr);
 
-    address.sin_port = htons(port);
+void run_server_shell ()
+{
+#define XSSRVAPP    csh_green_msg("["APP_NAME"] ")
 
-    int listenfd = socket(PF_INET, SOCK_STREAM, 0);
-    assert(listenfd >= 0);
+    int epollfd, listenfd;
 
-    ret = bind(listenfd, (struct sockaddr*)&address, sizeof(address));
-    assert(ret != -1);
+    struct epoll_event *events;
 
-    ret = listen(listenfd, 5);
-    assert(ret != -1);
+    char msg[256];
 
-    struct epoll_event events[MAX_EVENT_NUMBER];
+    char port[6];
+    char magic[10];
 
-    int epollfd = epoll_create1(EPOLL_CLOEXEC);
+    const char *result;
 
-    assert(epollfd != -1);
+    int backlog = SOMAXCONN;
+    int maxevents = 1024;
+    int timeout_ms = 1000;
 
-    //不能将监听端口listenfd设置为EPOLLONESHOT否则会丢失客户连接
-    addfd(epollfd, listenfd, false);
+    result = getinputline(XSSRVAPP CSH_CYAN_MSG("Input listen port ["XSYNC_PORT_DEFAULT"]: "), msg, sizeof(msg));
+    if (result) {
+        strncpy(port, result, sizeof(port) - 1);
+    } else {
+        strncpy(port, XSYNC_PORT_DEFAULT, sizeof(port) - 1);
+    }
+    port[sizeof(port) - 1] = '\0';
 
-    while (1) {
-        //等待事件发生: 1000 = 1 秒
-        //  epoll_pwait: 2.6.19 and later
-        int ret = epoll_pwait(epollfd, events, MAX_EVENT_NUMBER, 1000, 0);
+    result = getinputline(XSSRVAPP CSH_CYAN_MSG("Input server magic ["XSYNC_MAGIC_DEFAULT"]: "), msg, sizeof(msg));
+    if (result) {
+        strncpy(magic, result, sizeof(magic) - 1);
+    } else {
+        strncpy(magic, XSYNC_MAGIC_DEFAULT, sizeof(magic) - 1);
+    }
+    magic[sizeof(magic) - 1] = '\0';
 
-        if (ret <= 0) {
-            if (ret == 0 || errno == EINTR) {
-                //监听被打断
-                printf("epoll_pwait: %s\n", strerror(errno));
-                continue;
-            }
-
-            printf("epoll error\n");
-            break;
-        } else {
-            printf("epoll_pwait ok: %d\n", ret);
-        }
-
-        if(ret<=0){
-            if(ret==0||errno==EINTR)//监听被打断
-                continue;
-            return -1;
-        }
-
-        for (int i = 0; i < ret; i++) {
-            int sockfd = events[i].data.fd;
-
-            if (sockfd == listenfd) {
-                //监听端口
-                struct sockaddr_in client_address;
-
-                socklen_t addrlen = sizeof(client_address);
-
-                int connfd = accept(listenfd, (struct sockaddr*) &client_address, &addrlen);
-
-                //新的客户连接置为EPOLLONESHOT事件
-                addfd(epollfd, connfd, true);
-            } else if (events[i].events&EPOLLIN) {
-                //客户端有数据发送的事件发生
-                pthread_t thread;
-                struct fds *new_fds = malloc(sizeof(*new_fds));
-                new_fds->epollfd = epollfd;
-                new_fds->sockfd = sockfd;
-
-                //调用工作者线程处理数据
-                pthread_create(&thread, NULL, worker, (void*) new_fds);
-            } else {
-                printf("something wrong.\n");
-            }
-        }
+    result = getinputline(XSSRVAPP CSH_CYAN_MSG("Is that options correct? [Y for yes | N for no]: "), msg, sizeof(msg));
+    if (yes_or_no(result, 0) == 0) {
+        getinputline(XSSRVAPP CSH_CYAN_MSG("User cancelded.\n"), 0, 0);
+        exit(0);
     }
 
-    close(listenfd);
-    printf("server exit.\n");
+    snprintf(msg, sizeof(msg), XSSRVAPP CSH_CYAN_MSG("Create server {0.0.0.0:%s#%s} and bind ...\n"), port, magic);
+    getinputline(msg, 0, 0);
 
-    return (-1);
+    listenfd = create_and_bind(NULL, port, msg, sizeof(msg));
+    if (listenfd == -1) {
+        fprintf(stderr, CSH_RED_MSG("%s.\n"), msg);
+        exit(-1);
+    }
+    getinputline(XSSRVAPP CSH_GREEN_MSG("bind socket ok.\n"), 0, 0);
+
+    int old_sockopt = set_socket_nonblock(listenfd, msg, sizeof(msg));
+    if (old_sockopt == -1) {
+        close(listenfd);
+        fprintf(stderr, CSH_RED_MSG("%s.\n"), msg);
+        exit(-1);
+    }
+    getinputline(XSSRVAPP CSH_GREEN_MSG("set nonblock ok.\n"), 0, 0);
+
+    epollfd = init_epoll_event(listenfd, SOMAXCONN, msg, sizeof(msg));
+    if (epollfd == -1) {
+        fcntl(listenfd, F_SETFL, old_sockopt);
+        close(listenfd);
+        fprintf(stderr, CSH_RED_MSG("%s.\n"), msg);
+        exit(-1);
+    }
+    snprintf(msg, sizeof(msg), XSSRVAPP CSH_GREEN_MSG("create epoll ok. (backlog=%d)\n"), backlog);
+    getinputline(msg, 0, 0);
+
+    events = (struct epoll_event *) calloc(maxevents, sizeof(struct epoll_event));
+    if (! events) {
+        fprintf(stderr, CSH_RED_MSG("create events error: out of memory.\n"));
+        fcntl(listenfd, F_SETFL, old_sockopt);
+        close(listenfd);
+        close(epollfd);
+        exit(-1);
+    }
+
+    snprintf(msg, sizeof(msg), XSSRVAPP CSH_GREEN_MSG("loop epoll events. (events=%d timeout=%d msec)\n"), maxevents, timeout_ms);
+    getinputline(msg, 0, 0);
+
+    loop_epoll_events(epollfd, listenfd, events, maxevents, timeout_ms, print_status_msg, msg, sizeof(msg));
+
+    free(events);
+
+    fcntl(listenfd, F_SETFL, old_sockopt);
+    close(listenfd);
+    close(epollfd);
+
+#undef XSSRVAPP
 }

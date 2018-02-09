@@ -35,7 +35,6 @@ extern "C"
  * "\033[33m YELLOW \033[0m"
  */
 
-
 #define csh_red_msg(message)     "\033[31m"message"\033[0m"
 #define csh_green_msg(message)   "\033[32m"message"\033[0m"
 #define csh_yellow_msg(message)  "\033[33m"message"\033[0m"
@@ -51,8 +50,29 @@ extern "C"
 #define CSH_CYAN_MSG(message)    "\033[1;36m"message"\033[0m"
 
 
-__no_warning_unused(static)
-const char * getinputline (const char *message, char *line, int maxsize)
+__attribute__((used))
+static char * lrstrip (char * s, char c)
+{
+    char * l, *r;
+
+    l = strchr(s, c);
+    r = strrchr(s, c);
+
+    while ( r != 0 ) {
+        *r = '\0';
+        r = strrchr(s, c);
+    }
+
+    if (l) {
+        return ++l;
+    }
+
+    return s;
+}
+
+
+__attribute__((used))
+static const char * getinputline (const char *message, char *line, int maxsize)
 {
     int i, c;
     char *pl = line;
@@ -64,6 +84,8 @@ const char * getinputline (const char *message, char *line, int maxsize)
     if (! line) {
         return NULL;
     }
+
+    bzero(line, maxsize);
 
     i = 0;
 
@@ -87,7 +109,37 @@ const char * getinputline (const char *message, char *line, int maxsize)
         *line = '\0';
     }
 
-    return line;
+    pl = lrstrip(lrstrip(line, ' '), '\n');
+
+    if (*pl == '\0') {
+        return NULL;
+    }
+
+    return pl;
+}
+
+
+/**
+ * 1 - yes
+ * 0 - no
+ *
+ */
+__attribute__((used))
+static int yes_or_no (const char *answer, int defval)
+{
+    if (! answer) {
+        return defval;
+    }
+
+    if (! strcmp(answer, "Y") || ! strcmp(answer, "yes") || ! strcmp(answer, "Yes")) {
+        return 1;
+    }
+
+    if (! strcmp(answer, "N") || ! strcmp(answer, "no") || ! strcmp(answer, "n") || ! strcmp(answer, "No")) {
+        return 0;
+    }
+
+    return defval;
 }
 
 

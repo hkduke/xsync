@@ -158,6 +158,16 @@ extern "C"
 #endif
 
 
+#ifndef XSYNC_PORT_DEFAULT
+#  define XSYNC_PORT_DEFAULT            "8960"
+#endif
+
+
+#ifndef XSYNC_MAGIC_DEFAULT
+#  define XSYNC_MAGIC_DEFAULT            "89604916"
+#endif
+
+
 #ifndef XSYNC_ERRBUF_MAXLEN
 #  define XSYNC_ERRBUF_MAXLEN           255
 #endif

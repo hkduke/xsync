@@ -41,9 +41,6 @@ extern "C" {
 #define APP_NAME              XSYNC_CLIENT_APPNAME
 #define APP_VERSION           XSYNC_CLIENT_VERSION
 
-#define XS_DEFAULT_TasksPrethreadMin   8
-#define XS_DEFAULT_NumberThreadsMin    2
-
 #include "client_api.h"
 
 #include "../common/cshell.h"
