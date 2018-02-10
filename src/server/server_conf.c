@@ -32,12 +32,65 @@
  *
  */
 #include "server_api.h"
-
 #include "server_conf.h"
 
 #include "../xsync-xmlconf.h"
-
 #include "../common/readconf.h"
-
 #include "../common/common_util.h"
 
+
+extern void xs_server_delete (void *pv)
+{
+    XS_server server = (XS_server) pv;
+
+    LOGGER_TRACE("pause and destroy timer");
+    mul_timer_pause();
+    if (mul_timer_destroy() != 0) {
+        LOGGER_ERROR("mul_timer_destroy failed");
+    }
+
+    LOGGER_TRACE("pthread_cond_destroy");
+    pthread_cond_destroy(&server->condition);
+
+    if (server->events) {
+        LOGGER_DEBUG("destroy epoll_events");
+
+        fcntl(server->listenfd, F_SETFL, server->listenfd_oldopt);
+
+        close(server->listenfd);
+        close(server->epollfd);
+
+        free(server->events);
+
+        server->epollfd = -1;
+        server->listenfd = -1;
+        server->events = 0;
+    }
+
+    if (server->pool) {
+        LOGGER_DEBUG("threadpool_destroy");
+        threadpool_destroy(server->pool, 0);
+    }
+
+    if (server->thread_args) {
+        int i;
+        perthread_data *pdata;
+
+        LOGGER_DEBUG("destroy thread_args");
+
+        for (i = 0; i < server->threads; ++i) {
+            pdata = server->thread_args[i];
+            server->thread_args[i] = 0;
+
+            free(pdata);
+        }
+
+        free(server->thread_args);
+    }
+
+    XS_server_clear_client_sessions(server);
+
+    LOGGER_TRACE("%p", server);
+
+    free(server);
+}

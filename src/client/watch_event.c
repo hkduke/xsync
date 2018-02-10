@@ -123,10 +123,10 @@ extern ssize_t XS_watch_event_sync_file (XS_watch_event event, perthread_data *p
     if (rofd != -1) {
         pos = (off_t) entry->offset;
 
-        while (sendbytes < XSYNC_BATCH_SEND_MAX_SIZE &&
+        while (sendbytes < XSYNC_BATCH_SEND_MAXSIZE &&
             (cbread = pread_len(rofd, perdata->buffer, sizeof(perdata->buffer), pos)) > 0) {
 
-            #if XSYNC_LINUX_SEND_FILE == 1
+            #if XSYNC_LINUX_SENDFILE == 1
                 //watch_entry_read_and_sendfile
                 LOGGER_WARN("TODO: sendfile: %lld bytes", (long long) cbread);
             #else

@@ -31,6 +31,7 @@ extern "C" {
 
 #include "../xsync-error.h"
 #include "../xsync-config.h"
+#include "../xsync-protocol.h"
 
 #include "../common/epollapi.h"
 
@@ -41,13 +42,21 @@ typedef struct xs_server_t * XS_server;
 typedef struct serverapp_opts
 {
     // singleton
-
     char *startcmd;
+
+    int timeout_ms;
 
     int isdaemon;
 
+    int maxclients;
     int threads;
     int queues;
+
+    char host[XSYNC_HOSTNAME_MAXLEN + 1];
+    char port[XSYNC_PORTNUMB_MAXLEN + 1];
+
+    int somaxconn;
+    int maxevents;
 
     char config[XSYNC_PATHFILE_MAXLEN + 1];
 } serverapp_opts;
@@ -56,8 +65,15 @@ typedef struct serverapp_opts
 /**
  * XS_server application api
  */
+extern XS_RESULT XS_server_create (serverapp_opts *opts, XS_server *outServer);
 
+extern XS_VOID XS_server_release (XS_server *pServer);
 
+extern int XS_server_lock (XS_server server);
+
+extern void XS_server_unlock (XS_server server);
+
+extern XS_VOID XS_server_bootstrap (XS_server server);
 
 /**
  * XS_server configuration api
@@ -72,6 +88,7 @@ typedef struct serverapp_opts
  * XS_server internal api
  */
 
+extern XS_VOID XS_server_clear_client_sessions (XS_server server);
 
 
 #if defined(__cplusplus)

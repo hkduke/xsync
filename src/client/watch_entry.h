@@ -92,6 +92,7 @@ typedef struct xs_watch_entry_t
 
     int rofd;                           /* local file descriptor for read only: -1 error or uninit */
     struct stat rofd_sb;                /* stat of rofd */
+
     uint64_t offset;                    /* current offset position */
 
     /* read only members */

@@ -162,14 +162,14 @@ void run_server_shell ()
     snprintf(msg, sizeof(msg), XSSRVAPP CSH_CYAN_MSG("Create server {0.0.0.0:%s#%s} and bind ...\n"), port, magic);
     getinputline(msg, 0, 0);
 
-    listenfd = create_and_bind(NULL, port, msg, sizeof(msg));
+    listenfd = epapi_create_and_bind(NULL, port, msg, sizeof(msg));
     if (listenfd == -1) {
         fprintf(stderr, CSH_RED_MSG("%s.\n"), msg);
         exit(-1);
     }
     getinputline(XSSRVAPP CSH_GREEN_MSG("bind socket ok.\n"), 0, 0);
 
-    int old_sockopt = set_socket_nonblock(listenfd, msg, sizeof(msg));
+    int old_sockopt = epapi_set_nonblock(listenfd, msg, sizeof(msg));
     if (old_sockopt == -1) {
         close(listenfd);
         fprintf(stderr, CSH_RED_MSG("%s.\n"), msg);
@@ -177,7 +177,7 @@ void run_server_shell ()
     }
     getinputline(XSSRVAPP CSH_GREEN_MSG("set nonblock ok.\n"), 0, 0);
 
-    epollfd = init_epoll_event(listenfd, SOMAXCONN, msg, sizeof(msg));
+    epollfd = epapi_init_epoll_event(listenfd, SOMAXCONN, msg, sizeof(msg));
     if (epollfd == -1) {
         fcntl(listenfd, F_SETFL, old_sockopt);
         close(listenfd);
@@ -199,7 +199,7 @@ void run_server_shell ()
     snprintf(msg, sizeof(msg), XSSRVAPP CSH_GREEN_MSG("loop epoll events. (events=%d timeout=%d msec)\n"), maxevents, timeout_ms);
     getinputline(msg, 0, 0);
 
-    loop_epoll_events(epollfd, listenfd, events, maxevents, timeout_ms, print_status_msg, msg, sizeof(msg));
+    loop_epoll_event(epollfd, listenfd, events, maxevents, timeout_ms, print_status_msg, msg, sizeof(msg));
 
     free(events);
 

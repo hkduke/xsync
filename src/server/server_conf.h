@@ -26,22 +26,7 @@
 extern "C" {
 #endif
 
-#include "../common/common_util.h"
-
-
-#include "../xsync-error.h"
-#include "../xsync-config.h"
-
-
-typedef struct perthread_data
-{
-    int    threadid;
-
-    int    sessions[XSYNC_SERVER_MAXID + 1];
-    int    sockfds[XSYNC_SERVER_MAXID + 1];
-
-    byte_t buffer[XSYNC_IO_BUFSIZE];
-} perthread_data;
+#include "client_session.h"
 
 
 /**
@@ -51,10 +36,45 @@ typedef struct xs_server_t
 {
     EXTENDS_REFOBJECT_TYPE();
 
+    pthread_cond_t  condition;
 
+    ref_counter_t session_counter;
+
+    int ssl;
+
+    int maxclients;
+    int timeout_ms;
+
+    int epollfd;
+    int listenfd;
+    int listenfd_oldopt;
+
+    int numevents;
+    struct epoll_event *events;
+
+    /** queue size per thread */
+    int queues;
+
+    /** number of threads */
+    int threads;
+
+    /** thread pool for handlers */
+    threadpool_t *pool;
+    void        **thread_args;
+
+    /**
+     * hlist for client_session: key is CLIENTID
+     */
+    struct hlist_head client_hlist[XSYNC_CLIENT_SESSION_HASHMAX + 1];
+
+    /**
+     * msg buffer
+     */
+    char msgbuf[XSYNC_ERRBUF_MAXLEN + 1];
 } xs_server_t;
 
 
+extern void xs_server_delete (void *pv);
 
 #if defined(__cplusplus)
 }

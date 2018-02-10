@@ -44,7 +44,6 @@ extern "C" {
 #include "client_api.h"
 
 #include "../common/cshell.h"
-#include "../common/mul_timer.h"
 #include "../common/common_util.h"
 
 
@@ -137,7 +136,7 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
 {
     int ret;
 
-    char buff[XSYNC_IO_BUFSIZE];
+    char buff[XSYNC_BUFSIZE];
 
     char config[XSYNC_PATHFILE_MAXLEN + 1];
     char log4crc[XSYNC_PATHFILE_MAXLEN + 1];

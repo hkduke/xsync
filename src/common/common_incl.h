@@ -86,4 +86,21 @@
   #include <openssl/md5.h>
 #endif
 
+
+#ifndef PATHFILE_MAXLEN
+#  define PATHFILE_MAXLEN  255
+#endif
+
+#ifndef HOSTNAME_MAXLEN
+#  define HOSTNAME_MAXLEN  127
+#endif
+
+#ifndef ERRORMSG_MAXLEN
+#  define ERRORMSG_MAXLEN  255
+#endif
+
+#ifndef BUFFER_MAXSIZE
+#  define BUFFER_MAXSIZE  8192
+#endif
+
 #endif /* COMMON_INCL_H_INCLUDED */

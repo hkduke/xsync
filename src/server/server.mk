@@ -33,7 +33,9 @@ TGT_LDLIBS  := \
 SOURCES := \
     server.c \
     server_api.c \
-    server_conf.c
+    server_conf.c \
+    client_session.c \
+    file_entry.c
 
 
 # see "../xsync-config.h" for definitions

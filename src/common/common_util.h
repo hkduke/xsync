@@ -379,9 +379,9 @@ static int getfullpath (char * path, char * outpath, size_t size_outpath)
 
     char * p;
 
-    char savedcwd[XSYNC_PATH_MAX_SIZE];
-    char fullpath[XSYNC_PATH_MAX_SIZE];
-    char name[XSYNC_HOSTNAME_MAXLEN + 1];
+    char savedcwd[PATHFILE_MAXLEN + 1];
+    char fullpath[PATHFILE_MAXLEN + 1];
+    char name[HOSTNAME_MAXLEN + 1];
 
     *name = 0;
 
@@ -496,7 +496,7 @@ static int fileislink (const char * pathfile, char * inbuf, ssize_t inbufsize)
         bufsize = inbufsize;
         sbbuf = inbuf;
     } else {
-        bufsize = XSYNC_PATH_MAX_SIZE;
+        bufsize = PATHFILE_MAXLEN + 1;
         sbbuf = (char *) malloc(bufsize);
     }
 
@@ -604,7 +604,7 @@ static int getstartcmd (int argc, char ** argv, char * cmdbuf, ssize_t bufsize, 
 {
     int err, len;
     char *tmpbin;
-    char linkpath[XSYNC_PATH_MAX_SIZE];
+    char linkpath[PATHFILE_MAXLEN + 1];
 
     err = fileislink(argv[0], cmdbuf, bufsize);
     if (err == 1) {

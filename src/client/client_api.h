@@ -44,7 +44,7 @@ extern "C" {
 
 #include "../xsync-error.h"
 #include "../xsync-config.h"
-
+#include "../xsync-protocol.h"
 
 typedef struct xs_client_t              * XS_client;
 typedef struct xs_server_opts_t         * XS_server_opts;

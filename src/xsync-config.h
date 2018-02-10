@@ -32,57 +32,50 @@
 #ifndef XSYNC_CONFIG_H_
 #define XSYNC_CONFIG_H_
 
+
 #if defined(__cplusplus)
 extern "C"
 {
 #endif
 
-#ifndef XSYNC_CLIENT_APPNAME
-#  define XSYNC_CLIENT_APPNAME          "xsync-client"
-#endif
-
-#ifndef XSYNC_CLIENT_VERSION
-#  define XSYNC_CLIENT_VERSION          "0.0.1"
-#endif
-
-
-#ifndef XSYNC_SERVER_APPNAME
-#  define XSYNC_SERVER_APPNAME          "xsync-server"
-#endif
-
-#ifndef XSYNC_SERVER_VERSION
-#  define XSYNC_SERVER_VERSION          "0.0.1"
-#endif
-
-
-#define XSYNC_CLIENT_XMLNS              "http://github.com/pepstack/xsync/client"
-
-#define XSYNC_SERVER_XMLNS             "http://github.com/pepstack/xsync/server"
-
-#define XSYNC_COPYRIGHT                 "pepstack.com"
-
-#define XSYNC_AUTHOR                    "master@pepstack.com"
+#include "../common/common_incl.h"
 
 
 /**
  * DO NOT CHANGE BELOW VALUE
  */
-#define XSYNC_IO_BUFSIZE                4096
+#define XSYNC_CLIENT_APPNAME            "xsync-client"
+#define XSYNC_CLIENT_VERSION            "0.0.1"
+#define XSYNC_CLIENT_XMLNS              "http://github.com/pepstack/xsync/client"
+
+#define XSYNC_SERVER_APPNAME            "xsync-server"
+#define XSYNC_SERVER_VERSION            "0.0.1"
+#define XSYNC_SERVER_XMLNS              "http://github.com/pepstack/xsync/server"
+
+#define XSYNC_COPYRIGHT                 "pepstack.com"
+#define XSYNC_AUTHOR                    "master@pepstack.com"
+
+
+/**
+ * DO NOT CHANGE BELOW VALUE
+ *   4096, 8192
+ */
+#define XSYNC_BUFSIZE                   BUFFER_MAXSIZE
 
 
 /**
  * define max size of path file
  */
-#ifndef XSYNC_PATH_MAX_SIZE
-#  define XSYNC_PATH_MAX_SIZE           PATH_MAX
+#ifndef XSYNC_PATH_MAXSIZE
+#  define XSYNC_PATH_MAXSIZE            (PATHFILE_MAXLEN + 1)
 #endif
 
 
 /**
  * 是否使用 sendfile 直接传输文件. sendfile 只在 Linux 平台支持
  */
-#ifndef XSYNC_LINUX_SEND_FILE
-#  define XSYNC_LINUX_SEND_FILE         1
+#ifndef XSYNC_LINUX_SENDFILE
+#  define XSYNC_LINUX_SENDFILE          1
 #endif
 
 
@@ -91,8 +84,8 @@ extern "C"
  * 文件应该分次传送，因此 1 次不宜过大.
  * 默认=INT_MAX : 2GB (=2147483647 Bytes)
  */
-#ifndef XSYNC_BATCH_SEND_MAX_SIZE
-#  define XSYNC_BATCH_SEND_MAX_SIZE     INT_MAX
+#ifndef XSYNC_BATCH_SEND_MAXSIZE
+#  define XSYNC_BATCH_SEND_MAXSIZE      INT_MAX
 #endif
 
 
@@ -112,7 +105,7 @@ extern "C"
  * Note that you should not set it less than 4096 or more than 65536
  */
 #ifndef XSYNC_INEVENT_BUFSIZE
-#  define XSYNC_INEVENT_BUFSIZE         8192
+#  define XSYNC_INEVENT_BUFSIZE         XSYNC_BUFSIZE
 #endif
 
 
@@ -140,13 +133,21 @@ extern "C"
 #endif
 
 
+/**
+ * for both server and client
+ *   系统支持的最大长度客户ID
+ */
 #ifndef XSYNC_CLIENTID_MAXLEN
 #  define XSYNC_CLIENTID_MAXLEN         40
 #endif
 
 
+/**
+ * for both server and client
+ *   系统支持的最大长度路径文件名
+ */
 #ifndef XSYNC_PATHFILE_MAXLEN
-#  define XSYNC_PATHFILE_MAXLEN         255
+#  define XSYNC_PATHFILE_MAXLEN         PATHFILE_MAXLEN
 #endif
 
 
@@ -164,25 +165,36 @@ extern "C"
 
 
 #ifndef XSYNC_MAGIC_DEFAULT
-#  define XSYNC_MAGIC_DEFAULT            "89604916"
+#  define XSYNC_MAGIC_DEFAULT           "89604916"
 #endif
 
 
 #ifndef XSYNC_ERRBUF_MAXLEN
-#  define XSYNC_ERRBUF_MAXLEN           255
+#  define XSYNC_ERRBUF_MAXLEN           ERRORMSG_MAXLEN
 #endif
 
 
 #ifndef XSYNC_HOSTNAME_MAXLEN
-#  define XSYNC_HOSTNAME_MAXLEN         128
+#  define XSYNC_HOSTNAME_MAXLEN         HOSTNAME_MAXLEN
 #endif
 
 
+#ifndef XSYNC_PORTNUMB_MAXLEN
+#  define XSYNC_PORTNUMB_MAXLEN         8
+#endif
+
+
+/**
+ * for xsync client
+ */
 #ifndef XSYNC_WATCH_PATH_HASHMAX
 #  define XSYNC_WATCH_PATH_HASHMAX      255
 #endif
 
 
+/**
+ * for xsync client
+ */
 #ifndef XSYNC_WATCH_ENTRY_HASHMAX
 #  define XSYNC_WATCH_ENTRY_HASHMAX     1023
 #endif
@@ -198,11 +210,44 @@ extern "C"
 
 
 /**
- * watch entry session timeout in seconds:
+ * only for client
+ *  watch entry session timeout in seconds:
  *    should in [300, 900]
  */
 #ifndef XSYNC_ENTRY_SESSION_TIMEOUT
 #  define XSYNC_ENTRY_SESSION_TIMEOUT   30
+#endif
+
+
+/**
+ * only for xsync server:
+ *
+ *   XSYNC_CLIENT_SESSION_HASHMAX = 2^n - 1 (n = 8, 10, 12)
+ *
+ * 1) if has a lot of clients, set it as bigger as: n = 10, 12
+ *
+ * 2) if has few clients, let it be the default: 255
+ */
+#ifndef XSYNC_CLIENT_SESSION_HASHMAX
+#  define XSYNC_CLIENT_SESSION_HASHMAX      255
+#endif
+
+
+/**
+ * only for xsync server:
+ *
+ *   XSYNC_FILE_ENTRY_HASHMAX = 2^n - 1 (n = 4, 5, 6, 7, 8, 9, 10)
+ *
+ * 1) if has a lot of clients, set it as smaller as:
+ *      n = 15, 63
+ *
+ * 2) if one client has many files to sync at same time, set as bigger as:
+ *      n = 63, 127, 255
+ *
+ * 3) nerver set if more than 1023 (2^10-1)
+ **/
+#ifndef XSYNC_FILE_ENTRY_HASHMAX
+#  define XSYNC_FILE_ENTRY_HASHMAX      255
 #endif
 
 

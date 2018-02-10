@@ -99,7 +99,7 @@ extern void xs_client_delete (void *pv)
         close(infd);
     }
 
-    LOGGER_TRACE("~xclient=%p", client);
+    LOGGER_TRACE("%p", client);
 
     free(client);
 }
@@ -141,8 +141,8 @@ XS_RESULT client_read_filter_file (XS_client client, const char * filter_file, i
     int ret, lineno, err;
     char * endpath;
 
-    char pathid_file[XSYNC_IO_BUFSIZE];
-    char resolved_path[XSYNC_IO_BUFSIZE];
+    char pathid_file[XSYNC_BUFSIZE];
+    char resolved_path[XSYNC_BUFSIZE];
 
     FILE * fp = 0;
 
@@ -177,7 +177,7 @@ XS_RESULT client_read_filter_file (XS_client client, const char * filter_file, i
     err = -5;
 
     do {
-        char line[XSYNC_IO_BUFSIZE];
+        char line[XSYNC_BUFSIZE];
         char * p, * filter;
 
         char * sid_filter = strrchr(filter_file, '/');
@@ -265,7 +265,7 @@ __no_warning_unused(static)
 int lscb_add_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client)
 {
     int  lnk;
-    char resolved_path[XSYNC_PATH_MAX_SIZE];
+    char resolved_path[XSYNC_PATH_MAXSIZE];
 
     lnk = fileislink(path, 0, 0);
 
@@ -307,7 +307,7 @@ int lscb_init_watch_path (const char * path, int pathlen, struct dirent *ent, XS
 {
     int  lnk, sid, err;
 
-    char resolved_path[XSYNC_PATH_MAX_SIZE];
+    char resolved_path[XSYNC_PATH_MAXSIZE];
 
     lnk = fileislink(path, 0, 0);
 
@@ -909,7 +909,7 @@ extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watchd
 {
     int err;
 
-    char inbuf[XSYNC_PATH_MAX_SIZE];
+    char inbuf[XSYNC_PATH_MAXSIZE];
 
     err = listdir(watchdir, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_add_watch_path, (void*) client);
     if (! err) {

@@ -133,7 +133,7 @@ extern "C"
      * InterlockedCompareExchange64
      *   https://msdn.microsoft.com/en-us/library/windows/desktop/ms683562(v=vs.85).aspx
      */
-    #define __interlock_get(addr)            InterlockedCompareExchange64(addr, 0, 0)
+    #define __interlock_get(addr)           InterlockedCompareExchange64(addr, 0, 0)
     #define __interlock_set(addr, newval)   InterlockedExchange64(addr, newval)
 
     /* get current thread id */
@@ -171,7 +171,7 @@ extern "C"
     #define __interlock_sub(addr)         __sync_sub_and_fetch(addr, 1)
     #define __interlock_release(addr)     __sync_lock_release(addr)
 
-    #define __interlock_get(addr)         __sync_fetch_and_add(addr, 0)
+    #define __interlock_get(addr)           __sync_fetch_and_add(addr, 0)
     #define __interlock_set(addr, newval)   __sync_lock_test_and_set(addr, newval)
 
 

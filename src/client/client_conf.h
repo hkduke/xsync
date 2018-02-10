@@ -100,7 +100,7 @@ typedef struct xs_client_t
     struct hlist_head wp_hlist[XSYNC_WATCH_PATH_HASHMAX + 1];
 
     /* buffer must be in lock */
-    char inlock_buffer[XSYNC_IO_BUFSIZE];
+    char inlock_buffer[XSYNC_BUFSIZE];
 } xs_client_t;
 
 
@@ -213,9 +213,9 @@ XS_BOOL client_find_watch_entry_inlock (XS_client client, int sid, int wd, const
 {
     XS_watch_entry entry;
 
-    char nameid[XSYNC_IO_BUFSIZE];
-    snprintf(nameid, XSYNC_IO_BUFSIZE, "%d:%d/%s", sid, wd, filename);
-    nameid[XSYNC_IO_BUFSIZE - 1] = 0;
+    char nameid[XSYNC_BUFSIZE];
+    snprintf(nameid, XSYNC_BUFSIZE, "%d:%d/%s", sid, wd, filename);
+    nameid[XSYNC_BUFSIZE - 1] = 0;
 
     int hash = xs_watch_entry_hash(nameid);
 

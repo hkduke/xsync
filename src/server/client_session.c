@@ -18,27 +18,27 @@
 *
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
-
-#ifndef SERVER_H_INCLUDED
-#define SERVER_H_INCLUDED
-
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
-#define APP_NAME              XSYNC_SERVER_APPNAME
-#define APP_VERSION           XSYNC_SERVER_VERSION
-
 #include "server_api.h"
 
-#include "../common/cshell.h"
-#include "../common/common_util.h"
-#include "../common/redis_client.h"
+#include "client_session.h"
 
 
-#if defined(__cplusplus)
+extern XS_RESULT XS_client_session_create (const char *clientid, XS_client_session *outSession)
+{
+    return XS_SUCCESS;
 }
-#endif
 
-#endif /* SERVER_H_INCLUDED */
+
+extern XS_VOID XS_client_session_release (XS_client_session * inSession)
+{
+    LOGGER_TRACE0();
+
+    RefObjectRelease((void**) inSession, xs_client_session_delete);
+}
+
+
+extern XS_BOOL XS_client_session_not_in_use (XS_client_session session)
+{
+    return XS_TRUE;
+}
+

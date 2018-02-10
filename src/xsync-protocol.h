@@ -19,26 +19,30 @@
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
 
-#ifndef SERVER_H_INCLUDED
-#define SERVER_H_INCLUDED
+/**
+ * xsync-protocol.h
+ *   Define communication format of messages between xsync-client and xsync-server
+ *
+ * author: master@pepstack.com
+ *
+ * create: 2018-02-10
+ * update: 2018-02-10
+ */
 
+#ifndef XSYNC_PROTOCOL_H_
+#define XSYNC_PROTOCOL_H_
 
 #if defined(__cplusplus)
-extern "C" {
+extern "C"
+{
 #endif
 
-#define APP_NAME              XSYNC_SERVER_APPNAME
-#define APP_VERSION           XSYNC_SERVER_VERSION
 
-#include "server_api.h"
 
-#include "../common/cshell.h"
-#include "../common/common_util.h"
-#include "../common/redis_client.h"
 
 
 #if defined(__cplusplus)
 }
 #endif
 
-#endif /* SERVER_H_INCLUDED */
+#endif /* XSYNC_PROTOCOL_H_ */

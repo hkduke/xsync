@@ -81,6 +81,11 @@ extern "C" {
 #define SOCKAPI_ERROR_SELECT   (-5)
 
 
+#ifndef SOCKAPI_BUFSIZE
+#  define SOCKAPI_BUFSIZE      8192
+#endif
+
+
 struct sockconn_opts
 {
     int timeosec;
