@@ -4,7 +4,11 @@ extremely synchronize files among servers.
 ## before build
 
 ```
-$ sh prepare/install-libs.sh
+# for both xsync-server and xsync-client:
+$ sh prepare/install-devel-libs.sh
+
+# only for xsync-server:
+$ sh prepare/install-redis-server.sh
 ```
 
 ## build

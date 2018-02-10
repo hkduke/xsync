@@ -85,6 +85,27 @@ void exit_handler (int exitCode, void *ppData)
  **********************************************************************/
 int main (int argc, char *argv[])
 {
+    char redis_server[] = "127.0.0.1";
+    int redis_port = 6379;
+
+    redisContext* rctx = redisConnect(redis_server, redis_port);
+    if ( rctx->err ) {
+        printf("connect to redis-server(%s:%d) failed: %s.\n", redis_server, redis_port, rctx->errstr);
+        redisFree(rctx);
+        exit(-1);
+    }
+    printf("connect to redis-server(%s:%d) success.\n", redis_server, redis_port);
+
+    redisReply *reply = (redisReply *) redisCommand(rctx, "get xsync:ver");
+    if (reply->type != REDIS_REPLY_STRING) {
+        printf("failed to execute command.\n");
+    } else {
+        printf("get xsync:ver=%s\n", reply->str);
+    }
+    freeReplyObject(reply);
+
+    redisFree(rctx);
+
     run_server_shell();
 
     exit(-1);

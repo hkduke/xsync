@@ -63,3 +63,5 @@ libs/
 boilermake/
 build/
 target/
+redis/bin/
+

@@ -19,27 +19,29 @@
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
 
-#ifndef SERVER_H_INCLUDED
-#define SERVER_H_INCLUDED
-
+/**
+ * redis_client.h
+ *
+ * refer:
+ *   http://blog.csdn.net/educast/article/details/35569213
+ *   http://www.cnblogs.com/chenshungen/p/4625588.html
+ *
+ * create: 2018-02-10
+ * update: 2018-02-10
+ *
+ */
+#ifndef REDIS_CLIENT_H_INCLUDED
+#define REDIS_CLIENT_H_INCLUDED
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#define APP_NAME              XSYNC_SERVER_APPNAME
-#define APP_VERSION           XSYNC_SERVER_VERSION
-
-#include "server_api.h"
-
-#include "../common/cshell.h"
-#include "../common/mul_timer.h"
-#include "../common/common_util.h"
-#include "../common/redis_client.h"
+#include <hiredis/hiredis.h>
 
 
 #if defined(__cplusplus)
 }
 #endif
 
-#endif /* SERVER_H_INCLUDED */
+#endif /* REDIS_CLIENT_H_INCLUDED */

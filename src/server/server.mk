@@ -24,6 +24,7 @@ TGT_LDLIBS  := \
 	${LIB_PREFIX}/libmxml.a \
 	${LIB_PREFIX}/libcrypto.a \
 	${LIB_PREFIX}/libssl.a \
+	${LIB_PREFIX}/libhiredis.a \
 	-lrt \
 	-ldl \
 	-lpthread

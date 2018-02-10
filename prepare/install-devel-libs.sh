@@ -1,12 +1,16 @@
 #!/bin/bash
 #
-# File : install-libs.sh
+# File : install-devel-libs.sh
+#
+#   install devel lib for building both xsync-client and xsync-server
 #
 # init created: 2018-01-19
-# last updated: 2018-01-19
+# last updated: 2018-02-10
 #
 ########################################################################
+# NOTE: readlink -f not support by MaxOS-X
 _file=$(readlink -f $0)
+
 _cdir=$(dirname $_file)
 _name=$(basename $_file)
 
