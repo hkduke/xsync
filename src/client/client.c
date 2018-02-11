@@ -31,15 +31,11 @@
  */
 
 #include "client.h"
-#include "server_opts.h"
 
 
-void run_client_forever (clientapp_opts *opts);
+void run_interactive (xs_appopts_t *opts);
 
-/**
- * ${app} --shell
- */
-void run_client_shell (clientapp_opts *opts);
+void run_forever (xs_appopts_t *opts);
 
 
 void sig_chld (int signo)
@@ -113,9 +109,9 @@ void exit_handler (int exitCode, void *ppData)
  **********************************************************************/
 int main (int argc, char *argv[])
 {
-    clientapp_opts opts;
+    xs_appopts_t opts;
 
-    clientapp_opts_initiate(argc, argv, &opts);
+    xs_appopts_initiate(argc, argv, &opts);
 
     void sig_chld(int);
     void sig_int(int);
@@ -177,28 +173,28 @@ int main (int argc, char *argv[])
         exit(-1);
     }
 
-    if (opts.isshell) {
-        opts.threads = clientapp_validate_threads(opts.threads);
-        opts.queues = clientapp_validate_queues(opts.threads, opts.queues);
+    if (opts.interactive) {
+        opts.threads = appopts_validate_threads(opts.threads);
+        opts.queues = appopts_validate_queues(opts.threads, opts.queues);
 
         LOGGER_INFO("threads=%d queues=%d", opts.threads, opts.queues);
 
-        run_client_shell(&opts);
+        run_interactive(&opts);
 
-        clientapp_opts_cleanup(&opts);
+        xs_appopts_finalize(&opts);
 
         LOGGER_FATAL("%s (v%s) shutdown !", APP_NAME, APP_VERSION);
         LOGGER_FINI();
 
         exit(0);
     } else {
-        run_client_forever(&opts);
+        run_forever(&opts);
     }
 
     /** 客户端异常退出 */
 onerror_exit:
 
-    clientapp_opts_cleanup(&opts);
+    xs_appopts_finalize(&opts);
 
     LOGGER_FATAL("%s (v%s) shutdown !", APP_NAME, APP_VERSION);
     LOGGER_FINI();
@@ -207,7 +203,7 @@ onerror_exit:
 }
 
 
-void run_client_forever (clientapp_opts *opts)
+void run_forever (xs_appopts_t *opts)
 {
     XS_client client;
 
@@ -329,7 +325,7 @@ static void * thread_func (void *arg)
 }
 
 
-void run_client_shell (clientapp_opts *opts)
+void run_interactive (xs_appopts_t *opts)
 {
 #define XSCLIAPP    csh_green_msg("["APP_NAME"] ")
 
@@ -339,7 +335,7 @@ void run_client_shell (clientapp_opts *opts)
     strcpy(server.host, "localhost");
     strcpy(server.sport, XSYNC_PORT_DEFAULT);
 
-    LOGGER_INFO("interactive shell [%s] start ...", APP_NAME);
+    LOGGER_INFO("interactive client [%s] start ...", APP_NAME);
 
     char msg[256];
 
@@ -393,7 +389,7 @@ void run_client_shell (clientapp_opts *opts)
         }
     } while(0);
 
-    LOGGER_INFO("interactive shell [%s] exit.", APP_NAME);
+    LOGGER_INFO("interactive client [%s] exit.", APP_NAME);
 
 #undef XSCLIAPP
 }

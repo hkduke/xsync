@@ -116,7 +116,7 @@ void print_usage(void)
         "\t-D, --daemon                 \033[35m run as daemon process.\033[0m\n"
         "\t-K, --kill                   \033[35m kill all processes for this program.\033[0m\n"
         "\t-L, --list                   \033[35m list of pids for this program.\033[0m\n"
-        "\t-S, --shell                  \033[35m run client as diagnostic shell for connectivity to server.\033[0m\n"
+        "\t-T, --test                   \033[35m run client as interactive mode for test connectivity to server.\033[0m\n"
         "\n"
         "\t-m, --md5=FILE               \033[35m md5sum on given file.\033[0m\n"
         "\t-r, --regexp=PATTERN         \033[35m use pattern for matching on <express>.\033[0m\n"
@@ -132,7 +132,7 @@ void print_usage(void)
 
 
 __no_warning_unused(static)
-void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
+void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
 {
     int ret;
 
@@ -144,10 +144,9 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
     char priority[20] = { "debug" };
     char appender[60] = { "stdout" };
 
-    int force_watch = 0;
+    int from_watch = 0;
 
-    int isshell = 0;
-
+    int interactive = 0;
     int isdaemon = 0;
 
     int threads = INT_MAX;
@@ -172,7 +171,7 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
         {"daemon", no_argument, 0, 'D'},
         {"kill", no_argument, 0, 'K'},
         {"list", no_argument, 0, 'L'},
-        {"shell", no_argument, 0, 'S'},
+        {"test", no_argument, 0, 'T'},
         {"md5", required_argument, 0, 'm'},
         {"regexp", required_argument, 0, 'r'},
         {0, 0, 0, 0}
@@ -208,7 +207,7 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
     }
 
     /* parse command arguments */
-    while ((ret = getopt_long(argc, argv, "DKLhVSC:WO:P:A:t:q:I:m:r:", lopts, 0)) != EOF) {
+    while ((ret = getopt_long(argc, argv, "DKLhVTC:WO:P:A:t:q:I:m:r:", lopts, 0)) != EOF) {
         switch (ret) {
         case 'D':
             isdaemon = 1;
@@ -240,7 +239,7 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
             break;
 
         case 'W':
-            force_watch = 1;
+            from_watch = 1;
             break;
 
         case 'O':
@@ -308,8 +307,8 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
             exit(ret);
             break;
 
-        case 'S':
-            isshell = 1;
+        case 'T':
+            interactive = 1;
             break;
 
         case 'K':
@@ -343,14 +342,14 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
     fprintf(stdout, "\033[1;32m* Using log4c path   : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
     fprintf(stdout, "\033[1;32m* Using config file  : %s\033[0m\n\n", config);
 
-    if (isshell) {
+    if (interactive) {
         if (isdaemon) {
             isdaemon = 0;
-            fprintf(stdout, "\033[1;31m* daemon mode ignored due to specify '-S,--shell'.\033[0m\n");
+            fprintf(stdout, "\033[1;31m* daemon mode ignored due to specify '-T,--test'.\033[0m\n");
         }
 
         if (strcmp(appender, "stdout")) {
-            fprintf(stdout, "\033[1;31m* appender ('%s') redesignated to 'stdout' due to specify '-S,--shell'.\033[0m\n", appender);
+            fprintf(stdout, "\033[1;31m* appender ('%s') redesignated to 'stdout' due to specify '-T,--test'.\033[0m\n", appender);
             strcpy(appender, "stdout");
         }
     }
@@ -358,8 +357,8 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
     if (threads != INT_MAX) {
         // 用户指定了线程覆盖配置文件, 此时队列也必须覆盖
         //
-        opts->threads = clientapp_validate_threads(threads);
-        opts->queues = clientapp_validate_queues(opts->threads, queues);
+        opts->threads = appopts_validate_threads(threads);
+        opts->queues = appopts_validate_queues(opts->threads, queues);
 
         fprintf(stdout, "\033[1;33m* Overwritten config : threads=%d queues=%d\033[0m\n\n", opts->threads, opts->queues);
     } else if (queues != INT_MAX) {
@@ -376,7 +375,7 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
         fprintf(stdout, "\033[1;33m* Overwritten config : threads=? queues=%d\033[0m\n\n", opts->queues);
     }
 
-    if (force_watch) {
+    if (from_watch) {
         // 强迫从 watch 目录自动配置
         snprintf(buff, sizeof(buff), "%s", config);
 
@@ -417,8 +416,8 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
     opts->isdaemon = isdaemon;
     opts->threads = threads;
     opts->queues = queues;
-    opts->force_watch = force_watch;
-    opts->isshell = isshell;
+    opts->from_watch = from_watch;
+    opts->interactive = interactive;
 
     memcpy(opts->config, config, XSYNC_PATHFILE_MAXLEN);
 
@@ -427,7 +426,7 @@ void clientapp_opts_initiate (int argc, char *argv[], clientapp_opts *opts)
 
 
 __no_warning_unused(static)
-void clientapp_opts_cleanup (clientapp_opts *opts)
+void xs_appopts_finalize (xs_appopts_t *opts)
 {
     // TODO:
 }

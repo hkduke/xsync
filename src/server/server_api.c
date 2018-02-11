@@ -25,12 +25,136 @@
 #include "../common/common_util.h"
 
 
-__no_warning_unused(static)
-int epapi_on_epevent_callback (int eventid, int expect, epevent_data_t *epdata, void *arg)
+/**
+ * doEventTask
+ *
+ */
+__attribute__((used))
+static void * doThreadTask (perthread_data *perdata)
 {
-    //XS_server server = (XS_server) arg;
+    int size;
 
-    switch (eventid) {
+    int epollfd = perdata->pollin_data.epollfd;
+    int connfd = perdata->pollin_data.connfd;
+
+    char *iobuf = perdata->buffer;
+
+    XS_server server = (XS_server) perdata->pollin_data.arg;
+    assert(server);
+
+    while (1) {
+        // 接收数据
+        size = recv(connfd, iobuf, XSYNC_BUFSIZE, 0);
+
+        if (size == 0) {
+            /**
+             * 数据接收完毕
+             * close the descriptor will make epoll remove it
+             *   from the set of descriptors which are monitored.
+             **/
+            LOGGER_TRACE("close(%d)", connfd);
+
+            close(connfd);
+
+            break;
+        } else if (size < 0) {
+            if (errno == EAGAIN) {
+                // socket是非阻塞时, EAGAIN 表示缓冲队列已满
+                // 并非网络出错，而是可以再次注册事件
+                //
+                if (epapi_modify_epoll(epollfd, connfd, EPOLLONESHOT, iobuf, XSYNC_BUFSIZE) == -1) {
+                    LOGGER_ERROR("epapi_modify_epoll error: %s", iobuf);
+
+                    close(connfd);
+                }
+
+                break;
+            }
+
+            LOGGER_ERROR("recv error(%d): %s", errno, strerror(errno));
+        } else {
+            iobuf[size] = 0;
+
+            LOGGER_DEBUG("client(%d): {%s}", connfd, iobuf);
+        }
+    }
+
+    return ((void *) 0);
+}
+
+
+__no_warning_unused(static)
+void event_task (thread_context_t *thread_ctx)
+{
+    threadpool_task_t *task = thread_ctx->task;
+
+    if (task->flags == 100) {
+        epollin_data_t *pdata = (epollin_data_t *) task->argument;
+
+        task->argument = 0;
+        task->flags = 0;
+
+        perthread_data *perdata = (perthread_data *) thread_ctx->thread_arg;
+
+        memcpy(&perdata->pollin_data, pdata, sizeof(perdata->pollin_data));
+
+        free(pdata);
+
+        LOGGER_DEBUG("task start");
+
+        doThreadTask(perdata);
+
+        LOGGER_DEBUG("task end");
+    } else {
+        LOGGER_ERROR("unknown task flags(=%d)", task->flags);
+    }
+}
+
+
+/**
+ * handleClientPollin
+ *   客户端有数据发送的事件发生
+ */
+__attribute__((used))
+static int handleClientPollin (epevent_data_t *epdata, void *arg)
+{
+    XS_server server = (XS_server) arg;
+
+    int num = threadpool_unused_queues(server->pool);
+    LOGGER_TRACE("threadpool_unused_queues=%d", num);
+
+    if (num > 0) {
+        epollin_data_t *pollin_data = (epollin_data_t *) mem_alloc(1, sizeof(epollin_data_t));
+
+        pollin_data->arg = arg;
+        pollin_data->epollfd = epdata->epollfd;
+        pollin_data->connfd = epdata->connfd;
+
+        if (threadpool_add(server->pool, event_task, (void*) pollin_data, 100) == 0) {
+            // 增加到线程池成功
+            LOGGER_TRACE("threadpool_add task success");
+
+            return EPCB_EXPECT_NEXT;
+        }
+
+        // 增加到线程池失败
+        LOGGER_ERROR("threadpool_add task failed");
+
+        free(pollin_data);
+    }
+
+    return EPCB_EXPECT_BREAK;
+}
+
+
+/**
+ * xsyncOnEpollEvent
+ *   回调函数
+ */
+__attribute__((used))
+static int xsyncOnEpollEvent (int msgid, int expect, epevent_data_t *epdata, void *arg)
+{
+    switch (msgid) {
     case EPEVENT_MSG_ERROR:
         do {
             switch (epdata->status) {
@@ -39,11 +163,11 @@ int epapi_on_epevent_callback (int eventid, int expect, epevent_data_t *epdata, 
                 break;
 
             case EPOLL_WAIT_EINTR:
-                LOGGER_WARN("EPOLL_WAIT_TIMEOUT");
+                LOGGER_TRACE("EPOLL_WAIT_TIMEOUT");
                 break;
 
             case EPOLL_WAIT_ERROR:
-                LOGGER_FATAL("EPOLL_WAIT_ERROR: %s", epdata->msg);
+                LOGGER_WARN("EPOLL_WAIT_ERROR: %s", epdata->msg);
                 break;
 
             case EPOLL_WAIT_OK:
@@ -63,19 +187,19 @@ int epapi_on_epevent_callback (int eventid, int expect, epevent_data_t *epdata, 
                 break;
 
             case EPOLL_ACPT_ERROR:
-                LOGGER_WARN("EPOLL_ACPT_ERROR: %s", epdata->msg);
-                return 0;
+                LOGGER_ERROR("EPOLL_ACPT_ERROR: %s", epdata->msg);
+                break;
 
             case EPOLL_NAMEINFO_ERROR:
-                LOGGER_WARN("EPOLL_NAMEINFO_ERROR: %s", epdata->msg);
+                LOGGER_ERROR("EPOLL_NAMEINFO_ERROR: %s", epdata->msg);
                 break;
 
             case EPOLL_SETNONBLK_ERROR:
-                LOGGER_WARN("EPOLL_SETNONBLK_ERROR: %s", epdata->msg);
+                LOGGER_ERROR("EPOLL_SETNONBLK_ERROR: %s", epdata->msg);
                 break;
 
             case EPOLL_ADDONESHOT_ERROR:
-                LOGGER_WARN("EPOLL_ADDONESHOT_ERROR: %s", epdata->msg);
+                LOGGER_ERROR("EPOLL_ADDONESHOT_ERROR: %s", epdata->msg);
                 break;
 
             case EPOLL_ERROR_UNEXPECT:
@@ -87,15 +211,22 @@ int epapi_on_epevent_callback (int eventid, int expect, epevent_data_t *epdata, 
         return expect;
 
     case EPEVENT_PEER_ADDRIN:
+        LOGGER_TRACE("EPEVENT_PEER_ADDRIN");
         break;
 
     case EPEVENT_PEER_INFO:
+        LOGGER_TRACE("EPEVENT_PEER_INFO: client=%d (%s:%s)", epdata->connfd, epdata->hbuf, epdata->sbuf);
         break;
 
     case EPEVENT_PEER_ACPTNEW:
+        LOGGER_DEBUG("EPEVENT_PEER_ACPTNEW client=%d (%s:%s)", epdata->connfd, epdata->hbuf, epdata->sbuf);
         break;
 
     case EPEVENT_PEER_POLLIN:
+        LOGGER_TRACE("EPEVENT_PEER_POLLIN client=%d", epdata->connfd);
+
+        // 客户端有数据发送的事件发生
+        expect = handleClientPollin(epdata, arg);
         break;
     }
 
@@ -103,9 +234,13 @@ int epapi_on_epevent_callback (int eventid, int expect, epevent_data_t *epdata, 
 }
 
 
-extern XS_RESULT XS_server_create (serverapp_opts *opts, XS_server *outServer)
+extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
 {
-    int i, old_sockopt;
+    int i;
+
+    int listenfd, epollfd, old_sockopt;
+
+    struct epoll_event *events;
 
     int MAXCLIENTS = opts->maxclients;
     int THREADS = opts->threads;
@@ -163,9 +298,6 @@ extern XS_RESULT XS_server_create (serverapp_opts *opts, XS_server *outServer)
 
     LOGGER_INFO("epapi_create_and_bind: %s:%s", opts->host, opts->port);
     do {
-        int listenfd, epollfd;
-        struct epoll_event *events;
-
         listenfd = epapi_create_and_bind(opts->host, opts->port, server->msgbuf, XSYNC_ERRBUF_MAXLEN);
         if (listenfd == -1) {
             LOGGER_FATAL("epapi_create_and_bind error: %s", server->msgbuf);
@@ -181,6 +313,7 @@ extern XS_RESULT XS_server_create (serverapp_opts *opts, XS_server *outServer)
             LOGGER_FATAL("epapi_set_nonblock error: %s", server->msgbuf);
 
             close(listenfd);
+
             xs_server_delete((void*) server);
 
             exit(XS_ERROR);
@@ -193,6 +326,7 @@ extern XS_RESULT XS_server_create (serverapp_opts *opts, XS_server *outServer)
 
             fcntl(listenfd, F_SETFL, old_sockopt);
             close(listenfd);
+
             xs_server_delete((void*) server);
 
             exit(XS_ERROR);
@@ -206,6 +340,7 @@ extern XS_RESULT XS_server_create (serverapp_opts *opts, XS_server *outServer)
             fcntl(listenfd, F_SETFL, old_sockopt);
             close(listenfd);
             close(epollfd);
+
             xs_server_delete((void*) server);
 
             exit(XS_ERROR);
@@ -216,14 +351,21 @@ extern XS_RESULT XS_server_create (serverapp_opts *opts, XS_server *outServer)
      * here we got success
      *   output XS_server
      */
-    server->maxclients = MAXCLIENTS;
     server->threads = THREADS;
     server->queues = QUEUES;
+    server->maxclients = MAXCLIENTS;
+
+    server->events = events;
+    server->epollfd = epollfd;
+    server->listenfd = listenfd;
+    server->listenfd_oldopt = old_sockopt;
+
     server->numevents = MAXEVENTS;
     server->timeout_ms = TIMEOUTMS;
 
-    server->listenfd_oldopt = old_sockopt;
-
+    /**
+     * output XS_server
+     */
     *outServer = (XS_server) RefObjectInit(server);
 
     LOGGER_TRACE("%p", server);
@@ -269,7 +411,7 @@ extern XS_VOID XS_server_bootstrap (XS_server server)
         server->events,
         server->numevents,
         server->timeout_ms,
-        epapi_on_epevent_callback, server);
+        xsyncOnEpollEvent, server);
 
     LOGGER_FATAL("server stopped.");
 }

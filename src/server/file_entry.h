@@ -26,6 +26,8 @@
 extern "C" {
 #endif
 
+#include "../common/epollapi.h"
+
 #include "../common/common_util.h"
 #include "../common/mul_timer.h"
 
@@ -35,12 +37,12 @@ extern "C" {
 
 typedef struct perthread_data
 {
-    int epollfd;
-    int clientfd;
+    epollin_data_t  pollin_data;
+    epevent_data_t  event_data;
 
     int threadid;
 
-    byte_t buffer[XSYNC_BUFSIZE];
+    char buffer[XSYNC_BUFSIZE];
 } perthread_data;
 
 

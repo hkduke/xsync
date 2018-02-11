@@ -240,7 +240,7 @@ XS_RESULT client_on_inotify_event (XS_client client, struct inotify_event * inev
  * XS_client application api
  *
  **********************************************************************/
-extern XS_RESULT XS_client_create (clientapp_opts *opts, XS_client *outClient)
+extern XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
 {
     int i, sid, err;
 
@@ -293,7 +293,7 @@ extern XS_RESULT XS_client_create (clientapp_opts *opts, XS_client *outClient)
     }
 
     // 初始化客户端
-    if (opts->force_watch) {
+    if (opts->from_watch) {
         // 从监控目录初始化客户端
         err = XS_client_conf_from_watch(client, opts->config);
     } else {
@@ -315,12 +315,12 @@ extern XS_RESULT XS_client_create (clientapp_opts *opts, XS_client *outClient)
 
     // 要求覆盖配置
     if (opts->threads != INT_MAX) {
-        client->threads = clientapp_validate_threads(opts->threads);
-        client->queues = clientapp_validate_queues(client->threads, opts->queues);
+        client->threads = appopts_validate_threads(opts->threads);
+        client->queues = appopts_validate_queues(client->threads, opts->queues);
     }
 
     if (opts->queues != INT_MAX) {
-        client->queues = clientapp_validate_queues(client->threads, opts->queues);
+        client->queues = appopts_validate_queues(client->threads, opts->queues);
     }
 
     SERVERS = XS_client_get_server_maxid(client);

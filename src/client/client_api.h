@@ -46,6 +46,9 @@ extern "C" {
 #include "../xsync-config.h"
 #include "../xsync-protocol.h"
 
+#include "server_opts.h"
+
+
 typedef struct xs_client_t              * XS_client;
 typedef struct xs_server_opts_t         * XS_server_opts;
 typedef struct xs_watch_path_t          * XS_watch_path;
@@ -57,30 +60,30 @@ typedef struct xs_path_filter_t         * XS_path_filter;
 typedef XS_RESULT (*list_watch_path_cb_t)(XS_watch_path wp, void * data);
 
 
-typedef struct clientapp_opts
+typedef struct xs_appopts_t
 {
     // singleton
 
     char *startcmd;
 
     int isdaemon;
-    int isshell;
+    int interactive;
 
     int threads;
     int queues;
 
-    int force_watch;
+    int from_watch;
 
     char clientid[XSYNC_CLIENTID_MAXLEN + 1];
 
     char diagnose_server[XSYNC_PATHFILE_MAXLEN + 1];
 
     char config[XSYNC_PATHFILE_MAXLEN + 1];
-} clientapp_opts;
+} xs_appopts_t;
 
 
 __no_warning_unused(static)
-int clientapp_validate_threads (int threads)
+int appopts_validate_threads (int threads)
 {
     int valid_threads = threads;
 
@@ -103,11 +106,11 @@ int clientapp_validate_threads (int threads)
 
 
 __no_warning_unused(static)
-int clientapp_validate_queues (int threads, int queues)
+int appopts_validate_queues (int threads, int queues)
 {
     int valid_queues = queues;
 
-    threads = clientapp_validate_threads(threads);
+    threads = appopts_validate_threads(threads);
 
     if (queues == 0 || queues == INT_MAX) {
         valid_queues = threads * XSYNC_TASKS_PERTHREAD;
@@ -134,7 +137,7 @@ int clientapp_validate_queues (int threads, int queues)
 /**
  * XS_client application api
  */
-extern XS_RESULT XS_client_create (clientapp_opts *opts, XS_client *outClient);
+extern XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient);
 
 extern XS_VOID XS_client_release (XS_client *pClient);
 

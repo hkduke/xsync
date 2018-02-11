@@ -338,7 +338,7 @@ int lscb_init_watch_path (const char * path, int pathlen, struct dirent *ent, XS
                     LOGGER_INFO("init sid=%d from: %s", sid, path);
                 }
 
-                err = server_opt_init(&client->servers_opts[sid], sid, sidfile);
+                err = server_opts_init(&client->servers_opts[sid], sid, sidfile);
                 if (err) {
                     // 有错误, 中止运行
                     return 0;

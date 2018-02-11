@@ -29,6 +29,8 @@ extern "C" {
 #define LOGGER_CATEGORY_NAME  XSYNC_SERVER_APPNAME
 #include "../common/log4c_logger.h"
 
+#include "../common/threadlock.h"
+
 #include "../xsync-error.h"
 #include "../xsync-config.h"
 #include "../xsync-protocol.h"
@@ -39,14 +41,17 @@ extern "C" {
 typedef struct xs_server_t * XS_server;
 
 
-typedef struct serverapp_opts
+typedef struct xs_appopts_t
 {
     // singleton
     char *startcmd;
 
+    int from_watch;
+
     int timeout_ms;
 
     int isdaemon;
+    int interactive;
 
     int maxclients;
     int threads;
@@ -59,13 +64,65 @@ typedef struct serverapp_opts
     int maxevents;
 
     char config[XSYNC_PATHFILE_MAXLEN + 1];
-} serverapp_opts;
+} xs_appopts_t;
+
+
+__no_warning_unused(static)
+int appopts_validate_threads (int threads)
+{
+    int valid_threads = threads;
+
+    if (threads == 0 || threads == INT_MAX) {
+        valid_threads = XSYNC_SERVER_THREADS;
+    } else if (threads == -1) {
+        valid_threads = XSYNC_THREADS_MAXIMUM;
+    }
+
+    if (valid_threads > XSYNC_THREADS_MAXIMUM) {
+        LOGGER_WARN("too many THREADS(%d) expected. coerce THREADS=%d", valid_threads, XSYNC_THREADS_MAXIMUM);
+        valid_threads = XSYNC_THREADS_MAXIMUM;
+    } else if (valid_threads < 1) {
+        LOGGER_WARN("too less THREADS(%d) expected. coerce THREADS=%d", valid_threads, 1);
+        valid_threads = 1;
+    }
+
+    return valid_threads;
+}
+
+
+__no_warning_unused(static)
+int appopts_validate_queues (int threads, int queues)
+{
+    int valid_queues = queues;
+
+    threads = appopts_validate_threads(threads);
+
+    if (queues == 0 || queues == INT_MAX) {
+        valid_queues = threads * XSYNC_TASKS_PERTHREAD;
+    } else if (queues == -1) {
+        valid_queues = XSYNC_QUEUES_MAXIMUM;
+    }
+
+    if (valid_queues > XSYNC_QUEUES_MAXIMUM) {
+        LOGGER_WARN("too many QUEUES(%d) expected. coerce QUEUES=%d", valid_queues, XSYNC_QUEUES_MAXIMUM);
+        valid_queues = XSYNC_QUEUES_MAXIMUM;
+    } else if (valid_queues < XSYNC_TASKS_PERTHREAD) {
+        LOGGER_WARN("too less QUEUES(%d) expected. coerce QUEUES=%d", valid_queues, XSYNC_TASKS_PERTHREAD);
+        valid_queues = XSYNC_TASKS_PERTHREAD;
+    }
+
+    if (valid_queues < threads * 8) {
+        valid_queues = threads * 8;
+    }
+
+    return valid_queues;
+}
 
 
 /**
  * XS_server application api
  */
-extern XS_RESULT XS_server_create (serverapp_opts *opts, XS_server *outServer);
+extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer);
 
 extern XS_VOID XS_server_release (XS_server *pServer);
 

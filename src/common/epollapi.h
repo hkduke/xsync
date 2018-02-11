@@ -92,7 +92,7 @@ extern "C" {
  */
 #define EPEVENT_PEER_ADDRIN       1
 #define EPEVENT_PEER_INFO         2
-#define EPEVENT_PEER_ACPTNEW       3
+#define EPEVENT_PEER_ACPTNEW      3
 #define EPEVENT_PEER_POLLIN       4
 
 /**
@@ -105,7 +105,7 @@ typedef struct epevent_data_t * epevent_data;
  */
 #define EPCB_EXPECT_NEXT       1
 #define EPCB_EXPECT_BREAK      0
-#define EPCB_EXPECT_END     (-1)
+#define EPCB_EXPECT_END      (-1)
 
 /**
  * 事件回调函数，返回值必须是：
@@ -151,13 +151,13 @@ typedef struct epevent_data_t
 #define EPCB_EXPECT_END     (-1)
 
 
-typedef struct pollin_data_t
+typedef struct epollin_data_t
 {
     int epollfd;
     int connfd;
 
     void *arg;
-} pollin_data_t;
+} epollin_data_t;
 
 
 __attribute__((used))
@@ -178,7 +178,12 @@ static int epapi_create_and_bind (const char *node, const char *port, char *errm
     hints.ai_socktype = SOCK_STREAM; /* We want a TCP socket */
     hints.ai_flags = AI_PASSIVE;     /* All interfaces */
 
-    err = getaddrinfo(node, port, &hints, &result);
+    if (node && node[0] != '\0') {
+        err = getaddrinfo(node, port, &hints, &result);
+    } else {
+        err = getaddrinfo(0, port, &hints, &result);
+    }
+
     if (err != 0) {
         snprintf(errmsg, msgsize, "getaddrinfo error(%d): %s", err, gai_strerror(err));
         errmsg[msgsize - 1] = '\0';
@@ -322,15 +327,15 @@ static int epapi_init_epoll_event (int listenfd, int backlog, char *errmsg, ssiz
 
 
 /**
- * epapi_handle_message
+ * epthread_func
  *
  */
 __attribute__((used))
-static void * epapi_handle_message (void* threadarg)
+static void * epthread_func (void* threadarg)
 {
     int err, size;
 
-    pollin_data_t *pdata = (pollin_data_t *) threadarg;
+    epollin_data_t *pdata = (epollin_data_t *) threadarg;
 
     // 用户定义的数据
     // void *arg = pdata->arg;
@@ -431,10 +436,10 @@ static int epapi_on_epevent_interactive (int msgid, int expect, epevent_data_t *
 
             case EPOLL_ACPT_ERROR:
                 printf("EPOLL_ACPT_ERROR: %s\n", epdata->msg);
-                return 0;
+                break;
 
             case EPOLL_NAMEINFO_ERROR:
-                printf("EPOLL_NAMEINFO_ERROR: %s", epdata->msg);
+                printf("EPOLL_NAMEINFO_ERROR: %s\n", epdata->msg);
                 break;
 
             case EPOLL_SETNONBLK_ERROR:
@@ -472,7 +477,7 @@ static int epapi_on_epevent_interactive (int msgid, int expect, epevent_data_t *
             // 客户端有数据发送的事件发生
             pthread_t thread;
 
-            pollin_data_t *pdata = (pollin_data_t *) malloc(sizeof(*pdata));
+            epollin_data_t *pdata = (epollin_data_t *) malloc(sizeof(*pdata));
 
             pdata->arg = arg;
             pdata->epollfd = epdata->epollfd;
@@ -484,9 +489,8 @@ static int epapi_on_epevent_interactive (int msgid, int expect, epevent_data_t *
 
             pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
-
             // 调用工作者线程处理数据
-            int err = pthread_create(&thread, &attr, epapi_handle_message, (void*) pdata);
+            int err = pthread_create(&thread, &attr, epthread_func, (void*) pdata);
 
             pthread_attr_destroy(&attr);
 
@@ -506,7 +510,7 @@ static int epapi_on_epevent_interactive (int msgid, int expect, epevent_data_t *
 __attribute__((used))
 static int epapi_loop_epoll_events (int epollfd, int listenfd,
     struct epoll_event *events, int maxevents, int timeout_ms,
-    epapi_on_epevent_cb epapi_on_epevent, void *arg)
+    epapi_on_epevent_cb on_epevent, void *arg)
 {
     int i, numfds, ret, sockfd;
 
@@ -527,7 +531,7 @@ static int epapi_loop_epoll_events (int epollfd, int listenfd,
             if (numfds == 0) {
                 epdata.status = EPOLL_WAIT_TIMEOUT;
 
-                if (epapi_on_epevent(EPEVENT_MSG_ERROR, EPCB_EXPECT_NEXT, &epdata, arg) == EPCB_EXPECT_NEXT) {
+                if (on_epevent(EPEVENT_MSG_ERROR, EPCB_EXPECT_NEXT, &epdata, arg) == EPCB_EXPECT_NEXT) {
                     // should continue
                     continue;
                 } else {
@@ -536,7 +540,7 @@ static int epapi_loop_epoll_events (int epollfd, int listenfd,
             } else if (errno == EINTR) {
                 epdata.status = EPOLL_WAIT_EINTR;
 
-                if (epapi_on_epevent(EPEVENT_MSG_ERROR, EPCB_EXPECT_NEXT, &epdata, arg) == EPCB_EXPECT_NEXT) {
+                if (on_epevent(EPEVENT_MSG_ERROR, EPCB_EXPECT_NEXT, &epdata, arg) == EPCB_EXPECT_NEXT) {
                     // should continue
                     continue;
                 } else {
@@ -546,7 +550,7 @@ static int epapi_loop_epoll_events (int epollfd, int listenfd,
                 epdata.status = EPOLL_WAIT_ERROR;
                 snprintf(epdata.msg, sizeof(epdata.msg), "epoll_pwait error(%d): %s", errno, strerror(errno));
 
-                if (epapi_on_epevent(EPEVENT_MSG_ERROR, EPCB_EXPECT_BREAK, &epdata, arg) != EPCB_EXPECT_NEXT) {
+                if (on_epevent(EPEVENT_MSG_ERROR, EPCB_EXPECT_BREAK, &epdata, arg) != EPCB_EXPECT_NEXT) {
                     // should break
                     break;
                 } else {
@@ -558,7 +562,7 @@ static int epapi_loop_epoll_events (int epollfd, int listenfd,
 
         epdata.status = EPOLL_WAIT_OK;
 
-        if (epapi_on_epevent(EPEVENT_MSG_ERROR, EPCB_EXPECT_NEXT, &epdata, arg) != EPCB_EXPECT_NEXT) {
+        if (on_epevent(EPEVENT_MSG_ERROR, EPCB_EXPECT_NEXT, &epdata, arg) != EPCB_EXPECT_NEXT) {
             // should not break
             break;
         }
@@ -579,7 +583,7 @@ static int epapi_loop_epoll_events (int epollfd, int listenfd,
                  */
                 epdata.status = EPOLL_EVENT_NOTREADY;
 
-                ret = epapi_on_epevent(EPEVENT_MSG_ERROR, EPCB_EXPECT_NEXT, &epdata, arg);
+                ret = on_epevent(EPEVENT_MSG_ERROR, EPCB_EXPECT_NEXT, &epdata, arg);
                 if (ret == EPCB_EXPECT_NEXT) {
                     continue;
                 } else if (ret == EPCB_EXPECT_BREAK) {
@@ -608,7 +612,7 @@ static int epapi_loop_epoll_events (int epollfd, int listenfd,
                         snprintf(epdata.msg, sizeof(epdata.msg), "accept error(%d): %s", errno, strerror(errno));
                     }
 
-                    ret = epapi_on_epevent(EPEVENT_MSG_ERROR, EPCB_EXPECT_BREAK, &epdata, arg);
+                    ret = on_epevent(EPEVENT_MSG_ERROR, EPCB_EXPECT_BREAK, &epdata, arg);
                     if (ret == EPCB_EXPECT_BREAK || ret == EPCB_EXPECT_NEXT) {
                         break;
                     } else {
@@ -617,7 +621,7 @@ static int epapi_loop_epoll_events (int epollfd, int listenfd,
                 }
 
                 assert(epdata.connfd != -1);
-                ret = epapi_on_epevent(EPEVENT_PEER_ADDRIN, EPCB_EXPECT_NEXT, &epdata, arg);
+                ret = on_epevent(EPEVENT_PEER_ADDRIN, EPCB_EXPECT_NEXT, &epdata, arg);
 
                 if (ret == EPCB_EXPECT_BREAK) {
                     /** decline the coming client */
@@ -635,11 +639,11 @@ static int epapi_loop_epoll_events (int epollfd, int listenfd,
                         epdata.hbuf, sizeof(epdata.hbuf),
                         epdata.sbuf, sizeof(epdata.sbuf),
                         NI_NUMERICHOST | NI_NUMERICSERV ) == 0 ) {
-                    ret = epapi_on_epevent(EPEVENT_PEER_INFO, EPCB_EXPECT_NEXT, &epdata, arg);
+                    ret = on_epevent(EPEVENT_PEER_INFO, EPCB_EXPECT_NEXT, &epdata, arg);
                 } else {
                     epdata.status = EPOLL_NAMEINFO_ERROR;
                     snprintf(epdata.msg, sizeof(epdata.msg), "getnameinfo error(%d): %s", errno, strerror(errno));
-                    ret = epapi_on_epevent(EPEVENT_MSG_ERROR, EPCB_EXPECT_BREAK, &epdata, arg);
+                    ret = on_epevent(EPEVENT_MSG_ERROR, EPCB_EXPECT_BREAK, &epdata, arg);
                 }
 
                 if (ret == EPCB_EXPECT_BREAK) {
@@ -660,7 +664,7 @@ static int epapi_loop_epoll_events (int epollfd, int listenfd,
                     epdata.status = EPOLL_SETNONBLK_ERROR;
                     epdata.connfd = -1;
 
-                    if (epapi_on_epevent(EPEVENT_MSG_ERROR, EPCB_EXPECT_BREAK, &epdata, arg) == EPCB_EXPECT_END) {
+                    if (on_epevent(EPEVENT_MSG_ERROR, EPCB_EXPECT_BREAK, &epdata, arg) == EPCB_EXPECT_END) {
                         goto onerror_exit;
                     }
 
@@ -674,7 +678,7 @@ static int epapi_loop_epoll_events (int epollfd, int listenfd,
                     epdata.status = EPOLL_ADDONESHOT_ERROR;
                     epdata.connfd = -1;
 
-                    if (epapi_on_epevent(EPEVENT_MSG_ERROR, EPCB_EXPECT_END, &epdata, arg) == EPCB_EXPECT_END) {
+                    if (on_epevent(EPEVENT_MSG_ERROR, EPCB_EXPECT_END, &epdata, arg) == EPCB_EXPECT_END) {
                         goto onerror_exit;
                     }
 
@@ -683,7 +687,7 @@ static int epapi_loop_epoll_events (int epollfd, int listenfd,
 
                 epdata.status = EPEVENT_MSG_SUCCESS;
 
-                ret = epapi_on_epevent(EPEVENT_PEER_ACPTNEW, EPCB_EXPECT_NEXT, &epdata, arg);
+                ret = on_epevent(EPEVENT_PEER_ACPTNEW, EPCB_EXPECT_NEXT, &epdata, arg);
 
                 if (ret == EPCB_EXPECT_NEXT) {
                     // ok, do nothing
@@ -698,12 +702,11 @@ static int epapi_loop_epoll_events (int epollfd, int listenfd,
                 epdata.epollfd = epollfd;
                 epdata.connfd = sockfd;
 
-                ret = epapi_on_epevent(EPEVENT_PEER_POLLIN, EPCB_EXPECT_NEXT, &epdata, arg);
+                ret = on_epevent(EPEVENT_PEER_POLLIN, EPCB_EXPECT_NEXT, &epdata, arg);
 
                 if (ret == EPCB_EXPECT_NEXT) {
                     // ok, do nothing
                 } else if (ret == EPCB_EXPECT_BREAK) {
-                    // decline client
                     close(sockfd);
                     break;
                 } else if (ret == EPCB_EXPECT_END) {
@@ -714,7 +717,7 @@ static int epapi_loop_epoll_events (int epollfd, int listenfd,
                 /** something wrong, can go on */
                 epdata.status = EPOLL_ERROR_UNEXPECT;
 
-                ret = epapi_on_epevent(EPEVENT_MSG_ERROR, EPCB_EXPECT_NEXT, &epdata, arg);
+                ret = on_epevent(EPEVENT_MSG_ERROR, EPCB_EXPECT_NEXT, &epdata, arg);
 
                 if (ret == EPCB_EXPECT_NEXT) {
                     // ok, do nothing

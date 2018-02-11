@@ -45,6 +45,9 @@ typedef struct xs_server_t
     int maxclients;
     int timeout_ms;
 
+    /**
+     * epoll data
+     */
     int epollfd;
     int listenfd;
     int listenfd_oldopt;
@@ -52,7 +55,9 @@ typedef struct xs_server_t
     int numevents;
     struct epoll_event *events;
 
-    /** queue size per thread */
+    /**
+     * thread pool specific
+     */
     int queues;
 
     /** number of threads */

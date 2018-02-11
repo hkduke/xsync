@@ -19,6 +19,18 @@
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
 
+/**
+ * server_opts.h
+ *   path filter using regex
+ *
+ * author:
+ *     master@pepstack.com
+ *
+ * create: 2018-01-25
+ * update: 2018-02-11
+ *
+ */
+
 #ifndef SERVER_OPTS_H_INCLUDED
 #define SERVER_OPTS_H_INCLUDED
 
@@ -49,11 +61,11 @@ typedef struct xs_server_opts_t
     int port;
 
     struct sockconn_opts sockopts;
-} xs_server_opts_t;
+} * XS_server_opts, xs_server_opts_t;
 
 
 __no_warning_unused(static)
-int server_opt_init (XS_server_opts opts, int sid, const char * sidfile)
+int server_opts_init (XS_server_opts opts, int sid, const char * sidfile)
 {
     bzero(opts, sizeof(xs_server_opts_t));
 
