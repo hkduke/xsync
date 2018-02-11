@@ -294,12 +294,40 @@ static void * thread_func (void *arg)
         /* No longer needed */
         freeaddrinfo(res);
 
+        do {
+            struct timeval timeo = {0};
+            socklen_t len = (socklen_t) sizeof(timeo);
+            timeo.tv_sec = 3;
+
+            if (setsockopt(sfd, SOL_SOCKET, SO_SNDTIMEO, &timeo, len) == -1) {
+                perror("setsockopt SO_SNDTIMEO");
+                exit(-1);
+            }
+
+            if (setsockopt(sfd, SOL_SOCKET, SO_RCVTIMEO, &timeo, len) == -1) {
+                perror("setsockopt SO_RCVTIMEO");
+                exit(-1);
+            }
+        } while(0);
+
         printf("session start...\n");
         int total = 0;
         for (;;) {
             len = snprintf(msg, sizeof(msg), "**** client thread#%lld say hello: %lld ****", (long long) tid, (long long) id++);
             msg[len] = 0;
 
+            printf("sendind: %s\n", msg);
+
+            int err = sendlen(sfd, msg, len + 1);
+            if (err != len + 1) {
+                printf("**** sendlen error(%d): %s\n", errno, strerror(errno));
+                break;
+            }
+
+            total += (len + 1);
+            printf("%d bytes sent\n", total);
+
+            /*
             if (write(sfd, msg, len + 1) != len + 1) {
                 perror("write");
                 close(sfd);
@@ -308,6 +336,7 @@ static void * thread_func (void *arg)
                 printf("%s\n", msg);
                 total += (len + 1);
             }
+            */
 
             if (total > 1073741824) {
                 // 1 GB
