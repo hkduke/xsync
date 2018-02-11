@@ -61,11 +61,11 @@ typedef struct xs_server_opts_t
     int port;
 
     struct sockconn_opts sockopts;
-} * XS_server_opts, xs_server_opts_t;
+} xs_server_opts_t;
 
 
 __no_warning_unused(static)
-int server_opts_init (XS_server_opts opts, int sid, const char * sidfile)
+int server_opts_init (xs_server_opts_t * opts, int sid, const char * sidfile)
 {
     bzero(opts, sizeof(xs_server_opts_t));
 
