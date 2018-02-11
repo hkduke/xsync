@@ -24,87 +24,82 @@
 
 #include "../common/common_util.h"
 
+
 __no_warning_unused(static)
-int epapi_on_epevent_callback (int eventid, epevent_data_t *epdata, void *arg)
+int epapi_on_epevent_callback (int eventid, int expect, epevent_data_t *epdata, void *arg)
 {
     //XS_server server = (XS_server) arg;
 
     switch (eventid) {
     case EPEVENT_MSG_ERROR:
+        do {
+            switch (epdata->status) {
+            case EPOLL_WAIT_TIMEOUT:
+                LOGGER_TRACE("EPOLL_WAIT_TIMEOUT");
+                break;
 
-        switch (epdata->status) {
-        case EPOLL_WAIT_TIMEOUT:
-            LOGGER_TRACE("EPOLL_WAIT_TIMEOUT");
-            return 1;
+            case EPOLL_WAIT_EINTR:
+                LOGGER_WARN("EPOLL_WAIT_TIMEOUT");
+                break;
 
-        case EPOLL_WAIT_EINTR:
-            LOGGER_WARN("EPOLL_WAIT_TIMEOUT");
-            return 1;
+            case EPOLL_WAIT_ERROR:
+                LOGGER_FATAL("EPOLL_WAIT_ERROR: %s", epdata->msg);
+                break;
 
-        case EPOLL_WAIT_ERROR:
-            LOGGER_FATAL("EPOLL_WAIT_ERROR: %s", epdata->msg);
-            return 0;
+            case EPOLL_WAIT_OK:
+                LOGGER_TRACE("EPOLL_WAIT_OK");
+                break;
 
-        case EPOLL_WAIT_OK:
-            LOGGER_TRACE("EPOLL_WAIT_OK");
-            return 1;
+            case EPOLL_EVENT_NOTREADY:
+                LOGGER_WARN("EPOLL_EVENT_NOTREADY");
+                break;
 
-        case EPOLL_EVENT_NOTREADY:
-            LOGGER_WARN("EPOLL_EVENT_NOTREADY");
-            return 1;
+            case EPOLL_ACPT_EAGAIN:
+                LOGGER_WARN("EPOLL_ACPT_EAGAIN");
+                break;
 
-        case EPOLL_ACPT_EAGAIN:
-            LOGGER_WARN("EPOLL_ACPT_EAGAIN");
-            return 0;
+            case EPOLL_ACPT_EWOULDBLOCK:
+                LOGGER_WARN("EPOLL_ACPT_EWOULDBLOCK");
+                break;
 
-        case EPOLL_ACPT_EWOULDBLOCK:
-            LOGGER_WARN("EPOLL_ACPT_EWOULDBLOCK");
-            return 0;
+            case EPOLL_ACPT_ERROR:
+                LOGGER_WARN("EPOLL_ACPT_ERROR: %s", epdata->msg);
+                return 0;
 
-        case EPOLL_ACPT_ERROR:
-            LOGGER_WARN("EPOLL_ACPT_ERROR: %s", epdata->msg);
-            return 0;
+            case EPOLL_NAMEINFO_ERROR:
+                LOGGER_WARN("EPOLL_NAMEINFO_ERROR: %s", epdata->msg);
+                break;
 
-        case EPOLL_NAMEINFO_ERROR:
-            LOGGER_WARN("EPOLL_NAMEINFO_ERROR: %s", epdata->msg);
-            // 0 or -1
-            return 0;
+            case EPOLL_SETNONBLK_ERROR:
+                LOGGER_WARN("EPOLL_SETNONBLK_ERROR: %s", epdata->msg);
+                break;
 
-        case EPOLL_SETSOCKET_ERROR:
-            LOGGER_WARN("EPOLL_SETSOCKET_ERROR: %s", epdata->msg);
-            // 0 or -1
-            return 0;
+            case EPOLL_ADDONESHOT_ERROR:
+                LOGGER_WARN("EPOLL_ADDONESHOT_ERROR: %s", epdata->msg);
+                break;
 
-        case EPOLL_SETSTATUS_ERROR:
-            LOGGER_WARN("EPOLL_SETSTATUS_ERROR: %s", epdata->msg);
-            // 0 or -1
-            return -1;
+            case EPOLL_ERROR_UNEXPECT:
+                LOGGER_WARN("EPOLL_ERROR_UNEXPECT");
+                break;
+            }
+        } while(0);
 
-        case EPOLL_ERROR_UNEXPECT:
-            LOGGER_WARN("EPOLL_ERROR_UNEXPECT");
-            // go on
-            return 1;
-        }
+        return expect;
 
     case EPEVENT_PEER_ADDRIN:
-        //TODO: 1: accept, 0: decline
-        // 0 or 1
-        return 1;
+        break;
 
     case EPEVENT_PEER_INFO:
-        //TODO: 1: accept, 0: decline
-        return 1;
+        break;
 
     case EPEVENT_PEER_ACPTED:
-        //TODO: 1: accept, 0: decline
-        return 1;
+        break;
 
     case EPEVENT_PEER_POLLIN:
-        //TODO: 1: accept, 0: decline
-        return 1;
+        break;
     }
 
-    return (-1);
+    return expect;
 }
 
 

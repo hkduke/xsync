@@ -199,7 +199,7 @@ void run_server_shell ()
     snprintf(msg, sizeof(msg), XSSRVAPP CSH_GREEN_MSG("loop epoll events. (events=%d timeout=%d msec)\n"), maxevents, timeout_ms);
     getinputline(msg, 0, 0);
 
-    loop_epoll_event(epollfd, listenfd, events, maxevents, timeout_ms, print_status_msg, msg, sizeof(msg));
+    //loop_epoll_event(epollfd, listenfd, events, maxevents, timeout_ms, print_status_msg, msg, sizeof(msg));
 
     free(events);
 
