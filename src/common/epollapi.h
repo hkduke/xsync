@@ -92,7 +92,7 @@ extern "C" {
  */
 #define EPEVENT_PEER_ADDRIN       1
 #define EPEVENT_PEER_INFO         2
-#define EPEVENT_PEER_ACPTED       3
+#define EPEVENT_PEER_ACPTNEW       3
 #define EPEVENT_PEER_POLLIN       4
 
 /**
@@ -248,6 +248,8 @@ static int epapi_add_epoll (int epollfd, int fd, int oneshotflag, char *errmsg, 
 
     *errmsg = 0;
 
+    /* EPOLLET 边沿触发 */
+
     event.data.fd = fd;
     event.events = EPOLLIN | EPOLLET | oneshotflag;
 
@@ -320,11 +322,11 @@ static int epapi_init_epoll_event (int listenfd, int backlog, char *errmsg, ssiz
 
 
 /**
- * epapi_pollin_handler
+ * epapi_handle_message
  *
  */
 __attribute__((used))
-static void * epapi_pollin_handler (void* threadarg)
+static void * epapi_handle_message (void* threadarg)
 {
     int err, size;
 
@@ -362,6 +364,7 @@ static void * epapi_pollin_handler (void* threadarg)
             break;
         } else if (size < 0) {
             if (errno == EAGAIN) {
+                // socket是非阻塞时, EAGAIN 表示缓冲队列已满
                 // 并非网络出错，而是可以再次注册事件
                 err = epapi_modify_epoll(epollfd, connfd, EPOLLONESHOT, buf, sizeof(buf));
 
@@ -372,13 +375,12 @@ static void * epapi_pollin_handler (void* threadarg)
 
                 break;
             }
+
+            printf("recv error(%d): %s\n", errno, strerror(errno));
         } else {
             buf[size] = 0;
 
-            printf("buf: %s\n", buf);
-
-            // 采用睡眠是为了在1s内若有新数据到来则该线程继续处理，否则线程退出
-            // sleep(1);
+            printf("client=%d: {%s}\n", connfd, buf);
         }
     }
 
@@ -400,35 +402,35 @@ static int epapi_on_epevent_interactive (int msgid, int expect, epevent_data_t *
         do {
             switch (epdata->status) {
             case EPOLL_WAIT_TIMEOUT:
-                printf("EPOLL_WAIT_TIMEOUT");
+                printf("EPOLL_WAIT_TIMEOUT\n");
                 break;
 
             case EPOLL_WAIT_EINTR:
-                printf("EPOLL_WAIT_TIMEOUT");
+                printf("EPOLL_WAIT_TIMEOUT\n");
                 break;
 
             case EPOLL_WAIT_ERROR:
-                printf("EPOLL_WAIT_ERROR: %s", epdata->msg);
+                printf("EPOLL_WAIT_ERROR: %s\n", epdata->msg);
                 break;
 
             case EPOLL_WAIT_OK:
-                printf("EPOLL_WAIT_OK");
+                printf("EPOLL_WAIT_OK\n");
                 break;
 
             case EPOLL_EVENT_NOTREADY:
-                printf("EPOLL_EVENT_NOTREADY");
+                printf("EPOLL_EVENT_NOTREADY\n");
                 break;
 
             case EPOLL_ACPT_EAGAIN:
-                printf("EPOLL_ACPT_EAGAIN");
+                printf("EPOLL_ACPT_EAGAIN\n");
                 break;
 
             case EPOLL_ACPT_EWOULDBLOCK:
-                printf("EPOLL_ACPT_EWOULDBLOCK");
+                printf("EPOLL_ACPT_EWOULDBLOCK\n");
                 break;
 
             case EPOLL_ACPT_ERROR:
-                printf("EPOLL_ACPT_ERROR: %s", epdata->msg);
+                printf("EPOLL_ACPT_ERROR: %s\n", epdata->msg);
                 return 0;
 
             case EPOLL_NAMEINFO_ERROR:
@@ -436,15 +438,15 @@ static int epapi_on_epevent_interactive (int msgid, int expect, epevent_data_t *
                 break;
 
             case EPOLL_SETNONBLK_ERROR:
-                printf("EPOLL_SETNONBLK_ERROR: %s", epdata->msg);
+                printf("EPOLL_SETNONBLK_ERROR: %s\n", epdata->msg);
                 break;
 
             case EPOLL_ADDONESHOT_ERROR:
-                printf("EPOLL_ADDONESHOT_ERROR: %s", epdata->msg);
+                printf("EPOLL_ADDONESHOT_ERROR: %s\n", epdata->msg);
                 break;
 
             case EPOLL_ERROR_UNEXPECT:
-                printf("EPOLL_ERROR_UNEXPECT");
+                printf("EPOLL_ERROR_UNEXPECT\n");
                 break;
             }
         } while(0);
@@ -456,16 +458,16 @@ static int epapi_on_epevent_interactive (int msgid, int expect, epevent_data_t *
         break;
 
     case EPEVENT_PEER_INFO:
-        printf("EPEVENT_PEER_INFO\n");
+        printf("EPEVENT_PEER_INFO: client=%d (%s:%s)\n", epdata->connfd, epdata->hbuf, epdata->sbuf);
         break;
 
-    case EPEVENT_PEER_ACPTED:
-        printf("EPEVENT_PEER_ACPTED\n");
+    case EPEVENT_PEER_ACPTNEW:
+        printf("EPEVENT_PEER_ACPTNEW client=%d (%s:%s)\n", epdata->connfd, epdata->hbuf, epdata->sbuf);
         break;
 
     case EPEVENT_PEER_POLLIN:
         do {
-            printf("EPEVENT_PEER_POLLIN\n");
+            printf("EPEVENT_PEER_POLLIN client=%d\n", epdata->connfd);
 
             // 客户端有数据发送的事件发生
             pthread_t thread;
@@ -476,13 +478,23 @@ static int epapi_on_epevent_interactive (int msgid, int expect, epevent_data_t *
             pdata->epollfd = epdata->epollfd;
             pdata->connfd = epdata->connfd;
 
+            pthread_attr_t attr;
+
+            pthread_attr_init(&attr);
+
+            pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+
             // 调用工作者线程处理数据
-            if (pthread_create(&thread, NULL, epapi_pollin_handler, (void*) pdata) == 0) {
-                pthread_join(thread, NULL);
-            } else {
+            int err = pthread_create(&thread, &attr, epapi_handle_message, (void*) pdata);
+
+            pthread_attr_destroy(&attr);
+
+            if (err == -1) {
                 printf("pthread_create error(%d): %s\n", errno, strerror(errno));
                 expect = EPCB_EXPECT_END;
             }
+
             break;
         } while(0);
     }
@@ -671,7 +683,7 @@ static int epapi_loop_epoll_events (int epollfd, int listenfd,
 
                 epdata.status = EPEVENT_MSG_SUCCESS;
 
-                ret = epapi_on_epevent(EPEVENT_PEER_ACPTED, EPCB_EXPECT_NEXT, &epdata, arg);
+                ret = epapi_on_epevent(EPEVENT_PEER_ACPTNEW, EPCB_EXPECT_NEXT, &epdata, arg);
 
                 if (ret == EPCB_EXPECT_NEXT) {
                     // ok, do nothing

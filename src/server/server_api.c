@@ -92,7 +92,7 @@ int epapi_on_epevent_callback (int eventid, int expect, epevent_data_t *epdata, 
     case EPEVENT_PEER_INFO:
         break;
 
-    case EPEVENT_PEER_ACPTED:
+    case EPEVENT_PEER_ACPTNEW:
         break;
 
     case EPEVENT_PEER_POLLIN:

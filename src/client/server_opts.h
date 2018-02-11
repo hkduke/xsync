@@ -35,13 +35,18 @@ extern "C" {
 
 typedef struct xs_server_opts_t
 {
+    char smagic[4];
+
     union {
         int magic;
         int sidmax;
     };
 
     char host[XSYNC_HOSTNAME_MAXLEN + 1];
-    ushort port;
+
+    char sport[XSYNC_PORTNUMB_MAXLEN + 1];
+
+    int port;
 
     struct sockconn_opts sockopts;
 } xs_server_opts_t;

@@ -154,10 +154,10 @@ void run_server_shell ()
     magic[sizeof(magic) - 1] = '\0';
 
     result = getinputline(XSSRVAPP CSH_CYAN_MSG("Is that options correct? [Y for yes | N for no]: "), msg, sizeof(msg));
-    if (yes_or_no(result, 0) == 0) {
-        getinputline(XSSRVAPP CSH_CYAN_MSG("User cancelded.\n"), 0, 0);
-        exit(0);
-    }
+    //if (yes_or_no(result, 0) == 0) {
+    //    getinputline(XSSRVAPP CSH_CYAN_MSG("User cancelded.\n"), 0, 0);
+    //    exit(0);
+    //}
 
     snprintf(msg, sizeof(msg), XSSRVAPP CSH_CYAN_MSG("Create server {0.0.0.0:%s#%s} and bind ...\n"), port, magic);
     getinputline(msg, 0, 0);
@@ -199,7 +199,7 @@ void run_server_shell ()
     snprintf(msg, sizeof(msg), XSSRVAPP CSH_GREEN_MSG("loop epoll events. (events=%d timeout=%d msec)\n"), maxevents, timeout_ms);
     getinputline(msg, 0, 0);
 
-    //loop_epoll_event(epollfd, listenfd, events, maxevents, timeout_ms, print_status_msg, msg, sizeof(msg));
+    epapi_loop_epoll_events(epollfd, listenfd, events, maxevents, timeout_ms, epapi_on_epevent_interactive, 0);
 
     free(events);
 

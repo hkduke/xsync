@@ -31,6 +31,7 @@
  */
 
 #include "client.h"
+#include "server_opts.h"
 
 
 void run_client_forever (clientapp_opts *opts);
@@ -226,96 +227,60 @@ void run_client_forever (clientapp_opts *opts)
 }
 
 
-void run_client_shell (clientapp_opts *opts)
+static void * thread_func (void *arg)
 {
-#define XSCLIAPP    csh_green_msg("["APP_NAME"] ")
-
-    LOGGER_INFO("interactive shell [%s] start ...", APP_NAME);
-
-    char host[XSYNC_HOSTNAME_MAXLEN + 1];
-    char port[6];
-    char magic[10];
+    int64_t id = 1;
 
     char msg[256];
 
-    const char *result;
+    int tid = pthread_self();
 
-    int portno = 8960;
+    printf("thread#%lld start ...\n", (long long) tid);
 
-    result = getinputline(XSCLIAPP CSH_CYAN_MSG("Input server ip [localhost]: "), msg, sizeof(msg));
-    if (result) {
-        strncpy(host, result, sizeof(host) - 1);
-    } else {
-        strncpy(host, "localhost", strlen("localhost") + 1);
-    }
-    host[sizeof(host) - 1] = '\0';
-
-    result = getinputline(XSCLIAPP CSH_CYAN_MSG("Input server port ["XSYNC_PORT_DEFAULT"]: "), msg, sizeof(msg));
-    if (result) {
-        strncpy(port, result, sizeof(port) - 1);
-    } else {
-        strncpy(port, XSYNC_PORT_DEFAULT, sizeof(port) - 1);
-    }
-    port[sizeof(port) - 1] = '\0';
-    portno = atoi(port);
-
-    result = getinputline(XSCLIAPP CSH_CYAN_MSG("Input server magic ["XSYNC_MAGIC_DEFAULT"]: "), msg, sizeof(msg));
-    if (result) {
-        strncpy(magic, result, sizeof(magic) - 1);
-    } else {
-        strncpy(magic, XSYNC_MAGIC_DEFAULT, sizeof(magic) - 1);
-    }
-    magic[sizeof(magic) - 1] = '\0';
-
-    result = getinputline(XSCLIAPP CSH_CYAN_MSG("Is that options correct? [Y for yes | N for no]: "), msg, sizeof(msg));
-    if (yes_or_no(result, 0) == 0) {
-        getinputline(XSCLIAPP CSH_CYAN_MSG("User cancelded.\n"), 0, 0);
-        exit(0);
-    }
-
-    snprintf(msg, sizeof(msg), XSCLIAPP CSH_CYAN_MSG("Connect to server {%s:%d#%s} ...\n"), host, portno, magic);
-    getinputline(msg, 0, 0);
-
-    ////////////////////////////////////////////////////////////////////
-    struct addrinfo hints;
-    struct addrinfo *res, *rp;
-    int sfd, s, id;
-    size_t len;
-
-    id = 1;
     do {
+        xs_server_opts_t *serv = (xs_server_opts_t *) arg;
+
+        // 休息10秒再连接
+        sleep(3);
+
+        printf("thread#%d start connect ...\n", tid);
+        // 建立连接
+        //
+        struct addrinfo hints;
+        struct addrinfo *res, *rp;
+        int sfd, s;
+        size_t len;
+
         /* Obtain address(es) matching host/port */
         memset(&hints, 0, sizeof(struct addrinfo));
 
-        hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
+        hints.ai_family = AF_UNSPEC;     /* Allow IPv4 or IPv6 */
         hints.ai_socktype = SOCK_STREAM; /* We want a TCP socket */
         hints.ai_flags = 0;
         hints.ai_protocol = 0;          /* Any protocol */
 
-        s = getaddrinfo(host, port, &hints, &res);
-
+        s = getaddrinfo(serv->host, serv->sport, &hints, &res);
         if (s != 0) {
             fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
-            exit(EXIT_FAILURE);
+            continue;
         }
 
         /**
-         * getaddrinfo() returns a list of address structures.
-         *
-         * Try each address until we successfully connect(2).
-         * If socket(2) (or connect(2)) fails, we (close the socket and)
-         *   try the next address.
-         **/
+        * getaddrinfo() returns a list of address structures.
+        *
+        * Try each address until we successfully connect(2).
+        * If socket(2) (or connect(2)) fails, we (close the socket and)
+        *   try the next address.
+        **/
 
         for (rp = res; rp != NULL; rp = rp->ai_next) {
             sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-
             if (sfd == -1) {
                 continue;
             }
 
             if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != -1) {
-                printf("socket ok.\n");
+                printf("connect server{%s:%s} ok.\n", serv->host, serv->sport);
                 break;
             }
 
@@ -324,26 +289,109 @@ void run_client_shell (clientapp_opts *opts)
 
         if (rp == NULL) {
             /* No address succeeded */
-            fprintf(stderr, "Could not connect\n");
-            exit(-1);
+            printf("failed to connect server{%s:%s}, connect again ...\n", serv->host, serv->sport);
+            freeaddrinfo(res);
+            continue;
         }
 
         /* No longer needed */
         freeaddrinfo(res);
 
-        len = snprintf(msg, sizeof(msg), "*************** hello: %d ****************\n", id);
-        msg[len] = 0;
+        printf("session start...\n");
+        int total = 0;
+        for (;;) {
+            len = snprintf(msg, sizeof(msg), "**** client thread#%lld say hello: %lld ****", (long long) tid, (long long) id++);
+            msg[len] = 0;
 
-        if (write(sfd, msg, len + 1) != len + 1) {
-            perror("write");
-            close(sfd);
-            exit(-1);
-        } else {
-            printf("send msg:%s\n", msg);
+            if (write(sfd, msg, len + 1) != len + 1) {
+                perror("write");
+                close(sfd);
+                break;
+            } else {
+                printf("%s\n", msg);
+                total += (len + 1);
+            }
+
+            if (total > 1073741824) {
+                printf("total %d bytes send.\n", total);
+                break;
+            }
+        }
+        printf("session end.\n");
+
+        // 断开连接
+        //
+        close(sfd);
+    } while(1);
+
+    printf("thread#%d end.\n", tid);
+    return ((void*) 0);
+}
+
+
+void run_client_shell (clientapp_opts *opts)
+{
+#define XSCLIAPP    csh_green_msg("["APP_NAME"] ")
+
+    xs_server_opts_t  server;
+    bzero(&server, sizeof(server));
+
+    strcpy(server.host, "localhost");
+    strcpy(server.sport, XSYNC_PORT_DEFAULT);
+
+    LOGGER_INFO("interactive shell [%s] start ...", APP_NAME);
+
+    char msg[256];
+
+    const char *result;
+
+    result = getinputline(XSCLIAPP CSH_CYAN_MSG("Input server ip [localhost]: "), msg, sizeof(msg));
+    if (result) {
+        strncpy(server.host, result, sizeof(server.host) - 1);
+    }
+    server.host[sizeof(server.host) - 1] = '\0';
+
+    result = getinputline(XSCLIAPP CSH_CYAN_MSG("Input server port ["XSYNC_PORT_DEFAULT"]: "), msg, sizeof(msg));
+    if (result) {
+        strncpy(server.sport, result, sizeof(server.sport) - 1);
+    }
+    server.sport[sizeof(server.sport) - 1] = '\0';
+    server.port = atoi(server.sport);
+
+    result = getinputline(XSCLIAPP CSH_CYAN_MSG("Input server magic ["XSYNC_MAGIC_DEFAULT"]: "), msg, sizeof(msg));
+    if (result) {
+        server.magic = atoi(msg);
+    } else {
+        server.magic = atoi(XSYNC_MAGIC_DEFAULT);
+    }
+
+    result = getinputline(XSCLIAPP CSH_CYAN_MSG("Is that options correct? [Y for yes | N for no]: "), msg, sizeof(msg));
+    //if (yes_or_no(result, 0) == 0) {
+    //    getinputline(XSCLIAPP CSH_CYAN_MSG("User cancelded.\n"), 0, 0);
+    //    exit(0);
+    //}
+
+    snprintf(msg, sizeof(msg), XSCLIAPP CSH_CYAN_MSG("Connect to server {%s:%d#%d} ...\n"), server.host, server.port, server.magic);
+    getinputline(msg, 0, 0);
+
+    do {
+        #define THREADS_MAX 100
+
+        pthread_t threads[THREADS_MAX];
+
+        int i, err;
+        void *ret;
+
+        for (i = 0; i < sizeof(threads) / sizeof(threads[0]); i++) {
+            err = pthread_create(&threads[i], 0, thread_func, (void*) &server);
+            assert(err == 0);
         }
 
-        close(sfd);
-    } while(id++ < 1000000000);
+        for (i = 0; i < sizeof(threads) / sizeof(threads[0]); i++) {
+            err = pthread_join(threads[i], (void**) &ret);
+            assert(err == 0);
+        }
+    } while(0);
 
     LOGGER_INFO("interactive shell [%s] exit.", APP_NAME);
 
