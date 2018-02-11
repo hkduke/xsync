@@ -226,6 +226,7 @@ void run_forever (xs_appopts_t *opts)
 static void * thread_func (void *arg)
 {
     int64_t id = 1;
+    int c = 0;
 
     char msg[256];
 
@@ -309,6 +310,7 @@ static void * thread_func (void *arg)
             }
 
             if (total > 1073741824) {
+                // 1 GB
                 printf("total %d bytes send.\n", total);
                 break;
             }
@@ -318,7 +320,7 @@ static void * thread_func (void *arg)
         // 断开连接
         //
         close(sfd);
-    } while(1);
+    } while(c++ < 10);
 
     printf("thread#%d end.\n", tid);
     return ((void*) 0);
@@ -371,7 +373,7 @@ void run_interactive (xs_appopts_t *opts)
     getinputline(msg, 0, 0);
 
     do {
-        #define THREADS_MAX 100
+        #define THREADS_MAX 20
 
         pthread_t threads[THREADS_MAX];
 
