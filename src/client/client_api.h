@@ -50,7 +50,7 @@ extern "C" {
 
 
 typedef struct xs_client_t              * XS_client;
-typedef struct xs_server_opts_t         * XS_server_opts;
+typedef struct xs_server_conn_t         * XS_server_conn;
 typedef struct xs_watch_path_t          * XS_watch_path;
 typedef struct xs_watch_entry_t         * XS_watch_entry;
 typedef struct xs_watch_event_t         * XS_watch_event;

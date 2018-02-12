@@ -21,13 +21,13 @@
 
 /**
  * server_opts.h
- *   path filter using regex
+ *   server opts
  *
  * author:
  *     master@pepstack.com
  *
  * create: 2018-01-25
- * update: 2018-02-11
+ * update: 2018-02-12
  *
  */
 
@@ -41,11 +41,11 @@ extern "C" {
 #include "../xsync-error.h"
 #include "../xsync-config.h"
 
-#include "../common/common_util.h"
 #include "../common/sockapi.h"
+#include "../common/common_util.h"
 
 
-typedef struct xs_server_opts_t
+typedef struct xs_server_opts
 {
     char smagic[4];
 
@@ -61,13 +61,13 @@ typedef struct xs_server_opts_t
     int port;
 
     struct sockconn_opts sockopts;
-} xs_server_opts_t;
+} xs_server_opts;
 
 
 __no_warning_unused(static)
-int server_opts_init (xs_server_opts_t * opts, int sid, const char * sidfile)
+int XS_server_opts_init (xs_server_opts * opts, int sid, const char * sidfile)
 {
-    bzero(opts, sizeof(xs_server_opts_t));
+    bzero(opts, sizeof(xs_server_opts));
 
     FILE * fp = fopen(sidfile, "r");
 

@@ -21,7 +21,7 @@
 #include "client_api.h"
 
 #include "watch_entry.h"
-#include "server_opts.h"
+#include "server_conn.h"
 #include "watch_path.h"
 #include "watch_event.h"
 
@@ -73,7 +73,7 @@ extern XS_VOID XS_watch_entry_create (const XS_watch_path wp, int sid, const cha
 
     *outEntry = (XS_watch_entry) RefObjectInit(entry);
 
-    LOGGER_TRACE("entry=%p ('%s' hash=%d fullpath='%s')", entry, xs_entry_nameid(entry), entry->hash, xs_entry_fullpath(entry));
+    LOGGER_TRACE("%p ('%s' hash=%d fullpath='%s')", entry, xs_entry_nameid(entry), entry->hash, xs_entry_fullpath(entry));
 }
 
 

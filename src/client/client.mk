@@ -37,7 +37,8 @@ SOURCES := \
     watch_path.c \
     watch_event.c \
     watch_entry.c \
-    path_filter.c
+    path_filter.c \
+	server_conn.c
 
 
 # see "../xsync-config.h" for definitions

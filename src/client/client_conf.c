@@ -81,6 +81,8 @@ extern void xs_client_delete (void *pv)
                 }
             }
 
+            XS_server_conn_release(&perdata->srvconn);
+
             free(perdata);
         }
 
@@ -338,7 +340,7 @@ int lscb_init_watch_path (const char * path, int pathlen, struct dirent *ent, XS
                     LOGGER_INFO("init sid=%d from: %s", sid, path);
                 }
 
-                err = server_opts_init(&client->servers_opts[sid], sid, sidfile);
+                err = XS_server_opts_init(&client->servers_opts[sid], sid, sidfile);
                 if (err) {
                     // 有错误, 中止运行
                     return 0;
@@ -729,7 +731,7 @@ extern XS_RESULT XS_client_conf_save_xml (XS_client client, const char * config_
     } while(0);
 
     for (sid = 1; sid <= XS_client_get_server_maxid(client); sid++) {
-        XS_server_opts server = XS_client_get_server_opts(client, sid);
+        xs_server_opts *server = XS_client_get_server_opts(client, sid);
 
         node = mxmlNewElement(serversNode, "xs:server");
 

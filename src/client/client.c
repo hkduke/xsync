@@ -235,7 +235,7 @@ static void * thread_func (void *arg)
     printf("thread#%lld start ...\n", (long long) tid);
 
     do {
-        xs_server_opts_t *serv = (xs_server_opts_t *) arg;
+        xs_server_opts *serv = (xs_server_opts *) arg;
 
         // 休息10秒再连接
         sleep(3);
@@ -367,7 +367,7 @@ void run_interactive (xs_appopts_t *opts)
 {
 #define XSCLIAPP    csh_green_msg("["APP_NAME"] ")
 
-    xs_server_opts_t  server;
+    xs_server_opts  server;
     bzero(&server, sizeof(server));
 
     strcpy(server.host, "localhost");

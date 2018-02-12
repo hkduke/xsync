@@ -32,7 +32,7 @@
  * @author cheungmine
  * @since 2012
  * @date Jun. 19, 2013
- * @last Jun. 03, 2016
+ * @last 2018-02-12
  */
 #ifndef _BYTEORDER_H_
 #define _BYTEORDER_H_
@@ -43,6 +43,7 @@ extern "C"
 #endif
 
 #include <memory.h>
+
 
 #ifdef _MSC_VER
     #define __INLINE static __forceinline

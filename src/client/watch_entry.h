@@ -184,7 +184,7 @@ inline void watch_entry_delete(void *pv)
 
     watch_entry_close_file(entry);
 
-    free((void *) entry);
+    free(pv);
 }
 
 

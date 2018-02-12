@@ -26,7 +26,7 @@
 extern "C" {
 #endif
 
-#include "server_opts.h"
+#include "server_conn.h"
 #include "watch_path.h"
 #include "watch_entry.h"
 #include "watch_event.h"
@@ -70,7 +70,7 @@ typedef struct xs_client_t
      * servers_opts[0].servers
      * total connections in server_conns
      */
-    xs_server_opts_t  servers_opts[XSYNC_SERVER_MAXID + 1];
+    xs_server_opts  servers_opts[XSYNC_SERVER_MAXID + 1];
 
     /** inotify fd */
     int infd;

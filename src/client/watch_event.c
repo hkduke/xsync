@@ -21,7 +21,7 @@
 #include "client_api.h"
 
 #include "watch_event.h"
-#include "server_opts.h"
+#include "server_conn.h"
 #include "watch_path.h"
 #include "watch_entry.h"
 
@@ -52,7 +52,7 @@ void xs_watch_event_delete (void *pv)
     event->entry = 0;
     event->client = 0;
 
-    // DONOT release XS_server_opts since it not a RefObject !
+    // DONOT release XS_server_conn since it not a RefObject !
 
     free(pv);
 }

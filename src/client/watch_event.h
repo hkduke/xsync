@@ -38,9 +38,9 @@ extern "C" {
 
 #include "../xsync-error.h"
 #include "../xsync-config.h"
+#include "../xsync-protocol.h"
 
-#include "server_opts.h"
-
+#include "server_conn.h"
 
 #include "../common/common_util.h"
 
@@ -51,6 +51,8 @@ typedef struct perthread_data
 
     int    sessions[XSYNC_SERVER_MAXID + 1];
     int    sockfds[XSYNC_SERVER_MAXID + 1];
+
+    XS_server_conn srvconn;
 
     unsigned char buffer[XSYNC_BUFSIZE];
 } perthread_data;
@@ -72,8 +74,8 @@ typedef struct xs_watch_event_t
     /* reference of XS_watch_entry */
     XS_watch_entry  entry;
 
-    /* reference of server opts for read only */
-    XS_server_opts  server;
+    /* const reference of server opts for read only */
+    xs_server_opts *server;
 
 } xs_watch_event_t;
 
