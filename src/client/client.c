@@ -327,6 +327,13 @@ static void * thread_func (void *arg)
             total += (len + 1);
             printf("%d bytes sent\n", total);
 
+            ////////////// test ///////////////////
+            // 发送完毕，休息
+            //close(sfd);
+
+            //sleep(20);
+
+            ///////////////////////////////////////
             /*
             if (write(sfd, msg, len + 1) != len + 1) {
                 perror("write");
@@ -402,19 +409,17 @@ void run_interactive (xs_appopts_t *opts)
     getinputline(msg, 0, 0);
 
     do {
-        #define THREADS_MAX 20
-
-        pthread_t threads[THREADS_MAX];
+        pthread_t threads[XSYNC_THREADS_MAXIMUM];
 
         int i, err;
         void *ret;
 
-        for (i = 0; i < sizeof(threads) / sizeof(threads[0]); i++) {
+        for (i = 0; i < opts->threads; i++) {
             err = pthread_create(&threads[i], 0, thread_func, (void*) &server);
             assert(err == 0);
         }
 
-        for (i = 0; i < sizeof(threads) / sizeof(threads[0]); i++) {
+        for (i = 0; i < opts->threads; i++) {
             err = pthread_join(threads[i], (void**) &ret);
             assert(err == 0);
         }

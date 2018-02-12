@@ -595,7 +595,9 @@ static int epapi_loop_epoll_events (int epollfd, int listenfd,
 
             if (listenfd == sockfd) {
                 /**
-                 * We have a notification on the listening socket, which means one or more incoming connections.
+                 * 新的client socket连接到来
+                 * We have a new notification on the listening socket,
+                 *   which means one or more incoming connections.
                  */
                 epdata.in_len = sizeof(epdata.in_addr);
                 epdata.connfd = accept(listenfd, &epdata.in_addr, &epdata.in_len);
@@ -699,6 +701,9 @@ static int epapi_loop_epoll_events (int epollfd, int listenfd,
                     goto onerror_exit;
                 }
             } else if (ev->events & EPOLLIN) {
+                /**
+                 * 已经存在的 client 连接发送数据请求
+                 */
                 epdata.epollfd = epollfd;
                 epdata.connfd = sockfd;
 

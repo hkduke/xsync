@@ -30,7 +30,7 @@
  *
  */
 __attribute__((used))
-static void * doThreadTask (perthread_data *perdata)
+static void doThreadTask (perthread_data *perdata)
 {
     int size;
 
@@ -48,11 +48,11 @@ static void * doThreadTask (perthread_data *perdata)
 
         if (size == 0) {
             /**
-             * 数据接收完毕
+             * 对方关闭了连接: close(fd)
              * close the descriptor will make epoll remove it
              *   from the set of descriptors which are monitored.
              **/
-            LOGGER_TRACE("close(%d)", connfd);
+            LOGGER_WARN("close(%d): %s", connfd, strerror(errno));
 
             close(connfd);
 
@@ -66,20 +66,25 @@ static void * doThreadTask (perthread_data *perdata)
                     LOGGER_ERROR("epapi_modify_epoll error: %s", iobuf);
 
                     close(connfd);
+                } else {
+                    LOGGER_DEBUG("epapi_modify_epoll ok");
+                    // TODO: 保存 connfd
+
+                    // 此处不应该关闭，只是模拟定期清除 sessioin
+                    //close(connfd);
                 }
 
                 break;
             }
 
             LOGGER_ERROR("recv error(%d): %s", errno, strerror(errno));
+            break;
         } else {
             iobuf[size] = 0;
 
             LOGGER_DEBUG("client(%d): {%s}", connfd, iobuf);
         }
     }
-
-    return ((void *) 0);
 }
 
 
