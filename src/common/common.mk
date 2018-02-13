@@ -6,7 +6,8 @@ SOURCES := \
 	getoptw.c \
 	base64.c \
 	readconf.c \
-	mul_timer.c
+	mul_timer.c \
+	randctx.c
 
 
 #   If the macro NDEBUG is defined at the moment <assert.h> was last

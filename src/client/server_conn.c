@@ -35,23 +35,24 @@
 
 #include "server_conn.h"
 
-#include "../xsync-protocol.h"
-
 #include "../common/common_util.h"
 
 
-extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, XS_server_conn *outSConn)
+extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char clientid[40], XS_server_conn *outSConn)
 {
     XS_server_conn sconn;
 
     sconn = (XS_server_conn) mem_alloc(1, sizeof(struct xs_server_conn_t) + sizeof(xs_server_opts));
 
+    randctx_init(&sconn->rctx, servOpts->magic + time(0));
+
     memcpy(sconn->srvopts, servOpts, sizeof(xs_server_opts));
 
     do {
-        xsync_newconn_t  msg;
 
-        xsync_newconn_init(&msg);
+
+
+
     } while(0);
 
     *outSConn = (XS_server_conn) RefObjectInit(sconn);

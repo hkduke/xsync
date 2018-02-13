@@ -68,7 +68,12 @@ typedef struct xs_server_t
     void        **thread_args;
 
     /**
-     * hlist for client_session: key is CLIENTID
+     * hlist for client_session:
+     *   it's key also known as session_id is the address of
+     *   pointer to XS_client_session object.
+     *
+     * 根据客户端传过来的 session_id 查找得到真正的 client_session 对象
+     * 如果不存在则拒绝客户端的访问，断开 socket 连接。
      */
     struct hlist_head client_hlist[XSYNC_CLIENT_SESSION_HASHMAX + 1];
 

@@ -26,6 +26,9 @@
  *   http://blog.csdn.net/educast/article/details/35569213
  *   http://www.cnblogs.com/chenshungen/p/4625588.html
  *
+ * commonds:
+ *   http://blog.csdn.net/wf1982/article/details/7209083
+ *
  * create: 2018-02-10
  * update: 2018-02-10
  *

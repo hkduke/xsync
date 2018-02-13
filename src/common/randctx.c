@@ -1,5 +1,5 @@
 /**
-* isaac_rand.c
+* randctx.c
 *   By Bob Jenkins.  My random number generator, ISAAC.  Public Domain.
 * -----------------------------------------------------------------------------
 * MODIFIED:
@@ -11,7 +11,7 @@
 *
 * 2015-01-19: revised by cheungmine
 */
-#include "isaac_rand.h"
+#include "randctx.h"
 
 #include <time.h>
 
@@ -126,20 +126,20 @@ void randctx_init(randctx *ctx, word time_as_seed)
 
 
 /**
-* isaac_rand
+* rand_gen
 *   get 32-bits unsigned integer random
 */
-ub4 isaac_rand(randctx *r)
+ub4 rand_gen(randctx *r)
 {
     return gen_rand32(r);
 }
 
 
 /**
-* isaac_randint
+* rand_gen_int
 *   get integer random between rmin and rmax
 */
-ub4 isaac_randint(randctx *r, ub4 rmin, ub4 rmax)
+ub4 rand_gen_int(randctx *r, ub4 rmin, ub4 rmax)
 {
     if (! r->randcnt-- ) {
         isaac32(r);
@@ -258,20 +258,20 @@ void randctx64_init(randctx64 *ctx, word time_as_seed)
 
 
 /**
-* isaac_rand64
+* rand64_gen
 *   get 64-bits unsigned integer random
 */
-ub8 isaac_rand64(randctx64 *r)
+ub8 rand64_gen(randctx64 *r)
 {
     return (ub8) (gen_rand64(r));
 }
 
 
 /**
-* isaac_randint64
+* rand64_gen_int
 *   get 64-bits unsigned integer random
 */
-ub8 isaac_randint64(randctx64 *r, ub8 rmin, ub8 rmax)
+ub8 rand64_gen_int(randctx64 *r, ub8 rmin, ub8 rmax)
 {
     if (! r->randcnt-- ) {
         isaac64(r);
@@ -293,7 +293,7 @@ static void inner_test32()
 
     for (i=0; i<2; ++i) {
         isaac32(&ctx);
-    
+
         for (j=0; j<256; ++j) {
             printf("%.8lx",ctx.seed[j]);
             if ((j&7)==7) {
@@ -312,10 +312,10 @@ static void inner_test64()
 
     for (i=0; i<2; ++i) {
         isaac64(&ctx);
-    
+
         for (j=0; j<RANDSIZ; ++j) {
             printf("%.8lx%.8lx",(ub4)(ctx.seed[j]>>32),(ub4)ctx.seed[j]);
-    
+
             if ((j&3)==3) {
                 printf("\n");
             }
@@ -337,8 +337,8 @@ static void usage()
 
 
     for (i=0; i<100; ++i) {
-        printf("%03d: %d\n", i, (sb4)isaac_randint(&ctx, -100, 100));
-        printf("%03d: %lld\n", i, (sb8)isaac_randint64(&ctx64, -100, 100));
+        printf("%03d: %d\n", i, (sb4)rand_gen_int(&ctx, -100, 100));
+        printf("%03d: %lld\n", i, (sb8)rand64_gen_int(&ctx64, -100, 100));
     }
 }
 

@@ -18,6 +18,20 @@
 *
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
+/**
+ *                     XS_server_t
+ *
+ *                      +---------------+
+ *                      |     hlist     |
+ *                      +---------------+
+ *                      | session_id 01 | ->  client_sessionA::token1
+ *                      +---------------+
+ *                      | session_id 02 | ->  client_sessionB::token2
+ *                      +---------------+
+ *                      |     ...       |
+ *                      +---------------+
+ *
+ */
 
 #ifndef CLIENT_SESSION_H_INCLUDED
 #define CLIENT_SESSION_H_INCLUDED

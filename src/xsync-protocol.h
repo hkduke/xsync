@@ -26,9 +26,27 @@
  * author: master@pepstack.com
  *
  * create: 2018-02-10
- * update: 2018-02-12
+ * update: 2018-02-13
  */
 
+/***********************************************************************
+ *     client-request   |  server-reply
+ * ---------------------+--------------------------------------------
+ * 1) new_connect       |  accept  / reject
+ *                      |
+ * 2) start_fstream     |  accept  / reject
+ * 3) data1, data2, ... |  recv: donot reply
+ *                      |  stop: send OOB to client(catch it by SIGURG)
+ *                      |     http://www.cnblogs.com/c-slmax/p/5553857.html
+ * 4) end_fstream       |  accept
+ *                      |
+ * 5) del_connect       |  accept
+ *                      |
+ * 6) start_update      |  accept / reject
+ * 7) update_msg1,2,    |
+ * 8) end_update        |
+ *
+ **********************************************************************/
 #ifndef XSYNC_PROTOCOL_H_
 #define XSYNC_PROTOCOL_H_
 
@@ -41,6 +59,8 @@ extern "C"
 
 #include "./common/byteorder.h"
 #include "./common/threadlock.h"
+
+#include "./common/randctx.h"
 
 
 #ifdef __GNUC__
@@ -57,7 +77,7 @@ extern "C"
 
 
 /**
- * xsync_newconn_t
+ * xsync_conn_req_t
  *
  *   This is the 1st message sent by client to server so as to
  *     establish a new socket connection.
@@ -66,7 +86,7 @@ extern "C"
  *
  *        4 bytes      |       4 bytes
  * --------------------+--------------------
- *  0      XSNC        |        MAGIC      7
+ *  0      XSYN        |        MAGIC      7
  * --------------------+--------------------
  *  8     Version      |      TimeStamp   15
  * --------------------+--------------------
@@ -82,39 +102,121 @@ extern "C"
 #  pragma pack(1)
 #endif
 
-
-typedef struct xsync_newconn_t
+typedef struct xsync_conn_req_t
 {
     union {
         struct {
-            /* XSYN */
-            byte_t tagid[4];
-            uint32_t magic;
+            ub1 msg_id[4];          /* XSYN */
+            ub4 magic;
 
-            /* xsync-client version */
-            uint32_t version;
-            uint32_t timestamp;
+            ub4 client_version;     /* xsync-client version */
+            ub4 client_utctime;
 
             /* 40 characters length id */
-            byte_t clientid[XSYNC_CLIENTID_MAXLEN];
+            ub1 clientid[XSYNC_CLIENTID_MAXLEN];
 
-            uint32_t randnum;
-            uint32_t crc32;
+            ub4 randnum;
+            ub4 crc32;
         };
 
-        char msgconn_buf[64];
+        ub1 conn_req[64];
     };
-} GNUC_PACKED ARM_PACKED xsync_newconn_t;
+
+    ub1 msg_buffer[64];
+} GNUC_PACKED ARM_PACKED xsync_conn_req_t;
 
 #ifdef _MSC_VER
 #  pragma pack()
 #endif
 
 
-__no_warning_unused(static)
-inline void xsync_newconn_init (xsync_newconn_t *msg)
+/***********************************************************************
+ *
+ *
+ *
+ *
+ **********************************************************************/
+#ifdef _MSC_VER
+#  pragma pack(1)
+#endif
+
+typedef struct XSYNC_ConnectRequest
 {
-    assert(sizeof(*msg) == 64);
+    union {
+        struct {
+            ub4 msgid;              /* XS00, XS01 */
+            ub4 magic;
+
+            ub4 client_version;     /* xsync-client version */
+            ub4 client_utctime;
+
+            /* 40 characters length id */
+            ub1 clientid[XSYNC_CLIENTID_MAXLEN];
+
+            ub4 randnum;
+            ub4 crc32;
+        };
+
+        ub1 conn_req[64];
+    };
+
+    ub1 req_buffer[64];
+} GNUC_PACKED ARM_PACKED XSYNC_ConnectRequest;
+
+#ifdef _MSC_VER
+#  pragma pack()
+#endif
+
+
+#ifdef _MSC_VER
+#  pragma pack(1)
+#endif
+typedef struct XSYNC_ConnectReply
+{
+    ub4 msgid;                       /* 接受或指派备用服务器 */
+
+    union {
+        struct {
+            ub4 reject_code;         /* != 0 */
+        };
+
+        /** accept reply */
+        struct {
+            ub4 token;               /* token or magic */
+
+            ub4 server_version;      /* xsync-server version */
+            ub4 server_utctime;
+
+            ub8 session_id;
+
+            ub4 standby_port;
+
+            union {
+                struct {
+                    ub4 standby_ipv4;
+                    ub1 placeholder[12];
+                };
+
+                ub1 standby_ipv6[16];
+            };
+
+            ub1 lo_cipher[8];
+            ub1 hi_cipher[8];
+
+            ub4 crc32;
+        };
+    };
+} GNUC_PACKED ARM_PACKED XSYNC_ConnectReply;
+#ifdef _MSC_VER
+#  pragma pack()
+#endif
+
+
+
+
+__no_warning_unused(static)
+inline void XSYNC_connect_request_init (xsync_conn_req_t *msg, uint32_t magic, char clientid[40])
+{
 }
 
 

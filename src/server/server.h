@@ -34,7 +34,7 @@ extern "C" {
 
 #include "../common/cshell.h"
 #include "../common/common_util.h"
-#include "../common/redis_client.h"
+#include "../common/redisapi.h"
 
 
 /**

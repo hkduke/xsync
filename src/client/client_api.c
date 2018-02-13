@@ -419,7 +419,7 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
         for (sid = 1; sid <= XS_client_get_server_maxid(client); sid++) {
             xs_server_opts * srv = XS_client_get_server_opts(client, sid);
 
-            XS_server_conn_create(srv, &perdata->srvconn);
+            XS_server_conn_create(srv, client->clientid, &perdata->srvconn);
 
 
             int sockfd = opensocket(srv->host, srv->port, srv->sockopts.timeosec, srv->sockopts.nowait, &err);

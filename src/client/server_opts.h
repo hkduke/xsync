@@ -47,15 +47,14 @@ extern "C" {
 
 typedef struct xs_server_opts
 {
-    char smagic[4];
-
     union {
-        int magic;
+        uint32_t magic;
         int sidmax;
     };
 
-    char host[XSYNC_HOSTNAME_MAXLEN + 1];
+    char smagic[4];
 
+    char host[XSYNC_HOSTNAME_MAXLEN + 1];
     char sport[XSYNC_PORTNUMB_MAXLEN + 1];
 
     int port;

@@ -1,5 +1,9 @@
 /**
-* isaac_rand.h
+*
+* http://stackoverflow.com/questions/822323/how-to-generate-a-random-number-in-c
+* http://burtleburtle.net/bob/rand/isaacafa.html
+*
+* randctx.h
 *   definitions for a random number generator
 * -----------------------------------------------------------------------------
 * By Bob Jenkins, 1996, Public Domain
@@ -11,20 +15,16 @@
 *   010626: note this is public domain
 * -----------------------------------------------------------------------------
 *
-* http://burtleburtle.net/bob/rand/isaacafa.html
-*
-* 2015-01-21: revised by cheungmine
+* 2015-01-19: revised by cheungmine
 */
-#ifndef ISAAC_RAND_H
-#define ISAAC_RAND_H
+#ifndef _RANDCTX_H__
+#define _RANDCTX_H__
 
 #ifdef    __cplusplus
 extern "C" {
 #endif
 
-#ifndef STANDARD
-#  include "standard.h"
-#endif
+#include "randstd.h"
 
 #define RANDSIZL   (8)
 #define RANDSIZ    (1<<RANDSIZL)
@@ -71,17 +71,17 @@ extern void randctx64_init(randctx64 *r, word time_as_seed);
 * rand
 *   Call rand(randctx *) to retrieve a single 32-bit random value.
 */
-extern ub4 isaac_rand(randctx *r);
+extern ub4 rand_gen(randctx *r);
 
-extern ub4 isaac_randint(randctx *r, ub4 rmin, ub4 rmax);
+extern ub4 rand_gen_int(randctx *r, ub4 rmin, ub4 rmax);
 
-extern ub8 isaac_rand64(randctx64 *r);
+extern ub8 rand64_gen(randctx64 *r);
 
-extern ub8 isaac_randint64(randctx64 *r, ub8 rmin, ub8 rmax);
+extern ub8 rand64_gen_int(randctx64 *r, ub8 rmin, ub8 rmax);
 
 
 #ifdef    __cplusplus
 }
 #endif
 
-#endif  /* ISAAC_RAND_H */
+#endif  /* _RANDCTX_H__ */

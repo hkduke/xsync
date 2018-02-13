@@ -40,6 +40,8 @@ extern "C" {
 
 #include "server_opts.h"
 
+#include "../xsync-protocol.h"
+
 
 typedef struct xs_server_conn_t
 {
@@ -47,6 +49,8 @@ typedef struct xs_server_conn_t
 
     /* socket fd connected to xsync-server */
     int fd;
+
+    randctx  rctx;
 
 
     xs_server_opts srvopts[0];
@@ -72,7 +76,7 @@ inline void server_conn_delete (void *pv)
 }
 
 
-extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, XS_server_conn *outSConn);
+extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char clientid[40], XS_server_conn *outSConn);
 
 extern XS_VOID XS_server_conn_release (XS_server_conn *inSConn);
 
