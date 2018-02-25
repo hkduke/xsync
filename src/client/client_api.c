@@ -242,7 +242,7 @@ XS_RESULT client_on_inotify_event (XS_client client, struct inotify_event * inev
  **********************************************************************/
 extern XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
 {
-    int i, sid, err;
+    int i, err;
 
     int SERVERS;
     int THREADS;
@@ -324,6 +324,15 @@ extern XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
     }
 
     SERVERS = XS_client_get_server_maxid(client);
+
+    if (client->threads == 0) {
+        client->threads = XSYNC_CLIENT_THREADS;
+    }
+
+    if (client->queues < client->threads * XSYNC_TASKS_PERTHREAD) {
+        client->queues = appopts_validate_queues(client->threads, opts->queues);
+    }
+
     THREADS = client->threads;
     QUEUES = client->queues;
 
@@ -335,12 +344,9 @@ extern XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
     for (i = 0; i < THREADS; ++i) {
         perthread_data *perdata = (perthread_data *) mem_alloc(1, sizeof(perthread_data));
 
-        perdata->sockfds[0] = SERVERS;
-        perdata->threadid = i + 1;
+        perdata->server_conns[0] = (XS_server_conn) (long) SERVERS;
 
-        for (sid = 1; sid <= XS_client_get_server_maxid(client); sid++) {
-            perdata->sockfds[sid] = SOCKAPI_ERROR_SOCKET;
-        }
+        perdata->threadid = i + 1;
 
         client->thread_args[i] = (void*) perdata;
     }
@@ -399,7 +405,7 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
 {
     fd_set set;
 
-    int i, sid, err;
+    int i, sid;
 
     int wait_seconds = 6;
 
@@ -415,23 +421,17 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
     for (i = 0; i < client->threads; ++i) {
         perthread_data * perdata = (perthread_data *) client->thread_args[i];
 
-        // TODO: socket
         for (sid = 1; sid <= XS_client_get_server_maxid(client); sid++) {
             xs_server_opts * srv = XS_client_get_server_opts(client, sid);
 
-            XS_server_conn_create(srv, client->clientid, &perdata->srvconn);
+            XS_server_conn_create(srv, client->clientid, &perdata->server_conns[sid]);
 
-
-            int sockfd = opensocket(srv->host, srv->port, srv->sockopts.timeosec, srv->sockopts.nowait, &err);
-
-            if (sockfd == SOCKAPI_ERROR_SOCKET) {
-                LOGGER_ERROR("[thread_%d] connect server-%d (%s:%d) error(%d): %s",
+            if (perdata->server_conns[sid]->sockfd == -1) {
+                LOGGER_ERROR("[thread_%d] connect server-%d (%s:%d)",
                     perdata->threadid,
                     sid,
                     srv->host,
-                    srv->port,
-                    err,
-                    strerror(errno));
+                    srv->port);
             } else {
                 LOGGER_INFO("[thread_%d] connected server-%d (%s:%d)",
                     perdata->threadid,
@@ -439,8 +439,6 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
                     srv->host,
                     srv->port);
             }
-
-            perdata->sockfds[sid] = sockfd;
         }
     }
 

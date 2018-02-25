@@ -5,7 +5,7 @@
 #   install devel lib for building both xsync-client and xsync-server
 #
 # init created: 2018-01-19
-# last updated: 2018-02-10
+# last updated: 2018-02-25
 #
 ########################################################################
 # NOTE: readlink -f not support by MaxOS-X
@@ -64,6 +64,14 @@ cd ${_cdir}/openssl-1.0.2e/
 ./config --prefix=${INSTALLDIR}
 make && make install
 rm -rf ${_cdir}/openssl-1.0.2e
+cd ${_cdir}
+
+echo "---- build and install <zlib-1.2.11> ..."
+tar -zxf ${_cdir}/zlib-1.2.11.tar.gz
+cd ${_cdir}/zlib-1.2.11/
+./config --prefix=${INSTALLDIR}
+make && make install
+rm -rf ${_cdir}/zlib-1.2.11
 cd ${_cdir}
 
 echo "[success] all packages installed at: ${INSTALLDIR}"

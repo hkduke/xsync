@@ -18,25 +18,47 @@
 #  define STDDEF
 #endif
 
-typedef unsigned long long ub8;
+#if defined (_SVR4) || defined (SVR4) || defined (__OpenBSD__) ||\
+    defined (_sgi) || defined (__sun) || defined (sun) || \
+    defined (__digital__) || defined (__HP_cc)
+    #include <inttypes.h>
+#elif defined (_MSC_VER) && _MSC_VER < 1600
+    /* VS 2010 (_MSC_VER 1600) has stdint.h */
+    typedef __int8 int8_t;
+    typedef unsigned __int8 uint8_t;
+    typedef __int16 int16_t;
+    typedef unsigned __int16 uint16_t;
+    typedef __int32 int32_t;
+    typedef unsigned __int32 uint32_t;
+    typedef __int64 int64_t;
+    typedef unsigned __int64 uint64_t;
+#elif defined (_AIX)
+    #include <sys/inttypes.h>
+#else
+    #include <stdint.h>
+#endif
+
+
+typedef uint64_t ub8;
 #define UB8MAXVAL 0xffffffffffffffffLL
 #define UB8BITS 64
 
-typedef signed long long sb8;
+typedef int64_t sb8;
 #define SB8MAXVAL 0x7fffffffffffffffLL
 
-typedef unsigned long int ub4;   /* unsigned 4-byte quantities */
+/* unsigned 4-byte quantities */
+typedef uint32_t ub4;
 #define UB4MAXVAL 0xffffffff
 
-typedef signed long int sb4;
+typedef int32_t sb4;
 #define UB4BITS 32
 #define SB4MAXVAL 0x7fffffff
 
-typedef unsigned short int ub2;
+typedef uint16_t ub2;
 #define UB2MAXVAL 0xffff
 #define UB2BITS 16
 
-typedef signed short int sb2;
+typedef int16_t sb2;
 #define SB2MAXVAL 0x7fff
 
 /* unsigned 1-byte quantities */

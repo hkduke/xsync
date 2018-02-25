@@ -111,12 +111,10 @@ extern ssize_t XS_watch_event_sync_file (XS_watch_event event, perthread_data *p
     assert(entry);
     assert(entry->in_use);
 
-    int sid = entry->sid;
-    int sockfd = perdata->sockfds[sid];
+    //int sid = entry->sid;
+    //TODO: int sockfd = perdata->sockfds[sid];
 
-    if (sockfd == -1) {
-        LOGGER_WARN("TODO: sockfd error");
-    }
+    return sendbytes;
 
     int rofd = watch_entry_open_file(entry);
 

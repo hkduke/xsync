@@ -44,16 +44,55 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
 
     sconn = (XS_server_conn) mem_alloc(1, sizeof(struct xs_server_conn_t) + sizeof(xs_server_opts));
 
-    randctx_init(&sconn->rctx, servOpts->magic + time(0));
+    sconn->sockfd = -1;
 
-    memcpy(sconn->srvopts, servOpts, sizeof(xs_server_opts));
+    /**
+     * http://man7.org/linux/man-pages/man2/time.2.html
+     *
+     * time(tloc) returns the time as the number of seconds since the Epoch,
+     * 1970-01-01 00:00:00 +0000 (UTC).
+     *
+     * Applications intended to run after 2038 should use ABIs with time_t
+     *   wider than 32 bits.
+     *
+     * The tloc argument is obsolescent and should always be NULL in new
+     *   code.  When tloc is NULL, the call cannot fail.
+     */
+    sconn->client_utctime = time(NULL);
+
+    ub4 t32 = (ub4) (0x00000000FFFFFFFF & sconn->client_utctime);
+
+    randctx_init(&sconn->rctx, t32 ^ servOpts->magic);
 
     do {
+        int sockfd, err;
 
+        XSYNC_ConnectRequest connRequest;
 
+        XSYNC_ConnectRequestBuild(&connRequest, servOpts->magic, t32, rand_gen(&sconn->rctx), clientid);
 
+        LOGGER_TRACE("msgid=%d('%c%c%c%c'), magic=%d, version=%d('%d.%d.%d'), time=%d, clientid=%s, randnum=%d, crc32=%d",
+                connRequest.msgid,
+                connRequest.connect_request[0],
+                connRequest.connect_request[1],
+                connRequest.connect_request[2],
+                connRequest.connect_request[3],
+                connRequest.magic,
+                connRequest.client_version,
+                connRequest.connect_request[11],
+                connRequest.connect_request[10],
+                connRequest.connect_request[9],
+                connRequest.client_utctime,
+                connRequest.clientid,
+                connRequest.randnum,
+                connRequest.crc32_checksum);
 
+        sockfd = opensocket(servOpts->host, servOpts->port, servOpts->sockopts.timeosec, servOpts->sockopts.nowait, &err);
+
+        sconn->sockfd = sockfd;
     } while(0);
+
+    memcpy(sconn->srvopts, servOpts, sizeof(xs_server_opts));
 
     *outSConn = (XS_server_conn) RefObjectInit(sconn);
 

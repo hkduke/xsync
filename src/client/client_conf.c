@@ -63,25 +63,23 @@ extern void xs_client_delete (void *pv)
 
     if (client->thread_args) {
         perthread_data * perdata;
-        int sockfd, sid_max;
+        int sid_max;
 
         for (i = 0; i < client->threads; ++i) {
             perdata = client->thread_args[i];
             client->thread_args[i] = 0;
 
-            sid_max = perdata->sockfds[0] + 1;
+            sid_max = (int)(long)(void *)perdata->server_conns[0];
 
-            for (sid = 1; sid < sid_max; sid++) {
-                sockfd = perdata->sockfds[sid];
+            for (sid = 1; sid <= sid_max; sid++) {
+                XS_server_conn conn = perdata->server_conns[sid];
 
-                perdata->sockfds[sid] = SOCKAPI_ERROR_SOCKET;
+                if (conn) {
+                    perdata->server_conns[sid] = 0;
 
-                if (sockfd != SOCKAPI_ERROR_SOCKET) {
-                    close(sockfd);
+                    XS_server_conn_release(&conn);
                 }
             }
-
-            XS_server_conn_release(&perdata->srvconn);
 
             free(perdata);
         }

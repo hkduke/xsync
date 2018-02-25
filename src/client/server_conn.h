@@ -48,10 +48,10 @@ typedef struct xs_server_conn_t
     EXTENDS_REFOBJECT_TYPE();
 
     /* socket fd connected to xsync-server */
-    int fd;
+    int sockfd;
 
     randctx  rctx;
-
+    time_t client_utctime;
 
     xs_server_opts srvopts[0];
 } xs_server_conn_t;
@@ -65,10 +65,10 @@ inline void server_conn_delete (void *pv)
     LOGGER_TRACE0();
 
     //TODO:
-    int sfd = sconn->fd;
+    int sfd = sconn->sockfd;
 
     if (sfd != -1) {
-        sconn->fd = -1;
+        sconn->sockfd = -1;
         close(sfd);
     }
 

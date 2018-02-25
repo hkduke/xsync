@@ -49,10 +49,7 @@ typedef struct perthread_data
 {
     int    threadid;
 
-    int    sessions[XSYNC_SERVER_MAXID + 1];
-    int    sockfds[XSYNC_SERVER_MAXID + 1];
-
-    XS_server_conn srvconn;
+    XS_server_conn server_conns[XSYNC_SERVER_MAXID + 1];;
 
     unsigned char buffer[XSYNC_BUFSIZE];
 } perthread_data;
