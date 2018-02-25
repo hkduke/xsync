@@ -69,7 +69,7 @@ cd ${_cdir}
 echo "---- build and install <zlib-1.2.11> ..."
 tar -zxf ${_cdir}/zlib-1.2.11.tar.gz
 cd ${_cdir}/zlib-1.2.11/
-./config --prefix=${INSTALLDIR}
+./configure --prefix=${INSTALLDIR}
 make && make install
 rm -rf ${_cdir}/zlib-1.2.11
 cd ${_cdir}
