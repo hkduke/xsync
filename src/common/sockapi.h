@@ -23,7 +23,7 @@
  * sockapi.h
  *
  * create: 2014-08-01
- * update: 2018-01-22
+ * update: 2018-02-26
  *
  */
 #ifndef SOCKAPI_H_INCLUDED
@@ -297,28 +297,28 @@ static SOCKET opensocket (const char *server, int port, int timeo_sec, int nowai
  *   if keep them after system reboot, must add to: /etc/sysctl.conf file
  */
 __attribute__((unused))
-static int setsockalive (SOCKET s, int keepIdle, int keepInterval, int keepCount)
+static int setsockalive (SOCKET sd, int keepIdle, int keepInterval, int keepCount)
 {
     int keepAlive = 1;
 
     socklen_t len = (socklen_t) sizeof(keepAlive);
 
     /* enable keep alive */
-    setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, (void *)&keepAlive, sizeof(keepAlive));
+    setsockopt(sd, SOL_SOCKET, SO_KEEPALIVE, (void *)&keepAlive, sizeof(keepAlive));
 
     /* tcp idle time, test time internal, test times */
     if (keepIdle > 0) {
-        setsockopt(s, SOL_TCP, TCP_KEEPIDLE, (void*)&keepIdle, sizeof(keepIdle));
+        setsockopt(sd, SOL_TCP, TCP_KEEPIDLE, (void*)&keepIdle, sizeof(keepIdle));
     }
     if (keepInterval > 0) {
-        setsockopt(s, SOL_TCP, TCP_KEEPINTVL, (void *)&keepInterval, sizeof(keepInterval));
+        setsockopt(sd, SOL_TCP, TCP_KEEPINTVL, (void *)&keepInterval, sizeof(keepInterval));
     }
     if (keepCount > 0) {
-        setsockopt(s, SOL_TCP, TCP_KEEPCNT, (void *)&keepCount, sizeof(keepCount));
+        setsockopt(sd, SOL_TCP, TCP_KEEPCNT, (void *)&keepCount, sizeof(keepCount));
     }
 
     /* Check the status again */
-    if (getsockopt(s, SOL_SOCKET, SO_KEEPALIVE, &keepAlive, &len) < 0) {
+    if (getsockopt(sd, SOL_SOCKET, SO_KEEPALIVE, &keepAlive, &len) < 0) {
         return SOCKAPI_ERROR_SOCKET;
     }
 
@@ -327,20 +327,20 @@ static int setsockalive (SOCKET s, int keepIdle, int keepInterval, int keepCount
 
 
 __attribute__((unused))
-static int setsocktimeo (SOCKET sockfd, int sendTimeoutSec, int recvTimeoutSec)
+static int setsocktimeo (SOCKET sd, int sendTimeoutSec, int recvTimeoutSec)
 {
     if (sendTimeoutSec > 0) {
         struct timeval sndtime = {sendTimeoutSec, 0};
-        if (SOCKAPI_SUCCESS != setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO,
-                                (char*)&sndtime, sizeof(struct timeval))) {
+
+        if (SOCKAPI_SUCCESS != setsockopt(sd, SOL_SOCKET, SO_SNDTIMEO, (char*) &sndtime, sizeof(struct timeval))) {
             return SOCKAPI_ERROR;
         }
     }
 
     if (recvTimeoutSec > 0) {
         struct timeval rcvtime = {recvTimeoutSec, 0};
-        if (SOCKAPI_SUCCESS != setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,
-                                (char*)&rcvtime, sizeof(struct timeval))) {
+
+        if (SOCKAPI_SUCCESS != setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (char*) &rcvtime, sizeof(struct timeval))) {
             return SOCKAPI_ERROR;
         }
     }
@@ -350,34 +350,174 @@ static int setsocktimeo (SOCKET sockfd, int sendTimeoutSec, int recvTimeoutSec)
 
 
 __attribute__((unused))
-static int socket_set_conn_opts (int connfd, struct sockconn_opts *opts)
+static int socket_set_conn_opts (int connfd, const struct sockconn_opts *opts, char errmsg[256])
 {
     /* set timeouts on current socket connection */
     if (SOCKAPI_SUCCESS != setsocktimeo(connfd, opts->timeosec, opts->timeosec)) {
-        printf("error(%d): %s", errno, strerror(errno));
+        snprintf(errmsg, 255, "setsocktimeo error: %s", strerror(errno));
+        errmsg[255] = 0;
+
         return SOCKAPI_ERROR;
     }
 
     /* set keepalive for current socket connection */
     if (1 != setsockalive(connfd, opts->keepidle, opts->keepinterval, opts->keepcount)) {
-        printf("error(%d): %s", errno, strerror(errno));
+        snprintf(errmsg, 255, "setsockalive error: %s", strerror(errno));
+        errmsg[255] = 0;
+
         return SOCKAPI_ERROR;
     }
 
     /* nodelay=1, TCP_NODELAY disable Nagle, use TCP_CORK to enable Nagle */
     if (opts->nodelay) {
         if (setsockopt (connfd, IPPROTO_TCP, TCP_NODELAY, &opts->nodelay, sizeof(opts->nodelay))) {
-            printf("error(%d): %s\n", errno, strerror(errno));
+            snprintf(errmsg, 255, "setsockopt TCP_NODELAY error: %s", strerror(errno));
+            errmsg[255] = 0;
+
             return SOCKAPI_ERROR;
         }
     } else {
         if (setsockopt (connfd, IPPROTO_TCP, TCP_CORK, &opts->nodelay, sizeof(opts->nodelay))) {
-            printf("error(%d): %s\n", errno, strerror(errno));
+            snprintf(errmsg, 255, "setsockopt TCP_CORK error: %s", strerror(errno));
+            errmsg[255] = 0;
+
             return SOCKAPI_ERROR;
         }
     }
 
     return SOCKAPI_SUCCESS;
+}
+
+
+/**
+ * IPv4 and IPv6 supported
+ *
+ * https://linux.die.net/man/3/gai_strerror
+ */
+__attribute__((unused))
+static SOCKET opensocket_v2 (const char *host, const char *port, int timeo_sec, const struct sockconn_opts *opts, char errmsg[256])
+{
+    struct addrinfo hints;
+    struct addrinfo *res, *rp;
+
+    int err;
+
+    SOCKET sockfd = -1;
+
+    *errmsg = 0;
+
+    /* Obtain address(es) matching host/port */
+    memset(&hints, 0, sizeof(struct addrinfo));
+
+    hints.ai_family = AF_UNSPEC;      /* Allow IPv4 or IPv6 */
+    hints.ai_socktype = SOCK_STREAM;  /* We want a TCP socket */
+    hints.ai_flags = 0;
+    hints.ai_protocol = 0;            /* Any protocol */
+
+    err = getaddrinfo(host, port, &hints, &res);
+    if (err != 0) {
+        snprintf(errmsg, 255, "getaddrinfo error: %s", gai_strerror(err));
+        errmsg[255] = 0;
+
+        return -1;
+    }
+
+    /**
+     * getaddrinfo() returns a list of address structures.
+     *
+     * Try each address until we successfully connect(2).
+     * If socket(2) (or connect(2)) fails, we (close the socket and)
+     *   try the next address.
+     */
+    for (rp = res; rp != NULL; rp = rp->ai_next) {
+        struct timeval old_timeo = {0};
+        socklen_t old_len = (socklen_t) sizeof(old_timeo);
+        old_timeo.tv_sec = timeo_sec;
+
+        /**
+         * socket()
+         *
+         *   create an endpoint for communication
+         *     https://linux.die.net/man/2/socket
+         *   On success, a file descriptor for the new socket is returned.
+         *   On error, -1 is returned, and errno is set appropriately.
+         */
+        sockfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+
+        if (sockfd == -1) {
+            snprintf(errmsg, 255, "socket error(%d): %s", errno, strerror(errno));
+            errmsg[255] = 0;
+
+            continue;
+        }
+
+        if (timeo_sec) {
+            struct timeval new_timeo = {0};
+            socklen_t new_len = (socklen_t) sizeof(new_timeo);
+            new_timeo.tv_sec = timeo_sec;
+
+            if (getsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &old_timeo, &old_len) == -1) {
+                snprintf(errmsg, 255, "getsockopt SO_SNDTIMEO error: %s", strerror(errno));
+                errmsg[255] = 0;
+
+                close(sockfd);
+                continue;
+            }
+
+            if (setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &new_timeo, new_len) == -1) {
+                snprintf(errmsg, 255, "setsockopt SO_SNDTIMEO error: %s", strerror(errno));
+                errmsg[255] = 0;
+
+                close(sockfd);
+                continue;
+            }
+        }
+
+        /**
+         * connect a socket
+         *  - https://linux.die.net/man/3/connect
+         *   Upon successful completion, connect() shall return 0;
+         *   otherwise, -1 shall be returned and errno set to indicate
+         *   the error.
+         */
+        if (connect(sockfd, rp->ai_addr, rp->ai_addrlen) == 0) {
+            /* success */
+            *errmsg = 0;
+            break;
+        }
+
+        /* error */
+        snprintf(errmsg, 255, "connect a socket error(%d): %s", errno, strerror(errno));
+        errmsg[255] = 0;
+
+        if (timeo_sec) {
+            setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &old_timeo, old_len);
+        }
+
+        close(sockfd);
+    }
+
+    if (rp == NULL) {
+        if (! *errmsg) {
+            snprintf(errmsg, 255, "no address succeeded: %s:%s", host, port);
+            errmsg[255] = 0;
+        }
+
+        freeaddrinfo(res);
+        return -1;
+    }
+
+    /* No longer needed */
+    freeaddrinfo(res);
+
+    if (opts) {
+        if (socket_set_conn_opts(sockfd, opts, errmsg) != SOCKAPI_SUCCESS) {
+            close(sockfd);
+            return -1;
+        }
+    }
+
+    return sockfd;
 }
 
 

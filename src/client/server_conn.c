@@ -27,7 +27,7 @@
  *     master@pepstack.com
  *
  * create: 2018-02-12
- * update: 2018-02-12
+ * update: 2018-02-26
  *
  */
 
@@ -65,7 +65,9 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
     randctx_init(&sconn->rctx, t32 ^ servOpts->magic);
 
     do {
-        int sockfd, err;
+        int sockfd;
+
+        char errmsg[256];
 
         XSYNC_ConnectRequest connRequest;
 
@@ -87,7 +89,16 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
                 connRequest.randnum,
                 connRequest.crc32_checksum);
 
-        sockfd = opensocket(servOpts->host, servOpts->port, servOpts->sockopts.timeosec, servOpts->sockopts.nowait, &err);
+        //DEL:int err;
+        //DEL:sockfd = opensocket(servOpts->host, servOpts->port, servOpts->sockopts.timeosec, servOpts->sockopts.nowait, &err);
+
+        sockfd = opensocket_v2(servOpts->host, servOpts->sport, servOpts->sockopts.timeosec, &servOpts->sockopts, errmsg);
+
+        if (sockfd == -1) {
+            LOGGER_ERROR("opensocket_v2 failed: %s", errmsg);
+        } else {
+            LOGGER_INFO("opensocket_v2 success: %s:%s", servOpts->host, servOpts->sport);
+        }
 
         sconn->sockfd = sockfd;
     } while(0);

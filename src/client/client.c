@@ -235,83 +235,28 @@ static void * thread_func (void *arg)
     printf("thread#%lld start ...\n", (long long) tid);
 
     do {
-        xs_server_opts *serv = (xs_server_opts *) arg;
-
-        // 休息10秒再连接
-        sleep(3);
-
-        printf("thread#%d start connect ...\n", tid);
-        // 建立连接
-        //
-        struct addrinfo hints;
-        struct addrinfo *res, *rp;
-        int sfd, s;
+        int sfd;
         size_t len;
 
-        /* Obtain address(es) matching host/port */
-        memset(&hints, 0, sizeof(struct addrinfo));
+        xs_server_opts *serv = (xs_server_opts *) arg;
 
-        hints.ai_family = AF_UNSPEC;     /* Allow IPv4 or IPv6 */
-        hints.ai_socktype = SOCK_STREAM; /* We want a TCP socket */
-        hints.ai_flags = 0;
-        hints.ai_protocol = 0;          /* Any protocol */
+        printf("thread#%d start connect ...\n", tid);
 
-        s = getaddrinfo(serv->host, serv->sport, &hints, &res);
-        if (s != 0) {
-            fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
-            continue;
+        sfd = opensocket_v2(serv->host, serv->sport, serv->sockopts.timeosec, &serv->sockopts, msg);
+
+        if (sfd == -1) {
+            LOGGER_ERROR("opensocket_v2 failed: %s", msg);
+        } else {
+            LOGGER_INFO("opensocket_v2 success: %s:%s", serv->host, serv->sport);
         }
 
-        /**
-        * getaddrinfo() returns a list of address structures.
-        *
-        * Try each address until we successfully connect(2).
-        * If socket(2) (or connect(2)) fails, we (close the socket and)
-        *   try the next address.
-        **/
-
-        for (rp = res; rp != NULL; rp = rp->ai_next) {
-            sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-            if (sfd == -1) {
-                continue;
-            }
-
-            if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != -1) {
-                printf("connect server{%s:%s} ok.\n", serv->host, serv->sport);
-                break;
-            }
-
-            close(sfd);
-        }
-
-        if (rp == NULL) {
-            /* No address succeeded */
-            printf("failed to connect server{%s:%s}, connect again ...\n", serv->host, serv->sport);
-            freeaddrinfo(res);
-            continue;
-        }
-
-        /* No longer needed */
-        freeaddrinfo(res);
-
-        do {
-            struct timeval timeo = {0};
-            socklen_t len = (socklen_t) sizeof(timeo);
-            timeo.tv_sec = 3;
-
-            if (setsockopt(sfd, SOL_SOCKET, SO_SNDTIMEO, &timeo, len) == -1) {
-                perror("setsockopt SO_SNDTIMEO");
-                exit(-1);
-            }
-
-            if (setsockopt(sfd, SOL_SOCKET, SO_RCVTIMEO, &timeo, len) == -1) {
-                perror("setsockopt SO_RCVTIMEO");
-                exit(-1);
-            }
-        } while(0);
+        // 休息 6 秒
+        sleep(6);
 
         printf("session start...\n");
+
         int total = 0;
+
         for (;;) {
             len = snprintf(msg, sizeof(msg), "**** client thread#%lld say hello: %lld ****", (long long) tid, (long long) id++);
             msg[len] = 0;
