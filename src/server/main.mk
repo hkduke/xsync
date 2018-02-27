@@ -4,7 +4,10 @@
 # build the xsync-server application by itself by running "make" from
 # within the "server" subdirectory.
 
-INCDIRS := ../../libs/include
+INCDIRS := \
+	../../libs/include \
+	../../libs/include/zdb
+
 
 TGT_LDLIBS :=
 

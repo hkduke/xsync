@@ -28,6 +28,8 @@ extern "C" {
 
 #include "client_session.h"
 
+#include <zdb/zdb.h>
+
 
 /**
  * xs_server_t type

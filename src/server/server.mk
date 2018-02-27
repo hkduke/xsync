@@ -15,6 +15,7 @@ LIB_PREFIX := ${TARGET_DIR}/../libs/lib
 
 TGT_LDFLAGS := -L${TARGET_DIR}
 
+
 TGT_LDLIBS  := \
 	${LIB_PREFIX}/libcommon.a \
 	${LIB_PREFIX}/liblog4c.a \
@@ -26,6 +27,7 @@ TGT_LDLIBS  := \
 	${LIB_PREFIX}/libssl.a \
 	${LIB_PREFIX}/libhiredis.a \
 	${LIB_PREFIX}/libz.a \
+	${LIB_PREFIX}/libzdb.a \
 	-lrt \
 	-ldl \
 	-lpthread

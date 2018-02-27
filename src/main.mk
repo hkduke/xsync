@@ -31,9 +31,13 @@ CFLAGS := -g -O0 -Wall -std=gnu99 -pipe \
 #	-DNDEBUG
 
 
-INCDIRS := ../libs/include
+INCDIRS := \
+	../libs/include \
+	../libs/include/zdb
+
 
 BUILD_DIR  := ../build
+
 TARGET_DIR := ../target
 
-SUBMAKEFILES := common/common.mk server/server.mk client/client.mk
+SUBMAKEFILES := common/common.mk mysqldbi/mysqldbi.mk server/server.mk client/client.mk
