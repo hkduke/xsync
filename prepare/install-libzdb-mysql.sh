@@ -20,6 +20,13 @@ _name=$(basename $_file)
 
 INSTALLDIR=$(dirname $_cdir)/libs
 
+# install on rhel 6.x (centos 6.x)
+#
+# yum install mysql-devel
+# yum install flex
+#
+# https://stackoverflow.com/questions/18385188/why-am-i-seeing-this-libzdb-configure-error
+
 cd ${_cdir}
 
 echo "---- build and install <libzdb-3.1> ..."
