@@ -25,6 +25,15 @@
 #include "../common/common_util.h"
 
 
+__attribute__((used))
+static void zdbPoolErrorHandler (const char *error)
+{
+    LOGGER_FATAL("%s", error);
+
+    exit(-101);
+}
+
+
 /**
  * doEventTask
  *
@@ -245,7 +254,11 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
 
     int listenfd, epollfd, old_sockopt;
 
+    XS_server server;
+
     struct epoll_event *events;
+
+    struct dbpool_t db_pool;
 
     int MAXCLIENTS = opts->maxclients;
     int THREADS = opts->threads;
@@ -254,12 +267,21 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
     int BACKLOGS = opts->somaxconn;
     int TIMEOUTMS = opts->timeout_ms;
 
-    XS_server server;
+    // TODO:
+    const char dbpool_url[] = "mysql://127.0.0.1/xsync?user=root&password=Abc123";
+
+    LOGGER_DEBUG("dbpool init: (url=%s, maxsize=%d)", dbpool_url, DBPOOL_MAX_SIZE);
+
+    dbpool_init(&db_pool, zdbPoolErrorHandler, dbpool_url, 0, 0, 0, 0);
+
+    LOGGER_DEBUG("%s", db_pool.errmsg);
 
     *outServer = 0;
 
     server = (XS_server) mem_alloc(1, sizeof(xs_server_t));
     assert(server->thread_args == 0);
+
+    server->db_pool.pool = db_pool.pool;
 
     __interlock_release(&server->session_counter);
 
@@ -267,7 +289,11 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
     LOGGER_TRACE("pthread_cond_init(%d)", PTHREAD_PROCESS_PRIVATE);
     if (0 != pthread_cond_init(&server->condition, PTHREAD_PROCESS_PRIVATE)) {
         LOGGER_FATAL("pthread_cond_init() error(%d): %s", errno, strerror(errno));
+
         free((void*) server);
+
+        dbpool_end(&db_pool);
+
         return XS_ERROR;
     }
 
@@ -290,6 +316,9 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
         server->thread_args[i] = (void*) perdata;
     }
 
+    server->threads = THREADS;
+    server->queues = QUEUES;
+
     LOGGER_DEBUG("threadpool_create: threads=%d queues=%d", THREADS, QUEUES);
     server->pool = threadpool_create(THREADS, QUEUES, server->thread_args, 0);
     if (! server->pool) {
@@ -309,7 +338,6 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
 
             xs_server_delete((void*) server);
 
-            // 失败退出程序
             exit(XS_ERROR);
         }
 
@@ -356,8 +384,6 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
      * here we got success
      *   output XS_server
      */
-    server->threads = THREADS;
-    server->queues = QUEUES;
     server->maxclients = MAXCLIENTS;
 
     server->events = events;
@@ -407,9 +433,18 @@ extern void XS_server_unlock (XS_server server)
 }
 
 
+static void exit_cleanup_server (int code, void *server)
+{
+    XS_server p = (XS_server) server;
+    XS_server_release(&p);
+}
+
+
 extern XS_VOID XS_server_bootstrap (XS_server server)
 {
     LOGGER_INFO("server starting ...");
+
+    on_exit(exit_cleanup_server, (void *) server);
 
     epapi_loop_epoll_events(server->epollfd,
         server->listenfd,

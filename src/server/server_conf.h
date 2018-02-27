@@ -28,10 +28,7 @@ extern "C" {
 
 #include "client_session.h"
 
-/**
- * http://www.thinkingyu.com/articles/
- */
-#include <zdb/zdb.h>
+#include "dbpool.h"
 
 
 /**
@@ -49,6 +46,11 @@ typedef struct xs_server_t
 
     int maxclients;
     int timeout_ms;
+
+    /**
+     * database pool
+     */
+    dbpool_t db_pool;
 
     /**
      * epoll data

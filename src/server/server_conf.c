@@ -90,6 +90,9 @@ extern void xs_server_delete (void *pv)
 
     XS_server_clear_client_sessions(server);
 
+    LOGGER_DEBUG("dbpool_end");
+    dbpool_end(&server->db_pool);
+
     LOGGER_TRACE("%p", server);
 
     free(server);

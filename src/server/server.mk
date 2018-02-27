@@ -13,7 +13,18 @@ TARGET := ${APPNAME}-${VERSION}
 
 LIB_PREFIX := ${TARGET_DIR}/../libs/lib
 
-TGT_LDFLAGS := -L${TARGET_DIR}
+
+# how to ld libzdb.so
+# see:
+#   http://blog.csdn.net/21aspnet/article/details/6724457
+#
+#   '-Wl,-rpath,'
+#
+
+TGT_LDFLAGS := \
+	-L${TARGET_DIR} \
+	-L${TARGET_DIR}/../libs/lib \
+	-Wl,-rpath,${TARGET_DIR}/../libs/lib
 
 
 TGT_LDLIBS  := \
@@ -27,7 +38,7 @@ TGT_LDLIBS  := \
 	${LIB_PREFIX}/libssl.a \
 	${LIB_PREFIX}/libhiredis.a \
 	${LIB_PREFIX}/libz.a \
-	${LIB_PREFIX}/libzdb.a \
+	-lzdb \
 	-lrt \
 	-ldl \
 	-lpthread
