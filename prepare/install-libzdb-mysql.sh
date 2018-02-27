@@ -4,9 +4,36 @@
 #
 #   install libzdb for mysql for building xsync-server
 #
+# MySQL client packages downloads:
+#   http://ftp.ntu.edu.tw/MySQL/Downloads/MySQL-5.6/
+#
 # Refer:
 #   http://www.tildeslash.com/libzdb/
 #   https://bitbucket.org/tildeslash/libzdb/
+#
+# NOTE:
+#   1) 在 ubuntu 上编译需要安装 libmysqlclient:
+#      sudo apt-get install libmysqlclient-dev
+#
+#   2) 在 rhel6 上编译需要安装 libmysqlclient:
+#
+#     先删除已经安装的MySQL包 (?):
+#      # rpm -qa|grep MySQL
+#        MySQL-client-5.6.39-1.el6.x86_64
+#        MySQL-devel-5.6.39-1.el6.x86_64
+#        MySQL-shared-5.6.39-1.el6.x86_64
+#        MySQL-shared-compat-5.6.39-1.el6.x86_64
+#
+#      # rpm -e MySQL-client-5.6.39-1.el6.x86_64
+#      # rpm -e MySQL-devel-5.6.39-1.el6.x86_64
+#      # rpm -e MySQL-shared-compat-5.6.39-1.el6.x86_64 --nodeps
+#      # rpm -e MySQL-shared-5.6.39-1.el6.x86_64 --nodeps
+#
+#     然后安装:
+#      # rpm -ivh MySQL-client-5.6.39-1.el6.x86_64.rpm MySQL-devel-5.6.39-1.el6.x86_64.rpm MySQL-shared-compat-5.6.39-1.el6.x86_64.rpm MySQL-shared-5.6.39-1.el6.x86_64.rpm
+#
+#     最后的libmysqlclient.so 在:
+#       /usr/lib64/
 #
 # init created: 2018-02-27
 # last updated: 2018-02-27
