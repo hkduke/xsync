@@ -18,7 +18,7 @@
 #   2) 在 rhel6 上编译需要安装 libmysqlclient:
 #
 #     先删除已经安装的MySQL包 (?):
-#      # rpm -qa|grep MySQL
+#      # rpm -qa|grep -i 'mysql'
 #        MySQL-client-5.6.39-1.el6.x86_64
 #        MySQL-devel-5.6.39-1.el6.x86_64
 #        MySQL-shared-5.6.39-1.el6.x86_64

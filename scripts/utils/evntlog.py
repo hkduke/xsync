@@ -19,7 +19,7 @@
 # * "\033[33m YELLOW \033[0m"
 #
 # init created: 2015-12-22
-# last updated: 2016-06-08 10:39
+# last updated: 2017-12-08
 #######################################################################
 import os, sys, inspect, time, datetime, types, logging
 
@@ -227,7 +227,7 @@ def update_log_config(dictcfg, logger_name, logger_file, logger_level):
 
 def init_logger(**kwargs):
     global logger
-    
+
     fd = None
     try:
         import yaml
@@ -257,10 +257,16 @@ def init_logger(**kwargs):
 
         update_log_config(dictcfg, logger_name, logger_file, logger_level)
 
-        logging.config.dictConfig(dictcfg)
-        logger = logging.getLogger(logger_name)
+        try:
+            logging.config.dictConfig(dictcfg)
+            logger = logging.getLogger(logger_name)
+        except Exception as e:
+            debug("using basicConfig for: %r", ex)
+            logging.basicConfig(stream=sys.stdout, format='%(message)s', level=logging.DEBUG)
+            logger = logging.getLogger()
+        finally:
+            return dictcfg
 
-        return dictcfg
     except Exception as ex:
         debug("using basicConfig for: %r", ex)
         logging.basicConfig(stream=sys.stdout, format='%(message)s', level=logging.DEBUG)

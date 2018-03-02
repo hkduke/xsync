@@ -19,15 +19,15 @@
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
 
-#ifndef DBPOOL_H_INCLUDED
-#define DBPOOL_H_INCLUDED
+#ifndef ZDBPOOL_H_INCLUDED
+#define ZDBPOOL_H_INCLUDED
 
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#define DBPOOL_ERRMSG_LEN  255
+#define ZDBPOOL_ERRMSG_LEN  255
 
 
 /***********************************************************************
@@ -53,23 +53,23 @@ extern "C" {
 
 #include <zdb/zdb.h>
 
-#define DBPOOL_SUCCESS         0
-#define DBPOOL_ERROR         (-1)
+#define ZDBPOOL_SUCCESS           0
+#define ZDBPOOL_ERROR           (-1)
 
 
-#define DBPOOL_INIT_SIZE         5
-#define DBPOOL_MAX_SIZE         20
+#define ZDBPOOL_INIT_SIZE         5
+#define ZDBPOOL_MAX_SIZE         20
 
-#define DBPOOL_REAP_INTERVAL    30
-#define DBPOOL_CONN_TIMEOUT     30
+#define ZDBPOOL_REAP_INTERVAL    30
+#define ZDBPOOL_CONN_TIMEOUT     30
 
 
-typedef struct dbpool_t
+typedef struct zdbpool_t
 {
     ConnectionPool_T pool;
 
-    char errmsg[DBPOOL_ERRMSG_LEN + 1];
-} dbpool_t;
+    char errmsg[ZDBPOOL_ERRMSG_LEN + 1];
+} zdbpool_t;
 
 
 /**
@@ -80,29 +80,29 @@ typedef struct dbpool_t
  *    20
  */
 __attribute__((used))
-static void dbpool_init (dbpool_t *dbPool, void(*errorHandler)(const char *error),
+static void zdbpool_init (zdbpool_t *dbPool, void(*errorHandler)(const char *error),
     const char * connURI, int initPoolSize, int maxPoolSize, int reapSweepInterval, int connectionTimeout)
 {
     ConnectionPool_T pool;
 
-    bzero(dbPool, sizeof(dbpool_t));
+    bzero(dbPool, sizeof(zdbpool_t));
 
     pool = ConnectionPool_new(URL_new(connURI));
 
     if (initPoolSize == 0) {
-        initPoolSize = DBPOOL_INIT_SIZE;
+        initPoolSize = ZDBPOOL_INIT_SIZE;
     }
 
     if (maxPoolSize == 0) {
-        maxPoolSize = DBPOOL_MAX_SIZE;
+        maxPoolSize = ZDBPOOL_MAX_SIZE;
     }
 
     if (reapSweepInterval == 0) {
-        reapSweepInterval = DBPOOL_REAP_INTERVAL;
+        reapSweepInterval = ZDBPOOL_REAP_INTERVAL;
     }
 
     if (connectionTimeout == 0) {
-        connectionTimeout = DBPOOL_CONN_TIMEOUT;
+        connectionTimeout = ZDBPOOL_CONN_TIMEOUT;
     }
 
     if (initPoolSize > 0) {
@@ -125,15 +125,15 @@ static void dbpool_init (dbpool_t *dbPool, void(*errorHandler)(const char *error
 
     ConnectionPool_start(pool);
 
-    snprintf(dbPool->errmsg, DBPOOL_ERRMSG_LEN, "libzdb version: %s", ConnectionPool_version());
-    dbPool->errmsg[DBPOOL_ERRMSG_LEN] = 0;
+    snprintf(dbPool->errmsg, ZDBPOOL_ERRMSG_LEN, "libzdb version: %s", ConnectionPool_version());
+    dbPool->errmsg[ZDBPOOL_ERRMSG_LEN] = 0;
 
     dbPool->pool = pool;
 }
 
 
 __attribute__((used))
-static void dbpool_end (dbpool_t *dbPool)
+static void zdbpool_end (zdbpool_t *dbPool)
 {
     URL_T url = ConnectionPool_getURL(dbPool->pool);
 
@@ -142,19 +142,19 @@ static void dbpool_end (dbpool_t *dbPool)
 
     URL_free(&url);
 
-    bzero(dbPool, sizeof(dbpool_t));
+    bzero(dbPool, sizeof(zdbpool_t));
 }
 
 
 /**
  *
- * if (dbpool_execute(&db_pool, "select * from some_table", db_pool.errmsg) != 0) {
+ * if (zdbpool_execute(&db_pool, "select * from some_table", db_pool.errmsg) != 0) {
  *     LOGGER_ERROR("dbpool_execute: (%s)", db_pool.errmsg);
  * }
  *
  */
 __attribute__((used))
-static int dbpool_execute (dbpool_t *dbPool, const char *sql, char errmsg[DBPOOL_ERRMSG_LEN + 1])
+static int zdbpool_execute (zdbpool_t *dbPool, const char *sql, char errmsg[ZDBPOOL_ERRMSG_LEN + 1])
 {
     Connection_T conn = 0;
 
@@ -167,15 +167,15 @@ static int dbpool_execute (dbpool_t *dbPool, const char *sql, char errmsg[DBPOOL
         if (conn) {
             Connection_execute(conn, "%s", sql);
 
-            return DBPOOL_SUCCESS;
+            return ZDBPOOL_SUCCESS;
         } else {
-            snprintf(errmsg, DBPOOL_ERRMSG_LEN, "ConnectionPool is busy");
-            errmsg[DBPOOL_ERRMSG_LEN] = 0;
+            snprintf(errmsg, ZDBPOOL_ERRMSG_LEN, "ConnectionPool is busy");
+            errmsg[ZDBPOOL_ERRMSG_LEN] = 0;
         }
     }
     CATCH(SQLException) {
-        snprintf(errmsg, DBPOOL_ERRMSG_LEN, "SQLException: %s", Exception_frame.message);
-        errmsg[DBPOOL_ERRMSG_LEN] = 0;
+        snprintf(errmsg, ZDBPOOL_ERRMSG_LEN, "SQLException: %s", Exception_frame.message);
+        errmsg[ZDBPOOL_ERRMSG_LEN] = 0;
     }
     FINALLY {
         if (conn) {
@@ -184,7 +184,7 @@ static int dbpool_execute (dbpool_t *dbPool, const char *sql, char errmsg[DBPOOL
     }
     END_TRY;
 
-    return DBPOOL_ERROR;
+    return ZDBPOOL_ERROR;
 }
 
 
@@ -192,4 +192,4 @@ static int dbpool_execute (dbpool_t *dbPool, const char *sql, char errmsg[DBPOOL
 }
 #endif
 
-#endif /* DBPOOL_H_INCLUDED */
+#endif /* ZDBPOOL_H_INCLUDED */

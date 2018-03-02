@@ -1,11 +1,11 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python
 #-*- coding: UTF-8 -*-
 #
 # utility.py
 #   Python utility functions
 #
 # init created: 2015-12-02
-# last updated: 2017-02-20
+# last updated: 2017-12-23
 #######################################################################
 import os, errno, sys, shutil, inspect, select, commands
 import signal, threading
@@ -66,7 +66,7 @@ def string_to_datetime(dtstr = None, setdefault = '9999-12-31 23:59:59.999999'):
         dtfmt = '%Y-%m-%d %H:%M:%S.%f'
     return datetime.strptime(dtstr, dtfmt)
 
-    
+
 #######################################################################
 
 def sig_chld(signo, frame):
@@ -146,7 +146,11 @@ class switch(object):
 def use_parser_group(appname, appver, apphelp, usage='%prog [options] --arg1=VALUE1 --arg2=VALUE2'):
     print "\033[32m****************************************************************\033[32;m"
     print "\033[32m* %-60s *\033[32;m" % (appname + " version: " + appver)
-    print "\033[32m* %-60s *\033[32;m" % apphelp
+
+    helps = apphelp.split('\n')
+    for helpstr in helps:
+        print "\033[32m* %-60s *\033[32;m" % helpstr
+
     print "\033[32m****************************************************************\033[32;m"
 
     parser = optparse.OptionParser(usage=usage,version="%prog " + appver)
@@ -278,14 +282,14 @@ def relay_read_messages(pathfile, posfile, chunk_size = 8192, read_maxsize = 655
 
     try:
         infd = open(pathfile, 'rb')
-     
+
         position = last_position
 
         while position - last_position < read_maxsize:
 
             # 移动infd文件第position个字节处, 绝对位置
             infd.seek(position, 0)
-            
+
             chunk = infd.read(chunk_size)
 
             if not chunk:

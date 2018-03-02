@@ -9,6 +9,8 @@ $ sh prepare/install-devel-libs.sh
 
 # only for xsync-server:
 $ sh prepare/install-redis-server.sh
+$ sh prepare/install-libzdb-mysql.sh
+
 ```
 
 ## build

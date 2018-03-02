@@ -4,6 +4,8 @@
 #
 #   install redis for xsync-server only
 #
+# 在本地目录安装 redis 并不会破坏服务器上原有的 redis !
+#
 # init created: 2018-02-10
 # last updated: 2018-02-10
 #

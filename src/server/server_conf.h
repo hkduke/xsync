@@ -28,7 +28,7 @@ extern "C" {
 
 #include "client_session.h"
 
-#include "dbpool.h"
+#include "../common/zdbpool.h"
 
 
 /**
@@ -50,7 +50,7 @@ typedef struct xs_server_t
     /**
      * database pool
      */
-    dbpool_t db_pool;
+    zdbpool_t db_pool;
 
     /**
      * epoll data

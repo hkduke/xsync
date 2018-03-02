@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python
 #-*- coding: utf-8 -*-
 # file_locker.py
 #
@@ -46,7 +46,7 @@ class FileLocker(object):
                 self.lock_file = filename + ".lock"
 
             self.stream_lock = open(self.lock_file, "w")
-            self.filename = filename            
+            self.filename = filename
         except:
             stream_lock = self.stream_lock
             self.stream_lock = None

@@ -258,7 +258,7 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
 
     struct epoll_event *events;
 
-    struct dbpool_t db_pool;
+    struct zdbpool_t db_pool;
 
     int MAXCLIENTS = opts->maxclients;
     int THREADS = opts->threads;
@@ -270,9 +270,9 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
     // TODO:
     const char dbpool_url[] = "mysql://127.0.0.1/xsync?user=root&password=Abc123";
 
-    LOGGER_DEBUG("dbpool init: (url=%s, maxsize=%d)", dbpool_url, DBPOOL_MAX_SIZE);
+    LOGGER_DEBUG("zdbpool_init: (url=%s, maxsize=%d)", dbpool_url, ZDBPOOL_MAX_SIZE);
 
-    dbpool_init(&db_pool, zdbPoolErrorHandler, dbpool_url, 0, 0, 0, 0);
+    zdbpool_init(&db_pool, zdbPoolErrorHandler, dbpool_url, 0, 0, 0, 0);
 
     LOGGER_DEBUG("%s", db_pool.errmsg);
 
@@ -292,7 +292,7 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
 
         free((void*) server);
 
-        dbpool_end(&db_pool);
+        zdbpool_end(&db_pool);
 
         return XS_ERROR;
     }
@@ -401,8 +401,6 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
 
     LOGGER_TRACE("%p", server);
 
-    mul_timer_start();
-
     return XS_SUCCESS;
 }
 
@@ -446,12 +444,16 @@ extern XS_VOID XS_server_bootstrap (XS_server server)
 
     on_exit(exit_cleanup_server, (void *) server);
 
+    mul_timer_start();
+
     epapi_loop_epoll_events(server->epollfd,
         server->listenfd,
         server->events,
         server->numevents,
         server->timeout_ms,
         xsyncOnEpollEvent, server);
+
+    mul_timer_pause();
 
     LOGGER_FATAL("server stopped.");
 }

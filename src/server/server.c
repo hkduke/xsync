@@ -23,7 +23,7 @@
 
 void run_interactive (xs_appopts_t *opts);
 
-void run_forever (xs_appopts_t *opts);
+void run_service (xs_appopts_t *opts);
 
 
 void sig_chld (int signo)
@@ -165,7 +165,7 @@ int main (int argc, char *argv[])
 
         exit(0);
     } else {
-        run_forever(&opts);
+        run_service(&opts);
     }
 
     /** 客户端异常退出 */
@@ -211,7 +211,7 @@ void run_interactive (xs_appopts_t *opts)
 }
 
 
-void run_forever (xs_appopts_t *opts)
+void run_service (xs_appopts_t *opts)
 {
     XS_server server;
 

@@ -20,7 +20,6 @@ LIB_PREFIX := ${TARGET_DIR}/../libs/lib
 #
 #   '-Wl,-rpath,'
 #
-
 TGT_LDFLAGS := \
 	-L${TARGET_DIR} \
 	-L${TARGET_DIR}/../libs/lib \
