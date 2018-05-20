@@ -72,22 +72,22 @@ void rbnode_replace(red_black_node_t * node, void * object)
     /* Replace the object at node */
     node->object = object;
 }
-        
+
 /* Get the next node in the tree (according to the tree order) */
 red_black_node_t * rbnode_successor(red_black_node_t * node)
 {
     red_black_node_t * succ_node;
 
     if (node->right) {
-        /* If there is a right child, the successor is the minimal object in 
+        /* If there is a right child, the successor is the minimal object in
          * the sub-tree spanned by this child.
          */
         succ_node = node->right;
         while (succ_node->left)
             succ_node = succ_node->left;
-    } 
+    }
     else {
-        /* Otherwise, go up the tree until reaching the parent from the left 
+        /* Otherwise, go up the tree until reaching the parent from the left
          * direction.
          */
         red_black_node_t * prev_node = node;
@@ -107,14 +107,14 @@ red_black_node_t * rbnode_predecessor(red_black_node_t * node)
     red_black_node_t * pred_node;
 
     if (node->left) {
-        /* If there is a left child, the predecessor is the maximal object in 
+        /* If there is a left child, the predecessor is the maximal object in
          * the sub-tree spanned by this child.
          */
         pred_node = node->left;
         while (pred_node->right)
             pred_node = pred_node->right;
     } else {
-        /* Otherwise, go up the tree until reaching the parent from the right 
+        /* Otherwise, go up the tree until reaching the parent from the right
          * direction.
          */
         red_black_node_t * prev_node = node;
@@ -236,7 +236,7 @@ red_black_node_t * rbtree_insert(red_black_tree_t * tree, void * object)
 {
     red_black_node_t * cur_node;
     red_black_node_t * new_node = 0;
-  
+
     if (!(tree->root)) {
         /* Assign a new root node. Notice that the root is always black */
         new_node = rbnode_construct(object, rbcBlack);
@@ -248,7 +248,7 @@ red_black_node_t * rbtree_insert(red_black_tree_t * tree, void * object)
 
     /* Find a place for the new object, and insert it as a red leaf */
     cur_node = tree->root;
-    
+
     while (cur_node) {
         /* Compare inserted object with the object stored in the current node */
         if (tree->keycmp(object, cur_node->object) > 0) {
@@ -281,7 +281,7 @@ red_black_node_t * rbtree_insert(red_black_tree_t * tree, void * object)
     tree->iSize++;
 
     /* Fix up the tree properties */
-    rbtree_insert_fixup(tree, new_node);  
+    rbtree_insert_fixup(tree, new_node);
 
     return new_node;
 }
@@ -293,7 +293,7 @@ red_black_node_t * rbtree_insert_unique(red_black_tree_t * tree, void * object)
     int cmp;
     red_black_node_t * cur_node;
     red_black_node_t * new_node = 0;
-  
+
     if (!(tree->root)) {
         /* Assign a new root node. Notice that the root is always black */
         new_node = rbnode_construct(object, rbcBlack);
@@ -318,7 +318,7 @@ red_black_node_t * rbtree_insert_unique(red_black_tree_t * tree, void * object)
             if (!(cur_node->left)) {
                 /* Insert the new leaf as the left child of the current node */
                 new_node = rbnode_construct(object, rbcRed);
-                if (!new_node) 
+                if (!new_node)
                     return 0;
                 cur_node->left = new_node;
                 new_node->parent = cur_node;
@@ -330,7 +330,7 @@ red_black_node_t * rbtree_insert_unique(red_black_tree_t * tree, void * object)
             if (!(cur_node->right)) {
                 /* Insert the new leaf as the right child of the current node */
                 new_node = rbnode_construct(object, rbcRed);
-                if (!new_node) 
+                if (!new_node)
                     return 0;
                 cur_node->right = new_node;
                 new_node->parent = cur_node;
@@ -345,7 +345,7 @@ red_black_node_t * rbtree_insert_unique(red_black_tree_t * tree, void * object)
     tree->iSize++;
 
     /* Fix up the tree properties */
-    rbtree_insert_fixup(tree, new_node);  
+    rbtree_insert_fixup(tree, new_node);
 
     return new_node;
 }
@@ -356,7 +356,7 @@ red_black_node_t * insert_successor_at(red_black_tree_t * tree,
 {
     red_black_node_t * parent;
     red_black_node_t * new_node;
-  
+
     if (!(tree->root)) {
         /* Assign a new root node. Notice that the root is always black */
         new_node = rbnode_construct(object, rbcBlack);
@@ -379,7 +379,7 @@ red_black_node_t * insert_successor_at(red_black_tree_t * tree,
     } else {
         /* Make sure the insertion does not violate the tree order */
 
-        /* In case given node has no right child, place the new node as its 
+        /* In case given node has no right child, place the new node as its
          * right child. Otherwise, place it at the leftmost position at the
          * sub-tree rooted at its right side.
          */
@@ -398,7 +398,7 @@ red_black_node_t * insert_successor_at(red_black_tree_t * tree,
     tree->iSize++;
 
     /* Fix up the tree properties */
-    rbtree_insert_fixup(tree, new_node);  
+    rbtree_insert_fixup(tree, new_node);
 
     return new_node;
 }
@@ -409,7 +409,7 @@ red_black_node_t * insert_predecessor_at(red_black_tree_t * tree,
 {
     red_black_node_t * parent;
     red_black_node_t * new_node;
-  
+
     if (!(tree->root)) {
         /* Assign a new root node. Notice that the root is always black */
         new_node = rbnode_construct(object, rbcBlack);
@@ -432,7 +432,7 @@ red_black_node_t * insert_predecessor_at(red_black_tree_t * tree,
     } else {
         /* Make sure the insertion does not violate the tree order */
 
-        /* In case given node has no left child, place the new node as its 
+        /* In case given node has no left child, place the new node as its
          * left child. Otherwise, place it at the rightmost position at the
          * sub-tree rooted at its left side.
          */
@@ -451,7 +451,7 @@ red_black_node_t * insert_predecessor_at(red_black_tree_t * tree,
     tree->iSize++;
 
     /* Fix up the tree properties */
-    rbtree_insert_fixup(tree, new_node);  
+    rbtree_insert_fixup(tree, new_node);
 
     return new_node;
 }
@@ -507,7 +507,7 @@ void rbtree_remove_at(red_black_tree_t * tree, red_black_node_t * node)
         node->right = succ_right;
         node->color = succ_color;
 
-        if (!immediate_succ) { 
+        if (!immediate_succ) {
             if (succ_node == node->parent->left)
                 node->parent->left = node;
             else
@@ -537,12 +537,12 @@ void rbtree_remove_at(red_black_tree_t * tree, red_black_node_t * node)
     /* At this stage, the node we are going to remove has at most one child */
     child = (node->left) ? node->left : node->right;
 
-    /* Splice out the node to be removed, by linking its parent straight to the 
+    /* Splice out the node to be removed, by linking its parent straight to the
      * removed node's single child.
      */
     if (child)
         child->parent = node->parent;
-    
+
     if (!(node->parent)) {
         /* If we are deleting the root, make the child the new tree node */
         tree->root = child;
@@ -561,7 +561,7 @@ void rbtree_remove_at(red_black_tree_t * tree, red_black_node_t * node)
     if (node->color == rbcBlack && child)
         rbtree_remove_fixup(tree, child);
 
-    /* Delete the un-necessary node (we 0 ify both its children because the 
+    /* Delete the un-necessary node (we 0 ify both its children because the
      * node's destructor is recursive).
      */
     node->left = 0;
@@ -687,8 +687,8 @@ void rbtree_rotate_right(red_black_tree_t * tree, red_black_node_t * y_node)
 /* Fix-up the tree so it maintains the red-black properties after insertion */
 void rbtree_insert_fixup(red_black_tree_t * tree, red_black_node_t * node)
 {
-    /* Fix the red-black propreties: we may have inserted a red leaf as the 
-     * child of a red parent - so we have to fix the coloring of the parent 
+    /* Fix the red-black propreties: we may have inserted a red leaf as the
+     * child of a red parent - so we have to fix the coloring of the parent
      * recursively.
      */
     red_black_node_t * curr_node = node;
@@ -696,21 +696,21 @@ void rbtree_insert_fixup(red_black_tree_t * tree, red_black_node_t * node)
     red_black_node_t *uncle;
 
     assert(node && node->color == rbcRed);
-  
+
     while (curr_node != tree->root && curr_node->parent->color == rbcRed) {
-        /* Get a pointer to the current node's grandparent (notice the root is 
+        /* Get a pointer to the current node's grandparent (notice the root is
          * always black, so the red parent must have a parent).
          */
         grandparent = curr_node->parent->parent;
-        
+
         if (curr_node->parent == grandparent->left) {
-            /* If the red parent is a left child, the uncle is the right child of 
+            /* If the red parent is a left child, the uncle is the right child of
              * the grandparent.
              */
             uncle = grandparent->right;
 
             if (uncle && uncle->color == rbcRed) {
-                /* If both parent and uncle are red, color them black and color the 
+                /* If both parent and uncle are red, color them black and color the
                  * grandparent red.
                  * In case of a 0 uncle, we treat it as a black node.
                  */
@@ -721,8 +721,8 @@ void rbtree_insert_fixup(red_black_tree_t * tree, red_black_node_t * node)
                 /* Move to the grandparent */
                 curr_node = grandparent;
             } else {
-                /* Make sure the current node is a right child. If not, left-rotate 
-                 * the parent's sub-tree so the parent becomes the right child of the 
+                /* Make sure the current node is a right child. If not, left-rotate
+                 * the parent's sub-tree so the parent becomes the right child of the
                  * current node (see _rotate_left).
                  */
                 if (curr_node == curr_node->parent->right) {
@@ -738,13 +738,13 @@ void rbtree_insert_fixup(red_black_tree_t * tree, red_black_node_t * node)
                 rbtree_rotate_right(tree, grandparent);
             }
         } else {
-            /* If the red parent is a right child, the uncle is the left child of 
+            /* If the red parent is a right child, the uncle is the left child of
              * the grandparent.
              */
             uncle = grandparent->left;
 
             if (uncle && uncle->color == rbcRed) {
-                /* If both parent and uncle are red, color them black and color the 
+                /* If both parent and uncle are red, color them black and color the
                  * grandparent red.
                  * In case of a 0 uncle, we treat it as a black node.
                  */
@@ -755,8 +755,8 @@ void rbtree_insert_fixup(red_black_tree_t * tree, red_black_node_t * node)
                 /* Move to the grandparent */
                 curr_node = grandparent;
             } else {
-                /* Make sure the current node is a left child. If not, right-rotate 
-                 * the parent's sub-tree so the parent becomes the left child of the 
+                /* Make sure the current node is a left child. If not, right-rotate
+                 * the parent's sub-tree so the parent becomes the left child of the
                  * current node.
                  */
                 if (curr_node == curr_node->parent->left) {
@@ -784,15 +784,15 @@ void rbtree_remove_fixup(red_black_tree_t * tree, red_black_node_t * node)
     red_black_node_t * sibling;
 
     while (curr_node != tree->root && curr_node->color == rbcBlack) {
-        /* Get a pointer to the current node's sibling (notice that the node's 
+        /* Get a pointer to the current node's sibling (notice that the node's
          * parent must exist, since the node is not the root).
          */
         if (curr_node == curr_node->parent->left) {
-            /* If the current node is a left child, its sibling is the right 
+            /* If the current node is a left child, its sibling is the right
              * child of the parent.
              */
             sibling = curr_node->parent->right;
-      
+
             /* Check the sibling's color. Notice that 0 nodes are treated
              * as if they are colored black.
              */
@@ -805,9 +805,9 @@ void rbtree_remove_fixup(red_black_tree_t * tree, red_black_node_t * node)
                 rbtree_rotate_left(tree, curr_node->parent);
                 sibling = curr_node->parent->right;
             }
-      
-            if (sibling && 
-                (!(sibling->left) || sibling->left->color == rbcBlack) && 
+
+            if (sibling &&
+                (!(sibling->left) || sibling->left->color == rbcBlack) &&
                 (!(sibling->right) || sibling->right->color == rbcBlack))
             {
                 /* If the sibling has two black children, color it red */
@@ -819,7 +819,7 @@ void rbtree_remove_fixup(red_black_tree_t * tree, red_black_node_t * node)
                     curr_node->parent->color = rbcBlack;
                     curr_node = tree->root;      /* In order to stop the while loop */
                 } else {
-                    /* The black depth of the entire sub-tree rooted at the parent is 
+                    /* The black depth of the entire sub-tree rooted at the parent is
                      * now too small - fix it up recursively.
                      */
                     curr_node = curr_node->parent;
@@ -834,7 +834,7 @@ void rbtree_remove_fixup(red_black_tree_t * tree, red_black_node_t * node)
                         curr_node = curr_node->parent;
                     }
                 } else {
-                    /* In this case, at least one of the sibling's children is red. 
+                    /* In this case, at least one of the sibling's children is red.
                      * It is therfore obvious that the sibling itself is black.
                      */
                     if (sibling->right && sibling->right->color == rbcRed) {
@@ -844,7 +844,7 @@ void rbtree_remove_fixup(red_black_tree_t * tree, red_black_node_t * node)
                         sibling->right->color = rbcBlack;
                         rbtree_rotate_left(tree, curr_node->parent);
                     } else {
-                        /* If the left child of the sibling is red, rotate around the 
+                        /* If the left child of the sibling is red, rotate around the
                          * sibling, then rotate around the new sibling of our current
                          * node.
                          */
@@ -853,7 +853,7 @@ void rbtree_remove_fixup(red_black_tree_t * tree, red_black_node_t * node)
                         rbtree_rotate_left(tree, sibling);
                     }
 
-                    /* It is now safe to color the parent black and to terminate the 
+                    /* It is now safe to color the parent black and to terminate the
                      * fix-up process.
                      */
                     if (curr_node->parent->parent)
@@ -863,7 +863,7 @@ void rbtree_remove_fixup(red_black_tree_t * tree, red_black_node_t * node)
                 }
             }
         } else {
-            /* If the current node is a right child, its sibling is the left 
+            /* If the current node is a right child, its sibling is the left
              * child of the parent.
              */
             sibling = curr_node->parent->left;
@@ -883,7 +883,7 @@ void rbtree_remove_fixup(red_black_tree_t * tree, red_black_node_t * node)
             }
 
             if (sibling &&
-                (!(sibling->left) || sibling->left->color == rbcBlack) && 
+                (!(sibling->left) || sibling->left->color == rbcBlack) &&
                 (!(sibling->right) || sibling->right->color == rbcBlack))
             {
                 /* If the sibling has two black children, color it red */
@@ -895,7 +895,7 @@ void rbtree_remove_fixup(red_black_tree_t * tree, red_black_node_t * node)
                     curr_node->parent->color = rbcBlack;
                     curr_node = tree->root;      /* In order to stop the while loop */
                 } else {
-                    /* The black depth of the entire sub-tree rooted at the parent is 
+                    /* The black depth of the entire sub-tree rooted at the parent is
                      * now too small - fix it up recursively.
                      */
                     curr_node = curr_node->parent;
@@ -910,7 +910,7 @@ void rbtree_remove_fixup(red_black_tree_t * tree, red_black_node_t * node)
                         curr_node = curr_node->parent;
                     }
                 } else {
-                    /* In this case, at least one of the sibling's children is red. 
+                    /* In this case, at least one of the sibling's children is red.
                      * It is therfore obvious that the sibling itself is black.
                      */
                     if (sibling->left && sibling->left->color == rbcRed) {
@@ -920,8 +920,8 @@ void rbtree_remove_fixup(red_black_tree_t * tree, red_black_node_t * node)
                         sibling->left->color = rbcBlack;
                         rbtree_rotate_right(tree, curr_node->parent);
                     } else {
-                        /* If the right child of the sibling is red, rotate around the 
-                         * sibling, then rotate around the new sibling of our current 
+                        /* If the right child of the sibling is red, rotate around the
+                         * sibling, then rotate around the new sibling of our current
                          * node
                          */
                         rbtree_rotate_left(tree, sibling);
@@ -929,7 +929,7 @@ void rbtree_remove_fixup(red_black_tree_t * tree, red_black_node_t * node)
                         rbtree_rotate_right(tree, sibling);
                     }
 
-                    /* It is now safe to color the parent black and to terminate the 
+                    /* It is now safe to color the parent black and to terminate the
                      * fix-up process.
                      */
                     if (curr_node->parent->parent)

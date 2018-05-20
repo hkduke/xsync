@@ -1,7 +1,37 @@
+/***********************************************************************
+* COPYRIGHT (C) 2018 PEPSTACK, PEPSTACK.COM
+*
+* THIS SOFTWARE IS PROVIDED 'AS-IS', WITHOUT ANY EXPRESS OR IMPLIED
+* WARRANTY. IN NO EVENT WILL THE AUTHORS BE HELD LIABLE FOR ANY DAMAGES
+* ARISING FROM THE USE OF THIS SOFTWARE.
+*
+* PERMISSION IS GRANTED TO ANYONE TO USE THIS SOFTWARE FOR ANY PURPOSE,
+* INCLUDING COMMERCIAL APPLICATIONS, AND TO ALTER IT AND REDISTRIBUTE IT
+* FREELY, SUBJECT TO THE FOLLOWING RESTRICTIONS:
+*
+*  THE ORIGIN OF THIS SOFTWARE MUST NOT BE MISREPRESENTED; YOU MUST NOT
+*  CLAIM THAT YOU WROTE THE ORIGINAL SOFTWARE. IF YOU USE THIS SOFTWARE
+*  IN A PRODUCT, AN ACKNOWLEDGMENT IN THE PRODUCT DOCUMENTATION WOULD
+*  BE APPRECIATED BUT IS NOT REQUIRED.
+*
+*  ALTERED SOURCE VERSIONS MUST BE PLAINLY MARKED AS SUCH, AND MUST NOT
+*  BE MISREPRESENTED AS BEING THE ORIGINAL SOFTWARE.
+*
+*  THIS NOTICE MAY NOT BE REMOVED OR ALTERED FROM ANY SOURCE DISTRIBUTION.
+***********************************************************************/
+
 /**
- * byteorder.h
- * @brief
- *  Byte Converter for 2, 4, 8 bytes numeric types
+ * @file: byteorder.h
+ *   Byte Converter for 2, 4, 8 bytes numeric types
+ *
+ * @author: master@pepstack.com
+ *
+ * @version: 2018-05-20 22:15:14
+ *
+ * @create: 2013-06-19
+ *
+ * @update: 2018-05-20 22:15:14
+ *
  *---------------------------------------------------------------------
  *  Big Endian: XDR (big endian) encoding of numeric types
  *
@@ -28,11 +58,6 @@
  *     +--------------> a+3: |0A|
  *                           |..|
  *---------------------------------------------------------------------
- *
- * @author cheungmine
- * @since 2012
- * @date Jun. 19, 2013
- * @last 2018-02-12
  */
 #ifndef _BYTEORDER_H_
 #define _BYTEORDER_H_

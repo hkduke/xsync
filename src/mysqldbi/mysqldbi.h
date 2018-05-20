@@ -1,23 +1,37 @@
 /***********************************************************************
-* Copyright (c) 2018 pepstack, pepstack.com
+* COPYRIGHT (C) 2018 PEPSTACK, PEPSTACK.COM
 *
-* This software is provided 'as-is', without any express or implied
-* warranty.  In no event will the authors be held liable for any damages
-* arising from the use of this software.
-* Permission is granted to anyone to use this software for any purpose,
-* including commercial applications, and to alter it and redistribute it
-* freely, subject to the following restrictions:
+* THIS SOFTWARE IS PROVIDED 'AS-IS', WITHOUT ANY EXPRESS OR IMPLIED
+* WARRANTY. IN NO EVENT WILL THE AUTHORS BE HELD LIABLE FOR ANY DAMAGES
+* ARISING FROM THE USE OF THIS SOFTWARE.
 *
-* 1. The origin of this software must not be misrepresented; you must not
-*   claim that you wrote the original software. If you use this software
-*   in a product, an acknowledgment in the product documentation would be
-*   appreciated but is not required.
+* PERMISSION IS GRANTED TO ANYONE TO USE THIS SOFTWARE FOR ANY PURPOSE,
+* INCLUDING COMMERCIAL APPLICATIONS, AND TO ALTER IT AND REDISTRIBUTE IT
+* FREELY, SUBJECT TO THE FOLLOWING RESTRICTIONS:
 *
-* 2. Altered source versions must be plainly marked as such, and must not be
-*   misrepresented as being the original software.
+*  THE ORIGIN OF THIS SOFTWARE MUST NOT BE MISREPRESENTED; YOU MUST NOT
+*  CLAIM THAT YOU WROTE THE ORIGINAL SOFTWARE. IF YOU USE THIS SOFTWARE
+*  IN A PRODUCT, AN ACKNOWLEDGMENT IN THE PRODUCT DOCUMENTATION WOULD
+*  BE APPRECIATED BUT IS NOT REQUIRED.
 *
-* 3. This notice may not be removed or altered from any source distribution.
+*  ALTERED SOURCE VERSIONS MUST BE PLAINLY MARKED AS SUCH, AND MUST NOT
+*  BE MISREPRESENTED AS BEING THE ORIGINAL SOFTWARE.
+*
+*  THIS NOTICE MAY NOT BE REMOVED OR ALTERED FROM ANY SOURCE DISTRIBUTION.
 ***********************************************************************/
+
+/**
+ * @file: mysqldbi.h
+ *
+ *
+ * @author: master@pepstack.com
+ *
+ * @version: 2018-05-20 22:12:32
+ *
+ * @create: 2018-01-25
+ *
+ * @update: 2018-05-20 22:12:32
+ */
 
 #ifndef MYSQLDBI_H_INCLUDED
 #define MYSQLDBI_H_INCLUDED

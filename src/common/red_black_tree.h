@@ -13,7 +13,7 @@
 *    is the same for all tree leaves (it is called the 'black depth' of the   *
 *    tree).                                                                   *
 * Due to propeties 2-3, the depth of a red-black tree containing n nodes      *
-* is bounded by 2*log_2(n).                                                   *          
+* is bounded by 2*log_2(n).                                                   *
 *                                                                             *
 * The red_black_tree_t template requires two template parmeters:              *
 * - The contained TYPE class represents the objects stored in the tree.       *
@@ -47,9 +47,9 @@ extern "C" {
 
 
 /*! Color enumeration for nodes of red-black tree */
-typedef enum _red_black_color_enum 
+typedef enum _red_black_color_enum
 {
-    rbcRed, 
+    rbcRed,
     rbcBlack
 } red_black_color_enum;
 
@@ -246,7 +246,7 @@ extern red_black_node_t * rbtree_predecessor(red_black_tree_t * tree,
  */
 extern red_black_node_t * rbtree_find(red_black_tree_t * tree, void * object);
 
-/*! Remove the object stored in the given tree node 
+/*! Remove the object stored in the given tree node
  *  param tree The tree
  *  param node The node storing the object to be removed from the tree
  */

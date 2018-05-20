@@ -1,7 +1,19 @@
 # xsync
 
+
+@file:
+
+@author:
+
+@create:
+
+@update:
+
+--------
+
 开源网络数据同步软件。在使用前必须遵守 xsync 使用协议，并获得授权许可！
 <big>目前本软件正在开发中！</big>
+
 
 ## 0. xsync 介绍
 
@@ -29,21 +41,59 @@
     - el 6.x (rhel6.x, centos6.x)
     - el 7.x (rhel7.x, centos7.x)
 
-## 2. 构建的准备工作
+## 2. 构建 xsync
 
-进入源码目录：
+源码目录： ${xsync_root}
 
-```
-    # cd ${xsync_root}
-```
+执行某些辅助脚本可能需要 python2.7。
 
-### 2.1 构建 xsync-server 和 xsync-client
+
+### 2.1 仅仅构建 xsync-client
+
 ```
     # sh prepare/install-devel-libs.sh
 ```
 
-### 2.2 仅仅构建 xsync-server
+### 2.2 构建 xsync-server
+
+2.2.1 安装 mysql 开发客户端
+
+服务端使用了 redis 作为缓存 db，使用了 mysql 作为持久化存储。因此编译的机器上需要安装 mysql 开发客户端。
+
+- 在 ubuntu 上编译需要安装 libmysqlclient:
 ```
+     $ sudo apt-get install libmysqlclient-dev
+```
+
+- 在 rhel6 上编译需要安装 libmysqlclient:
+
+先删除已经安装的MySQL包 (?):
+```
+    # rpm -qa|grep -i 'mysql'
+       MySQL-client-5.6.39-1.el6.x86_64
+       MySQL-devel-5.6.39-1.el6.x86_64
+       MySQL-shared-5.6.39-1.el6.x86_64
+       MySQL-shared-compat-5.6.39-1.el6.x86_64
+     # rpm -e MySQL-client-5.6.39-1.el6.x86_64
+     # rpm -e MySQL-devel-5.6.39-1.el6.x86_64
+     # rpm -e MySQL-shared-compat-5.6.39-1.el6.x86_64 --nodeps
+     # rpm -e MySQL-shared-5.6.39-1.el6.x86_64 --nodeps
+```
+
+然后安装:
+```
+    # rpm -ivh MySQL-client-5.6.39-1.el6.x86_64.rpm MySQL-devel-5.6.39-1.el6.x86_64.rpm MySQL-shared-compat-5.6.39-1.el6.x86_64.rpm MySQL-shared-5.6.39-1.el6.x86_64.rpm
+```
+
+libmysqlclient.so 在:
+
+      /usr/lib64/
+
+最后安装开发包：
+
+
+```
+    # sh prepare/install-devel-libs.sh
     # sh prepare/install-redis-server.sh
     # sh prepare/install-libzdb-mysql.sh
 ```
