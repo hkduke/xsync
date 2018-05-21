@@ -282,7 +282,7 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
     int TIMEOUTMS = opts->timeout_ms;
 
     // TODO:
-    const char dbpool_url[] = "mysql://127.0.0.1/xsync?user=root&password=Abc123";
+    const char dbpool_url[] = "mysql://211.152.44.82/xsync?user=root&password=Abc1234";
 
     LOGGER_DEBUG("zdbpool_init: (url=%s, maxsize=%d)", dbpool_url, ZDBPOOL_MAX_SIZE);
 
