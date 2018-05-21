@@ -28,8 +28,8 @@ mysqlport=3306
 xsyncdb="xsyncdb"
 xsyncuser="xsync"
 
-# 用户 xsyncuser 登录密码。请修改此值！
-xsyncpass="p@ssW0rd!"
+# 用户 xsyncuser 登录密码。请修改此值(仅支持英文加数字和下划线)！
+xsyncpass="pAssW0rd"
 
 # 配置从那个主机（ip 或 hostname) 访问 xsyncdb。根据需要修改！
 xsynchost="localhost"
