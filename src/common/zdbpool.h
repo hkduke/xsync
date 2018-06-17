@@ -41,7 +41,7 @@
 extern "C" {
 #endif
 
-#define ZDBPOOL_ERRMSG_LEN  255
+#define ZDBPOOL_ERRMSG_LEN  1200
 
 
 /***********************************************************************
