@@ -64,5 +64,5 @@ libs/
 boilermake/
 build/
 target/
-redis/bin/
-
+redis/
+redis-cluster/
