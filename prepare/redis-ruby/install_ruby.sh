@@ -18,7 +18,7 @@
 #
 # @create: $create$
 #
-# @update:
+# @update: 2018-07-30
 #
 #######################################################################
 # will cause error on macosx
@@ -65,8 +65,8 @@ Options:
 例子:
 
   $ sudo ${_name} --prefix=/usr/local/ruby \
---package=../packages/redis-ruby/ruby-2.3.1.tar.gz \
---install-gem=../packages/redis-ruby/redis-4.0.1.gem
+--package=./ruby-2.3.1.tar.gz \
+--install-gem=./redis-4.0.1.gem
 
   $ sudo ${_name} \
 --prefix=/usr/local/ruby \
@@ -79,6 +79,52 @@ EOT
 
 if [ $# -eq 0 ]; then usage; exit 1; fi
 
+if [ "$(uname -s)" != "Linux" ]; then
+    echoerror "os kernel name not supported: $(uname -s)"
+    exit -1
+fi
+
+if [ "$(uname -p)" != "x86_64" ]; then
+    echoerror "os processor type not supported: $(uname -m)"
+    exit -1
+fi
+
+# check supported os and verno
+osid_list=("centos" "rhel" "ubuntu")
+
+osid=$(linux_os_id)
+osname=$(linux_os_alias)
+osver=$(linux_os_verno)
+
+major_ver=$(verno_major_id "$osver")
+minor_ver=$(verno_minor_id "$osver")
+
+# 检查是否支持的操作系统
+ret=$(array_find osid_list "$osid")
+
+if [ $ret -eq -1 ]; then
+    echoerror "os not supported: $osname"
+    exit -1
+fi
+
+# 检查是否支持的操作系统版本
+if [[ "$osid" = "centos" || "$osid" = "rhel" ]]; then
+    if [ "$major_ver" -lt 7 ]; then
+        echoerror "os verno(<7) not supported: $osname"
+        exit -1
+    fi
+
+    sudo yum install -y make gcc gcc-c++ tcl kernel-devel zlib-devel openssl-devel
+elif [ "$osid" = "ubuntu" ]; then
+    if [ "$major_ver" -lt 14 ]; then
+        echoerror "os verno(<14) not supported: $osname"
+        exit -1
+    fi
+
+    sudo apt-get install -y build-essential tcl openssl libssl-dev libpcre3 libpcre3-dev zlib1g-dev
+fi
+    
+echoinfo "$(uname -a)"
 
 function install_ruby_gem() {
     local rubyprefix=$1
@@ -128,9 +174,6 @@ function install_ruby_gem() {
     # 进入源码目录开始编译    
     cd $rbfile
 
-    # 安装 gcc
-    yum install -y gcc
-
     ./configure --prefix=$rubyhome
 
     make && make install
@@ -156,16 +199,10 @@ function install_ruby_gem() {
     ln -sf $rubyhome/bin/ruby /usr/local/bin/ruby
     ln -sf $rubyhome/bin/gem /usr/local/bin/gem
 
-    # 安装 zlib-devel
-    yum install -y zlib-devel
-
     # 生成一个Makefile文件    
     cd $rbfile/ext/zlib/
     ruby ./extconf.rb
     export top_srcdir=../.. && make && make install
-
-    # 安装 openssl-devel
-    yum install -y openssl-devel
 
     # 生成一个Makefile文件
     cd $rbfile/ext/openssl/
@@ -188,13 +225,8 @@ function install_ruby_gem() {
     echo $ret
 }
 
-# TODO: 检查 gcc, make 是否安装
-# debain/ubunutu
-#   apt install build-essential
-#
-# redhat 必须安装 zlib-devel openssl-devel:
-#   yum install make gcc gcc-c++ kernel-devel zlib-devel openssl-devel
 
+# 开始安装 ruby
 prefix=
 package=
 gem=
@@ -224,8 +256,10 @@ while true; do
 done
 
 # check user if root
-uname=`id -un`
-echoinfo "当前登录为：$uname"
+loguser=`id -un`
+echoinfo "当前登录为：$loguser"
+
+chk_root
 
 # check inputs
 if [ -z "$prefix" ]; then

@@ -6,7 +6,7 @@
 #
 # @create: 2014-12-18
 #
-# @update: 2018-06-13 12:11:47
+# @update: 2018-07-30
 #
 ########################################################################
 # Error Codes:
@@ -194,7 +194,7 @@ function copy_file() {
 #    is_empty_dir ~/workspace
 #    echo $?
 #
-#    $(is_empty_dir './'
+#    is_empty_dir './'
 #    echo $?
 #***********************************************************
 DIR_NOT_EXISTED=2
@@ -252,14 +252,6 @@ function number2ipaddr() {
     local c=$((num>>8&0xff))
     local d=$((num&0xff))
     echo "$d.$c.$b.$a"
-}
-
-
-function os_alias_version() {
-    id=`lsb_release -i -s`
-    ver=`lsb_release -r -s`
-    lc=$(echo $id$ver | tr '[A-Z]' '[a-z]')
-    echo "$lc"
 }
 
 
@@ -325,6 +317,34 @@ function strarray_at() {
 }
 
 
+# http://stackoverflow.com/questions/16461656/bash-how-to-pass-array-as-an-argument-to-a-function
+#   x=("zero" "one" "two" "three")
+#   ret=$(array_find x "one")
+#
+function array_find() {
+    local arrname=$1[@]
+
+    local arr=("${!arrname}")
+
+    # get length of an array
+    local len=${#arr[@]}
+
+    # use for loop read all nameservers
+    for (( i=0; i<${len}; i++ ));
+    do
+        if [ "$2" = "${arr[i]}" ]; then
+            echo "$i"
+
+            # found index
+            return
+        fi
+    done
+
+    # not found
+    echo "-1"
+}
+
+
 # 得到指定进程名的进程 pid 数组
 #   pids_of_proc "$procname"
 #
@@ -363,5 +383,134 @@ function openfd_of_pid() {
         local arr=$(strsplit "$ret" " ")
         local numofd=$(strarray_at "$arr" 0)
         echo "$numofd"
+    fi
+}
+
+
+# centos, rhel, ubuntu
+#
+function linux_os_id() {
+    if [ -f /etc/redhat-release ]; then
+        # CentOS Linux release 7.5.1804 (Core)
+        # Red Hat Enterprise Linux Server release 6.1 (Santiago)
+        local osname=$(sed 's/\srelease\s.*//' /etc/redhat-release | sed 's/^\s+//' | sed 's/\s+$//' | tr 'A-Z' 'a-z')
+
+        if [ "$osname" = "centos linux" ]; then
+            local osid="centos"
+        elif [ "$osname" = "red hat enterprise linux server" ]; then
+            local osid="rhel"
+        else
+            local osid=""
+        fi
+
+        echo "$osid"
+    elif [ -f /etc/os-release ]; then
+        # centos, ubuntu
+        local osid=$(sed -n '/^ID=/p' /etc/os-release | sed 's/ID=//' | sed 's/"//g' | sed 's/^\s+//' | sed 's/\s+$//' | tr 'A-Z' 'a-z')
+
+        echo "$osid"
+    else
+        echo ""
+    fi
+}
+
+
+function linux_os_verno() {
+    if [ -f /etc/redhat-release ]; then
+        # CentOS Linux release 7.5.1804 (Core)
+        # Red Hat Enterprise Linux Server release 6.1 (Santiago)
+        local osname=$(sed 's/\srelease\s.*//' /etc/redhat-release | sed 's/^\s+//' | sed 's/\s+$//' | tr 'A-Z' 'a-z')
+
+        if [ "$osname" = "centos linux" ]; then
+            local verno=$(sed 's/^.*\srelease\s//g' /etc/redhat-release | sed 's/\s.*$//')
+        elif [ "$osname" = "red hat enterprise linux server" ]; then
+            local verno=$(sed 's/^.*\srelease\s//g' /etc/redhat-release | sed 's/\s.*$//')
+        else
+            local verno=""
+        fi
+
+        echo "$verno"
+    elif [ -f /etc/os-release ]; then
+        # 7, 18.04
+        local verno=$(sed -n '/^VERSION_ID=/p' /etc/os-release | sed 's/VERSION_ID=//' | sed 's/"//g' | sed 's/^\s+//' | sed 's/\s+$//' | tr 'A-Z' 'a-z')
+
+        echo "$verno"
+    else
+        echo ""
+    fi
+}
+
+
+function verno_major_id() {
+    local verno="$1"
+    local vers
+
+    OLD_IFS="$IFS"
+    IFS="."
+    vers=($verno)
+    IFS="$OLD_IFS"
+
+    echo "${vers[0]}"
+}
+
+
+function verno_minor_id() {
+    local verno="$1"
+    local vers
+
+    OLD_IFS="$IFS"
+    IFS="."
+    vers=($verno)
+    IFS="$OLD_IFS"
+
+    if [ ${#vers[@]} -gt 1 ]; then
+        echo "${vers[1]}"
+    else
+        echo ""
+    fi
+}
+
+
+function verno_build_no() {
+    local verno="$1"
+    local vers
+
+    OLD_IFS="$IFS"
+    IFS="."
+    vers=($verno)
+    IFS="$OLD_IFS"
+
+    if [ ${#vers[@]} -gt 2 ]; then
+        echo "${vers[2]}"
+    else
+        echo ""
+    fi
+}
+
+
+function linux_os_alias() {
+    if [ -f /etc/redhat-release ]; then
+        # CentOS Linux release 7.5.1804 (Core)
+        # Red Hat Enterprise Linux Server release 6.1 (Santiago)
+        local osname=$(sed 's/\srelease\s.*//' /etc/redhat-release | sed 's/^\s+//' | sed 's/\s+$//' | tr 'A-Z' 'a-z')
+
+        if [ "$osname" = "centos linux" ]; then
+            local verno=$(sed 's/^.*\srelease\s//g' /etc/redhat-release | sed 's/\s.*$//')
+            osname="$osname $verno"
+        elif [ "$osname" = "red hat enterprise linux server" ]; then
+            local verno=$(sed 's/^.*\srelease\s//g' /etc/redhat-release | sed 's/\s.*$//')
+            osname="$osname $verno"
+        else
+            local osname=""
+        fi
+
+        echo "$osname"
+    elif [ -f /etc/os-release ]; then
+        # CentOS Linux 7 (Core), Ubuntu 18.04 LTS
+        local osname=$(sed -n '/^PRETTY_NAME=/p' /etc/os-release | sed 's/PRETTY_NAME=//' | sed 's/"//g' | sed 's/^\s+//' | sed 's/\s+$//')
+
+        echo "$osname"
+    else
+        echo ""
     fi
 }
