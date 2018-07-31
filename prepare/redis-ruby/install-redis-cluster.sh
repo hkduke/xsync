@@ -61,7 +61,7 @@ Examples:
 --ports="7001,7003-7009" \
 --replica=2 \
 --maxmemory=10g \
---requirepass= 'test' \
+--requirepass='test' \
 --ignore-test
 
   $ sudo ${_name} --prefix=/opt/redis-cluster \
