@@ -10,7 +10,7 @@
 #   $ sudo ./install_redis.sh --prefix=/usr/local/redis --package=ftp://192.168.124.211/pub/hacl-repo/redis-ruby/redis-4.0.10.tar.gz
 #
 #   http://makaidong.com/bcphp/3943_9044049.html
-#
+#   https://github.com/antirez/redis/tree/5.0
 # @author: $author$
 #
 # @create: $create$
@@ -62,7 +62,7 @@ Options:
 
   $ sudo ${_name} \
 --prefix=/usr/local/redis \
---package=./redis-4.0.10.tar.gz
+--package=./redis-5.0-RC3.tar.gz
 
   $ sudo ${_name} \
 --prefix=/usr/local/redis \
