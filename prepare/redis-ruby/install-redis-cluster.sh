@@ -46,7 +46,7 @@ Options:
 
   --prefix=PATH               指定集群所在的路径. (如: /opt/redis-cluster)
   --cluster-id=ID             指定集群的唯一ID名称. ('test' 默认)
-  --host=HOST                 指定集群监听的IP地址.
+  --hostip=IP                 指定集群监听的IP地址. ('127.0.0.1' 默认)
   --ports=PORTS               指定集群的服务节点端口列表. (如: 7001-7009)
   --maxmemory=MEMGB           指定集群的每个服务节点内存上限(gb). (2g 默认)
   --requirepass=PASS          指定集群的每个服务节点密码. (默认无密码)
@@ -57,7 +57,7 @@ Examples:
 
   $ sudo ${_name} --prefix=/opt/redis-cluster \
 --cluster-id=dev \
---host="192.168.124.211" \
+--hostip="127.0.0.1" \
 --ports="7001,7003-7009" \
 --replica=2 \
 --maxmemory=10g \
@@ -66,7 +66,7 @@ Examples:
 
   $ sudo ${_name} --prefix=/opt/redis-cluster \
 --cluster-id=dev \
---host="192.168.124.211" \
+--hostip="192.168.124.211" \
 --ports="7001-7009" \
 --replica=1 \
 --maxmemory=1g \
@@ -82,7 +82,7 @@ if [ $# -eq 0 ]; then usage; exit 1; fi
 cluster_id="test"
 replica="1"
 prefix=
-host="$(uname -n)"
+hostip="127.0.0.1"
 ports=
 maxmemory="2g"
 timeoutms=12000
@@ -90,7 +90,7 @@ requirepass=
 ignore_test=false
 
 # parse options:
-RET=`getopt -o Vh --long version,help,ignore-test,prefix:,cluster-id:,host:,ports:,replica:,maxmemory:,requirepass:,\
+RET=`getopt -o Vh --long version,help,ignore-test,prefix:,cluster-id:,hostip:,ports:,replica:,maxmemory:,requirepass:,\
     -n ' * ERROR' -- "$@"`
 
 if [ $? != 0 ] ; then echoerror "$_name exited with doing nothing." >&2 ; exit 1 ; fi
@@ -105,7 +105,7 @@ while true; do
         -h | --help ) usage; exit 1;;
         --prefix ) prefix="$2"; shift 2 ;;
         --cluster-id ) cluster_id="$2"; shift 2 ;;
-        --host ) host="$2"; shift 2 ;;
+        --hostip ) host="$2"; shift 2 ;;
         --ports ) ports="$2"; shift 2 ;;
         --replica ) replica="$2"; shift 2 ;;
         --maxmemory ) maxmemory="$2"; shift 2 ;;
