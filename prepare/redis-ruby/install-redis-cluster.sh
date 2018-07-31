@@ -258,11 +258,23 @@ echo "###########################################################" >> "$start_sh
 
 cluster_create_sh="$CLUSTER_ROOT/cluster_create.sh"
 echo "#!/bin/bash" > "$cluster_create_sh"
+echo "# @file: cluster_create.sh" >> "$cluster_create_sh"
+echo "#    initially create cluster sample." >> "$cluster_create_sh"
+echo "# Usage:" >> "$cluster_create_sh"
+echo "#   command to connect to redis-cluster:" >> "$cluster_create_sh"
+
+if [ -z "$requirepass" ]; then
+    echo "#    $REDIS_BINDIR/redis-cli -c -h $host -p ${portslist[0]}" >> "$cluster_create_sh"
+else
+    echo "#    $REDIS_BINDIR/redis-cli -c -h $host -p ${portslist[0]} -a $requirepass" >> "$cluster_create_sh"
+fi
+
 echo "# @created: $(now_datetime)" >> "$cluster_create_sh"
 echo "###########################################################" >> "$cluster_create_sh"
 
 
 arrlen=${#portslist[@]}
+
 for (( i=0; i<${arrlen}; i++ ));
 do
     PORT="${portslist[i]}"
