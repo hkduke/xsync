@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 2018-05-20 22:04:01
+ * @version: 0.0.4
  *
  * @create: 2018-01-24
  *
- * @update: 2018-05-20 22:04:01
+ * @update: 2018-08-10 18:56:10
  */
 
 #ifndef XSYNC_CONFIG_H_
@@ -49,11 +49,11 @@ extern "C"
  * DO NOT CHANGE BELOW VALUE
  */
 #define XSYNC_CLIENT_APPNAME            "xsync-client"
-#define XSYNC_CLIENT_VERSION            "0.0.1"
+#define XSYNC_CLIENT_VERSION            "0.0.4"
 #define XSYNC_CLIENT_XMLNS              "http://github.com/pepstack/xsync/client"
 
 #define XSYNC_SERVER_APPNAME            "xsync-server"
-#define XSYNC_SERVER_VERSION            "0.0.1"
+#define XSYNC_SERVER_VERSION            "0.0.4"
 #define XSYNC_SERVER_XMLNS              "http://github.com/pepstack/xsync/server"
 
 #define XSYNC_COPYRIGHT                 "pepstack.com"
