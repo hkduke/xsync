@@ -48,17 +48,22 @@ extern "C"
 /**
  * DO NOT CHANGE BELOW VALUE
  */
+#ifndef XSYNC_CLIENT_VERSION
+#  define XSYNC_CLIENT_VERSION          "0.0.4"
+#endif
+
 #define XSYNC_CLIENT_APPNAME            "xsync-client"
-#define XSYNC_CLIENT_VERSION            "0.0.4"
 #define XSYNC_CLIENT_XMLNS              "http://github.com/pepstack/xsync/client"
 
+#ifndef XSYNC_SERVER_VERSION
+#  define XSYNC_SERVER_VERSION          "0.0.4"
+#endif
+
 #define XSYNC_SERVER_APPNAME            "xsync-server"
-#define XSYNC_SERVER_VERSION            "0.0.4"
 #define XSYNC_SERVER_XMLNS              "http://github.com/pepstack/xsync/server"
 
 #define XSYNC_COPYRIGHT                 "pepstack.com"
 #define XSYNC_AUTHOR                    "master@pepstack.com"
-
 
 /**
  * DO NOT CHANGE BELOW VALUE
