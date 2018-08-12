@@ -46,6 +46,11 @@ ${_cdir}/revise.py \
     --updver="$verno" \
     --recursive
 
+echo "[INFO] update server.mk client.mk version ..."
+sed -i "s/^VERSION :=.*$/VERSION := `cat VERSION`/" src/server/server.mk
+sed -i "s/^VERSION :=.*$/VERSION := `cat VERSION`/" src/client/client.mk
+
+sed -i "s/^#define XSYNC_VERSION .*$/#define XSYNC_VERSION    \"`cat VERSION`\"/" src/xsync-config.h
 
 echo "[INFO] clean all sources"
 find ${_cdir} -name *.pyc | xargs rm -f

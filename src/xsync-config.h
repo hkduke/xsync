@@ -48,15 +48,17 @@ extern "C"
 /**
  * DO NOT CHANGE BELOW VALUE
  */
+#define XSYNC_VERSION    "0.0.1"
+
 #ifndef XSYNC_CLIENT_VERSION
-#  define XSYNC_CLIENT_VERSION          "0.0.4"
+#  define XSYNC_CLIENT_VERSION          XSYNC_VERSION
 #endif
 
 #define XSYNC_CLIENT_APPNAME            "xsync-client"
 #define XSYNC_CLIENT_XMLNS              "http://github.com/pepstack/xsync/client"
 
 #ifndef XSYNC_SERVER_VERSION
-#  define XSYNC_SERVER_VERSION          "0.0.4"
+#  define XSYNC_SERVER_VERSION          XSYNC_VERSION
 #endif
 
 #define XSYNC_SERVER_APPNAME            "xsync-server"
