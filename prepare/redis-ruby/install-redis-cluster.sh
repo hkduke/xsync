@@ -72,6 +72,14 @@ Examples:
 --maxmemory=1g \
 --ignore-test
 
+  $ sudo ${_name} --prefix=/opt/redis-cluster \
+--cluster-id=dev \
+--hostip="127.0.0.1" \
+--ports="7001-7009" \
+--replica=2 \
+--maxmemory=1g \
+--ignore-test
+
 报告错误: 350137278@qq.com
 EOT
 }   # ----------  end of function usage  ----------
