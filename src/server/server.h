@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.5
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-13 16:48:04
+ * @update: 2018-08-13 17:19:02
  */
 
 #ifndef SERVER_H_INCLUDED
@@ -69,7 +69,7 @@ void print_usage(void)
     #endif
 
     printf("\033[35mUsage:\033[0m %s [Options]\n", APP_NAME);
-    printf("\t\033[35m eXtremely Synchronize files among servers.\033[0m\n");
+    printf("\t\033[35m xsync server (server of extremely synchronizing files).\033[0m\n");
     printf("\033[35mOptions:\033[0m\n"
         "\t-h, --help                   \033[35m display help messages\033[0m\n"
         "\t-V, --version                \033[35m print version information\033[0m\n"
@@ -176,7 +176,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     };
 
     /**
-     * get default real path for xsync-client.conf
+     * get default real path for xsync-server.conf
      */
     ret = realpathdir(argv[0], buff, sizeof(buff));
     if (ret <= 0) {

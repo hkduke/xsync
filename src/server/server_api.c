@@ -26,7 +26,7 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.3
  *
  * @create: 2018-01-29
  *
@@ -49,11 +49,11 @@ static void zdbPoolErrorHandler (const char *error)
 
 
 /**
- * doEventTask
- *
+ * doRecvChunkTask
+ *   处理接收文件数据请求
  */
 __attribute__((used))
-static void doThreadTask (perthread_data *perdata)
+static void doRecvChunkTask (perthread_data *perdata)
 {
     int size;
 
@@ -82,12 +82,9 @@ static void doThreadTask (perthread_data *perdata)
             break;
         } else if (size < 0) {
             if (errno == EAGAIN) {
-                // socket是非阻塞时, EAGAIN 表示缓冲队列已满
-                // 并非网络出错，而是可以再次注册事件
-                //
+                // socket是非阻塞时, EAGAIN 表示缓冲队列已满, 并非网络出错，而是可以再次注册事件
                 if (epapi_modify_epoll(epollfd, connfd, EPOLLONESHOT, iobuf, XSYNC_BUFSIZE) == -1) {
                     LOGGER_ERROR("epapi_modify_epoll error: %s", iobuf);
-
                     close(connfd);
                 } else {
                     LOGGER_DEBUG("epapi_modify_epoll ok");
@@ -96,17 +93,80 @@ static void doThreadTask (perthread_data *perdata)
                     // 此处不应该关闭，只是模拟定期清除 sessioin
                     //close(connfd);
                 }
-
                 break;
             }
 
             LOGGER_ERROR("recv error(%d): %s", errno, strerror(errno));
             break;
         } else {
+            // success
             iobuf[size] = 0;
-
             LOGGER_DEBUG("client(%d): {%s}", connfd, iobuf);
         }
+    }
+}
+
+
+/**
+ * doNewConnectTask
+ *    处理用户连接请求
+ */
+__attribute__((used))
+static void doNewConnectTask (perthread_data *perdata)
+{
+    int size = 0;
+    int offset = 0;
+
+    int epollfd = perdata->pollin_data.epollfd;
+    int connfd = perdata->pollin_data.connfd;
+
+    char *iobuf = perdata->buffer;
+
+    XS_server server = (XS_server) perdata->pollin_data.arg;
+    assert(server);
+
+    while (offset < XSYNC_ConnectRequestSize) {
+        // 接收连接请求头
+        size = recv(connfd, iobuf + offset, XSYNC_BUFSIZE, 0);
+
+        if (size == 0) {
+            /**
+             * 对方关闭了连接: close(fd)
+             * close the descriptor will make epoll remove it
+             *   from the set of descriptors which are monitored.
+             **/
+            LOGGER_WARN("close(%d): %s", connfd, strerror(errno));
+            close(connfd);
+            break;
+        } else if (size < 0) {
+            if (errno == EAGAIN) {
+                // socket是非阻塞时, EAGAIN 表示缓冲队列已满, 并非网络出错，而是可以再次注册事件
+                if (epapi_modify_epoll(epollfd, connfd, EPOLLONESHOT, iobuf, XSYNC_BUFSIZE) == -1) {
+                    LOGGER_ERROR("epapi_modify_epoll error: %s", iobuf);
+                    close(connfd);
+                } else {
+                    LOGGER_DEBUG("epapi_modify_epoll ok");
+                    // TODO: 保存 connfd
+                    // 此处不应该关闭，只是模拟定期清除 sessioin
+                    //close(connfd);
+                }
+                break;
+            }
+
+            LOGGER_ERROR("recv error(%d): %s", errno, strerror(errno));
+            break;
+        } else {
+            // success
+            offset += size;
+            LOGGER_DEBUG("==== client(%d) recv: {%d}", connfd, size);
+        }
+    }
+
+    if (offset == XSYNC_ConnectRequestSize) {
+        LOGGER_INFO("good connect request(%d)", offset);
+    } else {
+        LOGGER_ERROR("bad connect request size(%d)", offset);
+        close(connfd);
     }
 }
 
@@ -116,26 +176,67 @@ void event_task (thread_context_t *thread_ctx)
 {
     threadpool_task_t *task = thread_ctx->task;
 
-    if (task->flags == 100) {
-        epollin_data_t *pdata = (epollin_data_t *) task->argument;
+    int flags = task->flags;
 
-        task->argument = 0;
-        task->flags = 0;
+    epollin_data_t *epdata = (epollin_data_t *) task->argument;
 
-        perthread_data *perdata = (perthread_data *) thread_ctx->thread_arg;
+    perthread_data *perdata = (perthread_data *) thread_ctx->thread_arg;
 
-        memcpy(&perdata->pollin_data, pdata, sizeof(perdata->pollin_data));
+    memcpy(&perdata->pollin_data, epdata, sizeof(perdata->pollin_data));
 
-        free(pdata);
+    task->argument = 0;
+    task->flags = 0;
 
-        LOGGER_DEBUG("task start");
+    free(epdata);
 
-        doThreadTask(perdata);
+    LOGGER_TRACE("task start");
 
-        LOGGER_DEBUG("task end");
+    if (flags == 100) {
+        doRecvChunkTask(perdata);
+    } else if (flags == 1) {
+        doNewConnectTask(perdata);
     } else {
-        LOGGER_ERROR("unknown task flags(=%d)", task->flags);
+        LOGGER_ERROR("unknown task flags(=%d)", flags);
     }
+
+    LOGGER_TRACE("task end");
+}
+
+
+/**
+ * handleClientConnect
+ *
+ *   有新的客户端请求连接
+ */
+__attribute__((used))
+static int handleClientConnect (epevent_data_t *epdata, void *arg)
+{
+    XS_server server = (XS_server) arg;
+
+    int num = threadpool_unused_queues(server->pool);
+    LOGGER_TRACE("threadpool_unused_queues=%d", num);
+
+    if (num > 0) {
+        epollin_data_t *pollin_data = (epollin_data_t *) mem_alloc(1, sizeof(epollin_data_t));
+
+        pollin_data->arg = arg;
+        pollin_data->epollfd = epdata->epollfd;
+        pollin_data->connfd = epdata->connfd;
+
+        if (threadpool_add(server->pool, event_task, (void*) pollin_data, 1) == 0) {
+            // 增加到线程池成功
+            LOGGER_TRACE("threadpool_add task success");
+
+            return EPCB_EXPECT_NEXT;
+        }
+
+        // 增加到线程池失败
+        LOGGER_ERROR("threadpool_add task failed");
+
+        free(pollin_data);
+    }
+
+    return EPCB_EXPECT_BREAK;
 }
 
 
@@ -248,6 +349,9 @@ static int xsyncOnEpollEvent (int msgid, int expect, epevent_data_t *epdata, voi
 
     case EPEVENT_PEER_ACPTNEW:
         LOGGER_DEBUG("EPEVENT_PEER_ACPTNEW client=%d (%s:%s)", epdata->connfd, epdata->hbuf, epdata->sbuf);
+
+        // 有新的客户端请求连接
+        expect = handleClientConnect(epdata, arg);
         break;
 
     case EPEVENT_PEER_POLLIN:
@@ -401,6 +505,9 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
     server->epollfd = epollfd;
     server->listenfd = listenfd;
     server->listenfd_oldopt = old_sockopt;
+    
+    memcpy(server->host, opts->host, sizeof(opts->host));
+    server->port = atoi(opts->port);
 
     server->maxevents = MAXEVENTS;
     server->timeout_ms = TIMEOUTMS;

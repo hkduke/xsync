@@ -26,7 +26,7 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.5
  *
  * @create: 2018-01-29
  *
@@ -86,15 +86,15 @@ extern "C"
  * XSYNC_ConnectRequest
  *
  *   This is the 1st message sent by client to server so as to
- *     establish a new socket connection.
+ *     establish a new session connection.
  *
  *   The xsync_newconn_t makes up with a fix head of 64 bytes.
  *
  *        4 bytes      |       4 bytes
  * --------------------+--------------------
- *  0      XSnn        |        MAGIC      7
+ *  0  ConnType        |        MAGIC      7
  * --------------------+--------------------
- *  8     Version      |      TimeStamp   15
+ *  8   Version        |      TimeStamp   15
  * --------------------+--------------------
  *  16          CLIENTID 40 bytes
  *                 ...   ...              55
@@ -106,6 +106,8 @@ extern "C"
 #ifdef _MSC_VER
 #  pragma pack(1)
 #endif
+
+#define XSYNC_ConnectRequestSize    64
 
 typedef struct XSYNC_ConnectRequest
 {
@@ -231,10 +233,11 @@ inline ub1 * XSYNC_ConnectRequestBuild (XSYNC_ConnectRequest *req, uint32_t magi
 
     bzero(req, sizeof(XSYNC_ConnectRequest));
 
+    /* XCON */
     req->connect_request[0] = 'X';
-    req->connect_request[1] = 'S';
-    req->connect_request[2] = '0';
-    req->connect_request[3] = '0';
+    req->connect_request[1] = 'C';
+    req->connect_request[2] = 'O';
+    req->connect_request[3] = 'N';
 
     req->magic = magic;
 

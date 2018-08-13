@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.5
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-13 15:55:09
+ * @update: 2018-08-13 17:01:22
  */
 
 #include "server.h"
@@ -187,8 +187,6 @@ void run_interactive (xs_appopts_t *opts)
 #define XSSRVAPP    csh_green_msg("["APP_NAME"] ")
     XS_RESULT ret;
     XS_server server;
-
-    strcpy(opts->port, "8960");
 
     getinputline(XSSRVAPP CSH_GREEN_MSG("XS_server_create ...\n"), 0, 0);
 

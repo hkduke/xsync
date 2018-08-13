@@ -26,7 +26,7 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.5
  *
  * @create: 2018-02-12
  *
@@ -42,11 +42,11 @@
 
 extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char clientid[40], XS_server_conn *outSConn)
 {
-    XS_server_conn sconn;
+    XS_server_conn xcon;
 
-    sconn = (XS_server_conn) mem_alloc(1, sizeof(struct xs_server_conn_t) + sizeof(xs_server_opts));
+    xcon = (XS_server_conn) mem_alloc(1, sizeof(struct xs_server_conn_t) + sizeof(xs_server_opts));
 
-    sconn->sockfd = -1;
+    xcon->sockfd = -1;
 
     /**
      * http://man7.org/linux/man-pages/man2/time.2.html
@@ -60,11 +60,11 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
      * The tloc argument is obsolescent and should always be NULL in new
      *   code.  When tloc is NULL, the call cannot fail.
      */
-    sconn->client_utctime = time(NULL);
+    xcon->client_utctime = time(NULL);
 
-    ub4 t32 = (ub4) (0x00000000FFFFFFFF & sconn->client_utctime);
+    ub4 t32 = (ub4) (0x00000000FFFFFFFF & xcon->client_utctime);
 
-    randctx_init(&sconn->rctx, t32 ^ servOpts->magic);
+    randctx_init(&xcon->rctx, t32 ^ servOpts->magic);
 
     do {
         int sockfd;
@@ -73,7 +73,7 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
 
         XSYNC_ConnectRequest connRequest;
 
-        XSYNC_ConnectRequestBuild(&connRequest, servOpts->magic, t32, rand_gen(&sconn->rctx), clientid);
+        XSYNC_ConnectRequestBuild(&connRequest, servOpts->magic, t32, rand_gen(&xcon->rctx), clientid);
 
         LOGGER_TRACE("msgid=%d('%c%c%c%c'), magic=%d, version=%d('%d.%d.%d'), time=%d, clientid=%s, randnum=%d, crc32=%d",
                 connRequest.msgid,
@@ -91,23 +91,29 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
                 connRequest.randnum,
                 connRequest.crc32_checksum);
 
-        //DEL:int err;
-        //DEL:sockfd = opensocket(servOpts->host, servOpts->port, servOpts->sockopts.timeosec, servOpts->sockopts.nowait, &err);
-
         sockfd = opensocket_v2(servOpts->host, servOpts->sport, servOpts->sockopts.timeosec, &servOpts->sockopts, errmsg);
 
         if (sockfd == -1) {
             LOGGER_ERROR("opensocket_v2 failed: %s", errmsg);
+            return XS_ERROR;
         } else {
             LOGGER_INFO("opensocket_v2 success: %s:%s", servOpts->host, servOpts->sport);
+
+            // 发送连接请求: 64 字节
+            int err = sendlen(sockfd, (char*) &connRequest, XSYNC_ConnectRequestSize);
+            if (err != XSYNC_ConnectRequestSize) {
+                LOGGER_ERROR("sendlen error(%d): %s", errno, strerror(errno));
+                close(sockfd);
+                return XS_ERROR;
+            }
         }
 
-        sconn->sockfd = sockfd;
+        xcon->sockfd = sockfd;
     } while(0);
 
-    memcpy(sconn->srvopts, servOpts, sizeof(xs_server_opts));
+    memcpy(xcon->srvopts, servOpts, sizeof(xs_server_opts));
 
-    *outSConn = (XS_server_conn) RefObjectInit(sconn);
+    *outSConn = (XS_server_conn) RefObjectInit(xcon);
 
     return XS_SUCCESS;
 }

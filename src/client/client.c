@@ -34,7 +34,7 @@
  */
 
 #include "client.h"
-
+#include "server_conn.h"
 
 void run_interactive (xs_appopts_t *opts);
 
@@ -177,16 +177,7 @@ int main (int argc, char *argv[])
     }
 
     if (opts.interactive) {
-        LOGGER_INFO("threads=%d queues=%d", opts.threads, opts.queues);
-
         run_interactive(&opts);
-
-        xs_appopts_finalize(&opts);
-
-        LOGGER_FATAL("%s (v%s) shutdown !", APP_NAME, APP_VERSION);
-        LOGGER_FINI();
-
-        exit(0);
     } else {
         run_forever(&opts);
     }
@@ -222,8 +213,8 @@ void run_forever (xs_appopts_t *opts)
     }
 }
 
-
-static void * thread_func (void *arg)
+/*
+static void * thread_func_ok (void *arg)
 {
     int64_t id = 1;
     int c = 0;
@@ -279,16 +270,14 @@ static void * thread_func (void *arg)
             //sleep(20);
 
             ///////////////////////////////////////
-            /*
-            if (write(sfd, msg, len + 1) != len + 1) {
-                perror("write");
-                close(sfd);
-                break;
-            } else {
-                printf("%s\n", msg);
-                total += (len + 1);
-            }
-            */
+            //if (write(sfd, msg, len + 1) != len + 1) {
+            //    perror("write");
+            //    close(sfd);
+            //    break;
+            //} else {
+            //    printf("%s\n", msg);
+            //    total += (len + 1);
+            //}
 
             if (total > 1073741824) {
                 // 1 GB
@@ -302,6 +291,33 @@ static void * thread_func (void *arg)
         //
         close(sfd);
     } while(c++ < 10);
+
+    printf("thread#%d end.\n", tid);
+    return ((void*) 0);
+}
+*/
+
+static void * thread_func (void *arg)
+{
+    int tid = pthread_self();
+
+    XS_RESULT xres;
+
+    char clientid[] = "xsync-test";
+
+    XS_server_conn xcon = 0;
+
+    printf("thread#%lld start ...\n", (long long) tid);
+
+    do {
+        xres = XS_server_conn_create((xs_server_opts *) arg, clientid, &xcon);
+
+        if (xres != XS_SUCCESS) {
+            printf("failed to connect server.\n");
+        }
+    } while(0);
+
+    XS_server_conn_release(&xcon);
 
     printf("thread#%d end.\n", tid);
     return ((void*) 0);
@@ -345,10 +361,10 @@ void run_interactive (xs_appopts_t *opts)
     }
 
     result = getinputline(XSCLIAPP CSH_CYAN_MSG("Is that options correct? [Y for yes | N for no]: "), msg, sizeof(msg));
-    //if (yes_or_no(result, 0) == 0) {
-    //    getinputline(XSCLIAPP CSH_CYAN_MSG("User cancelded.\n"), 0, 0);
-    //    exit(0);
-    //}
+    if (yes_or_no(result, 0) == 0) {
+        getinputline(XSCLIAPP CSH_CYAN_MSG("User cancelded.\n"), 0, 0);
+        exit(0);
+    }
 
     snprintf(msg, sizeof(msg), XSCLIAPP CSH_CYAN_MSG("Connect to server {%s:%d#%d} ...\n"), server.host, server.port, server.magic);
     getinputline(msg, 0, 0);

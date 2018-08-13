@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.5
  *
  * @create: 2018-02-02
  *
- * @update: 2018-08-13 16:15:16
+ * @update: 2018-08-13 16:56:31
  */
 
 #ifndef SERVER_CONF_H_INCLUDED
@@ -56,8 +56,10 @@ typedef struct xs_server_t
 
     ref_counter_t session_counter;
 
-    int ssl;
+    char host[XSYNC_HOSTNAME_MAXLEN + 1];
+    int port;
 
+    int ssl;
     int timeout_ms;
 
     /**

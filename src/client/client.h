@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.5
  *
  * @create: 2018-01-24
  *
- * @update: 2018-08-13 15:52:31
+ * @update: 2018-08-13 17:25:32
  */
 
 #ifndef CLIENT_H_INCLUDED
@@ -68,7 +68,7 @@ void print_usage(void)
     #endif
 
     printf("\033[35mUsage:\033[0m %s [Options]\n", APP_NAME);
-    printf("\t\033[35m extremely synchronize files among servers.\033[0m\n");
+    printf("\t\033[35m xsync client (client of extremely synchronizing files).\033[0m\n");
     printf("\033[35mOptions:\033[0m\n"
         "\t-h, --help                   \033[35m display help messages\033[0m\n"
         "\t-V, --version                \033[35m print version information\033[0m\n"
@@ -106,26 +106,22 @@ void print_usage(void)
         "\t                                    \033[35m 'stderr' - using appender stderr\033[0m\n"
         "\t                                    \033[35m 'syslog' - using appender syslog\033[0m\n"
         "\n"
-        "\t-t, --threads=<THREADS>      \033[35m specify number of threads. THREADS can also be:\033[0m\n"
-        "\t                                    \033[35m  0 - using default threads\033[0m\n"
-        "\t                                    \033[35m -1 - using maximum threads\033[0m\n"
+        "\t-t, --threads=<THREADS>      \033[35m specify number of threads. %d (default)\033[0m\n"
         "\n"
-        "\t-q, --queues=<QUEUES>        \033[35m specify total queues for all threads. QUEUES can also be:\033[0m\n"
-        "\t                                    \033[35m  0 - using default queues\033[0m\n"
-        "\t                                    \033[35m -1 - using maximum queues\033[0m\n"
+        "\t-q, --queues=<QUEUES>        \033[35m specify total queues for all threads. %d (default)\033[0m\n"
         "\n"
-        "\t-I, --clientid=<CLIENTID>    \033[35m CAUTION: replace clientid in file CLIENTID\033[0m\n"
+        "\t-N, --clientid=<CLIENTID>    \033[35m CAUTION: replace clientid in file CLIENTID\033[0m\n"
         "\n"
         "\t-D, --daemon                 \033[35m run as daemon process.\033[0m\n"
         "\t-K, --kill                   \033[35m kill all processes for this program.\033[0m\n"
         "\t-L, --list                   \033[35m list of pids for this program.\033[0m\n"
-        "\t-T, --test                   \033[35m run client as interactive mode for test connectivity to server.\033[0m\n"
+        "\t-I, --interactive            \033[35m run as interactive mode for testing.\033[0m\n"
         "\n"
         "\t-m, --md5=FILE               \033[35m md5sum on given file.\033[0m\n"
         "\t-r, --regexp=PATTERN         \033[35m use pattern for matching on <express>.\033[0m\n"
         "\n"
         "\033[47;35m* COPYRIGHT (c) 2014-2020 PEPSTACK.COM, ALL RIGHTS RESERVED.\033[0m\n",
-        APP_NAME, APP_NAME, APP_VERSION, APP_NAME);
+        APP_NAME, APP_NAME, APP_VERSION, APP_NAME, XSYNC_CLIENT_THREADS, XSYNC_CLIENT_QUEUES);
 
 #ifdef DEBUG
     printf("\033[31m**** Caution: DEBUG compiling mode only used in develop stage ! ****\033[0m\n");
@@ -211,7 +207,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     }
 
     /* parse command arguments */
-    while ((ret = getopt_long(argc, argv, "DKLhVTC:WO:P:A:t:q:I:m:r:", lopts, 0)) != EOF) {
+    while ((ret = getopt_long(argc, argv, "hVC:WO:P:A:t:q:N:DKLIm:r:", lopts, 0)) != EOF) {
         switch (ret) {
         case 'D':
             isdaemon = 1;
