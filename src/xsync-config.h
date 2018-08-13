@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.3
+ * @version: 0.0.4
  *
  * @create: 2018-01-24
  *
- * @update: 2018-08-13 16:22:11
+ * @update: 2018-08-13 16:22:43
  */
 
 #ifndef XSYNC_CONFIG_H_
@@ -48,7 +48,7 @@ extern "C"
 /**
  * DO NOT CHANGE BELOW VALUE
  */
-#define XSYNC_VERSION    "0.0.3"
+#define XSYNC_VERSION    "0.0.4"
 
 #ifndef XSYNC_CLIENT_VERSION
 #  define XSYNC_CLIENT_VERSION          XSYNC_VERSION

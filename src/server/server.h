@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.3
+ * @version: 0.0.4
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-13 16:12:29
+ * @update: 2018-08-13 16:48:04
  */
 
 #ifndef SERVER_H_INCLUDED
@@ -90,13 +90,17 @@ void print_usage(void)
         "\t                                    \033[35m 'stderr' - using appender stderr\033[0m\n"
         "\t                                    \033[35m 'syslog' - using appender syslog\033[0m\n"
         "\n"
+        "\t-s, --host=<SERVER>          \033[35m specify server ip or hostname to bind. '0.0.0.0' (default)\033[0m\n"
+        "\n"
+        "\t-p, --port=<PORT>            \033[35m specify port to listen. 8960 (default)\033[0m\n"
+        "\n"
         "\t-t, --threads=<THREADS>      \033[35m specify number of threads. %d (default)\033[0m\n"
         "\n"
         "\t-q, --queues=<QUEUES>        \033[35m specify total queues for all threads. %d (default)\033[0m\n"
         "\n"
         "\t-e, --events=<EVENTS>        \033[35m specify maximum number of events for epoll. %d (default)\033[0m\n"
         "\n"
-        "\t-s, --somaxconn=<BACKLOG>    \033[35m A kernel parameter provides an upper limit on the value of the\033[0m\n"
+        "\t-m, --somaxconn=<BACKLOG>    \033[35m A kernel parameter provides an upper limit on the value of the\033[0m\n"
         "\t                              \033[35m backlog parameter passed to the listen function. %d (default)\033[0m\n"
         "\n"
         "\t-D, --daemon                 \033[35m run as daemon process.\033[0m\n"
@@ -147,6 +151,9 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     opts->maxevents = XSYNC_SERVER_EVENTS;
     opts->timeout_ms = 1000;
 
+    strcpy(opts->host, "0.0.0.0");
+    strcpy(opts->port, "8960");
+
     /* command arguments */
     const struct option lopts[] = {
         {"help", no_argument, 0, 'h'},
@@ -155,10 +162,12 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
         {"log4c-rcpath", required_argument, 0, 'O'},
         {"priority", required_argument, 0, 'P'},
         {"appender", required_argument, 0, 'A'},
+        {"host", required_argument, 0, 's'},
+        {"port", required_argument, 0, 'p'},
         {"threads", required_argument, 0, 't'},
         {"queues", required_argument, 0, 'q'},
         {"events", required_argument, 0, 'e'},
-        {"somaxconn", required_argument, 0, 's'},
+        {"somaxconn", required_argument, 0, 'm'},
         {"daemon", no_argument, 0, 'D'},
         {"kill", no_argument, 0, 'K'},
         {"list", no_argument, 0, 'L'},
@@ -196,7 +205,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     }
 
     /* parse command arguments */
-    while ((ret = getopt_long(argc, argv, "DKLhVTC:WO:P:A:t:q:I:m:r:", lopts, 0)) != EOF) {
+    while ((ret = getopt_long(argc, argv, "DhIKLVC:O:P:A:s:p:t:q:e:m:", lopts, 0)) != EOF) {
         switch (ret) {
         case 'D':
             isdaemon = 1;
@@ -250,7 +259,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
         case 'P':
             ret = snprintf(priority, sizeof(priority), "%s", optarg);
             if (ret < 0 || ret >= sizeof(priority)) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m specified invalid priority: %s\n", optarg);
+                fprintf(stderr, "\033[1;31m[error]\033[0m invalid priority: %s\n", optarg);
                 exit(-1);
             }
             break;
@@ -258,7 +267,23 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
         case 'A':
             ret = snprintf(appender, sizeof(appender), "%s", optarg);
             if (ret < 0 || ret >= sizeof(appender)) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m specified invalid appender: \033[31m%s\033[0m\n", optarg);
+                fprintf(stderr, "\033[1;31m[error]\033[0m invalid appender: \033[31m%s\033[0m\n", optarg);
+                exit(-1);
+            }
+            break;
+
+        case 's':
+            ret = snprintf(opts->host, sizeof(opts->host), "%s", optarg);
+            if (ret < 0 || ret >= sizeof(opts->host)) {
+                fprintf(stderr, "\033[1;31m[error]\033[0m invalid host: \033[31m%s\033[0m\n", optarg);
+                exit(-1);
+            }
+            break;
+
+        case 'p':
+            ret = snprintf(opts->port, sizeof(opts->port), "%s", optarg);
+            if (ret < 0 || ret >= sizeof(opts->port)) {
+                fprintf(stderr, "\033[1;31m[error]\033[0m invalid port: \033[31m%s\033[0m\n", optarg);
                 exit(-1);
             }
             break;
@@ -275,7 +300,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
             events = atoi(optarg);
             break;
 
-        case 's':
+        case 'm':
             somaxconn = atoi(optarg);
             break;
 
