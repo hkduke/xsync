@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.3
  *
  * @create: 2018-01-25
  *
- * @update: 2018-08-10 18:11:59
+ * @update: 2018-08-13 15:53:46
  */
 
 /**
@@ -326,25 +326,7 @@ extern XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
         return XS_ERROR;
     }
 
-    // 要求覆盖配置
-    if (opts->threads != INT_MAX) {
-        client->threads = appopts_validate_threads(opts->threads);
-        client->queues = appopts_validate_queues(client->threads, opts->queues);
-    }
-
-    if (opts->queues != INT_MAX) {
-        client->queues = appopts_validate_queues(client->threads, opts->queues);
-    }
-
     SERVERS = XS_client_get_server_maxid(client);
-
-    if (client->threads == 0) {
-        client->threads = XSYNC_CLIENT_THREADS;
-    }
-
-    if (client->queues < client->threads * XSYNC_TASKS_PERTHREAD) {
-        client->queues = appopts_validate_queues(client->threads, opts->queues);
-    }
 
     THREADS = client->threads;
     QUEUES = client->queues;

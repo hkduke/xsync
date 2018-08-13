@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.3
  *
  * @create: 2018-01-24
  *
- * @update: 2018-08-10 18:11:59
+ * @update: 2018-08-13 15:52:31
  */
 
 #ifndef CLIENT_H_INCLUDED
@@ -156,8 +156,9 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     int queues = INT_MAX;
 
     bzero(opts, sizeof(*opts));
-    opts->threads = INT_MAX;
-    opts->queues = INT_MAX;
+
+    opts->threads = XSYNC_CLIENT_THREADS;
+    opts->queues = XSYNC_CLIENT_QUEUES;
 
     /* command arguments */
     const struct option lopts[] = {
@@ -170,11 +171,11 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
         {"appender", required_argument, 0, 'A'},
         {"threads", required_argument, 0, 't'},
         {"queues", required_argument, 0, 'q'},
-        {"clientid", required_argument, 0, 'I'},
+        {"clientid", required_argument, 0, 'N'},
         {"daemon", no_argument, 0, 'D'},
         {"kill", no_argument, 0, 'K'},
         {"list", no_argument, 0, 'L'},
-        {"test", no_argument, 0, 'T'},
+        {"interactive", no_argument, 0, 'I'},
         {"md5", required_argument, 0, 'm'},
         {"regexp", required_argument, 0, 'r'},
         {0, 0, 0, 0}
@@ -289,7 +290,8 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
             queues = atoi(optarg);
             break;
 
-        case 'I':
+        case 'N':
+            /* TODO */
             exit(0);
             break;
 
@@ -310,7 +312,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
             exit(ret);
             break;
 
-        case 'T':
+        case 'I':
             interactive = 1;
             break;
 
@@ -359,18 +361,21 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
 
     if (threads != INT_MAX) {
         // 用户指定了线程覆盖配置文件, 此时队列也必须覆盖
-        //
-        opts->threads = appopts_validate_threads(threads);
-        opts->queues = appopts_validate_queues(opts->threads, queues);
+        if (threads > XSYNC_CLIENT_THREADS_MAX) {
+            opts->threads = XSYNC_CLIENT_THREADS_MAX;
+        } else if (threads < 1) {
+            opts->threads = 1;
+        } else {
+            opts->threads = threads;
+        }
 
         fprintf(stdout, "\033[1;33m* Overwritten config : threads=%d queues=%d\033[0m\n\n", opts->threads, opts->queues);
     } else if (queues != INT_MAX) {
-        // 用户只指定了队列覆盖配置文件, 坚持范围
-        //
-        if (queues > XSYNC_QUEUES_MAXIMUM) {
-            opts->queues = XSYNC_QUEUES_MAXIMUM;
-        } else if (queues < XSYNC_TASKS_PERTHREAD) {
-            opts->queues = XSYNC_TASKS_PERTHREAD;
+        // 用户只指定了队列覆盖配置文件
+        if (queues > XSYNC_CLIENT_THREADS_MAX * 4) {
+            opts->queues = XSYNC_CLIENT_THREADS_MAX * 4;
+        } else if (queues < 64) {
+            opts->queues = 64;
         } else {
             opts->queues = queues;
         }
@@ -417,8 +422,6 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     opts->startcmd[ret] = 0;
 
     opts->isdaemon = isdaemon;
-    opts->threads = threads;
-    opts->queues = queues;
     opts->from_watch = from_watch;
     opts->interactive = interactive;
 

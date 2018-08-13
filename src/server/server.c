@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.3
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-10 18:11:59
+ * @update: 2018-08-13 15:55:09
  */
 
 #include "server.h"
@@ -165,19 +165,7 @@ int main (int argc, char *argv[])
     }
 
     if (opts.interactive) {
-        opts.threads = appopts_validate_threads(opts.threads);
-        opts.queues = appopts_validate_queues(opts.threads, opts.queues);
-
-        LOGGER_INFO("threads=%d queues=%d", opts.threads, opts.queues);
-
         run_interactive(&opts);
-
-        xs_appopts_finalize(&opts);
-
-        LOGGER_FATAL("%s (v%s) shutdown !", APP_NAME, APP_VERSION);
-        LOGGER_FINI();
-
-        exit(0);
     } else {
         run_service(&opts);
     }
@@ -200,15 +188,7 @@ void run_interactive (xs_appopts_t *opts)
     XS_RESULT ret;
     XS_server server;
 
-    opts->timeout_ms = 1000;
-    opts->maxclients = 1024;
-    opts->threads = 16;
-    opts->queues = 256;
-
     strcpy(opts->port, "8960");
-
-    opts->somaxconn = 128;
-    opts->maxevents = 1024;
 
     getinputline(XSSRVAPP CSH_GREEN_MSG("XS_server_create ...\n"), 0, 0);
 

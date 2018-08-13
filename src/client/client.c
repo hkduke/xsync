@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.3
  *
  * @create: 2018-01-24
  *
- * @update: 2018-08-10 18:11:59
+ * @update: 2018-08-13 15:50:29
  */
 
 #include "client.h"
@@ -177,9 +177,6 @@ int main (int argc, char *argv[])
     }
 
     if (opts.interactive) {
-        opts.threads = appopts_validate_threads(opts.threads);
-        opts.queues = appopts_validate_queues(opts.threads, opts.queues);
-
         LOGGER_INFO("threads=%d queues=%d", opts.threads, opts.queues);
 
         run_interactive(&opts);
@@ -357,7 +354,7 @@ void run_interactive (xs_appopts_t *opts)
     getinputline(msg, 0, 0);
 
     do {
-        pthread_t threads[XSYNC_THREADS_MAXIMUM];
+        pthread_t threads[XSYNC_CLIENT_THREADS_MAX];
 
         int i, err;
         void *ret;

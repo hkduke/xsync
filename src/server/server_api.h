@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.3
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-10 18:11:59
+ * @update: 2018-08-13 16:13:13
  */
 
 #ifndef SERVER_API_H_INCLUDED
@@ -60,77 +60,20 @@ typedef struct xs_appopts_t
     // singleton
     char *startcmd;
 
-    int from_watch;
-
-    int timeout_ms;
-
     int isdaemon;
     int interactive;
 
-    int maxclients;
     int threads;
     int queues;
+    int somaxconn;
+    int maxevents;
+    int timeout_ms;
 
     char host[XSYNC_HOSTNAME_MAXLEN + 1];
     char port[XSYNC_PORTNUMB_MAXLEN + 1];
 
-    int somaxconn;
-    int maxevents;
-
     char config[XSYNC_PATHFILE_MAXLEN + 1];
 } xs_appopts_t;
-
-
-__no_warning_unused(static)
-int appopts_validate_threads (int threads)
-{
-    int valid_threads = threads;
-
-    if (threads == 0 || threads == INT_MAX) {
-        valid_threads = XSYNC_SERVER_THREADS;
-    } else if (threads == -1) {
-        valid_threads = XSYNC_THREADS_MAXIMUM;
-    }
-
-    if (valid_threads > XSYNC_THREADS_MAXIMUM) {
-        LOGGER_WARN("too many THREADS(%d) expected. coerce THREADS=%d", valid_threads, XSYNC_THREADS_MAXIMUM);
-        valid_threads = XSYNC_THREADS_MAXIMUM;
-    } else if (valid_threads < 1) {
-        LOGGER_WARN("too less THREADS(%d) expected. coerce THREADS=%d", valid_threads, 1);
-        valid_threads = 1;
-    }
-
-    return valid_threads;
-}
-
-
-__no_warning_unused(static)
-int appopts_validate_queues (int threads, int queues)
-{
-    int valid_queues = queues;
-
-    threads = appopts_validate_threads(threads);
-
-    if (queues == 0 || queues == INT_MAX) {
-        valid_queues = threads * XSYNC_TASKS_PERTHREAD;
-    } else if (queues == -1) {
-        valid_queues = XSYNC_QUEUES_MAXIMUM;
-    }
-
-    if (valid_queues > XSYNC_QUEUES_MAXIMUM) {
-        LOGGER_WARN("too many QUEUES(%d) expected. coerce QUEUES=%d", valid_queues, XSYNC_QUEUES_MAXIMUM);
-        valid_queues = XSYNC_QUEUES_MAXIMUM;
-    } else if (valid_queues < XSYNC_TASKS_PERTHREAD) {
-        LOGGER_WARN("too less QUEUES(%d) expected. coerce QUEUES=%d", valid_queues, XSYNC_TASKS_PERTHREAD);
-        valid_queues = XSYNC_TASKS_PERTHREAD;
-    }
-
-    if (valid_queues < threads * 8) {
-        valid_queues = threads * 8;
-    }
-
-    return valid_queues;
-}
 
 
 /**

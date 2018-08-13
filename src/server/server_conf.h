@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.3
  *
  * @create: 2018-02-02
  *
- * @update: 2018-08-10 18:11:59
+ * @update: 2018-08-13 16:15:16
  */
 
 #ifndef SERVER_CONF_H_INCLUDED
@@ -58,7 +58,6 @@ typedef struct xs_server_t
 
     int ssl;
 
-    int maxclients;
     int timeout_ms;
 
     /**
@@ -73,7 +72,8 @@ typedef struct xs_server_t
     int listenfd;
     int listenfd_oldopt;
 
-    int numevents;
+    int maxevents;
+
     struct epoll_event *events;
 
     /**

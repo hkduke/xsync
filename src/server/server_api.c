@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.3
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-10 18:11:59
+ * @update: 2018-08-13 16:16:18
  */
 
 #include "server_api.h"
@@ -274,10 +274,9 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
 
     struct zdbpool_t db_pool;
 
-    int MAXCLIENTS = opts->maxclients;
     int THREADS = opts->threads;
     int QUEUES = opts->queues;
-    int MAXEVENTS = opts->maxclients;
+    int MAXEVENTS = opts->maxevents;
     int BACKLOGS = opts->somaxconn;
     int TIMEOUTMS = opts->timeout_ms;
 
@@ -317,7 +316,7 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
         INIT_HLIST_HEAD(&server->client_hlist[i]);
     }
 
-    LOGGER_INFO("threads=%d queues=%d maxclients=%d", THREADS, QUEUES, MAXCLIENTS);
+    LOGGER_INFO("threads=%d queues=%d maxevents=%d somaxconn=%d timeout_ms=%d", THREADS, QUEUES, MAXEVENTS, BACKLOGS, TIMEOUTMS);
 
     /* create per thread data */
     server->thread_args = (void **) mem_alloc(THREADS, sizeof(void*));
@@ -398,14 +397,12 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
      * here we got success
      *   output XS_server
      */
-    server->maxclients = MAXCLIENTS;
-
     server->events = events;
     server->epollfd = epollfd;
     server->listenfd = listenfd;
     server->listenfd_oldopt = old_sockopt;
 
-    server->numevents = MAXEVENTS;
+    server->maxevents = MAXEVENTS;
     server->timeout_ms = TIMEOUTMS;
 
     /**
@@ -463,7 +460,7 @@ extern XS_VOID XS_server_bootstrap (XS_server server)
     epapi_loop_epoll_events(server->epollfd,
         server->listenfd,
         server->events,
-        server->numevents,
+        server->maxevents,
         server->timeout_ms,
         xsyncOnEpollEvent, server);
 

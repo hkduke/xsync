@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.3
  *
  * @create: 2018-01-24
  *
- * @update: 2018-08-10 18:56:10
+ * @update: 2018-08-13 16:22:11
  */
 
 #ifndef XSYNC_CONFIG_H_
@@ -48,7 +48,7 @@ extern "C"
 /**
  * DO NOT CHANGE BELOW VALUE
  */
-#define XSYNC_VERSION    "0.0.1"
+#define XSYNC_VERSION    "0.0.3"
 
 #ifndef XSYNC_CLIENT_VERSION
 #  define XSYNC_CLIENT_VERSION          XSYNC_VERSION
@@ -119,28 +119,35 @@ extern "C"
 #  define XSYNC_INEVENT_BUFSIZE         XSYNC_BUFSIZE
 #endif
 
-
-/**
- * max threads and queues for client and server
- */
-#define XSYNC_TASKS_PERTHREAD           64
-#define XSYNC_THREADS_MAXIMUM           256
-#define XSYNC_QUEUES_MAXIMUM            4096
-
-#ifndef XSYNC_CLIENT_THREADS
-#  define XSYNC_CLIENT_THREADS          4
+#ifndef XSYNC_CLIENT_THREADS_MAX
+#define XSYNC_CLIENT_THREADS_MAX        256
 #endif
 
-#ifndef XSYNC_SERVER_THREADS
-#  define XSYNC_SERVER_THREADS          16
+/**
+ * default threads and queues for client and server
+ */
+#ifndef XSYNC_CLIENT_THREADS
+#  define XSYNC_CLIENT_THREADS          4
 #endif
 
 #ifndef XSYNC_CLIENT_QUEUES
 #  define XSYNC_CLIENT_QUEUES           256
 #endif
 
+#ifndef XSYNC_SERVER_THREADS
+#  define XSYNC_SERVER_THREADS          16
+#endif
+
 #ifndef XSYNC_SERVER_QUEUES
 #  define XSYNC_SERVER_QUEUES           1024
+#endif
+
+#ifndef XSYNC_SERVER_EVENTS
+#  define XSYNC_SERVER_EVENTS           1024
+#endif
+
+#ifndef XSYNC_SERVER_SOMAXCONN
+#  define XSYNC_SERVER_SOMAXCONN        1024
 #endif
 
 

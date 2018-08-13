@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.3
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-10 18:11:59
+ * @update: 2018-08-13 16:12:29
  */
 
 #ifndef SERVER_H_INCLUDED
@@ -69,29 +69,12 @@ void print_usage(void)
     #endif
 
     printf("\033[35mUsage:\033[0m %s [Options]\n", APP_NAME);
-    printf("\t\033[35m extremely synchronize files among servers.\033[0m\n");
+    printf("\t\033[35m eXtremely Synchronize files among servers.\033[0m\n");
     printf("\033[35mOptions:\033[0m\n"
         "\t-h, --help                   \033[35m display help messages\033[0m\n"
         "\t-V, --version                \033[35m print version information\033[0m\n"
         "\n"
         "\t-C, --config=PATHFILE        \033[35m specify path file to conf. '../conf/%s.conf' (default)\033[0m\n"
-        "\t-W, --from-watch             \033[35m config client from watch path no matter if specify config(-C, --config) or not.\033[0m\n"
-        "\t                               \033[35m if enable watch path by '--use-watch', config=PATHFILE will be ignored.\033[0m\n"
-        "\t                               \033[35m NOTE: watch/ folder lives alway in the sibling directory of config PATHFILE, for example:\033[0m\n"
-        "\t                               \033[35m client_home/\033[0m\n"
-        "\t                                     \033[35m |\033[0m\n"
-        "\t                                     \033[35m +--- CLIENTID    (client id file)\033[0m\n"
-        "\t                                     \033[35m |\033[0m\n"
-        "\t                                     \033[35m +--- bin/%s-%s\033[0m\n"
-        "\t                                     \033[35m |\033[0m\n"
-        "\t                                     \033[35m +--- conf/%s.conf    (default config file)\033[0m\n"
-        "\t                                     \033[35m |\033[0m\n"
-        "\t                                     \033[35m +--- watch/\033[0m\n"
-        "\t                                     \033[35m       |\033[0m\n"
-        "\t                                     \033[35m       +--- pathlinkA/ -> A    (symlink to path A)\033[0m\n"
-        "\t                                     \033[35m       +--- pathlinkB/ -> B    (symlink to path A)\033[0m\n"
-        "\t                                     \033[35m       ...\033[0m\n"
-        "\n"
         "\t-O, --log4c-rcpath=PATH      \033[35m specify path of log4crc file. '../conf/' (default)\033[0m\n"
         "\t-P, --priority=<PRIORITY>    \033[35m overwrite priority in log4crc. available PRIORITY:\033[0m\n"
         "\t                                    \033[35m 'fatal'\033[0m\n"
@@ -107,26 +90,26 @@ void print_usage(void)
         "\t                                    \033[35m 'stderr' - using appender stderr\033[0m\n"
         "\t                                    \033[35m 'syslog' - using appender syslog\033[0m\n"
         "\n"
-        "\t-t, --threads=<THREADS>      \033[35m specify number of threads. THREADS can also be:\033[0m\n"
-        "\t                                    \033[35m  0 - using default threads\033[0m\n"
-        "\t                                    \033[35m -1 - using maximum threads\033[0m\n"
+        "\t-t, --threads=<THREADS>      \033[35m specify number of threads. %d (default)\033[0m\n"
         "\n"
-        "\t-q, --queues=<QUEUES>        \033[35m specify total queues for all threads. QUEUES can also be:\033[0m\n"
-        "\t                                    \033[35m  0 - using default queues\033[0m\n"
-        "\t                                    \033[35m -1 - using maximum queues\033[0m\n"
+        "\t-q, --queues=<QUEUES>        \033[35m specify total queues for all threads. %d (default)\033[0m\n"
         "\n"
-        "\t-I, --clientid=<CLIENTID>    \033[35m CAUTION: replace clientid in file CLIENTID\033[0m\n"
+        "\t-e, --events=<EVENTS>        \033[35m specify maximum number of events for epoll. %d (default)\033[0m\n"
+        "\n"
+        "\t-s, --somaxconn=<BACKLOG>    \033[35m A kernel parameter provides an upper limit on the value of the\033[0m\n"
+        "\t                              \033[35m backlog parameter passed to the listen function. %d (default)\033[0m\n"
         "\n"
         "\t-D, --daemon                 \033[35m run as daemon process.\033[0m\n"
         "\t-K, --kill                   \033[35m kill all processes for this program.\033[0m\n"
         "\t-L, --list                   \033[35m list of pids for this program.\033[0m\n"
-        "\t-T, --test                   \033[35m run client as interactive mode for test connectivity to server.\033[0m\n"
-        "\n"
-        "\t-m, --md5=FILE               \033[35m md5sum on given file.\033[0m\n"
-        "\t-r, --regexp=PATTERN         \033[35m use pattern for matching on <express>.\033[0m\n"
+        "\t-I, --interactive            \033[35m run server as interactive mode.\033[0m\n"
         "\n"
         "\033[47;35m* COPYRIGHT (c) 2014-2020 PEPSTACK.COM, ALL RIGHTS RESERVED.\033[0m\n",
-        APP_NAME, APP_NAME, APP_VERSION, APP_NAME);
+        APP_NAME,
+        XSYNC_SERVER_THREADS,
+        XSYNC_SERVER_QUEUES,
+        XSYNC_SERVER_EVENTS,
+        XSYNC_SERVER_SOMAXCONN);
 
 #ifdef DEBUG
     printf("\033[31m**** Caution: DEBUG compiling mode only used in develop stage ! ****\033[0m\n");
@@ -148,36 +131,38 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     char priority[20] = { "debug" };
     char appender[60] = { "stdout" };
 
-    int from_watch = 0;
-
     int interactive = 0;
     int isdaemon = 0;
 
     int threads = INT_MAX;
     int queues = INT_MAX;
+    int somaxconn = INT_MAX;
+    int events = INT_MAX;
 
     bzero(opts, sizeof(*opts));
-    opts->threads = INT_MAX;
-    opts->queues = INT_MAX;
+
+    opts->threads = XSYNC_SERVER_THREADS;
+    opts->queues = XSYNC_SERVER_QUEUES;
+    opts->somaxconn = XSYNC_SERVER_SOMAXCONN;
+    opts->maxevents = XSYNC_SERVER_EVENTS;
+    opts->timeout_ms = 1000;
 
     /* command arguments */
     const struct option lopts[] = {
         {"help", no_argument, 0, 'h'},
         {"version", no_argument, 0, 'V'},
         {"config", required_argument, 0, 'C'},
-        {"from-watch", no_argument, 0, 'W'},
         {"log4c-rcpath", required_argument, 0, 'O'},
         {"priority", required_argument, 0, 'P'},
         {"appender", required_argument, 0, 'A'},
         {"threads", required_argument, 0, 't'},
         {"queues", required_argument, 0, 'q'},
-        {"clientid", required_argument, 0, 'I'},
+        {"events", required_argument, 0, 'e'},
+        {"somaxconn", required_argument, 0, 's'},
         {"daemon", no_argument, 0, 'D'},
         {"kill", no_argument, 0, 'K'},
         {"list", no_argument, 0, 'L'},
-        {"test", no_argument, 0, 'T'},
-        {"md5", required_argument, 0, 'm'},
-        {"regexp", required_argument, 0, 'r'},
+        {"interactive", no_argument, 0, 'I'},
         {0, 0, 0, 0}
     };
 
@@ -242,10 +227,6 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
             }
             break;
 
-        case 'W':
-            from_watch = 1;
-            break;
-
         case 'O':
             /* overwrite default log4crc file */
             ret = snprintf(log4crc, sizeof(log4crc), "%s", optarg);
@@ -290,28 +271,15 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
             queues = atoi(optarg);
             break;
 
+        case 'e':
+            events = atoi(optarg);
+            break;
+
+        case 's':
+            somaxconn = atoi(optarg);
+            break;
+
         case 'I':
-            exit(0);
-            break;
-
-        case 'm':
-            ret = check_file_mode(optarg, R_OK);
-
-            if (ret) {
-                fprintf(stderr, "\033[1;31m[error: md5sum]\033[0m file not found: %s\n\n", optarg);
-            } else {
-                ret = md5sum_file(optarg, buff, sizeof(buff));
-
-                if (ret == 0) {
-                    fprintf(stdout, "\033[1;32m[success: md5sum]\033[0m %s (%s)\n", buff, optarg);
-                } else {
-                    fprintf(stderr, "\033[1;31m[error: md5sum]\033[0m file: %s\n", optarg);
-                }
-            }
-            exit(ret);
-            break;
-
-        case 'T':
             interactive = 1;
             break;
 
@@ -320,10 +288,6 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
             break;
 
         case 'L':
-            exit(0);
-            break;
-
-        case 'r':
             exit(0);
             break;
 
@@ -360,18 +324,23 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
 
     if (threads != INT_MAX) {
         // 用户指定了线程覆盖配置文件, 此时队列也必须覆盖
-        //
-        opts->threads = appopts_validate_threads(threads);
-        opts->queues = appopts_validate_queues(opts->threads, queues);
+        if (threads > 1024) {
+            opts->threads = 1024;
+        } else if (threads < 8) {
+            opts->threads = 8;
+        } else {
+            opts->threads = threads;
+        }
 
         fprintf(stdout, "\033[1;33m* Overwritten config : threads=%d queues=%d\033[0m\n\n", opts->threads, opts->queues);
-    } else if (queues != INT_MAX) {
-        // 用户只指定了队列覆盖配置文件, 坚持范围
-        //
-        if (queues > XSYNC_QUEUES_MAXIMUM) {
-            opts->queues = XSYNC_QUEUES_MAXIMUM;
-        } else if (queues < XSYNC_TASKS_PERTHREAD) {
-            opts->queues = XSYNC_TASKS_PERTHREAD;
+    }
+
+    if (queues != INT_MAX) {
+        // 用户只指定了队列覆盖配置文件
+        if (queues > 4096) {
+            opts->queues = 4096;
+        } else if (queues < 256) {
+            opts->queues = 256;
         } else {
             opts->queues = queues;
         }
@@ -379,26 +348,24 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
         fprintf(stdout, "\033[1;33m* Overwritten config : threads=? queues=%d\033[0m\n\n", opts->queues);
     }
 
-    if (from_watch) {
-        // 强迫从 watch 目录自动配置
-        snprintf(buff, sizeof(buff), "%s", config);
-
-        *strrchr(buff, '/') = 0;
-        *strrchr(buff, '/') = 0;
-        strcat(buff, "/watch");
-
-        if (! isdir(buff)) {
-            fprintf(stderr, "\033[1;31m[error] NOT a directory:\033[0m %s\n\n", buff);
-            exit(-1);
+    if (events != INT_MAX) {
+        if (events > 4096) {
+            opts->maxevents = 4096;
+        } else if (opts->maxevents < 256) {
+            opts->maxevents = 256;
+        } else {
+            opts->maxevents = events;
         }
+    }
 
-        if (0 != access(buff, F_OK|R_OK|X_OK)) {
-            fprintf(stderr, "\033[1;31m[error] watch error(%d): %s.\033[0m (%s)\n\n", errno, strerror(errno), buff);
-            exit(-1);
+    if (somaxconn != INT_MAX) {
+        if (somaxconn > 4096) {
+            opts->somaxconn = 4096;
+        } else if (opts->somaxconn < 256) {
+            opts->somaxconn = 256;
+        } else {
+            opts->somaxconn = somaxconn;
         }
-
-        snprintf(config, sizeof(config), "%s", buff);
-        fprintf(stdout, "\033[1;36m* Force using watch  : %s\033[0m\n", config);
     }
 
     // 设置log4c
@@ -418,9 +385,6 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     opts->startcmd[ret] = 0;
 
     opts->isdaemon = isdaemon;
-    opts->threads = threads;
-    opts->queues = queues;
-    opts->from_watch = from_watch;
     opts->interactive = interactive;
 
     memcpy(opts->config, config, XSYNC_PATHFILE_MAXLEN);
