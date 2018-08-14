@@ -143,18 +143,6 @@ redisContext * RedisConnOpenNode(RedisConn_t * redconn, int index)
         }
 
         if (ctx) {
-            if (redconn->password[0]) {
-                redisReply * reply = (redisReply *) redisCommand(ctx, "AUTH %s", redconn->password);
-                if (reply) {
-                    // Authorization success
-                    freeReplyObject(reply);
-                } else {
-                    // Authorization failed
-                    redisFree(ctx);
-                    ctx = 0;
-                }
-            }
-
             if (ctx) {
                 if (redconn->timeo_data.tv_sec || redconn->timeo_data.tv_usec) {
                     if (redisSetTimeout(ctx, redconn->timeo_data) == REDIS_ERR) {
@@ -251,6 +239,8 @@ redisReply * RedisConnCommand(RedisConn_t * redconn, int argc, const char **argv
     }
 
     if (reply->type == REDIS_REPLY_ERROR) {
+        printf("REDIS_REPLY_ERROR:%s\n", reply->str);
+
         /**
          * REDIS_REPLY_STRING=1
          * REDIS_REPLY_ARRAY=2
@@ -260,38 +250,48 @@ redisReply * RedisConnCommand(RedisConn_t * redconn, int argc, const char **argv
          * REDIS_REPLY_ERROR=6
          */
 
-        if (reply->len > 5) {
-            // 'MOVED 7142 127.0.0.1:7002'
-            if (strstr(reply->str, "MOVED ")) {
-                char * start = &(reply->str[6]);
-                char * end = strchr(start, 32);
+        /* 'MOVED 7142 127.0.0.1:7002' */
+        if (strstr(reply->str, "MOVED ")) {
+            char * start = &(reply->str[6]);
+            char * end = strchr(start, 32);
+
+            if (end) {
+                start = end;
+                ++start;
+                *end = 0;
+
+                end = strchr(start, ':');
 
                 if (end) {
-                    start = end;
-                    ++start;
-                    *end = 0;
+                    *end++ = 0;
 
-                    end = strchr(start, ':');
+                    /**
+                     * start => host
+                     * end => port
+                     */
+                    printf("Redirected to slot [%s] located at [%s:%s]\n", &reply->str[6], start, end);
 
-                    if (end) {
-                        *end++ = 0;
+                    ctx = RedisConnGetActiveContext(redconn, start, atoi(end));
 
-                        /**
-                         * start => host
-                         * end => port
-                         */
-                        printf("Redirected to slot [%s] located at [%s:%s]\n", &reply->str[6], start, end);
+                    if (ctx) {
+                        freeReplyObject(reply);
 
-                        ctx = RedisConnGetActiveContext(redconn, start, atoi(end));
-
-                        if (ctx) {
-                            freeReplyObject(reply);
-
-                            return RedisConnCommand(redconn, argc, argv, argvlen);
-                        }
+                        return RedisConnCommand(redconn, argc, argv, argvlen);
                     }
                 }
             }
+        }
+
+        /* 'NOAUTH Authentication required.' */
+        if (strstr(reply->str, "NOAUTH ")) {
+            const char * cmds[] = {
+                "AUTH",
+                redconn->password
+            };
+
+            freeReplyObject(reply);
+
+            return RedisConnCommand(redconn, 2, cmds, 0);
         }
     }
 

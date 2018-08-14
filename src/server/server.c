@@ -172,7 +172,7 @@ int main (int argc, char *argv[])
 
         RedisConn_t  redconn;
 
-        RedisConnInitiate(&redconn, 9, 0, 100, 100);
+        RedisConnInitiate(&redconn, 9, "PepSt@ck", 100, 100);
 
         RedisConnSetNode(&redconn, 0, "127.0.0.1", 7001);
         RedisConnSetNode(&redconn, 1, "127.0.0.1", 7002);
@@ -195,6 +195,9 @@ int main (int argc, char *argv[])
         for (i = 0; i < 100; ++i) {
             redisReply * reply = RedisConnCommand(&redconn, sizeof(cmds)/sizeof(cmds[0]), cmds, 0);
             assert(reply);
+
+            printf("reply-type:%d\n", reply->type);
+            printf(" reply-str:%s\n", reply->str);
 
             if (reply->type == REDIS_REPLY_STRING) {
                 printf("GET author=%s\n", reply->str);
