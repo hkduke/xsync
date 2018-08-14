@@ -7,7 +7,8 @@ SOURCES := \
 	base64.c \
 	readconf.c \
 	mul_timer.c \
-	randctx.c
+	randctx.c \
+    redis_conn.c
 
 
 #   If the macro NDEBUG is defined at the moment <assert.h> was last

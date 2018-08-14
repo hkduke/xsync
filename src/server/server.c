@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.5
+ * @version: 0.0.6
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-13 17:01:22
+ * @update: 2018-08-14 14:56:15
  */
 
 #include "server.h"
@@ -163,6 +163,48 @@ int main (int argc, char *argv[])
         LOGGER_FATAL("signal(SIGPIPE) error(%d): %s", errno, strerror(errno));
         exit(-1);
     }
+
+    do {
+        /**
+         * redis connection
+         */
+        int i;
+
+        RedisConn_t  redconn;
+
+        RedisConnInitiate(&redconn, 9, 0, 100, 100);
+
+        RedisConnSetNode(&redconn, 0, "127.0.0.1", 7001);
+        RedisConnSetNode(&redconn, 1, "127.0.0.1", 7002);
+        RedisConnSetNode(&redconn, 2, "127.0.0.1", 7003);
+        RedisConnSetNode(&redconn, 3, "127.0.0.1", 7004);
+        RedisConnSetNode(&redconn, 4, "127.0.0.1", 7005);
+        RedisConnSetNode(&redconn, 5, "127.0.0.1", 7006);
+        RedisConnSetNode(&redconn, 6, "127.0.0.1", 7007);
+        RedisConnSetNode(&redconn, 7, "127.0.0.1", 7008);
+        RedisConnSetNode(&redconn, 8, "127.0.0.1", 7009);
+
+        redisContext * redctx = RedisConnGetActiveContext(&redconn, 0, 0);
+        assert(redctx);
+
+        const char * cmds[] = {
+            "GET",
+            "author"
+        };
+
+        for (i = 0; i < 100; ++i) {
+            redisReply * reply = RedisConnCommand(&redconn, sizeof(cmds)/sizeof(cmds[0]), cmds, 0);
+            assert(reply);
+
+            if (reply->type == REDIS_REPLY_STRING) {
+                printf("GET author=%s\n", reply->str);
+            }
+
+            freeReplyObject(reply);
+        }
+
+        RedisConnRelease(&redconn);
+    } while(0);
 
     if (opts.interactive) {
         run_interactive(&opts);

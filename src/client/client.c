@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.6
  *
  * @create: 2018-01-24
  *
- * @update: 2018-08-13 15:50:29
+ * @update: 2018-08-13 18:01:39
  */
 
 #include "client.h"

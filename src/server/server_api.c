@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.3
+ * @version: 0.0.6
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-13 16:16:18
+ * @update: 2018-08-13 19:03:32
  */
 
 #include "server_api.h"
@@ -505,7 +505,7 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
     server->epollfd = epollfd;
     server->listenfd = listenfd;
     server->listenfd_oldopt = old_sockopt;
-    
+
     memcpy(server->host, opts->host, sizeof(opts->host));
     server->port = atoi(opts->port);
 
