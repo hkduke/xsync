@@ -221,7 +221,7 @@ redisContext * RedisConnGetActiveContext(RedisConn_t * redconn, const char *host
  *   Once an error is returned the context cannot be reused and you should
  *   set up a new connection.
  */
-redisReply * RedisConnCommand(RedisConn_t * redconn, int argc, const char **argv, const size_t *argvlen)
+redisReply * RedisConnExecCommand(RedisConn_t * redconn, int argc, const char **argv, const size_t *argvlen)
 {
     redisReply * reply = 0;
 
@@ -276,7 +276,7 @@ redisReply * RedisConnCommand(RedisConn_t * redconn, int argc, const char **argv
                     if (ctx) {
                         freeReplyObject(reply);
 
-                        return RedisConnCommand(redconn, argc, argv, argvlen);
+                        return RedisConnExecCommand(redconn, argc, argv, argvlen);
                     }
                 }
             }
@@ -291,7 +291,7 @@ redisReply * RedisConnCommand(RedisConn_t * redconn, int argc, const char **argv
 
             freeReplyObject(reply);
 
-            return RedisConnCommand(redconn, 2, cmds, 0);
+            return RedisConnExecCommand(redconn, 2, cmds, 0);
         }
     }
 

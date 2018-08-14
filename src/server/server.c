@@ -193,7 +193,7 @@ int main (int argc, char *argv[])
         };
 
         for (i = 0; i < 100; ++i) {
-            redisReply * reply = RedisConnCommand(&redconn, sizeof(cmds)/sizeof(cmds[0]), cmds, 0);
+            redisReply * reply = RedisConnExecCommand(&redconn, sizeof(cmds)/sizeof(cmds[0]), cmds, 0);
             assert(reply);
 
             printf("reply-type:%d\n", reply->type);
