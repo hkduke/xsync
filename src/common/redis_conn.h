@@ -81,7 +81,7 @@ extern int RedisConnInitiate2(RedisConn_t * redconn, const char * host_post_pair
 
 extern void RedisConnRelease(RedisConn_t * redconn);
 
-extern void RedisConnSetNode(RedisConn_t * redconn, int nodeIndex, const char *host, int port);
+extern int RedisConnSetNode(RedisConn_t * redconn, int nodeIndex, const char *host, int port);
 
 extern void RedisConnCloseNode(RedisConn_t * redconn, int nodeIndex);
 
@@ -90,6 +90,8 @@ extern redisContext * RedisConnOpenNode(RedisConn_t * redconn, int nodeIndex);
 extern redisContext * RedisConnGetActiveContext(RedisConn_t * redconn, const char *host, int port);
 
 extern redisReply * RedisConnExecCommand(RedisConn_t * redconn, int argc, const char **argv, const size_t *argvlen);
+
+extern void RedisFreeReplyObject(redisReply **reply);
 
 #if defined(__cplusplus)
 }

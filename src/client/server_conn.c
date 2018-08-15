@@ -71,21 +71,21 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
 
         char errmsg[256];
 
-        XSYNC_ConnectRequest connRequest;
+        XSConnectRequest connRequest;
 
-        XSYNC_ConnectRequestBuild(&connRequest, servOpts->magic, t32, rand_gen(&xcon->rctx), clientid);
+        XSConnectRequestBuild(&connRequest, servOpts->magic, t32, rand_gen(&xcon->rctx), clientid);
 
         LOGGER_TRACE("msgid=%d('%c%c%c%c'), magic=%d, version=%d('%d.%d.%d'), time=%d, clientid=%s, randnum=%d, crc32=%d",
                 connRequest.msgid,
-                connRequest.connect_request[0],
-                connRequest.connect_request[1],
-                connRequest.connect_request[2],
-                connRequest.connect_request[3],
+                connRequest._request[0],
+                connRequest._request[1],
+                connRequest._request[2],
+                connRequest._request[3],
                 connRequest.magic,
                 connRequest.client_version,
-                connRequest.connect_request[11],
-                connRequest.connect_request[10],
-                connRequest.connect_request[9],
+                connRequest._request[11],
+                connRequest._request[10],
+                connRequest._request[9],
                 connRequest.client_utctime,
                 connRequest.clientid,
                 connRequest.randnum,
@@ -100,8 +100,8 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
             LOGGER_INFO("opensocket_v2 success: %s:%s", servOpts->host, servOpts->sport);
 
             // 发送连接请求: 64 字节
-            int err = sendlen(sockfd, (char*) &connRequest, XSYNC_ConnectRequestSize);
-            if (err != XSYNC_ConnectRequestSize) {
+            int err = sendlen(sockfd, (char *) connRequest.chunk, XSConnectRequestSize);
+            if (err != XSConnectRequestSize) {
                 LOGGER_ERROR("sendlen error(%d): %s", errno, strerror(errno));
                 close(sockfd);
                 return XS_ERROR;

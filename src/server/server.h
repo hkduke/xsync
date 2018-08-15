@@ -195,8 +195,8 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
          * parse command arguments. usning: getopt_long_only
          *    https://blog.csdn.net/pengrui18/article/details/8078813
          */
-        int ch, flag;
-
+        int ch, index;
+        
         const struct option lopts[] = {
             {"help", no_argument, 0, 'h'},
             {"version", no_argument, 0, 'V'},
@@ -219,8 +219,22 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
             {0, 0, 0, 0}
         };
 
-        while ((ch = getopt_long(argc, argv, "DhIKLVC:O:P:A:s:p:t:q:e:m:r:", lopts, 0)) != -1) {
+        while ((ch = getopt_long_only(argc, argv, "DhIKLVC:O:P:A:s:p:t:q:e:m:r:a:", lopts, &index)) != -1) {
             switch (ch) {
+            case '?':
+                fprintf(stderr, "\033[1;31m[error]\033[0m option not defined.\n");
+                exit(-1);
+
+            case 0:
+                // flag 不为 0
+                switch (index) {
+                case 1:
+                case 2:
+                default:
+                    break;
+                }
+                break;
+
             case 'D':
                 isdaemon = 1;
                 break;

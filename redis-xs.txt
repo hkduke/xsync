@@ -1,0 +1,7 @@
+# https://stackoverflow.com/questions/21347437/design-redis-database-table-like-sql
+#
+
+
+hmset xs:clientid:xsync-test magic 89604916
+
+hget xs:clientid:xsync-test magic

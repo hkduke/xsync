@@ -83,7 +83,7 @@ extern "C"
 
 
 /***********************************************************************
- * XSYNC_ConnectRequest
+ * XSConnectRequest
  *
  *   This is the 1st message sent by client to server so as to
  *     establish a new session connection.
@@ -103,17 +103,17 @@ extern "C"
  * -----------------------------------------
  *  64
  **********************************************************************/
+#define XSConnectRequestSize    64
+
 #ifdef _MSC_VER
 #  pragma pack(1)
 #endif
 
-#define XSYNC_ConnectRequestSize    64
-
-typedef struct XSYNC_ConnectRequest
+typedef struct XSConnectRequest
 {
     union {
         struct {
-            ub4 msgid;              /* XS00, XS01 */
+            ub4 msgid;              /* XCON */
             ub4 magic;
 
             ub4 client_version;     /* xsync-client version */
@@ -126,11 +126,11 @@ typedef struct XSYNC_ConnectRequest
             ub4 crc32_checksum;
         };
 
-        ub1 connect_request[64];
+        ub1 _request[XSConnectRequestSize];
     };
 
-    ub1 request_buffer[64];
-} GNUC_PACKED ARM_PACKED XSYNC_ConnectRequest;
+    ub1 chunk[XSConnectRequestSize];
+} GNUC_PACKED ARM_PACKED XSConnectRequest;
 
 #ifdef _MSC_VER
 #  pragma pack()
@@ -227,17 +227,17 @@ inline ub4 version_string_to_ub4 (const char * version)
 
 
 __no_warning_unused(static)
-inline ub1 * XSYNC_ConnectRequestBuild (XSYNC_ConnectRequest *req, uint32_t magic, ub4 utctime, ub4 randnum, char clientid[40])
+inline ub1 * XSConnectRequestBuild (XSConnectRequest *req, uint32_t magic, ub4 utctime, ub4 randnum, char clientid[40])
 {
     ub4 be;
 
-    bzero(req, sizeof(XSYNC_ConnectRequest));
+    bzero(req, sizeof(XSConnectRequest));
 
     /* XCON */
-    req->connect_request[0] = 'X';
-    req->connect_request[1] = 'C';
-    req->connect_request[2] = 'O';
-    req->connect_request[3] = 'N';
+    req->_request[0] = 'X';
+    req->_request[1] = 'C';
+    req->_request[2] = 'O';
+    req->_request[3] = 'N';
 
     req->magic = magic;
 
@@ -252,7 +252,7 @@ inline ub1 * XSYNC_ConnectRequestBuild (XSYNC_ConnectRequest *req, uint32_t magi
      * write to send buffer
      */
     do {
-        ub1 * pbuf = req->request_buffer;
+        ub1 * pbuf = req->chunk;
 
         memcpy(pbuf, &req->msgid, sizeof(be));
         pbuf += sizeof(be);
@@ -275,28 +275,28 @@ inline ub1 * XSYNC_ConnectRequestBuild (XSYNC_ConnectRequest *req, uint32_t magi
         memcpy(pbuf, &be, sizeof(be));
         pbuf += sizeof(be);
 
-        req->crc32_checksum = (ub4) crc32(0L, (const unsigned char *) req->request_buffer, sizeof(req->request_buffer) - sizeof(be));
+        req->crc32_checksum = (ub4) crc32(0L, (const unsigned char *) req->chunk, sizeof(req->chunk) - sizeof(be));
 
         be = BO_i32_htobe(req->crc32_checksum);
         memcpy(pbuf, &be, sizeof(be));
         pbuf += sizeof(be);
 
-        assert(pbuf - req->request_buffer == 64);
+        assert(pbuf - req->chunk == 64);
     } while(0);
 
-    return req->request_buffer;
+    return req->chunk;
 }
 
 
 __no_warning_unused(static)
-inline XS_BOOL XSYNC_ConnectRequestParse (unsigned char *req_buffer, XSYNC_ConnectRequest *req)
+inline XS_BOOL XSConnectRequestParse (unsigned char *chunk, XSConnectRequest *req)
 {
     ub4 b;
-    ub1 * pbuf = req_buffer;
+    ub1 * pbuf = chunk;
 
-    b = (ub4) crc32(0L, (const unsigned char *) req_buffer, sizeof(req->request_buffer) - sizeof(b));
+    b = (ub4) crc32(0L, (const unsigned char *) chunk, XSConnectRequestSize - sizeof(b));
 
-    req->crc32_checksum = (ub4) BO_bytes_betoh_i32(req_buffer + sizeof(req->request_buffer) - sizeof(b));
+    req->crc32_checksum = (ub4) BO_bytes_betoh_i32(chunk + XSConnectRequestSize - sizeof(b));
 
     if (b != req->crc32_checksum) {
         return XS_FALSE;
@@ -320,8 +320,6 @@ inline XS_BOOL XSYNC_ConnectRequestParse (unsigned char *req_buffer, XSYNC_Conne
     req->randnum = (ub4) BO_bytes_betoh_i32(pbuf);
     pbuf += sizeof(ub4);
     pbuf += sizeof(ub4);
-
-    assert(pbuf - req_buffer == 64);
 
     return XS_TRUE;
 }

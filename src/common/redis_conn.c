@@ -82,7 +82,7 @@ int RedisConnInitiate(RedisConn_t * redconn, int maxNodes, const char * password
     do {
         int i;
         for (i = 0; i < maxNodes; ++i) {
-            redconn->nodes[i].index = i;
+            redconn->nodes[i].index = -1;
         }
     } while (0);
 
@@ -164,7 +164,10 @@ int RedisConnInitiate2(RedisConn_t * redconn, const char * host_post_pairs, cons
     while (hp) {
         port = strchr(hp, ':');
         *port++ = 0;
-        RedisConnSetNode(redconn, nodes++, hp, atoi(port));
+        if (RedisConnSetNode(redconn, nodes++, hp, atoi(port)) != 0) {
+            free(buf);
+            return -1;
+        }
         hp = strtok(0, ",");
     }
 
@@ -196,14 +199,35 @@ void RedisConnRelease(RedisConn_t * redconn)
 
 
 __attribute__((used))
-void RedisConnSetNode(RedisConn_t * redconn, int nodeIndex, const char *host, int port)
+int RedisConnSetNode(RedisConn_t * redconn, int nodeIndex, const char *host, int port)
 {
-    assert(redconn->nodes[nodeIndex].index == nodeIndex);
+    int i = 0;
+
+    if (redconn->nodes[nodeIndex].index != -1) {
+        snprintf(redconn->errmsg, sizeof(redconn->errmsg), "node already existed (index=%d)", nodeIndex);
+        redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+        return -1;
+    }
+    
+    for (i = 0; i < redconn->num; ++i) {
+        if (redconn->nodes[i].index == i) {
+            if (redconn->nodes[i].port == port && ! strcmp(redconn->nodes[i].host, host)) {
+                snprintf(redconn->errmsg, sizeof(redconn->errmsg), "duplicated node(%s:%d)", host, port);
+                redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+                return -2;
+            }
+        }
+    }
+
+    assert(redconn->nodes[nodeIndex].index == -1);
 
     redconn->nodes[nodeIndex].host = (char *) calloc(strlen(host) + 1, sizeof(char));
     memcpy(redconn->nodes[nodeIndex].host, host, strlen(host));
 
     redconn->nodes[nodeIndex].port = port;
+    redconn->nodes[nodeIndex].index = nodeIndex;
+
+    return 0;
 }
 
 
@@ -257,6 +281,8 @@ redisContext * RedisConnOpenNode(RedisConn_t * redconn, int index)
     } while (0);
 
     /* never run to this. */
+    snprintf(redconn->errmsg, sizeof(redconn->errmsg), "should never run to this.");
+    redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
     return 0;
 }
 
@@ -303,6 +329,8 @@ redisContext * RedisConnGetActiveContext(RedisConn_t * redconn, const char *host
     }
 
     // 没有连接可以使用
+    snprintf(redconn->errmsg, sizeof(redconn->errmsg), "no active context.");
+    redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
     return 0;
 }
 
@@ -330,13 +358,13 @@ redisReply * RedisConnExecCommand(RedisConn_t * redconn, int argc, const char **
 
     if (! reply) {
         // 执行失败, 连接不能再被使用. 必须建立新连接!!
+        snprintf(redconn->errmsg, sizeof(redconn->errmsg), "redisCommandArgv failed: bad context.");
+        redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
         RedisConnCloseNode(redconn, redconn->active_node->index);
         return 0;
     }
 
     if (reply->type == REDIS_REPLY_ERROR) {
-        printf("REDIS_REPLY_ERROR:%s\n", reply->str);
-
         /**
          * REDIS_REPLY_STRING=1
          * REDIS_REPLY_ARRAY=2
@@ -347,7 +375,7 @@ redisReply * RedisConnExecCommand(RedisConn_t * redconn, int argc, const char **
          */
 
         /* 'MOVED 7142 127.0.0.1:7002' */
-        if (strstr(reply->str, "MOVED ")) {
+        if (! strncmp(reply->str, "MOVED ", 6)) {
             char * start = &(reply->str[6]);
             char * end = strchr(start, 32);
 
@@ -365,21 +393,16 @@ redisReply * RedisConnExecCommand(RedisConn_t * redconn, int argc, const char **
                      * start => host
                      * end => port
                      */
-                    printf("Redirected to slot [%s] located at [%s:%s]\n", &reply->str[6], start, end);
-
                     ctx = RedisConnGetActiveContext(redconn, start, atoi(end));
 
                     if (ctx) {
                         freeReplyObject(reply);
-
                         return RedisConnExecCommand(redconn, argc, argv, argvlen);
                     }
                 }
             }
-        }
-
-        /* 'NOAUTH Authentication required.' */
-        if (strstr(reply->str, "NOAUTH ")) {
+        } else if (! strncmp(reply->str, "NOAUTH ", 7)) {
+            /* 'NOAUTH Authentication required.' */
             const char * cmds[] = {
                 "AUTH",
                 redconn->password
@@ -387,9 +410,44 @@ redisReply * RedisConnExecCommand(RedisConn_t * redconn, int argc, const char **
 
             freeReplyObject(reply);
 
-            return RedisConnExecCommand(redconn, 2, cmds, 0);
+            reply = RedisConnExecCommand(redconn, sizeof(cmds)/sizeof(cmds[0]), cmds, 0);
+
+            if (reply &&
+                reply->type == REDIS_REPLY_STATUS &&
+                reply->len == 2 &&
+                reply->str[0] == 'O' && reply->str[1] == 'K') {
+                // authentication success
+                freeReplyObject(reply);
+
+                // do command
+                return RedisConnExecCommand(redconn, argc, argv, argvlen);
+            }
+
+            if (reply) {
+                snprintf(redconn->errmsg, sizeof(redconn->errmsg), "AUTH failed(%d): %s", reply->type, reply->str);
+                redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+                freeReplyObject(reply);
+            }
+
+            return 0;
         }
+
+        snprintf(redconn->errmsg, sizeof(redconn->errmsg), "TODO: REDIS_REPLY_ERROR: %s", reply->str);
+        redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+        freeReplyObject(reply);
+        return 0;
     }
 
     return reply;
+}
+
+
+__attribute__((used))
+void RedisFreeReplyObject(redisReply **ppreply)
+{
+    redisReply *reply = *ppreply;
+    if (reply) {
+        freeReplyObject(reply);
+        *ppreply = 0;
+    }
 }

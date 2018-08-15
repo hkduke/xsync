@@ -94,8 +94,8 @@ void exit_handler (int exitCode, void *ppData)
  *
  *
  * Run Commands:
- * 1) Debug:
- *     $ ../target/server-client-0.0.1 -Ptrace -Astdout
+ *
+ *   $ xsync-server --redis-cluster='127.0.0.1:7001,127.0.0.1:7002,127.0.0.1:7003,127.0.0.1:7004,127.0.0.1:7005,127.0.0.1:7006,127.0.0.1:7007,127.0.0.1:7008,127.0.0.1:7009' --redis-auth='PepSt@ck'
  *
  **********************************************************************/
 int main (int argc, char *argv[])
@@ -163,43 +163,6 @@ int main (int argc, char *argv[])
         LOGGER_FATAL("signal(SIGPIPE) error(%d): %s", errno, strerror(errno));
         exit(-1);
     }
-
-    do {
-        /**
-         * redis connection
-         */
-        int i;
-
-        RedisConn_t  redconn;
-
-        char hplist[] = "127.0.0.1:7001,127.0.0.1:7002,127.0.0.1:7003,127.0.0.1:7004,127.0.0.1:7005,127.0.0.1:7006,127.0.0.1:7007,127.0.0.1:7008,127.0.0.1:7009";
-        
-        RedisConnInitiate2(&redconn, hplist, "PepSt@ck", 100, 100);
-
-        redisContext * redctx = RedisConnGetActiveContext(&redconn, 0, 0);
-        assert(redctx);
-
-        const char * cmds[] = {
-            "GET",
-            "author"
-        };
-
-        for (i = 0; i < 100; ++i) {
-            redisReply * reply = RedisConnExecCommand(&redconn, sizeof(cmds)/sizeof(cmds[0]), cmds, 0);
-            assert(reply);
-
-            printf("reply-type:%d\n", reply->type);
-            printf(" reply-str:%s\n", reply->str);
-
-            if (reply->type == REDIS_REPLY_STRING) {
-                printf("GET author=%s\n", reply->str);
-            }
-
-            freeReplyObject(reply);
-        }
-
-        RedisConnRelease(&redconn);
-    } while(0);
 
     if (opts.interactive) {
         run_interactive(&opts);

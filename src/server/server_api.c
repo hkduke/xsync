@@ -125,7 +125,7 @@ static void doNewConnectTask (perthread_data *perdata)
     XS_server server = (XS_server) perdata->pollin_data.arg;
     assert(server);
 
-    while (offset < XSYNC_ConnectRequestSize) {
+    while (offset < XSConnectRequestSize) {
         // 接收连接请求头
         size = recv(connfd, iobuf + offset, XSYNC_BUFSIZE, 0);
 
@@ -135,14 +135,15 @@ static void doNewConnectTask (perthread_data *perdata)
              * close the descriptor will make epoll remove it
              *   from the set of descriptors which are monitored.
              **/
-            LOGGER_WARN("close(%d): %s", connfd, strerror(errno));
+            LOGGER_WARN("client(%d) close: %s", connfd, strerror(errno));
             close(connfd);
+            offset = 0;
             break;
         } else if (size < 0) {
             if (errno == EAGAIN) {
                 // socket是非阻塞时, EAGAIN 表示缓冲队列已满, 并非网络出错，而是可以再次注册事件
                 if (epapi_modify_epoll(epollfd, connfd, EPOLLONESHOT, iobuf, XSYNC_BUFSIZE) == -1) {
-                    LOGGER_ERROR("epapi_modify_epoll error: %s", iobuf);
+                    LOGGER_ERROR("client(%d) epapi_modify_epoll error: %s", connfd, iobuf);
                     close(connfd);
                 } else {
                     LOGGER_DEBUG("epapi_modify_epoll ok");
@@ -150,20 +151,71 @@ static void doNewConnectTask (perthread_data *perdata)
                     // 此处不应该关闭，只是模拟定期清除 sessioin
                     //close(connfd);
                 }
+                offset = 0;
                 break;
             }
 
-            LOGGER_ERROR("recv error(%d): %s", errno, strerror(errno));
+            LOGGER_ERROR("client(%d) recv error(%d): %s", connfd, errno, strerror(errno));
+            offset = 0;
             break;
         } else {
             // success
             offset += size;
-            LOGGER_DEBUG("==== client(%d) recv: {%d}", connfd, size);
         }
     }
 
-    if (offset == XSYNC_ConnectRequestSize) {
-        LOGGER_INFO("good connect request(%d)", offset);
+    if (offset == XSConnectRequestSize) {
+        XSConnectRequest request = {0};
+
+        XS_BOOL xb = XSConnectRequestParse((ub1 *) perdata->buffer, &request);
+
+        if (xb) {
+            LOGGER_DEBUG("client(%d) connect request: clientid={%s} magic={%d}",
+                connfd, request.clientid, request.magic);
+
+            snprintf((char*) request.chunk, XSConnectRequestSize, "xs:clientid:%s", request.clientid);
+            request.chunk[XSConnectRequestSize - 1] = 0;
+
+            const char * argv[] = {
+                "HGET",
+                "xs:clientid:xsync-test",
+                "magic"
+            };
+
+            redisReply * reply = RedisConnExecCommand(&perdata->redconn, sizeof(argv)/sizeof(argv[0]), argv, 0);
+
+            if (! reply || reply->type != REDIS_REPLY_STRING) {
+                LOGGER_ERROR("RedisConnExecCommand - %s", perdata->redconn.errmsg);
+
+                RedisFreeReplyObject(&reply);
+
+                close(connfd);
+            } else {
+                LOGGER_DEBUG("clientid={%s}, magic={%s}", request.clientid, reply->str);
+
+                snprintf((char*) request.chunk, XSConnectRequestSize, "%d", request.magic);
+
+                if (! strcmp((const char *) request.chunk, reply->str)) {
+                    LOGGER_INFO("client(%d): accepted client={%s}", connfd, request.clientid);
+
+                    RedisFreeReplyObject(&reply);
+
+                    // TODO:
+                    //
+
+
+                } else {
+                    LOGGER_WARN("client(%d): declined client={%s}", connfd, request.clientid);
+
+                    RedisFreeReplyObject(&reply);
+
+                    close(connfd);
+                }
+            }
+        } else {
+            LOGGER_WARN("bad connect request");
+            close(connfd);
+        }
     } else {
         LOGGER_ERROR("bad connect request size(%d)", offset);
         close(connfd);
@@ -288,11 +340,11 @@ static int xsyncOnEpollEvent (int msgid, int expect, epevent_data_t *epdata, voi
         do {
             switch (epdata->status) {
             case EPOLL_WAIT_TIMEOUT:
-                LOGGER_TRACE("EPOLL_WAIT_TIMEOUT");
+                LOGGER_DEBUG("EPOLL_WAIT_TIMEOUT");
                 break;
 
             case EPOLL_WAIT_EINTR:
-                LOGGER_TRACE("EPOLL_WAIT_TIMEOUT");
+                LOGGER_DEBUG("EPOLL_WAIT_TIMEOUT");
                 break;
 
             case EPOLL_WAIT_ERROR:
@@ -300,7 +352,7 @@ static int xsyncOnEpollEvent (int msgid, int expect, epevent_data_t *epdata, voi
                 break;
 
             case EPOLL_WAIT_OK:
-                LOGGER_TRACE("EPOLL_WAIT_OK");
+                LOGGER_DEBUG("EPOLL_WAIT_OK");
                 break;
 
             case EPOLL_EVENT_NOTREADY:
@@ -340,22 +392,22 @@ static int xsyncOnEpollEvent (int msgid, int expect, epevent_data_t *epdata, voi
         return expect;
 
     case EPEVENT_PEER_ADDRIN:
-        LOGGER_TRACE("EPEVENT_PEER_ADDRIN");
+        LOGGER_DEBUG("EPEVENT_PEER_ADDRIN");
         break;
 
     case EPEVENT_PEER_INFO:
-        LOGGER_TRACE("EPEVENT_PEER_INFO: client=%d (%s:%s)", epdata->connfd, epdata->hbuf, epdata->sbuf);
+        LOGGER_DEBUG("EPEVENT_PEER_INFO: client(%d) (%s:%s)", epdata->connfd, epdata->hbuf, epdata->sbuf);
         break;
 
     case EPEVENT_PEER_ACPTNEW:
-        LOGGER_DEBUG("EPEVENT_PEER_ACPTNEW client=%d (%s:%s)", epdata->connfd, epdata->hbuf, epdata->sbuf);
+        LOGGER_DEBUG("EPEVENT_PEER_ACPTNEW: client(%d) (%s:%s)", epdata->connfd, epdata->hbuf, epdata->sbuf);
 
         // 有新的客户端请求连接
         expect = handleClientConnect(epdata, arg);
         break;
 
     case EPEVENT_PEER_POLLIN:
-        LOGGER_TRACE("EPEVENT_PEER_POLLIN client=%d", epdata->connfd);
+        LOGGER_DEBUG("EPEVENT_PEER_POLLIN: client(%d)", epdata->connfd);
 
         // 客户端有数据发送的事件发生
         expect = handleClientPollin(epdata, arg);
