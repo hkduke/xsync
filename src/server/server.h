@@ -101,7 +101,12 @@ void print_usage(void)
         "\t-e, --events=<EVENTS>        \033[35m specify maximum number of events for epoll. %d (default)\033[0m\n"
         "\n"
         "\t-m, --somaxconn=<BACKLOG>    \033[35m A kernel parameter provides an upper limit on the value of the\033[0m\n"
-        "\t                              \033[35m backlog parameter passed to the listen function. %d (default)\033[0m\n"
+        "\t                               \033[35m backlog parameter passed to the listen function. %d (default)\033[0m\n"
+        "\n"
+        "\t-r, --redis-cluster=<REDIS>  \033[35m redis cluster list of host:port. for example:\033[0m\n"
+        "\t                                    \033[35m'127.0.0.1:7001,127.0.0.1:7002,...'\033[0m\n"
+        "\n"
+        "\t-a, --redis-auth=<PASSWORD>  \033[35m redis cluster password if required.\033[0m\n"
         "\n"
         "\t-D, --daemon                 \033[35m run as daemon process.\033[0m\n"
         "\t-K, --kill                   \033[35m kill all processes for this program.\033[0m\n"
@@ -154,181 +159,207 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     strcpy(opts->host, "0.0.0.0");
     strcpy(opts->port, "8960");
 
-    /* command arguments */
-    const struct option lopts[] = {
-        {"help", no_argument, 0, 'h'},
-        {"version", no_argument, 0, 'V'},
-        {"config", required_argument, 0, 'C'},
-        {"log4c-rcpath", required_argument, 0, 'O'},
-        {"priority", required_argument, 0, 'P'},
-        {"appender", required_argument, 0, 'A'},
-        {"host", required_argument, 0, 's'},
-        {"port", required_argument, 0, 'p'},
-        {"threads", required_argument, 0, 't'},
-        {"queues", required_argument, 0, 'q'},
-        {"events", required_argument, 0, 'e'},
-        {"somaxconn", required_argument, 0, 'm'},
-        {"daemon", no_argument, 0, 'D'},
-        {"kill", no_argument, 0, 'K'},
-        {"list", no_argument, 0, 'L'},
-        {"interactive", no_argument, 0, 'I'},
-        {0, 0, 0, 0}
-    };
-
-    /**
-     * get default real path for xsync-server.conf
-     */
-    ret = realpathdir(argv[0], buff, sizeof(buff));
-    if (ret <= 0) {
-        fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buff);
-        exit(-1);
-    }
-
-    if (strrchr(buff, '/') == strchr(buff, '/')) {
-        fprintf(stderr, "\033[1;31m[error]\033[0m cannot run under root path: %s\n", buff);
-        exit(-1);
-    }
-
-    *strrchr(buff, '/') = 0;
-    *(strrchr(buff, '/') + 1) = 0;
-
-    ret = snprintf(config, sizeof(config), "%sconf/%s-conf.ini", buff, APP_NAME);
-    if (ret < 20 || ret >= sizeof(config)) {
-        fprintf(stderr, "\033[1;31m[error]\033[0m invalid conf path: %s\n", buff);
-        exit(-1);
-    }
-
-    ret = snprintf(log4crc, sizeof(log4crc), "LOG4C_RCPATH=%sconf/", buff);
-    if (ret < 20 || ret >= sizeof(log4crc)) {
-        fprintf(stderr, "\033[1;31m[error]\033[0m invalid log4c path: %s\n", buff);
-        exit(-1);
-    }
-
-    /* parse command arguments */
-    while ((ret = getopt_long(argc, argv, "DhIKLVC:O:P:A:s:p:t:q:e:m:", lopts, 0)) != EOF) {
-        switch (ret) {
-        case 'D':
-            isdaemon = 1;
-            break;
-
-        case 'h':
-            print_usage();
-            exit(0);
-            break;
-
-        case 'C':
-            /* overwrite default config file */
-            ret = snprintf(config, sizeof(config), "%s", optarg);
-            if (ret < 20 || ret >= sizeof(config)) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m specified invalid conf file: %s\n", optarg);
-                exit(-1);
-            }
-
-            if (getfullpath(config, buff, sizeof(buff)) != 0) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buff);
-                exit(-1);
-            } else {
-                ret = snprintf(config, sizeof(config), "%s", buff);
-                if (ret < 20 || ret >= sizeof(config)) {
-                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid conf file: %s\n", buff);
-                    exit(-1);
-                }
-            }
-            break;
-
-        case 'O':
-            /* overwrite default log4crc file */
-            ret = snprintf(log4crc, sizeof(log4crc), "%s", optarg);
-            if (ret < 0 || ret >= sizeof(log4crc)) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m specified invalid log4c path: \033[31m%s\033[0m\n", optarg);
-                exit(-1);
-            }
-
-            if (getfullpath(log4crc, buff, sizeof(buff)) != 0) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buff);
-                exit(-1);
-            } else {
-                ret = snprintf(log4crc, sizeof(log4crc), "LOG4C_RCPATH=%s", buff);
-                if (ret < 10 || ret >= sizeof(log4crc)) {
-                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid log4c path: %s\n", buff);
-                    exit(-1);
-                }
-            }
-            break;
-
-        case 'P':
-            ret = snprintf(priority, sizeof(priority), "%s", optarg);
-            if (ret < 0 || ret >= sizeof(priority)) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m invalid priority: %s\n", optarg);
-                exit(-1);
-            }
-            break;
-
-        case 'A':
-            ret = snprintf(appender, sizeof(appender), "%s", optarg);
-            if (ret < 0 || ret >= sizeof(appender)) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m invalid appender: \033[31m%s\033[0m\n", optarg);
-                exit(-1);
-            }
-            break;
-
-        case 's':
-            ret = snprintf(opts->host, sizeof(opts->host), "%s", optarg);
-            if (ret < 0 || ret >= sizeof(opts->host)) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m invalid host: \033[31m%s\033[0m\n", optarg);
-                exit(-1);
-            }
-            break;
-
-        case 'p':
-            ret = snprintf(opts->port, sizeof(opts->port), "%s", optarg);
-            if (ret < 0 || ret >= sizeof(opts->port)) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m invalid port: \033[31m%s\033[0m\n", optarg);
-                exit(-1);
-            }
-            break;
-
-        case 't':
-            threads = atoi(optarg);
-            break;
-
-        case 'q':
-            queues = atoi(optarg);
-            break;
-
-        case 'e':
-            events = atoi(optarg);
-            break;
-
-        case 'm':
-            somaxconn = atoi(optarg);
-            break;
-
-        case 'I':
-            interactive = 1;
-            break;
-
-        case 'K':
-            exit(0);
-            break;
-
-        case 'L':
-            exit(0);
-            break;
-
-        case 'V':
-        #ifdef NDEBUG
-            fprintf(stdout, "\033[1;35m%s, NDEBUG version: %s, build: %s %s\033[0m\n\n", APP_NAME, APP_VERSION, __DATE__, __TIME__);
-            assert(0 && "RELEASE VERSION SHOULD NOT ENABLE assert() MARCO !");
-        #else
-            fprintf(stdout, "\033[1;35m%s, DEBUG version: %s, build: %s %s\033[0m\n\n", APP_NAME, APP_VERSION, __DATE__, __TIME__);
-            fprintf(stdout, "\033[31m**** Caution: DEBUG compiling mode only used in develop stage ! ****\033[0m\n");
-            assert(0 && "DEBUG compiling mode enabled.");
-        #endif
-            exit(0);
-            break;
+    do {
+        /**
+         * get default real path for xsync-server.conf
+         */
+        ret = realpathdir(argv[0], buff, sizeof(buff));
+        if (ret <= 0) {
+            fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buff);
+            exit(-1);
         }
-    }
+
+        if (strrchr(buff, '/') == strchr(buff, '/')) {
+            fprintf(stderr, "\033[1;31m[error]\033[0m cannot run under root path: %s\n", buff);
+            exit(-1);
+        }
+
+        *strrchr(buff, '/') = 0;
+        *(strrchr(buff, '/') + 1) = 0;
+
+        ret = snprintf(config, sizeof(config), "%sconf/%s-conf.ini", buff, APP_NAME);
+        if (ret < 20 || ret >= sizeof(config)) {
+            fprintf(stderr, "\033[1;31m[error]\033[0m invalid conf path: %s\n", buff);
+            exit(-1);
+        }
+
+        ret = snprintf(log4crc, sizeof(log4crc), "LOG4C_RCPATH=%sconf/", buff);
+        if (ret < 20 || ret >= sizeof(log4crc)) {
+            fprintf(stderr, "\033[1;31m[error]\033[0m invalid log4c path: %s\n", buff);
+            exit(-1);
+        }
+    } while(0);
+
+    do {
+        /**
+         * parse command arguments. usning: getopt_long_only
+         *    https://blog.csdn.net/pengrui18/article/details/8078813
+         */
+        int ch, flag;
+
+        const struct option lopts[] = {
+            {"help", no_argument, 0, 'h'},
+            {"version", no_argument, 0, 'V'},
+            {"config", required_argument, 0, 'C'},
+            {"log4c-rcpath", required_argument, 0, 'O'},
+            {"priority", required_argument, 0, 'P'},
+            {"appender", required_argument, 0, 'A'},
+            {"host", required_argument, 0, 's'},
+            {"port", required_argument, 0, 'p'},
+            {"threads", required_argument, 0, 't'},
+            {"queues", required_argument, 0, 'q'},
+            {"events", required_argument, 0, 'e'},
+            {"somaxconn", required_argument, 0, 'm'},
+            {"redis-cluster", required_argument, 0, 'r'},
+            {"redis-auth", required_argument, 0, 'a'},
+            {"daemon", no_argument, 0, 'D'},
+            {"kill", no_argument, 0, 'K'},
+            {"list", no_argument, 0, 'L'},
+            {"interactive", no_argument, 0, 'I'},
+            {0, 0, 0, 0}
+        };
+
+        while ((ch = getopt_long(argc, argv, "DhIKLVC:O:P:A:s:p:t:q:e:m:r:", lopts, 0)) != -1) {
+            switch (ch) {
+            case 'D':
+                isdaemon = 1;
+                break;
+
+            case 'h':
+                print_usage();
+                exit(0);
+                break;
+
+            case 'C':
+                /* overwrite default config file */
+                ret = snprintf(config, sizeof(config), "%s", optarg);
+                if (ret < 20 || ret >= sizeof(config)) {
+                    fprintf(stderr, "\033[1;31m[error]\033[0m specified invalid conf file: %s\n", optarg);
+                    exit(-1);
+                }
+
+                if (getfullpath(config, buff, sizeof(buff)) != 0) {
+                    fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buff);
+                    exit(-1);
+                } else {
+                    ret = snprintf(config, sizeof(config), "%s", buff);
+                    if (ret < 20 || ret >= sizeof(config)) {
+                        fprintf(stderr, "\033[1;31m[error]\033[0m invalid conf file: %s\n", buff);
+                        exit(-1);
+                    }
+                }
+                break;
+
+            case 'O':
+                /* overwrite default log4crc file */
+                ret = snprintf(log4crc, sizeof(log4crc), "%s", optarg);
+                if (ret < 0 || ret >= sizeof(log4crc)) {
+                    fprintf(stderr, "\033[1;31m[error]\033[0m specified invalid log4c path: \033[31m%s\033[0m\n", optarg);
+                    exit(-1);
+                }
+
+                if (getfullpath(log4crc, buff, sizeof(buff)) != 0) {
+                    fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buff);
+                    exit(-1);
+                } else {
+                    ret = snprintf(log4crc, sizeof(log4crc), "LOG4C_RCPATH=%s", buff);
+                    if (ret < 10 || ret >= sizeof(log4crc)) {
+                        fprintf(stderr, "\033[1;31m[error]\033[0m invalid log4c path: %s\n", buff);
+                        exit(-1);
+                    }
+                }
+                break;
+
+            case 'P':
+                ret = snprintf(priority, sizeof(priority), "%s", optarg);
+                if (ret < 0 || ret >= sizeof(priority)) {
+                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid priority: %s\n", optarg);
+                    exit(-1);
+                }
+                break;
+
+            case 'A':
+                ret = snprintf(appender, sizeof(appender), "%s", optarg);
+                if (ret < 0 || ret >= sizeof(appender)) {
+                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid appender: \033[31m%s\033[0m\n", optarg);
+                    exit(-1);
+                }
+                break;
+
+            case 's':
+                ret = snprintf(opts->host, sizeof(opts->host), "%s", optarg);
+                if (ret < 0 || ret >= sizeof(opts->host)) {
+                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid host: \033[31m%s\033[0m\n", optarg);
+                    exit(-1);
+                }
+                break;
+
+            case 'p':
+                ret = snprintf(opts->port, sizeof(opts->port), "%s", optarg);
+                if (ret < 0 || ret >= sizeof(opts->port)) {
+                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid port: \033[31m%s\033[0m\n", optarg);
+                    exit(-1);
+                }
+                break;
+
+            case 't':
+                threads = atoi(optarg);
+                break;
+
+            case 'q':
+                queues = atoi(optarg);
+                break;
+
+            case 'e':
+                events = atoi(optarg);
+                break;
+
+            case 'm':
+                somaxconn = atoi(optarg);
+                break;
+
+            case 'r':
+                ret = snprintf(opts->redis_cluster, sizeof(opts->redis_cluster), "%s", optarg);
+                if (ret < 0 || ret >= sizeof(opts->redis_cluster)) {
+                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid redis cluster: \033[31m%s\033[0m\n", optarg);
+                    exit(-1);
+                }
+                break;
+
+            case 'a':
+                ret = snprintf(opts->redis_auth, sizeof(opts->redis_auth), "%s", optarg);
+                if (ret < 0 || ret >= sizeof(opts->redis_auth)) {
+                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid redis auth: \033[31m%s\033[0m\n", optarg);
+                    exit(-1);
+                }
+                break;
+
+            case 'I':
+                interactive = 1;
+                break;
+
+            case 'K':
+                exit(0);
+                break;
+
+            case 'L':
+                exit(0);
+                break;
+
+            case 'V':
+            #ifdef NDEBUG
+                fprintf(stdout, "\033[1;35m%s, NDEBUG version: %s, build: %s %s\033[0m\n\n", APP_NAME, APP_VERSION, __DATE__, __TIME__);
+                assert(0 && "RELEASE VERSION SHOULD NOT ENABLE assert() MARCO !");
+            #else
+                fprintf(stdout, "\033[1;35m%s, DEBUG version: %s, build: %s %s\033[0m\n\n", APP_NAME, APP_VERSION, __DATE__, __TIME__);
+                fprintf(stdout, "\033[31m**** Caution: DEBUG compiling mode only used in develop stage ! ****\033[0m\n");
+                assert(0 && "DEBUG compiling mode enabled.");
+            #endif
+                exit(0);
+                break;
+            }
+        }
+    } while(0);
 
     fprintf(stdout, "\033[1;34m* Default log4c path : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
     fprintf(stdout, "\033[1;34m* Default config file: %s\033[0m\n\n", config);

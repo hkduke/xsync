@@ -69,6 +69,9 @@ typedef struct xs_appopts_t
     int maxevents;
     int timeout_ms;
 
+    char redis_cluster[1020];
+    char redis_auth[33];
+
     char host[XSYNC_HOSTNAME_MAXLEN + 1];
     char port[XSYNC_PORTNUMB_MAXLEN + 1];
 

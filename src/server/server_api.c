@@ -378,25 +378,33 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
 
     struct zdbpool_t db_pool;
 
+    int redis_timeo_ms = 100;
+
     int THREADS = opts->threads;
     int QUEUES = opts->queues;
     int MAXEVENTS = opts->maxevents;
     int BACKLOGS = opts->somaxconn;
     int TIMEOUTMS = opts->timeout_ms;
 
-    // TODO:
-    const char dbpool_url[] = "mysql://localhost/xsyncdb?user=xsync&password=pAssW0rd";
-
-    LOGGER_DEBUG("zdbpool_init: (url=%s, maxsize=%d)", dbpool_url, ZDBPOOL_MAX_SIZE);
-
-    zdbpool_init(&db_pool, zdbPoolErrorHandler, dbpool_url, 0, 0, 0, 0);
-
-    LOGGER_DEBUG("%s", db_pool.errmsg);
-
     *outServer = 0;
 
+    // TODO: mysql
+    const char dbpool_url[] = "mysql://localhost/xsyncdb?user=xsync&password=pAssW0rd";
+    LOGGER_DEBUG("zdbpool_init: (url=%s, maxsize=%d)", dbpool_url, ZDBPOOL_MAX_SIZE);
+    zdbpool_init(&db_pool, zdbPoolErrorHandler, dbpool_url, 0, 0, 0, 0);
+    LOGGER_DEBUG("%s", db_pool.errmsg);
+
+    // create XS_server
     server = (XS_server) mem_alloc(1, sizeof(xs_server_t));
     assert(server->thread_args == 0);
+
+    // redis connection
+    LOGGER_DEBUG("RedisConnInitiate2: cluster='%s'", opts->redis_cluster);
+    if (RedisConnInitiate2(&server->redisconn, opts->redis_cluster, opts->redis_auth, redis_timeo_ms, redis_timeo_ms) != 0) {
+        LOGGER_ERROR("RedisConnInitiate2 failed - %s", server->redisconn.errmsg);
+        free((void*) server);
+        return XS_ERROR;
+    }
 
     server->db_pool.pool = db_pool.pool;
 
@@ -407,10 +415,10 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
     if (0 != pthread_cond_init(&server->condition, PTHREAD_PROCESS_PRIVATE)) {
         LOGGER_FATAL("pthread_cond_init() error(%d): %s", errno, strerror(errno));
 
-        free((void*) server);
-
         zdbpool_end(&db_pool);
+        RedisConnRelease(&server->redisconn);
 
+        free((void*) server);
         return XS_ERROR;
     }
 
@@ -426,7 +434,10 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
     server->thread_args = (void **) mem_alloc(THREADS, sizeof(void*));
 
     for (i = 0; i < THREADS; ++i) {
+        // perthread_data was defined in file_entry.h
         perthread_data *perdata = (perthread_data *) mem_alloc(1, sizeof(perthread_data));
+
+        RedisConnInitiate2(&perdata->redconn, opts->redis_cluster, opts->redis_auth, redis_timeo_ms, redis_timeo_ms);
 
         perdata->threadid = i + 1;
 

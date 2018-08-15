@@ -39,6 +39,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <ctype.h>
+
+
+__attribute__((used))
+static char * trim(char *s, char c)
+{
+    return (*s==0)?s:(((*s!=c)?(((trim(s+1,c)-1)==s)?s:(*(trim(s+1,c)-1)=*s,*s=c,trim(s+1,c))):trim(s+1,c)));
+}
 
 
 __attribute__((used))
@@ -49,8 +57,22 @@ int RedisConnInitiate(RedisConn_t * redconn, int maxNodes, const char * password
     if (password) {
         authlen = strlen(password);
         if (authlen >= sizeof(redconn->password)) {
+            snprintf(redconn->errmsg, sizeof(redconn->errmsg), "%s", "password is too long");
+            redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
             return -1;
         }
+    }
+
+    if (maxNodes < 1) {
+        snprintf(redconn->errmsg, sizeof(redconn->errmsg), "invalid nodes(=%d)", maxNodes);
+        redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+        return -1;
+    }
+
+    if (maxNodes > 20) {
+        snprintf(redconn->errmsg, sizeof(redconn->errmsg), "too many nodes(=%d)", maxNodes);
+        redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+        return -1;
     }
 
     bzero(redconn, sizeof(RedisConn_t));
@@ -77,6 +99,76 @@ int RedisConnInitiate(RedisConn_t * redconn, int maxNodes, const char * password
     if (authlen) {
         memcpy(redconn->password, password, authlen);
     }
+
+    return 0;
+}
+
+
+__attribute__((used))
+int RedisConnInitiate2(RedisConn_t * redconn, const char * host_post_pairs, const char * password, int conn_timeo_ms, int data_timeo_ms)
+{
+    /**
+     * host_post_pairs="127.0.0.1:7001,127.0.0.1:7002,127.0.0.1:7003,127.0.0.1:7004,127.0.0.1:7005,127.0.0.1:7006,127.0.0.1:7007,127.0.0.1:7008,127.0.0.1:7009"
+     */
+    char *buf, *pairs, *hp, *port;
+
+    int nodes, rc = -1;
+
+    size_t len = strlen(host_post_pairs);
+
+    buf = (char*) malloc(len + 1);
+
+    memcpy(buf, host_post_pairs, len);
+    buf[len] = 0;
+    pairs = trim(buf, 32);
+
+    nodes = 0;
+    hp = strtok(pairs, ",");
+    while (hp) {
+        port = strchr(hp, ':');
+        if (! port) {
+            free(buf);
+
+            snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad argument: port not found");
+            redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+
+            return -2;
+        }
+        *port++ = 0;
+        while(*port) {
+            if (! isdigit(*port++)) {
+                free(buf);
+
+                snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad argument: invalid port");
+                redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+
+                return -2;
+            }
+        }
+        ++nodes;
+        hp = strtok(0, ",");
+    }
+
+    rc = RedisConnInitiate(redconn, nodes, password, conn_timeo_ms, data_timeo_ms);
+    if (rc != 0) {
+        free(buf);
+        return rc;
+    }
+
+    memcpy(buf, host_post_pairs, len);
+    buf[len] = 0;
+    pairs = trim(buf, 32);
+
+    nodes = 0;
+    hp = strtok(pairs, ",");
+    while (hp) {
+        port = strchr(hp, ':');
+        *port++ = 0;
+        RedisConnSetNode(redconn, nodes++, hp, atoi(port));
+        hp = strtok(0, ",");
+    }
+
+    free(buf);
 
     return 0;
 }
@@ -115,6 +207,7 @@ void RedisConnSetNode(RedisConn_t * redconn, int nodeIndex, const char *host, in
 }
 
 
+__attribute__((used))
 void RedisConnCloseNode(RedisConn_t * redconn, int index)
 {
     redisContext * ctx = redconn->nodes[index].redctx;
@@ -128,6 +221,7 @@ void RedisConnCloseNode(RedisConn_t * redconn, int index)
 }
 
 
+__attribute__((used))
 redisContext * RedisConnOpenNode(RedisConn_t * redconn, int index)
 {
     RedisConnCloseNode(redconn, index);
@@ -167,6 +261,7 @@ redisContext * RedisConnOpenNode(RedisConn_t * redconn, int index)
 }
 
 
+__attribute__((used))
 redisContext * RedisConnGetActiveContext(RedisConn_t * redconn, const char *host, int port)
 {
     int index;
@@ -221,6 +316,7 @@ redisContext * RedisConnGetActiveContext(RedisConn_t * redconn, const char *host
  *   Once an error is returned the context cannot be reused and you should
  *   set up a new connection.
  */
+__attribute__((used))
 redisReply * RedisConnExecCommand(RedisConn_t * redconn, int argc, const char **argv, const size_t *argvlen)
 {
     redisReply * reply = 0;

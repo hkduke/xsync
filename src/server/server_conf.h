@@ -66,6 +66,11 @@ typedef struct xs_server_t
      * database pool
      */
     zdbpool_t db_pool;
+    
+    /**
+     * redis cluster
+     */
+    RedisConn_t redisconn;
 
     /**
      * epoll data

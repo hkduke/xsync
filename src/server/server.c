@@ -172,17 +172,9 @@ int main (int argc, char *argv[])
 
         RedisConn_t  redconn;
 
-        RedisConnInitiate(&redconn, 9, "PepSt@ck", 100, 100);
-
-        RedisConnSetNode(&redconn, 0, "127.0.0.1", 7001);
-        RedisConnSetNode(&redconn, 1, "127.0.0.1", 7002);
-        RedisConnSetNode(&redconn, 2, "127.0.0.1", 7003);
-        RedisConnSetNode(&redconn, 3, "127.0.0.1", 7004);
-        RedisConnSetNode(&redconn, 4, "127.0.0.1", 7005);
-        RedisConnSetNode(&redconn, 5, "127.0.0.1", 7006);
-        RedisConnSetNode(&redconn, 6, "127.0.0.1", 7007);
-        RedisConnSetNode(&redconn, 7, "127.0.0.1", 7008);
-        RedisConnSetNode(&redconn, 8, "127.0.0.1", 7009);
+        char hplist[] = "127.0.0.1:7001,127.0.0.1:7002,127.0.0.1:7003,127.0.0.1:7004,127.0.0.1:7005,127.0.0.1:7006,127.0.0.1:7007,127.0.0.1:7008,127.0.0.1:7009";
+        
+        RedisConnInitiate2(&redconn, hplist, "PepSt@ck", 100, 100);
 
         redisContext * redctx = RedisConnGetActiveContext(&redconn, 0, 0);
         assert(redctx);

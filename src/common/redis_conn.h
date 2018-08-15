@@ -68,12 +68,16 @@ typedef struct RedisConn_t
 
     char password[33];
 
+    char errmsg[128];
+
     int num;
     RedisNode_t *nodes;
 } RedisConn_t;
 
 
 extern int RedisConnInitiate(RedisConn_t * redconn, int nodesNum, const char * password, int conn_timeo_ms, int data_timeo_ms);
+
+extern int RedisConnInitiate2(RedisConn_t * redconn, const char * host_post_pairs, const char * password, int conn_timeo_ms, int data_timeo_ms);
 
 extern void RedisConnRelease(RedisConn_t * redconn);
 

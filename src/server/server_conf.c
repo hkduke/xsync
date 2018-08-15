@@ -84,6 +84,9 @@ extern void xs_server_delete (void *pv)
             pdata = server->thread_args[i];
             server->thread_args[i] = 0;
 
+            LOGGER_DEBUG("thread-%d: RedisConnRelease", pdata->threadid);
+            RedisConnRelease(&pdata->redconn);
+
             free(pdata);
         }
 
@@ -92,8 +95,11 @@ extern void xs_server_delete (void *pv)
 
     XS_server_clear_client_sessions(server);
 
-    LOGGER_DEBUG("zdbpool_end");
+    LOGGER_DEBUG("server: zdbpool_end");
     zdbpool_end(&server->db_pool);
+
+    LOGGER_DEBUG("server: RedisConnRelease");
+    RedisConnRelease(&server->redisconn);
 
     LOGGER_TRACE("%p", server);
 

@@ -48,6 +48,8 @@ extern "C" {
 #include "../xsync-error.h"
 #include "../xsync-config.h"
 
+#include "../common/redis_conn.h"
+
 
 typedef struct perthread_data
 {
@@ -55,6 +57,8 @@ typedef struct perthread_data
     epevent_data_t  event_data;
 
     int threadid;
+
+    RedisConn_t  redconn;
 
     char buffer[XSYNC_BUFSIZE];
 } perthread_data;
