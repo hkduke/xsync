@@ -122,8 +122,8 @@ static void doNewConnectTask (perthread_data *perdata)
 
     char *iobuf = perdata->buffer;
 
-    XS_server server = (XS_server) perdata->pollin_data.arg;
-    assert(server);
+    // XS_server server = (XS_server) perdata->pollin_data.arg;
+    // assert(server);
 
     while (offset < XSConnectRequestSize) {
         // 接收连接请求头
@@ -173,12 +173,11 @@ static void doNewConnectTask (perthread_data *perdata)
             LOGGER_DEBUG("client(%d) connect request: clientid={%s} magic={%d}",
                 connfd, request.clientid, request.magic);
 
-            snprintf((char*) request.chunk, XSConnectRequestSize, "xs:clientid:%s", request.clientid);
-            request.chunk[XSConnectRequestSize - 1] = 0;
+            snprintf(perdata->buffer, sizeof(perdata->buffer), "xs:clientid:%s", request.clientid);
 
             const char * argv[] = {
                 "HGET",
-                "xs:clientid:xsync-test",
+                perdata->buffer,
                 "magic"
             };
 
@@ -193,17 +192,44 @@ static void doNewConnectTask (perthread_data *perdata)
             } else {
                 LOGGER_DEBUG("clientid={%s}, magic={%s}", request.clientid, reply->str);
 
-                snprintf((char*) request.chunk, XSConnectRequestSize, "%d", request.magic);
+                snprintf(perdata->buffer, sizeof(perdata->buffer), "%d", request.magic);
 
-                if (! strcmp((const char *) request.chunk, reply->str)) {
+                if (! strcmp(perdata->buffer, reply->str)) {
                     LOGGER_INFO("client(%d): accepted client={%s}", connfd, request.clientid);
 
                     RedisFreeReplyObject(&reply);
 
-                    // TODO:
+                    snprintf(perdata->buffer, sizeof(perdata->buffer), "xs:sock:%d", connfd);
+                    
+                    // 用户通过校验, 设置状态为已连接=1
                     //
+                    const char * argv[] = {
+                        "HSET",
+                        perdata->buffer,
+                        "state",
+                        "1"
+                    };
 
+                    LOGGER_DEBUG("HSET %s state 1", perdata->buffer);
 
+                    redisReply * reply = RedisConnExecCommand(&perdata->redconn, sizeof(argv)/sizeof(argv[0]), argv, 0);
+
+                    if (! reply) {
+                        LOGGER_ERROR("no reply");
+                        RedisFreeReplyObject(&reply);
+                    } else {
+                        LOGGER_INFO("reply type:%d", reply->type);
+                        RedisFreeReplyObject(&reply);
+
+                        const char * argv2[] = {
+                            "EXPIRE",
+                            perdata->buffer,
+                            "600"
+                        };
+
+                        redisReply * reply2 = RedisConnExecCommand(&perdata->redconn, sizeof(argv2)/sizeof(argv2[0]), argv2, 0);
+                        RedisFreeReplyObject(&reply2);
+                    }                    
                 } else {
                     LOGGER_WARN("client(%d): declined client={%s}", connfd, request.clientid);
 
@@ -333,14 +359,14 @@ static int handleClientPollin (epevent_data_t *epdata, void *arg)
  *   回调函数
  */
 __attribute__((used))
-static int xsyncOnEpollEvent (int msgid, int expect, epevent_data_t *epdata, void *arg)
+static int xsyncOnEpollEvent (int msgid, int expect, epevent_data_t *epdata, void *argserver)
 {
     switch (msgid) {
     case EPEVENT_MSG_ERROR:
         do {
             switch (epdata->status) {
             case EPOLL_WAIT_TIMEOUT:
-                LOGGER_DEBUG("EPOLL_WAIT_TIMEOUT");
+                LOGGER_TRACE("EPOLL_WAIT_TIMEOUT");
                 break;
 
             case EPOLL_WAIT_EINTR:
@@ -392,25 +418,139 @@ static int xsyncOnEpollEvent (int msgid, int expect, epevent_data_t *epdata, voi
         return expect;
 
     case EPEVENT_PEER_ADDRIN:
-        LOGGER_DEBUG("EPEVENT_PEER_ADDRIN");
+        LOGGER_DEBUG("EPEVENT_PEER_ADDRIN: client(%d) (%s:%s)", epdata->connfd, epdata->hbuf, epdata->sbuf);
         break;
 
     case EPEVENT_PEER_INFO:
         LOGGER_DEBUG("EPEVENT_PEER_INFO: client(%d) (%s:%s)", epdata->connfd, epdata->hbuf, epdata->sbuf);
+
+        do {// redis
+            XS_server server = (XS_server) argserver;
+
+            snprintf(server->msgbuf, sizeof(server->msgbuf), "xs:sock:%d", epdata->connfd);
+
+            const char * argv[] = {
+                "HMSET",
+                server->msgbuf,
+                "ip",
+                epdata->hbuf,
+                "port",
+                epdata->sbuf,
+                "state",
+                "0"
+            };
+
+            LOGGER_DEBUG("HMSET %s ip %s port %s", server->msgbuf, epdata->hbuf, epdata->sbuf);
+
+            redisReply * reply = RedisConnExecCommand(&server->redisconn, sizeof(argv)/sizeof(argv[0]), argv, 0);
+
+            if (! reply) {
+                LOGGER_ERROR("no reply");
+            } else {
+                LOGGER_INFO("reply type:%d", reply->type);
+            }
+
+            RedisFreeReplyObject(&reply);
+
+            const char * argv2[] = {
+                "EXPIRE",
+                server->msgbuf,
+                "10"
+            };
+
+            redisReply * reply2 = RedisConnExecCommand(&server->redisconn, sizeof(argv2)/sizeof(argv2[0]), argv2, 0);
+
+            if (! reply2) {
+                LOGGER_ERROR("no reply");
+            } else {
+                LOGGER_INFO("reply type:%d", reply2->type);
+            }
+
+            RedisFreeReplyObject(&reply2);
+        } while(0);
+        
         break;
 
     case EPEVENT_PEER_ACPTNEW:
         LOGGER_DEBUG("EPEVENT_PEER_ACPTNEW: client(%d) (%s:%s)", epdata->connfd, epdata->hbuf, epdata->sbuf);
 
         // 有新的客户端请求连接
-        expect = handleClientConnect(epdata, arg);
+        // expect = handleClientConnect(epdata, argserver);
+
+        do {// redis
+            XS_server server = (XS_server) argserver;
+
+            snprintf(server->msgbuf, sizeof(server->msgbuf), "xs:sock:%d", epdata->connfd);
+
+            const char * argv[] = {
+                "HMGET",
+                server->msgbuf,
+                "ip",
+                "port",
+                "state"
+            };
+
+            LOGGER_DEBUG("HMGET %s ip port", server->msgbuf);
+
+            redisReply * reply = RedisConnExecCommand(&server->redisconn, sizeof(argv)/sizeof(argv[0]), argv, 0);
+
+            if (! reply) {
+                LOGGER_ERROR("no reply");
+                RedisFreeReplyObject(&reply);
+                return EPCB_EXPECT_BREAK;
+            } else {
+                LOGGER_INFO("reply type:%d", reply->type);
+            }
+
+            RedisFreeReplyObject(&reply);
+        } while(0);
+
         break;
 
     case EPEVENT_PEER_POLLIN:
         LOGGER_DEBUG("EPEVENT_PEER_POLLIN: client(%d)", epdata->connfd);
 
-        // 客户端有数据发送的事件发生
-        expect = handleClientPollin(epdata, arg);
+        do {// redis
+            // 判断 client 是否连接
+            XS_server server = (XS_server) argserver;
+
+            snprintf(server->msgbuf, sizeof(server->msgbuf), "xs:sock:%d", epdata->connfd);
+
+            const char * argv[] = {
+                "HGET",
+                server->msgbuf,
+                "state"
+            };
+
+            LOGGER_DEBUG("HGET %s state", server->msgbuf);
+
+            redisReply * reply = RedisConnExecCommand(&server->redisconn, sizeof(argv)/sizeof(argv[0]), argv, 0);
+
+            if (! reply || reply->type != REDIS_REPLY_STRING || reply->len != 1) {
+                LOGGER_ERROR("no reply");
+                RedisFreeReplyObject(&reply);
+                return EPCB_EXPECT_BREAK;
+            } else {
+                LOGGER_INFO("reply type=%d, str=%s", reply->type, reply->str);
+                
+                if (reply->str[0] == '0') {
+                    // 未连接: 处理连接请求
+                    RedisFreeReplyObject(&reply);
+                    expect = handleClientConnect(epdata, argserver);
+                    break;
+                }
+
+                if (reply->str[0] == '1') {
+                    // 已经连接: 处理数据传输
+                    RedisFreeReplyObject(&reply);
+                    expect = handleClientPollin(epdata, argserver);
+                    break;
+                }
+            }
+
+            RedisFreeReplyObject(&reply);
+            return EPCB_EXPECT_BREAK;
+        } while(0);
         break;
     }
 

@@ -314,8 +314,12 @@ static void * thread_func (void *arg)
 
         if (xres != XS_SUCCESS) {
             printf("failed to connect server.\n");
+        } else {
+            printf("success to connect server.\n");
         }
     } while(0);
+
+    sleep(60);
 
     XS_server_conn_release(&xcon);
 
