@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.6
+ * @version: 0.0.7
  *
  * @create: 2018-01-24
  *
- * @update: 2018-08-13 18:01:39
+ * @update: 2018-08-16 20:09:03
  */
 
 #include "client.h"
@@ -310,18 +310,20 @@ static void * thread_func (void *arg)
     printf("thread#%lld start ...\n", (long long) tid);
 
     do {
+        char msg[256];
+        int len, total = 0;
+
         xres = XS_server_conn_create((xs_server_opts *) arg, clientid, &xcon);
 
         if (xres != XS_SUCCESS) {
             printf("failed to connect server.\n");
-        } else {
-            printf("success to connect server.\n");
+            break;
         }
+
+        sleep(60);
+
+        XS_server_conn_release(&xcon);
     } while(0);
-
-    sleep(60);
-
-    XS_server_conn_release(&xcon);
 
     printf("thread#%d end.\n", tid);
     return ((void*) 0);

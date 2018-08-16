@@ -25,11 +25,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.6
+ * @version: 0.0.7
  *
  * @create: 2018-02-10
  *
- * @update: 2018-08-14 14:53:12
+ * @update: 2018-08-16 10:44:16
  *
  */
 
@@ -208,7 +208,7 @@ int RedisConnSetNode(RedisConn_t * redconn, int nodeIndex, const char *host, int
         redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
         return -1;
     }
-    
+
     for (i = 0; i < redconn->num; ++i) {
         if (redconn->nodes[i].index == i) {
             if (redconn->nodes[i].port == port && ! strcmp(redconn->nodes[i].host, host)) {

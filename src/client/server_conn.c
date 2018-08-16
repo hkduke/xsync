@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.6
+ * @version: 0.0.7
  *
  * @create: 2018-02-12
  *
- * @update: 2018-08-13 19:03:33
+ * @update: 2018-08-16 12:50:39
  */
 
 #include "client_api.h"
@@ -100,12 +100,12 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
             LOGGER_INFO("opensocket_v2 success: %s:%s", servOpts->host, servOpts->sport);
 
             // 发送连接请求: 64 字节
-            int err = sendlen(sockfd, (char *) connRequest.chunk, XSConnectRequestSize);
-            if (err != XSConnectRequestSize) {
-                LOGGER_ERROR("sendlen error(%d): %s", errno, strerror(errno));
-                close(sockfd);
-                return XS_ERROR;
-            }
+            //int err = sendlen(sockfd, (char *) connRequest.chunk, XSConnectRequestSize);
+            //if (err != XSConnectRequestSize) {
+            //    LOGGER_ERROR("sendlen error(%d): %s", errno, strerror(errno));
+            //    close(sockfd);
+             //   return XS_ERROR;
+            //}
         }
 
         xcon->sockfd = sockfd;

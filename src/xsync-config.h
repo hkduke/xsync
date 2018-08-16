@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.6
+ * @version: 0.0.7
  *
  * @create: 2018-01-24
  *
- * @update: 2018-08-13 17:29:09
+ * @update: 2018-08-16 14:28:32
  */
 
 #ifndef XSYNC_CONFIG_H_
@@ -48,7 +48,7 @@ extern "C"
 /**
  * DO NOT CHANGE BELOW VALUE
  */
-#define XSYNC_VERSION    "0.0.6"
+#define XSYNC_VERSION    "0.0.7"
 
 #ifndef XSYNC_CLIENT_VERSION
 #  define XSYNC_CLIENT_VERSION          XSYNC_VERSION
@@ -120,7 +120,7 @@ extern "C"
 #endif
 
 #ifndef XSYNC_CLIENT_THREADS_MAX
-#define XSYNC_CLIENT_THREADS_MAX        256
+#define XSYNC_CLIENT_THREADS_MAX        8192
 #endif
 
 /**

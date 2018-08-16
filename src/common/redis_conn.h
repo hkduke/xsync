@@ -31,11 +31,11 @@
  *    https://github.com/aclisp/hiredispool
  *    https://github.com/eyjian/r3c/blob/master/r3c.cpp
  *
- * @version: 0.0.6
+ * @version: 0.0.7
  *
  * @create: 2018-02-10
  *
- * @update: 2018-08-14 14:53:46
+ * @update: 2018-08-16 10:44:16
  *
  */
 #ifndef REDIS_CONN_H_INCLUDED

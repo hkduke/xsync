@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.6
+ * @version: 0.0.7
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-14 10:00:13
+ * @update: 2018-08-15 14:51:17
  */
 
 #ifndef SERVER_H_INCLUDED
@@ -196,7 +196,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
          *    https://blog.csdn.net/pengrui18/article/details/8078813
          */
         int ch, index;
-        
+
         const struct option lopts[] = {
             {"help", no_argument, 0, 'h'},
             {"version", no_argument, 0, 'V'},

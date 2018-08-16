@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.6
+ * @version: 0.0.7
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-10 18:11:59
+ * @update: 2018-08-15 11:10:03
  */
 
 #ifndef FILE_ENTRY_H_INCLUDED
@@ -53,8 +53,8 @@ extern "C" {
 
 typedef struct perthread_data
 {
-    epollin_data_t  pollin_data;
-    epevent_data_t  event_data;
+    epollin_arg_t  pollin_data;
+    epevent_msg_t  epmsg;
 
     int threadid;
 

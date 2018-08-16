@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.6
+ * @version: 0.0.7
  *
  * @create: 2018-02-02
  *
- * @update: 2018-08-14 12:58:21
+ * @update: 2018-08-15 12:33:30
  */
 
 #ifndef SERVER_CONF_H_INCLUDED
@@ -66,7 +66,7 @@ typedef struct xs_server_t
      * database pool
      */
     zdbpool_t db_pool;
-    
+
     /**
      * redis cluster
      */
