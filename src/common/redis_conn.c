@@ -182,18 +182,13 @@ void RedisConnRelease(RedisConn_t * redconn)
 {
     while (redconn->num-- > 0) {
         char * hp = redconn->nodes[redconn->num].host;
-
         RedisConnCloseNode(redconn, redconn->num);
-
         if ( hp ) {
             redconn->nodes[redconn->num].host = 0;
-
             free( hp );
         }
     }
-
     free(redconn->nodes);
-
     redconn->nodes = 0;
 }
 
@@ -450,4 +445,49 @@ void RedisFreeReplyObject(redisReply **ppreply)
         freeReplyObject(reply);
         *ppreply = 0;
     }
+}
+
+
+__attribute__((used))
+int RedisHMSET(RedisConn_t * redconn, const char *key, int num, const char * fields[], const char *values[], const size_t *valueslen)
+{
+    int i, argc = num*2 + 2;
+
+    redisReply * reply = 0;
+
+    char cmd[] = "HMSET";
+
+    const char **argv = (const char **) calloc(argc, sizeof(char*));
+
+    size_t * argvlen = (size_t *) calloc(argc, sizeof(size_t));
+
+    argv[0] = cmd;  argvlen[0] = 5;
+    argv[1] = key;  argvlen[1] = strlen(key);
+
+    for (i = 0; i < num; ++i) {
+        argv[i*2 + 2] = fields[i];
+        argvlen[i*2 + 2] = strlen(fields[i]);
+
+        argv[i*2 + 3] = values[i];
+
+        if (valueslen) {
+            argvlen[i*2 + 3] = valueslen[i];
+        } else {
+            argvlen[i*2 + 3] = strlen(values[i]);
+        }
+    }
+
+    reply = RedisConnExecCommand(redconn, argc, argv, argvlen);
+
+    free(argv);
+    free(argv);
+
+    // TODO:
+
+    
+    RedisFreeReplyObject(&reply);
+
+    // TODO:
+
+    return (-1);
 }

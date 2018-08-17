@@ -85,6 +85,9 @@ extern "C" {
 #define EPEVT_PEER_CLOSED               10
 
 
+#define epapi_on_epevent(evtid, epmsg, arg)  (epmsg->msg_cb_handlers[evtid])(epmsg, arg)
+
+
 /**
  * 回调函数数据，不可以在多线程中使用
  */
@@ -295,9 +298,6 @@ static int epapi_init_epoll (int listenfd, int backlog, char *errmsg, ssize_t ms
 
     return epollfd;
 }
-
-
-#define epapi_on_epevent(evtid, epmsg, arg)  (epmsg->msg_cb_handlers[evtid])(epmsg, arg)
 
 
 __attribute__((used))

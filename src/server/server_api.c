@@ -80,82 +80,81 @@ void event_task (thread_context_t *thread_ctx)
 }
 
 
-static int epmsg_cb_epoll_edge_trig(epevent_msg epmsg, void *svrarg)
+static inline int epmsg_cb_epoll_edge_trig(epevent_msg epmsg, void *svrarg)
 {
     LOGGER_TRACE("EPEVT_EPOLLIN_EDGE_TRIG");
     return 0;
 }
 
 
-static int epmsg_cb_error_epoll_wait(epevent_msg epmsg, void *svrarg)
+static inline int epmsg_cb_error_epoll_wait(epevent_msg epmsg, void *svrarg)
 {
     LOGGER_ERROR("EPEVT_ERROR_EPOLL_WAIT: %s", epmsg->msgbuf);
     return 0;
 }
 
 
-static int epmsg_cb_error_epoll_event(epevent_msg epmsg, void *svrarg)
+static inline int epmsg_cb_error_epoll_event(epevent_msg epmsg, void *svrarg)
 {
     LOGGER_ERROR("EPEVT_ERROR_EPOLL_EVENT: %s", epmsg->msgbuf);
     return 0;
 }
 
 
-static int epmsg_cb_accept_eagain(epevent_msg epmsg, void *svrarg)
+static inline int epmsg_cb_accept_eagain(epevent_msg epmsg, void *svrarg)
 {
     LOGGER_TRACE("EPEVT_ACCEPT_EAGAIN");
     return 0;
 }
 
 
-static int epmsg_cb_accept_ewouldblock(epevent_msg epmsg, void *svrarg)
+static inline int epmsg_cb_accept_ewouldblock(epevent_msg epmsg, void *svrarg)
 {
     LOGGER_WARN("EPEVT_ACCEPT_EWOULDBLOCK");
     return 0;
 }
 
 
-static int epmsg_cb_error_accept(epevent_msg epmsg, void *svrarg)
+static inline int epmsg_cb_error_accept(epevent_msg epmsg, void *svrarg)
 {
     LOGGER_ERROR("EPEVT_ERROR_ACCEPT: %s", epmsg->msgbuf);
     return 0;
 }
 
 
-static int epmsg_cb_peer_nameinfo(epevent_msg epmsg, void *svrarg)
+static inline int epmsg_cb_peer_nameinfo(epevent_msg epmsg, void *svrarg)
 {
     LOGGER_INFO("EPEVT_PEER_NAMEINFO: sock(%d)=%s:%s", epmsg->connfd, epmsg->hbuf, epmsg->sbuf);
     return 0;
 }
 
 
-static int epmsg_cb_error_peername(epevent_msg epmsg, void *svrarg)
+static inline int epmsg_cb_error_peername(epevent_msg epmsg, void *svrarg)
 {
     LOGGER_ERROR("EPEVT_ERROR_PEERNAME: %s", epmsg->msgbuf);
     return 0;
 }
 
 
-static int epmsg_cb_error_setnonblock(epevent_msg epmsg, void *svrarg)
+static inline int epmsg_cb_error_setnonblock(epevent_msg epmsg, void *svrarg)
 {
     LOGGER_ERROR("EPEVT_ERROR_SETNONBLOCK: %s", epmsg->msgbuf);
     return 0;
 }
 
 
-static int epmsg_cb_error_epoll_add_oneshot(epevent_msg epmsg, void *svrarg)
+static inline int epmsg_cb_error_epoll_add_oneshot(epevent_msg epmsg, void *svrarg)
 {
     LOGGER_ERROR("EPEVT_ERROR_EPOLL_ADD_ONESHOT: %s", epmsg->msgbuf);
     return 0;
 }
 
 
-static int epmsg_cb_peer_closed(epevent_msg epmsg, void *svrarg)
+static inline int epmsg_cb_peer_closed(epevent_msg epmsg, void *svrarg)
 {
     LOGGER_WARN("EPEVT_PEER_CLOSED: sock(%d)", epmsg->connfd);
     return 0;
 }
-
 
 
 extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)

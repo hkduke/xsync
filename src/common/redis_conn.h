@@ -30,6 +30,7 @@
  *    https://redislabs.com/lp/hiredis/
  *    https://github.com/aclisp/hiredispool
  *    https://github.com/eyjian/r3c/blob/master/r3c.cpp
+ *    http://www.mamicode.com/info-detail-501902.html
  *
  * @version: 0.0.9
  *
@@ -75,6 +76,10 @@ typedef struct RedisConn_t
 } RedisConn_t;
 
 
+/**
+ * low level functions
+ */
+
 extern int RedisConnInitiate(RedisConn_t * redconn, int nodesNum, const char * password, int conn_timeo_ms, int data_timeo_ms);
 
 extern int RedisConnInitiate2(RedisConn_t * redconn, const char * host_post_pairs, const char * password, int conn_timeo_ms, int data_timeo_ms);
@@ -92,6 +97,12 @@ extern redisContext * RedisConnGetActiveContext(RedisConn_t * redconn, const cha
 extern redisReply * RedisConnExecCommand(RedisConn_t * redconn, int argc, const char **argv, const size_t *argvlen);
 
 extern void RedisFreeReplyObject(redisReply **reply);
+
+/**
+ * high level functions
+ */
+extern int RedisHMSET(RedisConn_t * redconn, const char *key, int num, const char * fields[], const char *values[], const size_t *valueslen);
+
 
 #if defined(__cplusplus)
 }
