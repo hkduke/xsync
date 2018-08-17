@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.7
+ * @version: 0.0.9
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-16 20:07:51
+ * @update: 2018-08-17 11:08:29
  */
 
 #include "server_api.h"
@@ -88,56 +88,60 @@ __attribute__((used))
 static int epevent_cb(int status, epevent_msg epmsg, void *argserver)
 {
     switch (status) {
-    case EPOLL_WAIT_NOREADY:
-        LOGGER_TRACE("EPOLL_WAIT_NOREADY");
+    case EPEVT_EPOLLIN_EDGE_TRIG:
+        LOGGER_TRACE("EPOLLIN_EDGE_TRIG");
         break;
 
-    case EPOLL_POLLIN_READY:
-        LOGGER_DEBUG("EPOLL_POLLIN_READY: sock(%d)", epmsg->connfd);
+    case EPEVT_ACCEPT_EAGAIN:
+        LOGGER_TRACE("ACCEPT_EAGAIN");
         break;
 
-    case EPOLL_WAIT_ERROR:
-        LOGGER_DEBUG("EPOLL_WAIT_ERROR");
+    case EPEVT_ACCEPT_EWOULDBLOCK:
+        LOGGER_WARN("ACCEPT_EWOULDBLOCK");
         break;
-        
-    case EPOLL_WAIT_READY:
-        LOGGER_TRACE("EPOLL_WAIT_READY");
+
+    case EPEVT_PEER_NAMEINFO:
+        LOGGER_INFO("PEER_NAMEINFO: sock(%d)=%s:%s", epmsg->connfd, epmsg->hbuf, epmsg->sbuf);
         break;
-        
-    case EPOLL_EVENT_ERROR:
-        LOGGER_DEBUG("EPOLL_EVENT_ERROR");
+
+    case EPEVT_PEER_CLOSED:
+        LOGGER_WARN("PEER_CLOSED: sock(%d)", epmsg->connfd);
         break;
-        
-    case EPOLL_ACCEPT_EAGAIN:
-        LOGGER_TRACE("EPOLL_ACCEPT_EAGAIN");
+
+    case EPEVT_ERROR_EPOLL_WAIT:
+        LOGGER_ERROR("ERROR_EPOLL_WAIT: %s", epmsg->msgbuf);
         break;
-        
-    case EPOLL_ACCEPT_EWOULDBLOCK:
-        LOGGER_TRACE("EPOLL_ACCEPT_EWOULDBLOCK");
+
+    case EPEVT_ERROR_EPOLL_EVENT:
+        LOGGER_ERROR("ERROR_EPOLL_EVENT: %s", epmsg->msgbuf);
         break;
-        
-    case EPOLL_ACCEPT_ERROR:
-        LOGGER_ERROR("EPOLL_ACCEPT_ERROR");
+
+    case EPEVT_ERROR_ACCEPT:
+        LOGGER_ERROR("ERROR_ACCEPT: %s", epmsg->msgbuf);
         break;
-        
-    case EPOLL_GET_PEERNAME_OK:
-        LOGGER_INFO("EPOLL_GET_PEERNAME_OK: sock(%d) => %s:%s", epmsg->connfd, epmsg->hbuf, epmsg->sbuf);
+
+    case EPEVT_ERROR_PEERNAME:
+        LOGGER_ERROR("ERROR_PEERNAME: %s", epmsg->msgbuf);
         break;
-        
-    case EPOLL_GET_PEERNAME_ERR:
-        LOGGER_ERROR("EPOLL_GET_PEERNAME_ERR: sock(%d) - %s", epmsg->connfd, epmsg->msgbuf);
+
+    case EPEVT_ERROR_SETNONBLOCK:
+        LOGGER_ERROR("ERROR_SETNONBLOCK: %s", epmsg->msgbuf);
         break;
-        
-    case EPOLL_NSET_ONBLOCK_ERR:
-        LOGGER_ERROR("EPOLL_NSET_ONBLOCK_ERR: sock(%d) - %s", epmsg->connfd, epmsg->msgbuf);
+
+    case EPEVT_ERROR_EPOLL_ADD_ONESHOT:
+        LOGGER_ERROR("ERROR_EPOLL_ADD_ONESHOT: %s", epmsg->msgbuf);
         break;
-        
-    case EPOLL_ADD_ONESHOT_ERR:
-        LOGGER_ERROR("EPOLL_ADD_ONESHOT_ERR");
+
+    case EPEVT_START_LOOP_EVENTS:
+        LOGGER_INFO("EPEVT_START_LOOP_EVENTS");
+        break;
+
+    case EPEVT_EXIT_LOOP_EVENTS:
+        LOGGER_WARN("EPEVT_EXIT_LOOP_EVENTS");
         break;
     }
 
-    return 1;
+    return 0;
 }
 
 

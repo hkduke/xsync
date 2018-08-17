@@ -31,7 +31,7 @@
  *    https://github.com/aclisp/hiredispool
  *    https://github.com/eyjian/r3c/blob/master/r3c.cpp
  *
- * @version: 0.0.7
+ * @version: 0.0.9
  *
  * @create: 2018-02-10
  *
