@@ -55,7 +55,7 @@
     <!-- xsync-server category
     The following line would be updated by command. DO NOT REVISED IT BY HAND !
     -->
-    <category name="xsync-server" priority="trace" appender="stdout" />
+    <category name="xsync-server" priority="debug" appender="stdout" />
 
     <!--
       MUST MAKE SURE:

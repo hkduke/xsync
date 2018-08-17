@@ -67,25 +67,22 @@ extern "C" {
 /**
  * epapi epevent id
  */
-#define EPEVT_EPOLLIN_EDGE_TRIG          1
+#define EPEVT_EPOLLIN_EDGE_TRIG          0
 
-#define EPEVT_ERROR_EPOLL_WAIT           2
-#define EPEVT_ERROR_EPOLL_EVENT          3
+#define EPEVT_ERROR_EPOLL_WAIT           1
+#define EPEVT_ERROR_EPOLL_EVENT          2
 
-#define EPEVT_ACCEPT_EAGAIN              4
-#define EPEVT_ACCEPT_EWOULDBLOCK         5
-#define EPEVT_ERROR_ACCEPT               6
+#define EPEVT_ACCEPT_EAGAIN              3
+#define EPEVT_ACCEPT_EWOULDBLOCK         4
+#define EPEVT_ERROR_ACCEPT               5
 
-#define EPEVT_PEER_NAMEINFO              7
-#define EPEVT_ERROR_PEERNAME             8
+#define EPEVT_PEER_NAMEINFO              6
+#define EPEVT_ERROR_PEERNAME             7
 
-#define EPEVT_ERROR_SETNONBLOCK          9
-#define EPEVT_ERROR_EPOLL_ADD_ONESHOT   10
+#define EPEVT_ERROR_SETNONBLOCK          8
+#define EPEVT_ERROR_EPOLL_ADD_ONESHOT    9
 
-#define EPEVT_PEER_CLOSED               11
-
-#define EPEVT_START_LOOP_EVENTS          0
-#define EPEVT_EXIT_LOOP_EVENTS          12
+#define EPEVT_PEER_CLOSED               10
 
 
 /**
@@ -99,7 +96,7 @@ typedef struct epevent_msg_t * epevent_msg;
  *   1 - 用户已经处理
  *   0 - 用户要求放弃
  */
-typedef int (* epapi_epevent_cb) (int status, epevent_msg epmsg, void *arg);
+typedef int (* epevent_msg_cb) (epevent_msg epmsg, void *arg);
 
 
 typedef struct epevent_msg_t
@@ -120,6 +117,8 @@ typedef struct epevent_msg_t
             char msgbuf[NI_MAXHOST + NI_MAXSERV];
         };
     };
+
+    epevent_msg_cb msg_cb_handlers[EPEVT_PEER_CLOSED + 1];
 } epevent_msg_t;
 
 
@@ -298,24 +297,22 @@ static int epapi_init_epoll (int listenfd, int backlog, char *errmsg, ssize_t ms
 }
 
 
+#define epapi_on_epevent(evtid, epmsg, arg)  (epmsg->msg_cb_handlers[evtid])(epmsg, arg)
+
+
 __attribute__((used))
-static int epapi_loop_events (int epollfd, int listenfd,
+static int epapi_loop_events (int epollfd, int listenfd, int timeout_ms,
     struct epoll_event *events, int maxevents,
-    int timeout_ms,
-    epapi_epevent_cb epevent_cb, void *arg)
+    epevent_msg epmsg, void *arg)
 {
     int i, nfd, fd;
-
     struct epoll_event *ev;
 
-    epevent_msg_t  epmsg = {0};
-    epmsg.epollfd = epollfd;
-    epmsg.connfd = -1;
-
-    epevent_cb(EPEVT_START_LOOP_EVENTS, 0, arg);
+    epmsg->epollfd = epollfd;
+    epmsg->connfd = -1;
 
     while (1) {
-        *epmsg.msgbuf = 0;
+        *epmsg->msgbuf = 0;
 
         // https://linux.die.net/man/2/epoll_pwait
         //  epoll_pwait: 2.6.19 and later
@@ -327,13 +324,13 @@ static int epapi_loop_events (int epollfd, int listenfd,
         }
 
         if (nfd == -1) {
-            snprintf(epmsg.msgbuf, sizeof(epmsg.msgbuf), "epoll_pwait error(%d): %s", errno, strerror(errno));
-            epevent_cb(EPEVT_ERROR_EPOLL_WAIT, &epmsg, arg);
+            snprintf(epmsg->msgbuf, sizeof(epmsg->msgbuf), "epoll_pwait error(%d): %s", errno, strerror(errno));
+            epapi_on_epevent(EPEVT_ERROR_EPOLL_WAIT, epmsg, arg);
             continue;
         }
 
         for (i = 0; i < nfd; i++) {
-            *epmsg.msgbuf = 0;
+            *epmsg->msgbuf = 0;
 
             ev = &events[i];
             fd = ev->data.fd;
@@ -347,8 +344,8 @@ static int epapi_loop_events (int epollfd, int listenfd,
                 ev->data.fd = -1;
                 close(fd);
 
-                snprintf(epmsg.msgbuf, sizeof(epmsg.msgbuf), "error fd or the socket not ready for reading");
-                epevent_cb(EPEVT_ERROR_EPOLL_EVENT, &epmsg, arg);
+                snprintf(epmsg->msgbuf, sizeof(epmsg->msgbuf), "error fd or the socket not ready for reading");
+                epapi_on_epevent(EPEVT_ERROR_EPOLL_EVENT, epmsg, arg);
 
                 continue;
             }
@@ -357,51 +354,50 @@ static int epapi_loop_events (int epollfd, int listenfd,
                 /* A new notification on the listening socket,
                  *   which means one or more incoming connections. */
                 while(1) {
-                    epmsg.in_len = sizeof(epmsg.in_addr);
-                    epmsg.connfd = accept(listenfd, &epmsg.in_addr, &epmsg.in_len);
+                    epmsg->in_len = sizeof(epmsg->in_addr);
+                    epmsg->connfd = accept(listenfd, &epmsg->in_addr, &epmsg->in_len);
 
-                    if (epmsg.connfd == -1) {
+                    if (epmsg->connfd == -1) {
                         if (errno == EAGAIN) {
                             /* We have processed all incoming connections */
-                            epevent_cb(EPEVT_ACCEPT_EAGAIN, &epmsg, arg);
+                            epapi_on_epevent(EPEVT_ACCEPT_EAGAIN, epmsg, arg);
                         } else if (errno == EWOULDBLOCK) {
-                            epevent_cb(EPEVT_ACCEPT_EWOULDBLOCK, &epmsg, arg);
+                            epapi_on_epevent(EPEVT_ACCEPT_EWOULDBLOCK, epmsg, arg);
                         } else {
-                            snprintf(epmsg.msgbuf, sizeof(epmsg.msgbuf), "accept error(%d): %s", errno, strerror(errno));
-                            epevent_cb(EPEVT_ERROR_ACCEPT, &epmsg, arg);
+                            snprintf(epmsg->msgbuf, sizeof(epmsg->msgbuf), "accept error(%d): %s", errno, strerror(errno));
+                            epapi_on_epevent(EPEVT_ERROR_ACCEPT, epmsg, arg);
                         }
-
                         break;
                     }
 
                     // http://man7.org/linux/man-pages/man3/getnameinfo.3.html
-                    if ( getnameinfo(&epmsg.in_addr, epmsg.in_len,
-                            epmsg.hbuf, sizeof(epmsg.hbuf),
-                            epmsg.sbuf, sizeof(epmsg.sbuf),
+                    if ( getnameinfo(&epmsg->in_addr, epmsg->in_len,
+                            epmsg->hbuf, sizeof(epmsg->hbuf),
+                            epmsg->sbuf, sizeof(epmsg->sbuf),
                             NI_NUMERICHOST | NI_NUMERICSERV ) == 0 ) {
                         /* here we got ip:port of peer */
-                        epevent_cb(EPEVT_PEER_NAMEINFO, &epmsg, arg);
+                        epapi_on_epevent(EPEVT_PEER_NAMEINFO, epmsg, arg);
                     } else {
-                        snprintf(epmsg.msgbuf, sizeof(epmsg.msgbuf), "getnameinfo error(%d): %s", errno, strerror(errno));
-                        epevent_cb(EPEVT_ERROR_PEERNAME, &epmsg, arg);
+                        snprintf(epmsg->msgbuf, sizeof(epmsg->msgbuf), "getnameinfo error(%d): %s", errno, strerror(errno));
+                        epapi_on_epevent(EPEVT_ERROR_PEERNAME, epmsg, arg);
                     }
 
                     /* Make the incoming socket non-blocking and add it to the list of fds to monitor.*/
-                    if (epapi_set_nonblock(epmsg.connfd, epmsg.msgbuf, sizeof(epmsg.msgbuf)) == -1) {
-                        epevent_cb(EPEVT_ERROR_SETNONBLOCK, &epmsg, arg);
+                    if (epapi_set_nonblock(epmsg->connfd, epmsg->msgbuf, sizeof(epmsg->msgbuf)) == -1) {
+                        epapi_on_epevent(EPEVT_ERROR_SETNONBLOCK, epmsg, arg);
 
-                        close(epmsg.connfd);
-                        epmsg.connfd = -1;
+                        close(epmsg->connfd);
+                        epmsg->connfd = -1;
 
                         goto EXIT_ON_ERROR;
                     }
 
                     /* add EPOLLONESHOT for new client */
-                    if (epapi_add_epoll(epollfd, epmsg.connfd, EPOLLONESHOT, epmsg.msgbuf, sizeof(epmsg.msgbuf)) == -1) {
-                        epevent_cb(EPEVT_ERROR_EPOLL_ADD_ONESHOT, &epmsg, arg);
+                    if (epapi_add_epoll(epollfd, epmsg->connfd, EPOLLONESHOT, epmsg->msgbuf, sizeof(epmsg->msgbuf)) == -1) {
+                        epapi_on_epevent(EPEVT_ERROR_EPOLL_ADD_ONESHOT, epmsg, arg);
 
-                        close(epmsg.connfd);
-                        epmsg.connfd = -1;
+                        close(epmsg->connfd);
+                        epmsg->connfd = -1;
 
                         goto EXIT_ON_ERROR;
                     }
@@ -414,10 +410,10 @@ static int epapi_loop_events (int epollfd, int listenfd,
                  completely, as we are running in edge-triggered mode
                  and won't get a notification again for the same data. */
 
-                epmsg.epollfd = epollfd;
-                epmsg.connfd = fd;
+                epmsg->epollfd = epollfd;
+                epmsg->connfd = fd;
 
-                if (epevent_cb(EPEVT_EPOLLIN_EDGE_TRIG, &epmsg, arg) == 0) {
+                if (epapi_on_epevent(EPEVT_EPOLLIN_EDGE_TRIG, epmsg, arg) == 0) {
                     /* Add default implementation (do nothing) since caller has ignored
                       the event which must be handled */
                     int done = 0;
@@ -451,7 +447,7 @@ static int epapi_loop_events (int epollfd, int listenfd,
                     if (done) {
                         /* Closing the descriptor will make epoll remove it
                            from the set of descriptors which are monitored. */
-                        epevent_cb(EPEVT_PEER_CLOSED, &epmsg, arg);
+                        epapi_on_epevent(EPEVT_PEER_CLOSED, epmsg, arg);
 
                         close(fd);
                         ev->data.fd = -1;
@@ -462,8 +458,6 @@ static int epapi_loop_events (int epollfd, int listenfd,
     }
 
 EXIT_ON_ERROR:
-
-    epevent_cb(EPEVT_EXIT_LOOP_EVENTS, 0, arg);
 
     return (-1);
 }

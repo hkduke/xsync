@@ -80,69 +80,82 @@ void event_task (thread_context_t *thread_ctx)
 }
 
 
-/**
- * epevent_cb
- *   回调函数
- */
-__attribute__((used))
-static int epevent_cb(int status, epevent_msg epmsg, void *argserver)
+static int epmsg_cb_epoll_edge_trig(epevent_msg epmsg, void *svrarg)
 {
-    switch (status) {
-    case EPEVT_EPOLLIN_EDGE_TRIG:
-        LOGGER_TRACE("EPOLLIN_EDGE_TRIG");
-        break;
-
-    case EPEVT_ACCEPT_EAGAIN:
-        LOGGER_TRACE("ACCEPT_EAGAIN");
-        break;
-
-    case EPEVT_ACCEPT_EWOULDBLOCK:
-        LOGGER_WARN("ACCEPT_EWOULDBLOCK");
-        break;
-
-    case EPEVT_PEER_NAMEINFO:
-        LOGGER_INFO("PEER_NAMEINFO: sock(%d)=%s:%s", epmsg->connfd, epmsg->hbuf, epmsg->sbuf);
-        break;
-
-    case EPEVT_PEER_CLOSED:
-        LOGGER_WARN("PEER_CLOSED: sock(%d)", epmsg->connfd);
-        break;
-
-    case EPEVT_ERROR_EPOLL_WAIT:
-        LOGGER_ERROR("ERROR_EPOLL_WAIT: %s", epmsg->msgbuf);
-        break;
-
-    case EPEVT_ERROR_EPOLL_EVENT:
-        LOGGER_ERROR("ERROR_EPOLL_EVENT: %s", epmsg->msgbuf);
-        break;
-
-    case EPEVT_ERROR_ACCEPT:
-        LOGGER_ERROR("ERROR_ACCEPT: %s", epmsg->msgbuf);
-        break;
-
-    case EPEVT_ERROR_PEERNAME:
-        LOGGER_ERROR("ERROR_PEERNAME: %s", epmsg->msgbuf);
-        break;
-
-    case EPEVT_ERROR_SETNONBLOCK:
-        LOGGER_ERROR("ERROR_SETNONBLOCK: %s", epmsg->msgbuf);
-        break;
-
-    case EPEVT_ERROR_EPOLL_ADD_ONESHOT:
-        LOGGER_ERROR("ERROR_EPOLL_ADD_ONESHOT: %s", epmsg->msgbuf);
-        break;
-
-    case EPEVT_START_LOOP_EVENTS:
-        LOGGER_INFO("EPEVT_START_LOOP_EVENTS");
-        break;
-
-    case EPEVT_EXIT_LOOP_EVENTS:
-        LOGGER_WARN("EPEVT_EXIT_LOOP_EVENTS");
-        break;
-    }
-
+    LOGGER_TRACE("EPEVT_EPOLLIN_EDGE_TRIG");
     return 0;
 }
+
+
+static int epmsg_cb_error_epoll_wait(epevent_msg epmsg, void *svrarg)
+{
+    LOGGER_ERROR("EPEVT_ERROR_EPOLL_WAIT: %s", epmsg->msgbuf);
+    return 0;
+}
+
+
+static int epmsg_cb_error_epoll_event(epevent_msg epmsg, void *svrarg)
+{
+    LOGGER_ERROR("EPEVT_ERROR_EPOLL_EVENT: %s", epmsg->msgbuf);
+    return 0;
+}
+
+
+static int epmsg_cb_accept_eagain(epevent_msg epmsg, void *svrarg)
+{
+    LOGGER_TRACE("EPEVT_ACCEPT_EAGAIN");
+    return 0;
+}
+
+
+static int epmsg_cb_accept_ewouldblock(epevent_msg epmsg, void *svrarg)
+{
+    LOGGER_WARN("EPEVT_ACCEPT_EWOULDBLOCK");
+    return 0;
+}
+
+
+static int epmsg_cb_error_accept(epevent_msg epmsg, void *svrarg)
+{
+    LOGGER_ERROR("EPEVT_ERROR_ACCEPT: %s", epmsg->msgbuf);
+    return 0;
+}
+
+
+static int epmsg_cb_peer_nameinfo(epevent_msg epmsg, void *svrarg)
+{
+    LOGGER_INFO("EPEVT_PEER_NAMEINFO: sock(%d)=%s:%s", epmsg->connfd, epmsg->hbuf, epmsg->sbuf);
+    return 0;
+}
+
+
+static int epmsg_cb_error_peername(epevent_msg epmsg, void *svrarg)
+{
+    LOGGER_ERROR("EPEVT_ERROR_PEERNAME: %s", epmsg->msgbuf);
+    return 0;
+}
+
+
+static int epmsg_cb_error_setnonblock(epevent_msg epmsg, void *svrarg)
+{
+    LOGGER_ERROR("EPEVT_ERROR_SETNONBLOCK: %s", epmsg->msgbuf);
+    return 0;
+}
+
+
+static int epmsg_cb_error_epoll_add_oneshot(epevent_msg epmsg, void *svrarg)
+{
+    LOGGER_ERROR("EPEVT_ERROR_EPOLL_ADD_ONESHOT: %s", epmsg->msgbuf);
+    return 0;
+}
+
+
+static int epmsg_cb_peer_closed(epevent_msg epmsg, void *svrarg)
+{
+    LOGGER_WARN("EPEVT_PEER_CLOSED: sock(%d)", epmsg->connfd);
+    return 0;
+}
+
 
 
 extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
@@ -348,22 +361,38 @@ static void exit_cleanup_server (int code, void *server)
 
 extern XS_VOID XS_server_bootstrap (XS_server server)
 {
-    LOGGER_INFO("server starting ...");
+    LOGGER_INFO("server starting epapi_loop_events ...");
 
     on_exit(exit_cleanup_server, (void *) server);
 
     mul_timer_start();
 
+    epevent_msg_t event_msg;
+    bzero(&event_msg, sizeof(epevent_msg_t));
+
+    event_msg.msg_cb_handlers[EPEVT_EPOLLIN_EDGE_TRIG]       = epmsg_cb_epoll_edge_trig;
+    event_msg.msg_cb_handlers[EPEVT_ERROR_EPOLL_WAIT]        = epmsg_cb_error_epoll_wait;
+    event_msg.msg_cb_handlers[EPEVT_ERROR_EPOLL_EVENT]       = epmsg_cb_error_epoll_event;
+    event_msg.msg_cb_handlers[EPEVT_ACCEPT_EAGAIN]           = epmsg_cb_accept_eagain;
+    event_msg.msg_cb_handlers[EPEVT_ACCEPT_EWOULDBLOCK]      = epmsg_cb_accept_ewouldblock;
+    event_msg.msg_cb_handlers[EPEVT_ERROR_ACCEPT]            = epmsg_cb_error_accept;
+    event_msg.msg_cb_handlers[EPEVT_PEER_NAMEINFO]           = epmsg_cb_peer_nameinfo;
+    event_msg.msg_cb_handlers[EPEVT_ERROR_PEERNAME]          = epmsg_cb_error_peername;
+    event_msg.msg_cb_handlers[EPEVT_ERROR_SETNONBLOCK]       = epmsg_cb_error_setnonblock;
+    event_msg.msg_cb_handlers[EPEVT_ERROR_EPOLL_ADD_ONESHOT] = epmsg_cb_error_epoll_add_oneshot;
+    event_msg.msg_cb_handlers[EPEVT_PEER_CLOSED]             = epmsg_cb_peer_closed;
+
     epapi_loop_events(server->epollfd,
         server->listenfd,
+        server->timeout_ms,
         server->events,
         server->maxevents,
-        server->timeout_ms,
-        epevent_cb, server);
+        &event_msg,
+        server);
 
     mul_timer_pause();
 
-    LOGGER_FATAL("server stopped.");
+    LOGGER_FATAL("server stopped epapi_loop_events.");
 }
 
 
