@@ -59,8 +59,20 @@ typedef struct xs_server_t
     char host[XSYNC_HOSTNAME_MAXLEN + 1];
     int port;
 
-    int ssl;
+    /**
+     * must be an integer for serverid
+     * xs:serverid:sockfd
+     */
+    char serverid[11];
+
+    /**
+     * server magic
+     */
+    ub4 magic;
+
     int timeout_ms;
+
+    int ssl;
 
     /**
      * database pool

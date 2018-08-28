@@ -6,7 +6,7 @@
 
 # !!! DO NOT change APPNAME and VERSION only when you make sure do that !
 APPNAME := xsync-server
-VERSION := 0.0.9
+VERSION := 0.1.0
 
 TARGET := ${APPNAME}-${VERSION}
 

@@ -26,7 +26,7 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.9
+ * @version: 0.1.0
  *
  * @create: 2018-01-29
  *
@@ -90,6 +90,10 @@ void print_usage(void)
         "\t                                    \033[35m 'stderr' - using appender stderr\033[0m\n"
         "\t                                    \033[35m 'syslog' - using appender syslog\033[0m\n"
         "\n"
+        "\t-i, --server-id=<ID>         \033[35m specify an integer number as server id. '1' (default)\033[0m\n"
+        "\n"
+        "\t-n, --magic=<NUMBER>         \033[35m specify a numeric as magic. '%s' (default)\033[0m\n"
+        "\n"
         "\t-s, --host=<SERVER>          \033[35m specify server ip or hostname to bind. '0.0.0.0' (default)\033[0m\n"
         "\n"
         "\t-p, --port=<PORT>            \033[35m specify port to listen. 8960 (default)\033[0m\n"
@@ -115,6 +119,7 @@ void print_usage(void)
         "\n"
         "\033[47;35m* COPYRIGHT (c) 2014-2020 PEPSTACK.COM, ALL RIGHTS RESERVED.\033[0m\n",
         APP_NAME,
+        XSYNC_MAGIC_DEFAULT,
         XSYNC_SERVER_THREADS,
         XSYNC_SERVER_QUEUES,
         XSYNC_SERVER_EVENTS,
@@ -156,8 +161,12 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     opts->maxevents = XSYNC_SERVER_EVENTS;
     opts->timeout_ms = 1000;
 
+    // 默认参数
     strcpy(opts->host, "0.0.0.0");
     strcpy(opts->port, "8960");
+
+    opts->serverid = 1;
+    opts->magic = (ub4) atoi(XSYNC_MAGIC_DEFAULT);
 
     do {
         /**
@@ -203,6 +212,9 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
             {"config", required_argument, 0, 'C'},
             {"log4c-rcpath", required_argument, 0, 'O'},
             {"priority", required_argument, 0, 'P'},
+            {"appender", required_argument, 0, 'A'},
+            {"server-id", required_argument, 0, 'i'},
+            {"magic", required_argument, 0, 'n'},
             {"appender", required_argument, 0, 'A'},
             {"host", required_argument, 0, 's'},
             {"port", required_argument, 0, 'p'},
@@ -300,6 +312,14 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
                 }
                 break;
 
+            case 'i':
+                opts->serverid = atoi(optarg);
+                break;
+
+            case 'n':
+                opts->magic = (ub4) atoi(optarg);
+                break;
+
             case 's':
                 ret = snprintf(opts->host, sizeof(opts->host), "%s", optarg);
                 if (ret < 0 || ret >= sizeof(opts->host)) {
@@ -375,6 +395,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
         }
     } while(0);
 
+    fprintf(stdout, "\033[1;34m* Server id          : %d\033[0m\n", opts->serverid);
     fprintf(stdout, "\033[1;34m* Default log4c path : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
     fprintf(stdout, "\033[1;34m* Default config file: %s\033[0m\n\n", config);
     fprintf(stdout, "\033[1;32m* Using log4c path   : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));

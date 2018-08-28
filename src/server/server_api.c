@@ -122,9 +122,28 @@ static inline int epmsg_cb_error_accept(epevent_msg epmsg, void *svrarg)
 }
 
 
+/**
+ * 当有新用户连接
+ *
+ */
 static inline int epmsg_cb_peer_nameinfo(epevent_msg epmsg, void *svrarg)
 {
-    LOGGER_INFO("EPEVT_PEER_NAMEINFO: sock(%d)=%s:%s", epmsg->connfd, epmsg->hbuf, epmsg->sbuf);
+    LOGGER_DEBUG("EPEVT_PEER_NAMEINFO: sock(%d)=%s:%s", epmsg->connfd, epmsg->hbuf, epmsg->sbuf);
+
+    XS_server server = (XS_server) svrarg;
+
+    // xs:1:10 host port
+    snprintf(server->msgbuf, sizeof(server->msgbuf), "xs:%s:%d", server->serverid, epmsg->connfd);
+
+    const char * flds[] = { "host", "port" };
+    const char * vals[] = { epmsg->hbuf, epmsg->sbuf };
+
+    if (RedisHMSET(&server->redisconn, server->msgbuf, sizeof(flds)/sizeof(flds[0]), flds, vals, 0, 60 * 1000) != 0) {
+        LOGGER_ERROR("RedisHMSET(%s): %s", server->msgbuf, server->redisconn.errmsg);
+    } else {
+        LOGGER_DEBUG("RedisHMSET(%s): {host=%s, port=%s}", server->msgbuf, epmsg->hbuf, epmsg->sbuf);
+    }
+
     return 0;
 }
 
@@ -179,6 +198,10 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
 
     *outServer = 0;
 
+    // TODO: hbase C 客户端
+    //   https://github.com/mapr/libhbase
+    //   https://github.com/mapr
+
     // TODO: mysql
     const char dbpool_url[] = "mysql://localhost/xsyncdb?user=xsync&password=pAssW0rd";
     LOGGER_DEBUG("zdbpool_init: (url=%s, maxsize=%d)", dbpool_url, ZDBPOOL_MAX_SIZE);
@@ -219,7 +242,8 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
         INIT_HLIST_HEAD(&server->client_hlist[i]);
     }
 
-    LOGGER_INFO("threads=%d queues=%d maxevents=%d somaxconn=%d timeout_ms=%d", THREADS, QUEUES, MAXEVENTS, BACKLOGS, TIMEOUTMS);
+    LOGGER_INFO("serverid=%d threads=%d queues=%d maxevents=%d somaxconn=%d timeout_ms=%d",
+        opts->serverid, THREADS, QUEUES, MAXEVENTS, BACKLOGS, TIMEOUTMS);
 
     /* create per thread data */
     server->thread_args = (void **) mem_alloc(THREADS, sizeof(void*));
@@ -313,6 +337,13 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
 
     server->maxevents = MAXEVENTS;
     server->timeout_ms = TIMEOUTMS;
+
+    /* 服务ID: 整数表示, 整个 redis-cluster 中必须唯一 */
+    snprintf(server->serverid, sizeof(server->serverid), "%d", opts->serverid);
+    server->serverid[sizeof(server->serverid) - 1] = 0;
+
+    /* 服务魔数: 用于验证用户 */
+    server->magic = opts->magic;
 
     /**
      * output XS_server

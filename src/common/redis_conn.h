@@ -101,7 +101,7 @@ extern void RedisFreeReplyObject(redisReply **reply);
 /**
  * high level functions
  */
-extern int RedisHMSET(RedisConn_t * redconn, const char *key, int num, const char * fields[], const char *values[], const size_t *valueslen);
+extern int RedisHMSET(RedisConn_t * redconn, const char *key, int num, const char * fields[], const char *values[], const size_t *valueslen, int64_t expire_ms);
 
 
 #if defined(__cplusplus)

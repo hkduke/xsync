@@ -449,9 +449,9 @@ void RedisFreeReplyObject(redisReply **ppreply)
 
 
 __attribute__((used))
-int RedisHMSET(RedisConn_t * redconn, const char *key, int num, const char * fields[], const char *values[], const size_t *valueslen)
+int RedisHMSET(RedisConn_t * redconn, const char *key, int numflds, const char * fields[], const char *values[], const size_t *valueslen, int64_t expire_ms)
 {
-    int i, argc = num*2 + 2;
+    int i, argc = numflds * 2 + 2;
 
     redisReply * reply = 0;
 
@@ -464,7 +464,7 @@ int RedisHMSET(RedisConn_t * redconn, const char *key, int num, const char * fie
     argv[0] = cmd;  argvlen[0] = 5;
     argv[1] = key;  argvlen[1] = strlen(key);
 
-    for (i = 0; i < num; ++i) {
+    for (i = 0; i < numflds; ++i) {
         argv[i*2 + 2] = fields[i];
         argvlen[i*2 + 2] = strlen(fields[i]);
 
@@ -480,14 +480,63 @@ int RedisHMSET(RedisConn_t * redconn, const char *key, int num, const char * fie
     reply = RedisConnExecCommand(redconn, argc, argv, argvlen);
 
     free(argv);
-    free(argv);
+    free(argvlen);
 
-    // TODO:
+    if (! reply) {
+        // error
+        return -1;
+    }
 
-    
+    if (reply->type == REDIS_REPLY_STATUS &&
+        reply->len == 2 &&
+        reply->str[0] == 'O' &&
+        reply->str[1] == 'K') {
+        // success
+        RedisFreeReplyObject(&reply);
+        
+        if (! expire_ms) {
+            // success: no expire time set
+            return 0;
+        } else {
+            char str_expire_ms[21];
+            snprintf(str_expire_ms, sizeof(str_expire_ms), "%ld", expire_ms);
+            str_expire_ms[20] = 0;
+
+            const char * expargv[] = {"PEXPIRE", key, str_expire_ms};
+
+            reply = RedisConnExecCommand(redconn, sizeof(expargv) / sizeof(expargv[0]), expargv, 0);
+
+            if (! reply) {
+                // error
+                return -1;
+            }
+
+            if (reply->type == REDIS_REPLY_INTEGER) {
+                if (reply->integer == 1) {
+                    // success
+                    RedisFreeReplyObject(&reply);
+                    return 0;
+                } else {
+                    // bad reply integer
+                    snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad reply value(=%lld), required integer(1)", reply->integer);
+                    redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+                    RedisFreeReplyObject(&reply);
+                    return -2;
+                }
+            }
+
+            // bad reply type
+            snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad reply type(=%d), required REDIS_REPLY_INTEGER(%d)", reply->type, REDIS_REPLY_INTEGER);
+            redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+            RedisFreeReplyObject(&reply);
+            return -3;
+        }
+    }
+
+    // bad reply type
+    snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad reply type(=%d), required REDIS_REPLY_STATUS(%d)", reply->type, REDIS_REPLY_STATUS);
+    redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
     RedisFreeReplyObject(&reply);
 
-    // TODO:
-
-    return (-1);
+    return -4;
 }
