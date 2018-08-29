@@ -26,17 +26,19 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.9
+ * @version: 0.1.1
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-17 11:08:29
+ * @update: 2018-08-29 13:25:17
  */
 
 #include "server_api.h"
 #include "server_conf.h"
 
 #include "../common/common_util.h"
+
+#include "../redisapi/redis_api.h"
 
 
 __attribute__((used))
@@ -138,10 +140,10 @@ static inline int epmsg_cb_peer_nameinfo(epevent_msg epmsg, void *svrarg)
     const char * flds[] = { "host", "port" };
     const char * vals[] = { epmsg->hbuf, epmsg->sbuf };
 
-    if (RedisHMSET(&server->redisconn, server->msgbuf, sizeof(flds)/sizeof(flds[0]), flds, vals, 0, 60 * 1000) != 0) {
-        LOGGER_ERROR("RedisHMSET(%s): %s", server->msgbuf, server->redisconn.errmsg);
+    if (RedisHashMultiSet(&server->redisconn, server->msgbuf, sizeof(flds)/sizeof(flds[0]), flds, vals, 0, 60 * 1000) != 0) {
+        LOGGER_ERROR("RedisHashMultiSet(%s): %s", server->msgbuf, server->redisconn.errmsg);
     } else {
-        LOGGER_DEBUG("RedisHMSET(%s): {host=%s, port=%s}", server->msgbuf, epmsg->hbuf, epmsg->sbuf);
+        LOGGER_DEBUG("RedisHashMultiSet(%s): {host=%s, port=%s}", server->msgbuf, epmsg->hbuf, epmsg->sbuf);
     }
 
     return 0;
@@ -213,9 +215,9 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
     assert(server->thread_args == 0);
 
     // redis connection
-    LOGGER_DEBUG("RedisConnInitiate2: cluster='%s'", opts->redis_cluster);
-    if (RedisConnInitiate2(&server->redisconn, opts->redis_cluster, opts->redis_auth, redis_timeo_ms, redis_timeo_ms) != 0) {
-        LOGGER_ERROR("RedisConnInitiate2 failed - %s", server->redisconn.errmsg);
+    LOGGER_DEBUG("RedisConnInit2: cluster='%s'", opts->redis_cluster);
+    if (RedisConnInit2(&server->redisconn, opts->redis_cluster, opts->redis_auth, redis_timeo_ms, redis_timeo_ms) != 0) {
+        LOGGER_ERROR("RedisConnInit2 failed - %s", server->redisconn.errmsg);
         free((void*) server);
         return XS_ERROR;
     }
@@ -230,7 +232,7 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
         LOGGER_FATAL("pthread_cond_init() error(%d): %s", errno, strerror(errno));
 
         zdbpool_end(&db_pool);
-        RedisConnRelease(&server->redisconn);
+        RedisConnFree(&server->redisconn);
 
         free((void*) server);
         return XS_ERROR;
@@ -252,7 +254,7 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
         // perthread_data was defined in file_entry.h
         perthread_data *perdata = (perthread_data *) mem_alloc(1, sizeof(perthread_data));
 
-        RedisConnInitiate2(&perdata->redconn, opts->redis_cluster, opts->redis_auth, redis_timeo_ms, redis_timeo_ms);
+        RedisConnInit2(&perdata->redconn, opts->redis_cluster, opts->redis_auth, redis_timeo_ms, redis_timeo_ms);
 
         perdata->threadid = i + 1;
 

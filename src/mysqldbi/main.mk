@@ -1,3 +1,10 @@
+#######################################################################
+# @file: main.mk
+#
+# @version: 0.1.1
+# @create: 2018-05-18 14:00:00
+# @update: 2018-08-29 13:34:19
+#######################################################################
 # The libmysqldbi.a library can normally be built by itself (without also
 #   building the "xsync" program) by running "make libmysqldbi.a" from
 #   within the "src" directory.

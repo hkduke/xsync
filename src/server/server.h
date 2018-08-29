@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.0
+ * @version: 0.1.1
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-15 14:51:17
+ * @update: 2018-08-29 10:54:01
  */
 
 #ifndef SERVER_H_INCLUDED
@@ -48,7 +48,6 @@ extern "C" {
 
 #include "../common/cshell.h"
 #include "../common/common_util.h"
-#include "../common/redis_conn.h"
 
 
 /**

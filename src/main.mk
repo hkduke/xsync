@@ -1,3 +1,10 @@
+#######################################################################
+# @file: main.mk
+#
+# @version: 0.1.1
+# @create: 2018-05-18 14:00:00
+# @update: 2018-08-29 13:33:25
+#######################################################################
 # GCC, the GNU C compiler, supports `-g' with or without `-O',
 #   making it possible to debug optimized code.
 # We recommend that you always use `-g' whenever you compile a program.
@@ -40,4 +47,9 @@ BUILD_DIR  := ../build
 
 TARGET_DIR := ../target
 
-SUBMAKEFILES := common/common.mk mysqldbi/mysqldbi.mk server/server.mk client/client.mk
+SUBMAKEFILES := common/common.mk \
+    redisapi/redisapi.mk \
+    mysqldbi/mysqldbi.mk \
+    server/server.mk \
+    client/client.mk
+

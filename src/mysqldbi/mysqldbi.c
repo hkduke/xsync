@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.0
+ * @version: 0.1.1
  *
  * @create: 2018-01-25
  *
- * @update: 2018-08-10 18:11:59
+ * @update: 2018-08-29 13:08:28
  */
 
 #include "mysqldbi.h"

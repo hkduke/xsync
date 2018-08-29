@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.0
+ * @version: 0.1.1
  *
  * @create: 2018-02-02
  *
- * @update: 2018-08-15 12:37:12
+ * @update: 2018-08-29 12:23:02
  */
 
 #include "server_api.h"
@@ -84,8 +84,8 @@ extern void xs_server_delete (void *pv)
             pdata = server->thread_args[i];
             server->thread_args[i] = 0;
 
-            LOGGER_DEBUG("thread-%d: RedisConnRelease", pdata->threadid);
-            RedisConnRelease(&pdata->redconn);
+            LOGGER_DEBUG("thread-%d: RedisConnFree", pdata->threadid);
+            RedisConnFree(&pdata->redconn);
 
             free(pdata);
         }
@@ -98,8 +98,8 @@ extern void xs_server_delete (void *pv)
     LOGGER_DEBUG("server: zdbpool_end");
     zdbpool_end(&server->db_pool);
 
-    LOGGER_DEBUG("server: RedisConnRelease");
-    RedisConnRelease(&server->redisconn);
+    LOGGER_DEBUG("server: RedisConnFree");
+    RedisConnFree(&server->redisconn);
 
     LOGGER_TRACE("%p", server);
 

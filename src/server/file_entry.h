@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.0
+ * @version: 0.1.1
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-16 22:24:50
+ * @update: 2018-08-29 13:24:56
  */
 
 #ifndef FILE_ENTRY_H_INCLUDED
@@ -48,7 +48,7 @@ extern "C" {
 #include "../xsync-error.h"
 #include "../xsync-config.h"
 
-#include "../common/redis_conn.h"
+#include "../redisapi/redis_api.h"
 
 
 typedef struct perthread_data

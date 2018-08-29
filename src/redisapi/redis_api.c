@@ -20,20 +20,20 @@
 ***********************************************************************/
 
 /**
- * redis_conn.c
- *   redis client connection implementation
+ * redis_api.c
+ *   redis 同步/异步 API
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.9
+ * @version: 0.1.1
  *
  * @create: 2018-02-10
  *
- * @update: 2018-08-16 10:44:16
+ * @update: 2018-08-29 13:09:01
  *
  */
 
-#include "redis_conn.h"
+#include "redis_api.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,7 +50,7 @@ static char * trim(char *s, char c)
 
 
 __attribute__((used))
-int RedisConnInitiate(RedisConn_t * redconn, int maxNodes, const char * password, int conn_timeo_ms, int data_timeo_ms)
+int RedisConnInit(RedisConn_t * redconn, int maxNodes, const char * password, int conn_timeo_ms, int data_timeo_ms)
 {
     size_t authlen = 0;
 
@@ -59,25 +59,25 @@ int RedisConnInitiate(RedisConn_t * redconn, int maxNodes, const char * password
         if (authlen >= sizeof(redconn->password)) {
             snprintf(redconn->errmsg, sizeof(redconn->errmsg), "%s", "password is too long");
             redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
-            return -1;
+            return REDISAPI_EARG;
         }
     }
 
     if (maxNodes < 1) {
         snprintf(redconn->errmsg, sizeof(redconn->errmsg), "invalid nodes(=%d)", maxNodes);
         redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
-        return -1;
+        return REDISAPI_EARG;
     }
 
     if (maxNodes > 20) {
         snprintf(redconn->errmsg, sizeof(redconn->errmsg), "too many nodes(=%d)", maxNodes);
         redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
-        return -1;
+        return REDISAPI_EARG;
     }
 
     bzero(redconn, sizeof(RedisConn_t));
 
-    redconn->nodes = (RedisNode_t *) calloc(maxNodes, sizeof(RedisNode_t));
+    redconn->nodes = (RedisSynNode_t *) calloc(maxNodes, sizeof(RedisSynNode_t));
     redconn->num = maxNodes;
     do {
         int i;
@@ -100,12 +100,12 @@ int RedisConnInitiate(RedisConn_t * redconn, int maxNodes, const char * password
         memcpy(redconn->password, password, authlen);
     }
 
-    return 0;
+    return REDISAPI_SUCCESS;;
 }
 
 
 __attribute__((used))
-int RedisConnInitiate2(RedisConn_t * redconn, const char * host_post_pairs, const char * password, int conn_timeo_ms, int data_timeo_ms)
+int RedisConnInit2(RedisConn_t * redconn, const char * host_post_pairs, const char * password, int conn_timeo_ms, int data_timeo_ms)
 {
     /**
      * host_post_pairs="127.0.0.1:7001,127.0.0.1:7002,127.0.0.1:7003,127.0.0.1:7004,127.0.0.1:7005,127.0.0.1:7006,127.0.0.1:7007,127.0.0.1:7008,127.0.0.1:7009"
@@ -132,7 +132,7 @@ int RedisConnInitiate2(RedisConn_t * redconn, const char * host_post_pairs, cons
             snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad argument: port not found");
             redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
 
-            return -2;
+            return REDISAPI_EARG;
         }
         *port++ = 0;
         while(*port) {
@@ -142,14 +142,14 @@ int RedisConnInitiate2(RedisConn_t * redconn, const char * host_post_pairs, cons
                 snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad argument: invalid port");
                 redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
 
-                return -2;
+                return REDISAPI_EARG;
             }
         }
         ++nodes;
         hp = strtok(0, ",");
     }
 
-    rc = RedisConnInitiate(redconn, nodes, password, conn_timeo_ms, data_timeo_ms);
+    rc = RedisConnInit(redconn, nodes, password, conn_timeo_ms, data_timeo_ms);
     if (rc != 0) {
         free(buf);
         return rc;
@@ -173,12 +173,12 @@ int RedisConnInitiate2(RedisConn_t * redconn, const char * host_post_pairs, cons
 
     free(buf);
 
-    return 0;
+    return REDISAPI_SUCCESS;
 }
 
 
 __attribute__((used))
-void RedisConnRelease(RedisConn_t * redconn)
+void RedisConnFree(RedisConn_t * redconn)
 {
     while (redconn->num-- > 0) {
         char * hp = redconn->nodes[redconn->num].host;
@@ -201,7 +201,7 @@ int RedisConnSetNode(RedisConn_t * redconn, int nodeIndex, const char *host, int
     if (redconn->nodes[nodeIndex].index != -1) {
         snprintf(redconn->errmsg, sizeof(redconn->errmsg), "node already existed (index=%d)", nodeIndex);
         redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
-        return -1;
+        return REDISAPI_EINDEX;
     }
 
     for (i = 0; i < redconn->num; ++i) {
@@ -209,7 +209,7 @@ int RedisConnSetNode(RedisConn_t * redconn, int nodeIndex, const char *host, int
             if (redconn->nodes[i].port == port && ! strcmp(redconn->nodes[i].host, host)) {
                 snprintf(redconn->errmsg, sizeof(redconn->errmsg), "duplicated node(%s:%d)", host, port);
                 redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
-                return -2;
+                return REDISAPI_EARG;
             }
         }
     }
@@ -222,15 +222,15 @@ int RedisConnSetNode(RedisConn_t * redconn, int nodeIndex, const char *host, int
     redconn->nodes[nodeIndex].port = port;
     redconn->nodes[nodeIndex].index = nodeIndex;
 
-    return 0;
+    return REDISAPI_SUCCESS;
 }
 
 
 __attribute__((used))
 void RedisConnCloseNode(RedisConn_t * redconn, int index)
 {
-    redisContext * ctx = redconn->nodes[index].redctx;
-    redconn->nodes[index].redctx = 0;
+    redisContext * ctx = redconn->nodes[index].redCtx;
+    redconn->nodes[index].redCtx = 0;
     if (ctx) {
         if (redconn->active_node == &(redconn->nodes[index])) {
             redconn->active_node = 0;
@@ -246,7 +246,7 @@ redisContext * RedisConnOpenNode(RedisConn_t * redconn, int index)
     RedisConnCloseNode(redconn, index);
 
     do {
-        RedisNode_t *node = &(redconn->nodes[index]);
+        RedisSynNode_t *node = &(redconn->nodes[index]);
         redisContext * ctx = 0;
 
         if (redconn->timeo_conn.tv_sec || redconn->timeo_conn.tv_usec) {
@@ -267,12 +267,12 @@ redisContext * RedisConnOpenNode(RedisConn_t * redconn, int index)
             }
 
             if (ctx) {
-                node->redctx = ctx;
+                node->redCtx = ctx;
                 redconn->active_node = node;
             }
         }
 
-        return node->redctx;
+        return node->redCtx;
     } while (0);
 
     /* never run to this. */
@@ -288,16 +288,16 @@ redisContext * RedisConnGetActiveContext(RedisConn_t * redconn, const char *host
     int index;
 
     if (! host) {
-        if (redconn->active_node && redconn->active_node->redctx) {
-            return redconn->active_node->redctx;
+        if (redconn->active_node && redconn->active_node->redCtx) {
+            return redconn->active_node->redCtx;
         } else {
             // 找到第一个活动节点
             redconn->active_node = 0;
 
             for (index = 0; index < redconn->num; index++) {
-                if (redconn->nodes[index].redctx) {
+                if (redconn->nodes[index].redCtx) {
                     redconn->active_node = &(redconn->nodes[index]);
-                    return redconn->active_node->redctx;
+                    return redconn->active_node->redCtx;
                 }
             }
         }
@@ -305,17 +305,17 @@ redisContext * RedisConnGetActiveContext(RedisConn_t * redconn, const char *host
         // 全部节点都不是活的, 创建连接. 遇到第一个成功的就返回
         for (index = 0; index < redconn->num; index++) {
             if (RedisConnOpenNode(redconn, index)) {
-                return redconn->active_node->redctx;
+                return redconn->active_node->redCtx;
             }
         }
     } else {
         for (index = 0; index < redconn->num; index++) {
-            RedisNode_t * node = &(redconn->nodes[index]);
+            RedisSynNode_t * node = &(redconn->nodes[index]);
 
             if (node->port == port && ! strcmp(node->host, host)) {
-                if (node->redctx) {
+                if (node->redCtx) {
                     redconn->active_node = node;
-                    return redconn->active_node->redctx;
+                    return redconn->active_node->redCtx;
                 } else {
                     return RedisConnOpenNode(redconn, index);
                 }
@@ -449,7 +449,95 @@ void RedisFreeReplyObject(redisReply **ppreply)
 
 
 __attribute__((used))
-int RedisHMSET(RedisConn_t * redconn, const char *key, int numflds, const char * fields[], const char *values[], const size_t *valueslen, int64_t expire_ms)
+int RedisExpireSet(RedisConn_t * redconn, const char *key, int64_t expire_ms)
+{
+    if (expire_ms == 0) {
+        // 忽略过期时间
+        // success: no expire time set
+        return REDISAPI_SUCCESS;
+    } else if (expire_ms > 0) {
+        // 设置过期时间(毫秒): PEXPIRE key expire_ms
+        redisReply *reply;
+
+        char str_expire_ms[21];
+
+        snprintf(str_expire_ms, sizeof(str_expire_ms), "%ld", expire_ms);
+        str_expire_ms[20] = 0;
+
+        const char * pexpire[] = {"PEXPIRE", key, str_expire_ms};
+
+        reply = RedisConnExecCommand(redconn, sizeof(pexpire) / sizeof(pexpire[0]), pexpire, 0);
+
+        if (! reply) {
+            // error
+            return REDISAPI_ERROR;
+        }
+
+        if (reply->type == REDIS_REPLY_INTEGER) {
+            if (reply->integer == 1) {
+                // success
+                RedisFreeReplyObject(&reply);
+                return REDISAPI_SUCCESS;
+            } else {
+                // bad reply integer
+                snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad reply value(=%lld), required(1)", reply->integer);
+                redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+
+                RedisFreeReplyObject(&reply);
+                return REDISAPI_ERETVAL;
+            }
+        }
+
+        // bad reply type
+        snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad reply type(=%d), required REDIS_REPLY_INTEGER(%d)", reply->type, REDIS_REPLY_INTEGER);
+        redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+
+        RedisFreeReplyObject(&reply);
+        return REDISAPI_ETYPE;
+    } else if (expire_ms == -1) {
+        // 永不过期: PERSIST key
+        redisReply *reply;
+
+        const char * persist[] = {"PERSIST", key};
+
+        reply = RedisConnExecCommand(redconn, sizeof(persist) / sizeof(persist[0]), persist, 0);
+
+        if (! reply) {
+            // error
+            return REDISAPI_ERROR;
+        }
+
+        if (reply->type == REDIS_REPLY_INTEGER) {
+            if (reply->integer == -1) {
+                // success
+                RedisFreeReplyObject(&reply);
+                return REDISAPI_SUCCESS;
+            } else {
+                // bad reply integer
+                snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad reply value(=%lld), required(-1)", reply->integer);
+                redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+
+                RedisFreeReplyObject(&reply);
+                return REDISAPI_ERETVAL;
+            }
+        }
+
+        // bad reply type
+        snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad reply type(=%d), required REDIS_REPLY_INTEGER(%d)", reply->type, REDIS_REPLY_INTEGER);
+        redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+
+        RedisFreeReplyObject(&reply);
+        return REDISAPI_ETYPE;
+    } else {
+        snprintf(redconn->errmsg, sizeof(redconn->errmsg), "invalid expire time: %ld", expire_ms);
+        redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+        return REDISAPI_EARG;
+    }
+}
+
+
+__attribute__((used))
+int RedisHashMultiSet(RedisConn_t * redconn, const char *key, int numflds, const char * fields[], const char *values[], const size_t *valueslen, int64_t expire_ms)
 {
     int i, argc = numflds * 2 + 2;
 
@@ -484,7 +572,7 @@ int RedisHMSET(RedisConn_t * redconn, const char *key, int numflds, const char *
 
     if (! reply) {
         // error
-        return -1;
+        return REDISAPI_ERROR;
     }
 
     if (reply->type == REDIS_REPLY_STATUS &&
@@ -493,50 +581,15 @@ int RedisHMSET(RedisConn_t * redconn, const char *key, int numflds, const char *
         reply->str[1] == 'K') {
         // success
         RedisFreeReplyObject(&reply);
-        
-        if (! expire_ms) {
-            // success: no expire time set
-            return 0;
-        } else {
-            char str_expire_ms[21];
-            snprintf(str_expire_ms, sizeof(str_expire_ms), "%ld", expire_ms);
-            str_expire_ms[20] = 0;
 
-            const char * expargv[] = {"PEXPIRE", key, str_expire_ms};
-
-            reply = RedisConnExecCommand(redconn, sizeof(expargv) / sizeof(expargv[0]), expargv, 0);
-
-            if (! reply) {
-                // error
-                return -1;
-            }
-
-            if (reply->type == REDIS_REPLY_INTEGER) {
-                if (reply->integer == 1) {
-                    // success
-                    RedisFreeReplyObject(&reply);
-                    return 0;
-                } else {
-                    // bad reply integer
-                    snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad reply value(=%lld), required integer(1)", reply->integer);
-                    redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
-                    RedisFreeReplyObject(&reply);
-                    return -2;
-                }
-            }
-
-            // bad reply type
-            snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad reply type(=%d), required REDIS_REPLY_INTEGER(%d)", reply->type, REDIS_REPLY_INTEGER);
-            redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
-            RedisFreeReplyObject(&reply);
-            return -3;
-        }
+        return RedisExpireSet(redconn, key, expire_ms);
     }
 
     // bad reply type
-    snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad reply type(=%d), required REDIS_REPLY_STATUS(%d)", reply->type, REDIS_REPLY_STATUS);
+    snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad reply type(=%d), required REDIS_REPLY_STATUS(%d)",
+        reply->type, REDIS_REPLY_STATUS);
     redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
     RedisFreeReplyObject(&reply);
 
-    return -4;
+    return REDISAPI_ETYPE;
 }

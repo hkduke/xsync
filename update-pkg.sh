@@ -1,12 +1,13 @@
 #!/bin/bash
-# @file: update-package.sh
+#
+# @file: update-pkg.sh
 #
 #   update and package all source files (自动清理并打包源代码).
 #
 # @author: master@pepstack.com
 #
 # @create: 2018-06-21 23:11:00
-# @update: 2018-08-10
+# @update: 2018-08-29
 #
 #######################################################################
 # will cause error on macosx

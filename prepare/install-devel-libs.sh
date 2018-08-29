@@ -74,4 +74,12 @@ make && make install
 rm -rf ${_cdir}/zlib-1.2.11
 cd ${_cdir}
 
+echo "---- build and install <libevent-2.1.8-stable> ..."
+tar -zxf ${_cdir}/libevent-2.1.8-stable.tar.gz
+cd ${_cdir}/libevent-2.1.8-stable/
+./configure --prefix=${INSTALLDIR}
+make && make install
+rm -rf ${_cdir}/libevent-2.1.8-stable
+cd ${_cdir}
+
 echo "[success] all packages installed at: ${INSTALLDIR}"

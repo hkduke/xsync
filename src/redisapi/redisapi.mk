@@ -1,20 +1,15 @@
 #######################################################################
-# @file: common.mk
+# @file: redisapi.mk
 #
 # @version: 0.1.1
-# @create: 2012-05-18 14:00:00
-# @update: 2018-08-29 13:34:49
+# @create: 2018-05-18 14:00:00
+# @update: 2018-08-29 13:33:58
 #######################################################################
-TARGET := libcommon.a
+
+TARGET := libredisapi.a
 
 SOURCES := \
-	threadpool.c \
-	getopt_longw.c \
-	getoptw.c \
-	base64.c \
-	readconf.c \
-	mul_timer.c \
-	randctx.c
+	redis_api.c
 
 
 #   If the macro NDEBUG is defined at the moment <assert.h> was last
@@ -23,17 +18,19 @@ SOURCES := \
 SRC_DEFS := NDEBUG
 
 
-SRC_INCDIRS := .
+SRC_INCDIRS := . \
+    ../../libs/include
 
 
-# common has its own submakefile because it has a specific SRC_DEFS that we
-# want to apply only to it
+# It has its own submakefile because it has a specific SRC_DEFS that we
+#   want to apply only to it:
+#
 # SUBMAKEFILES := path/to/sub.mk
 
 
-define INSTALL_LIBCOMMON_A
+define INSTALL_LIBMYSQLDBI_A
 	 mv ${TARGET_DIR}/${TARGET} ${TARGET_DIR}/../libs/lib/
 endef
 
-TGT_POSTMAKE := ${INSTALL_LIBCOMMON_A}
+TGT_POSTMAKE := ${INSTALL_LIBMYSQLDBI_A}
 

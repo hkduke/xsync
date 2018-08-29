@@ -36,8 +36,8 @@ ignored_files = [ ".gitignore" ]
 
 included_filter = {
     'java': ['.java', '.properties', '.xml', '.jsp', '.cresql'],
-    'c': ['.h', '.c'],
-    'cpp': ['.h', '.cpp', '.cxx', '.hpp'],
+    'c': ['.h', '.c', '.mk'],
+    'cpp': ['.h', '.cpp', '.cxx', '.hpp', '.mk'],
     'python': ['.py'],
     'php': ['.php'],
     'html': ['.html', '.htm', '.js', '.css'],
