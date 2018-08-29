@@ -235,8 +235,19 @@ static inline int epmsg_cb_peer_nameinfo(epevent_msg epmsg, void *svrarg)
     // xs:1:10 host port clientid
     snprintf(server->msgbuf, sizeof(server->msgbuf), "xs:%s:%d", server->serverid, epmsg->connfd);
 
-    const char * flds[] = { "host", "port", "clientid", 0 };
-    const char * vals[] = { epmsg->hbuf, epmsg->sbuf, 0 };
+    const char * flds[] = {
+        "clientid",
+        "host",
+        "port",
+        0
+    };
+
+    const char * vals[] = {
+        0,
+        epmsg->hbuf,
+        epmsg->sbuf,
+        0
+    };
 
     if (RedisHashMultiSet(&server->redisconn, server->msgbuf, flds, vals, 0, 60 * 1000) != 0) {
         LOGGER_ERROR("RedisHashMultiSet(%s): %s", server->msgbuf, server->redisconn.errmsg);
