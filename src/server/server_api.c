@@ -53,7 +53,7 @@ static void zdbPoolErrorHandler (const char *error)
 __attribute__((used))
 static void handleClientPackage (perthread_data *perdata)
 {
-    size_t cbsize;
+    size_t cbsize, totalsize;
 
     int epollfd = perdata->pollin_data.epollfd;
     int connfd = perdata->pollin_data.connfd;
@@ -62,6 +62,8 @@ static void handleClientPackage (perthread_data *perdata)
 
     XS_server server = (XS_server) perdata->pollin_data.arg;
     assert(server);
+
+    totalsize = 0;
 
     while (1) {
         cbsize = read(connfd, iobuf, XSYNC_BUFSIZE);
@@ -98,8 +100,11 @@ static void handleClientPackage (perthread_data *perdata)
             close(connfd);
             break;
         } else {
+            totalsize += cbsize;
+
             // success recv data cbsize
-            LOGGER_DEBUG("(thread-%d) TODO: client(%d): recv %ld bytes", perdata->threadid, connfd, cbsize);
+            LOGGER_DEBUG("(thread-%d) TODO: client(%d): recv %ld bytes. total %ld bytes",
+                perdata->threadid, connfd, cbsize, totalsize);
         }
     }
 }
@@ -174,9 +179,19 @@ static inline int epmsg_cb_error_accept(epevent_msg epmsg, void *svrarg)
  */
 static inline int epmsg_cb_epoll_edge_trig(epevent_msg epmsg, void *svrarg)
 {
-    LOGGER_TRACE("EPEVT_EPOLLIN_EDGE_TRIG: sock(%d)", epmsg->connfd);
+    LOGGER_TRACE("=============EPEVT_EPOLLIN_EDGE_TRIG: sock(%d)", epmsg->connfd);
     
     XS_server server = (XS_server) svrarg;
+
+    /**
+     * 判断用户是否已经连接
+     *
+     * hget xs:1:10 clientid
+     */
+    snprintf(server->msgbuf, sizeof(server->msgbuf), "xs:%s:%d", server->serverid, epmsg->connfd);
+
+    // const char * flds[] = { "clientid" };
+    // RedisHashGet(&server->redisconn, server->msgbuf, "clientid")
 
     int num = threadpool_unused_queues(server->pool);
 
@@ -217,13 +232,13 @@ static inline int epmsg_cb_peer_nameinfo(epevent_msg epmsg, void *svrarg)
 
     XS_server server = (XS_server) svrarg;
 
-    // xs:1:10 host port
+    // xs:1:10 host port clientid
     snprintf(server->msgbuf, sizeof(server->msgbuf), "xs:%s:%d", server->serverid, epmsg->connfd);
 
-    const char * flds[] = { "host", "port" };
-    const char * vals[] = { epmsg->hbuf, epmsg->sbuf };
+    const char * flds[] = { "host", "port", "clientid", 0 };
+    const char * vals[] = { epmsg->hbuf, epmsg->sbuf, 0 };
 
-    if (RedisHashMultiSet(&server->redisconn, server->msgbuf, sizeof(flds)/sizeof(flds[0]), flds, vals, 0, 60 * 1000) != 0) {
+    if (RedisHashMultiSet(&server->redisconn, server->msgbuf, flds, vals, 0, 60 * 1000) != 0) {
         LOGGER_ERROR("RedisHashMultiSet(%s): %s", server->msgbuf, server->redisconn.errmsg);
     } else {
         LOGGER_DEBUG("RedisHashMultiSet(%s): {host=%s, port=%s}", server->msgbuf, epmsg->hbuf, epmsg->sbuf);

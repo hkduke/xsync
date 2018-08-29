@@ -107,7 +107,25 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
                return XS_ERROR;
             }
 
-            sleep(10);
+            usleep(100);
+
+            err = sendlen(sockfd, (char *) connRequest.chunk, XSConnectRequestSize);
+            if (err != XSConnectRequestSize) {
+                LOGGER_ERROR("sendlen error(%d): %s", errno, strerror(errno));
+                close(sockfd);
+               return XS_ERROR;
+            }
+            
+            usleep(100);
+
+            err = sendlen(sockfd, (char *) connRequest.chunk, XSConnectRequestSize);
+            if (err != XSConnectRequestSize) {
+                LOGGER_ERROR("sendlen error(%d): %s", errno, strerror(errno));
+                close(sockfd);
+               return XS_ERROR;
+            }
+
+            usleep(100);
 
             err = sendlen(sockfd, (char *) connRequest.chunk, XSConnectRequestSize);
             if (err != XSConnectRequestSize) {

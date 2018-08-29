@@ -36,7 +36,7 @@
 #include "client.h"
 #include "server_conn.h"
 
-void run_interactive (xs_appopts_t *opts);
+void run_interactive (int threads);
 
 void run_forever (xs_appopts_t *opts);
 
@@ -177,7 +177,7 @@ int main (int argc, char *argv[])
     }
 
     if (opts.interactive) {
-        run_interactive(&opts);
+        run_interactive(1);
     } else {
         run_forever(&opts);
     }
@@ -330,15 +330,15 @@ static void * thread_func (void *arg)
 }
 
 
-void run_interactive (xs_appopts_t *opts)
+void run_interactive (int threads)
 {
 #define XSCLIAPP    csh_green_msg("["APP_NAME"] ")
 
-    xs_server_opts  server;
-    bzero(&server, sizeof(server));
+    xs_server_opts  srvopts;
+    bzero(&srvopts, sizeof(srvopts));
 
-    strcpy(server.host, "localhost");
-    strcpy(server.sport, XSYNC_PORT_DEFAULT);
+    strcpy(srvopts.host, "localhost");
+    strcpy(srvopts.sport, XSYNC_PORT_DEFAULT);
 
     LOGGER_INFO("interactive client [%s] start ...", APP_NAME);
 
@@ -348,22 +348,27 @@ void run_interactive (xs_appopts_t *opts)
 
     result = getinputline(XSCLIAPP CSH_CYAN_MSG("Input server ip [localhost]: "), msg, sizeof(msg));
     if (result) {
-        strncpy(server.host, result, sizeof(server.host) - 1);
+        strncpy(srvopts.host, result, sizeof(srvopts.host) - 1);
     }
-    server.host[sizeof(server.host) - 1] = '\0';
+    srvopts.host[sizeof(srvopts.host) - 1] = '\0';
 
     result = getinputline(XSCLIAPP CSH_CYAN_MSG("Input server port ["XSYNC_PORT_DEFAULT"]: "), msg, sizeof(msg));
     if (result) {
-        strncpy(server.sport, result, sizeof(server.sport) - 1);
+        strncpy(srvopts.sport, result, sizeof(srvopts.sport) - 1);
     }
-    server.sport[sizeof(server.sport) - 1] = '\0';
-    server.port = atoi(server.sport);
+    srvopts.sport[sizeof(srvopts.sport) - 1] = '\0';
+    srvopts.port = atoi(srvopts.sport);
 
     result = getinputline(XSCLIAPP CSH_CYAN_MSG("Input server magic ["XSYNC_MAGIC_DEFAULT"]: "), msg, sizeof(msg));
     if (result) {
-        server.magic = atoi(msg);
+        srvopts.magic = atoi(msg);
     } else {
-        server.magic = atoi(XSYNC_MAGIC_DEFAULT);
+        srvopts.magic = atoi(XSYNC_MAGIC_DEFAULT);
+    }
+
+    result = getinputline(XSCLIAPP CSH_CYAN_MSG("Input client threads [1]: "), msg, sizeof(msg));
+    if (result) {
+        threads = atoi(msg);
     }
 
     result = getinputline(XSCLIAPP CSH_CYAN_MSG("Is that options correct? [Y for yes | N for no]: "), msg, sizeof(msg));
@@ -372,24 +377,26 @@ void run_interactive (xs_appopts_t *opts)
         exit(0);
     }
 
-    snprintf(msg, sizeof(msg), XSCLIAPP CSH_CYAN_MSG("Connect to server {%s:%d#%d} ...\n"), server.host, server.port, server.magic);
+    snprintf(msg, sizeof(msg), XSCLIAPP CSH_CYAN_MSG("Connect to server {%s:%d#%d} ...\n"), srvopts.host, srvopts.port, srvopts.magic);
     getinputline(msg, 0, 0);
 
     do {
-        pthread_t threads[XSYNC_CLIENT_THREADS_MAX];
+        pthread_t * pthreads = (pthread_t *) calloc(threads, sizeof(pthread_t));
 
         int i, err;
         void *ret;
 
-        for (i = 0; i < opts->threads; i++) {
-            err = pthread_create(&threads[i], 0, thread_func, (void*) &server);
+        for (i = 0; i < threads; i++) {
+            err = pthread_create (&pthreads[i], 0, thread_func, (void*) &srvopts);
             assert(err == 0);
         }
 
-        for (i = 0; i < opts->threads; i++) {
-            err = pthread_join(threads[i], (void**) &ret);
+        for (i = 0; i < threads; i++) {
+            err = pthread_join (pthreads[i], (void**) &ret);
             assert(err == 0);
         }
+
+        free(pthreads);
     } while(0);
 
     LOGGER_INFO("interactive client [%s] exit.", APP_NAME);

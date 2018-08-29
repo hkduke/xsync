@@ -537,19 +537,21 @@ int RedisExpireSet(RedisConn_t * redconn, const char *key, int64_t expire_ms)
 
 
 __attribute__((used))
-int RedisHashMultiSet(RedisConn_t * redconn, const char *key, int numflds, const char * fields[], const char *values[], const size_t *valueslen, int64_t expire_ms)
+int RedisHashMultiSetOld(RedisConn_t * redconn, const char *key, int numflds, const char * fields[], const char *values[], const size_t *valueslen, int64_t expire_ms)
 {
-    int i, argc = numflds * 2 + 2;
+    int i;
+   
+    int argc = numflds * 2 + 2;
 
     redisReply * reply = 0;
 
-    char cmd[] = "HMSET";
+    char hmset[] = "HMSET";
 
     const char **argv = (const char **) calloc(argc, sizeof(char*));
 
     size_t * argvlen = (size_t *) calloc(argc, sizeof(size_t));
 
-    argv[0] = cmd;  argvlen[0] = 5;
+    argv[0] = hmset;  argvlen[0] = 5;
     argv[1] = key;  argvlen[1] = strlen(key);
 
     for (i = 0; i < numflds; ++i) {
@@ -592,4 +594,48 @@ int RedisHashMultiSet(RedisConn_t * redconn, const char *key, int numflds, const
     RedisFreeReplyObject(&reply);
 
     return REDISAPI_ETYPE;
+}
+
+
+__attribute__((used))
+int RedisHashMultiSet(RedisConn_t * redconn, const char *key, const char * fields[], const char *values[], const size_t *valueslen, int64_t expire_ms)
+{
+    int setargc = 0;
+    int delargc = 0;
+    int argc = 0;
+
+    const char * pfld = fields;
+    const char * pval = values;
+
+    while (*pfld++) {
+        if (*pval++) {
+            ++setargc;
+        } else {
+            ++delargc;
+        }
+    }
+
+    argc = (setargc + delargc) * 2 + 2;
+
+    if (argc > 0) {
+        const char **argv = (const char **) malloc(argc * sizeof(char *));
+
+        if (! argv) {
+            return REDISAPI_EMEM;
+        }
+
+        if (setargc > 0) {
+            // hmset key f1 v1 f2 v2 f3 v3
+        }
+
+        if (delargc > 0) {
+            // hdel key f1 f2 f3
+
+            
+        }
+        
+        free(argv);
+    }
+
+    return REDISAPI_EARG;
 }

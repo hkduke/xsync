@@ -59,9 +59,10 @@ extern "C" {
 #define REDISAPI_ERROR     (-1)
 #define REDISAPI_EINDEX    (-2)
 #define REDISAPI_EARG      (-3)
-#define REDISAPI_ERETVAL   (-4)
+#define REDISAPI_EMEM      (-4)
 #define REDISAPI_ETYPE     (-5)
 #define REDISAPI_EAUTH     (-6)
+#define REDISAPI_ERETVAL   (-7)
 
 
 typedef struct RedisAsynNode_t
@@ -161,7 +162,7 @@ extern void RedisFreeReplyObject(redisReply **reply);
 // 设置 key 过期时间(毫秒): expire_ms=0 忽略, expire_ms=-1 永不过期, expire_ms>0 过期的毫秒时间
 extern int RedisExpireSet(RedisConn_t * redconn, const char *key, int64_t expire_ms);
 
-extern int RedisHashMultiSet(RedisConn_t * redconn, const char *key, int num, const char * fields[], const char *values[], const size_t *valueslen, int64_t expire_ms);
+extern int RedisHashMultiSet(RedisConn_t * redconn, const char *key, const char * fields[], const char *values[], const size_t *valueslen, int64_t expire_ms);
 
 
 #if defined(__cplusplus)
