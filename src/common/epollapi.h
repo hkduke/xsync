@@ -308,6 +308,9 @@ static int epapi_loop_events (int epollfd, int listenfd, int timeout_ms,
     int i, nfd, fd;
     struct epoll_event *ev;
 
+    ssize_t count;
+    char buf[4096];
+
     epmsg->epollfd = epollfd;
     epmsg->connfd = -1;
 
@@ -421,10 +424,7 @@ static int epapi_loop_events (int epollfd, int listenfd, int timeout_ms,
                     printf("WARN: should never run to this!\n");
 
                     while (1) {
-                        ssize_t count;
-                        char buf[256];
-
-                        count = read(fd, buf, sizeof buf);
+                        count = read(fd, buf, sizeof(buf));
 
                         if (count == -1) {
                             /* If errno == EAGAIN, that means we have read all
@@ -441,7 +441,7 @@ static int epapi_loop_events (int epollfd, int listenfd, int timeout_ms,
                             break;
                         }
 
-                        /* write the buffer to standard output? */
+                        /* ignored data in buf */
                     }
 
                     if (done) {

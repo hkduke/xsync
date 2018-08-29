@@ -50,42 +50,86 @@ static void zdbPoolErrorHandler (const char *error)
 }
 
 
+__attribute__((used))
+static void handleClientPackage (perthread_data *perdata)
+{
+    size_t cbsize;
+
+    int epollfd = perdata->pollin_data.epollfd;
+    int connfd = perdata->pollin_data.connfd;
+
+    char *iobuf = perdata->buffer;
+
+    XS_server server = (XS_server) perdata->pollin_data.arg;
+    assert(server);
+
+    while (1) {
+        cbsize = read(connfd, iobuf, XSYNC_BUFSIZE);
+
+        if (cbsize == 0) {
+            /**
+             * End of file. The remote has closed the connection.
+             * 对方关闭了连接: close(fd)
+             * close the descriptor will make epoll remove it
+             *   from the set of descriptors which are monitored.
+             **/
+            LOGGER_WARN("(thread-%d) peer(%d) closed: %s", perdata->threadid, connfd, strerror(errno));
+            close(connfd);
+            break;
+        } else if (cbsize == -1) {
+            /* If errno == EAGAIN, that means we have read all data. So go back to the main loop. */
+            if (errno == EAGAIN) {
+                // socket 是非阻塞时, EAGAIN 表示缓冲队列已满, 并非网络出错，而是可以再次注册事件
+                if (epapi_modify_epoll(epollfd, connfd, EPOLLONESHOT, iobuf, XSYNC_BUFSIZE) == -1) {
+                    LOGGER_ERROR("(thread-%d) epapi_modify_epoll error: %s", perdata->threadid, iobuf);
+                    close(connfd);
+                } else {
+                    LOGGER_DEBUG("(thread-%d) epapi_modify_epoll ok", perdata->threadid);
+                    // TODO: 保存 connfd
+
+                    // 此处不应该关闭，只是模拟定期清除 sessioin
+                    //close(connfd);
+                }
+
+                break;
+            }
+
+            LOGGER_ERROR("(thread-%d) recv error(%d): %s", perdata->threadid, errno, strerror(errno));
+            close(connfd);
+            break;
+        } else {
+            // success recv data cbsize
+            LOGGER_DEBUG("(thread-%d) TODO: client(%d): recv %ld bytes", perdata->threadid, connfd, cbsize);
+        }
+    }
+}
+
+
 __no_warning_unused(static)
 void event_task (thread_context_t *thread_ctx)
 {
     threadpool_task_t *task = thread_ctx->task;
 
-    int flags = task->flags;
-
-    epollin_arg_t *epdata = (epollin_arg_t *) task->argument;
+    epollin_arg_t *pollin = (epollin_arg_t *) task->argument;
 
     perthread_data *perdata = (perthread_data *) thread_ctx->thread_arg;
 
-    memcpy(&perdata->pollin_data, epdata, sizeof(perdata->pollin_data));
+    memcpy(&perdata->pollin_data, pollin, sizeof(perdata->pollin_data));
 
     task->argument = 0;
-    task->flags = 0;
+    free(pollin);
 
-    free(epdata);
+    LOGGER_TRACE("(thread-%d) task start...", perdata->threadid);
 
-    LOGGER_TRACE("task start");
-
-    if (flags == 100) {
-        //doRecvChunkTask(perdata);
-    } else if (flags == 1) {
-        //doNewConnectTask(perdata);
+    if (task->flags == 100) {
+        handleClientPackage(perdata);
     } else {
-        LOGGER_ERROR("unknown task flags(=%d)", flags);
+        LOGGER_ERROR("(thread-%d) unknown task flags(=%d)", perdata->threadid, task->flags);
     }
 
-    LOGGER_TRACE("task end");
-}
+    task->flags = 0;
 
-
-static inline int epmsg_cb_epoll_edge_trig(epevent_msg epmsg, void *svrarg)
-{
-    LOGGER_TRACE("EPEVT_EPOLLIN_EDGE_TRIG");
-    return 0;
+    LOGGER_TRACE("(thread-%d) task end.", perdata->threadid);
 }
 
 
@@ -120,6 +164,45 @@ static inline int epmsg_cb_accept_ewouldblock(epevent_msg epmsg, void *svrarg)
 static inline int epmsg_cb_error_accept(epevent_msg epmsg, void *svrarg)
 {
     LOGGER_ERROR("EPEVT_ERROR_ACCEPT: %s", epmsg->msgbuf);
+    return 0;
+}
+
+
+/**
+ * 当用户发送数据
+ *
+ */
+static inline int epmsg_cb_epoll_edge_trig(epevent_msg epmsg, void *svrarg)
+{
+    LOGGER_TRACE("EPEVT_EPOLLIN_EDGE_TRIG: sock(%d)", epmsg->connfd);
+    
+    XS_server server = (XS_server) svrarg;
+
+    int num = threadpool_unused_queues(server->pool);
+
+    LOGGER_TRACE("threadpool_unused_queues=%d", num);
+
+    if (num > 0) {
+        epollin_arg_t * pollin = (epollin_arg_t *) mem_alloc(1, sizeof(epollin_arg_t));
+
+        pollin->epollfd = epmsg->epollfd;
+        pollin->connfd = epmsg->connfd;
+        pollin->arg = svrarg;
+
+        if (threadpool_add(server->pool, event_task, (void*) pollin, 100) == 0) {
+            // 增加到线程池成功
+            LOGGER_TRACE("threadpool_add task success");
+            return 1;
+        }
+
+        // 增加到线程池失败
+        LOGGER_ERROR("threadpool_add task failed");
+        free(pollin);
+
+        return 0;
+    }
+
+    /* queue is full */
     return 0;
 }
 
@@ -244,7 +327,7 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
         INIT_HLIST_HEAD(&server->client_hlist[i]);
     }
 
-    LOGGER_INFO("serverid=%d threads=%d queues=%d maxevents=%d somaxconn=%d timeout_ms=%d",
+    LOGGER_INFO("serverid=%s threads=%d queues=%d maxevents=%d somaxconn=%d timeout_ms=%d",
         opts->serverid, THREADS, QUEUES, MAXEVENTS, BACKLOGS, TIMEOUTMS);
 
     /* create per thread data */
@@ -341,7 +424,7 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
     server->timeout_ms = TIMEOUTMS;
 
     /* 服务ID: 整数表示, 整个 redis-cluster 中必须唯一 */
-    snprintf(server->serverid, sizeof(server->serverid), "%d", opts->serverid);
+    snprintf(server->serverid, sizeof(server->serverid), "%s", opts->serverid);
     server->serverid[sizeof(server->serverid) - 1] = 0;
 
     /* 服务魔数: 用于验证用户 */

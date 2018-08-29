@@ -89,7 +89,7 @@ void print_usage(void)
         "\t                                    \033[35m 'stderr' - using appender stderr\033[0m\n"
         "\t                                    \033[35m 'syslog' - using appender syslog\033[0m\n"
         "\n"
-        "\t-i, --server-id=<ID>         \033[35m specify an integer number as server id. '1' (default)\033[0m\n"
+        "\t-i, --server-id=<ID>         \033[35m specify an unique identifier for server. '1' (default)\033[0m\n"
         "\n"
         "\t-n, --magic=<NUMBER>         \033[35m specify a numeric as magic. '%s' (default)\033[0m\n"
         "\n"
@@ -164,7 +164,9 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     strcpy(opts->host, "0.0.0.0");
     strcpy(opts->port, "8960");
 
-    opts->serverid = 1;
+    opts->serverid[0] = '1';
+    opts->serverid[1] = 0;
+
     opts->magic = (ub4) atoi(XSYNC_MAGIC_DEFAULT);
 
     do {
@@ -312,7 +314,37 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
                 break;
 
             case 'i':
-                opts->serverid = atoi(optarg);
+                do {
+                    size_t ich;
+                    size_t idlen = strlen(optarg);
+
+                    if (idlen == 0 || idlen >= sizeof(opts->serverid)) {
+                        fprintf(stderr, "\033[1;31m[error]\033[0m invalid server-id: \033[31m%s\033[0m\n", optarg);
+                        exit(-1);
+                    }
+
+                    if (optarg[0] == '-' || optarg[0] == '_') {
+                        fprintf(stderr, "\033[1;31m[error]\033[0m invalid server-id: \033[31m%s\033[0m\n", optarg);
+                        exit(-1);
+                    }
+
+                    for (ich = 0; ich < idlen; ich++) {
+                        if (! ((optarg[ich] >= 'a' && optarg[ich] <= 'z') ||
+                            (optarg[ich] >= 'A' && optarg[ich] <= 'Z') ||
+                            (optarg[ich] >= '0' && optarg[ich] <= '9') ||
+                            (optarg[ich] == '_') ||
+                            (optarg[ich] == '-'))) {
+                            fprintf(stderr, "\033[1;31m[error]\033[0m invalid server-id: \033[31m%s\033[0m\n", optarg);
+                            exit(-1);
+                        }
+                    }
+
+                    ret = snprintf(opts->serverid, sizeof(opts->serverid), "%s", optarg);
+                    if (ret < 0 || ret >= sizeof(opts->serverid)) {
+                        fprintf(stderr, "\033[1;31m[error]\033[0m invalid server-id: \033[31m%s\033[0m\n", optarg);
+                        exit(-1);
+                    }
+                } while (0);
                 break;
 
             case 'n':
@@ -394,7 +426,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
         }
     } while(0);
 
-    fprintf(stdout, "\033[1;34m* Server id          : %d\033[0m\n", opts->serverid);
+    fprintf(stdout, "\033[1;34m* Server id          : %s\033[0m\n", opts->serverid);
     fprintf(stdout, "\033[1;34m* Default log4c path : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
     fprintf(stdout, "\033[1;34m* Default config file: %s\033[0m\n\n", config);
     fprintf(stdout, "\033[1;32m* Using log4c path   : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));

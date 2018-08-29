@@ -60,10 +60,10 @@ typedef struct xs_server_t
     int port;
 
     /**
-     * must be an integer for serverid
+     * an unique identifier for xs_server in redis-cluster
      * xs:serverid:sockfd
      */
-    char serverid[11];
+    char serverid[XS_SERVERID_MAXLEN + 1];
 
     /**
      * server magic

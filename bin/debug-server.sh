@@ -17,4 +17,5 @@ _name=$(basename $_file)
 TARGETDIR=$(dirname $_cdir)/target
 
 $TARGETDIR/xsync-server --redis-cluster='127.0.0.1:7001,127.0.0.1:7002,127.0.0.1:7003,127.0.0.1:7004,127.0.0.1:7005,127.0.0.1:7006,127.0.0.1:7007,127.0.0.1:7008,127.0.0.1:7009' \
-    --redis-auth='PepSt@ck'
+    --redis-auth='PepSt@ck' \
+    --priority=trace

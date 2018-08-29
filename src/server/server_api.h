@@ -51,6 +51,8 @@ extern "C" {
 
 #include "../common/epollapi.h"
 
+#define XS_SERVERID_MAXLEN  8
+
 
 typedef struct xs_server_t * XS_server;
 
@@ -60,7 +62,8 @@ typedef struct xs_appopts_t
     // singleton
     char *startcmd;
 
-    int serverid;
+    char serverid[XS_SERVERID_MAXLEN + 1];
+
     ub4 magic;
 
     int isdaemon;

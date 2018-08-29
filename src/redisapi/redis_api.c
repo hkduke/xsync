@@ -33,13 +33,13 @@
  *
  */
 
-#include "redis_api.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <ctype.h>
+
+#include "redis_api.h"
 
 
 __attribute__((used))

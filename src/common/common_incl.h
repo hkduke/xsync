@@ -105,7 +105,7 @@
 #endif
 
 #ifndef BUFFER_MAXSIZE
-#  define BUFFER_MAXSIZE  8192
+#  define BUFFER_MAXSIZE  4096
 #endif
 
 #endif /* COMMON_INCL_H_INCLUDED */

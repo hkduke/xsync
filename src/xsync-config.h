@@ -69,7 +69,7 @@ extern "C"
 
 /**
  * DO NOT CHANGE BELOW VALUE
- *   4096, 8192
+ *   4096 or 8192
  */
 #define XSYNC_BUFSIZE                   BUFFER_MAXSIZE
 

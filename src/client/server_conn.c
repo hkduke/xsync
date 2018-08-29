@@ -100,14 +100,26 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
             LOGGER_INFO("opensocket_v2 success: %s:%s", servOpts->host, servOpts->sport);
 
             // 发送连接请求: 64 字节
-            //int err = sendlen(sockfd, (char *) connRequest.chunk, XSConnectRequestSize);
-            //if (err != XSConnectRequestSize) {
-            //    LOGGER_ERROR("sendlen error(%d): %s", errno, strerror(errno));
-            //    close(sockfd);
-             //   return XS_ERROR;
-            //}
+            int err = sendlen(sockfd, (char *) connRequest.chunk, XSConnectRequestSize);
+            if (err != XSConnectRequestSize) {
+                LOGGER_ERROR("sendlen error(%d): %s", errno, strerror(errno));
+                close(sockfd);
+               return XS_ERROR;
+            }
+
+            sleep(10);
+
+            err = sendlen(sockfd, (char *) connRequest.chunk, XSConnectRequestSize);
+            if (err != XSConnectRequestSize) {
+                LOGGER_ERROR("sendlen error(%d): %s", errno, strerror(errno));
+                close(sockfd);
+               return XS_ERROR;
+            }
+            //TODO:
+            LOGGER_DEBUG("TODO: recv");
         }
 
+        // 保存当前连接描述符
         xcon->sockfd = sockfd;
     } while(0);
 
