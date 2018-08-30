@@ -39,7 +39,7 @@
  *
  * @create: 2018-02-10
  *
- * @update: 2018-08-29 13:09:01
+ * @update: 2018-08-30 11:36:37
  *
  */
 #ifndef REDIS_CONN_SYN_H_INCLUDED
@@ -54,6 +54,9 @@ extern "C" {
 #include <hiredis/adapters/libevent.h>
 
 #define REDISAPI_NULL      0
+
+#define REDISAPI_KEY_DELETED     1
+#define REDISAPI_KEY_NOTFOUND    0
 
 
 #define REDISAPI_SUCCESS   0
@@ -77,6 +80,20 @@ extern "C" {
  * REDIS_REPLY_STATUS=5
  * REDIS_REPLY_ERROR=6
  */
+
+#define REDISAPI_ARGV_MAXLEN  252
+
+typedef struct CommandArg_t
+{
+    int argc;
+
+    char cmd[20];
+
+    size_t argvlen[REDISAPI_ARGV_MAXLEN + 4];
+
+    char     *argv[REDISAPI_ARGV_MAXLEN + 4];
+} CommandArg_t;
+
 
 typedef struct RedisAsynNode_t
 {
@@ -111,6 +128,10 @@ typedef struct RedisSynNode_t
 /**
  * redis 同步连接
  */
+#define REDISAPI_ERRMSG_MAXLEN 127
+
+#define REDISAPI_PASSWORD_MAXLEN 32
+
 typedef struct RedisConn_t
 {
     RedisSynNode_t *active_node;
@@ -118,11 +139,13 @@ typedef struct RedisConn_t
     struct timeval timeo_conn;
     struct timeval timeo_data;
 
-    char password[33];
-    char errmsg[128];
+    char password[REDISAPI_PASSWORD_MAXLEN + 1];
+    char errmsg[REDISAPI_ERRMSG_MAXLEN + 1];
 
     int num;
     RedisSynNode_t *nodes;
+
+    CommandArg_t  cmdarg;
 } RedisConn_t;
 
 
@@ -178,6 +201,10 @@ extern int RedisExpireSet(RedisConn_t * redconn, const char *key, int64_t expire
 extern int RedisHashMultiSet(RedisConn_t * redconn, const char *key, const char * fields[], const char *values[], const size_t *valueslen, int64_t expire_ms);
 
 extern int RedisHashMultiGet(RedisConn_t * redconn, const char * key, const char * fields[], redisReply **outReply);
+
+extern int RedisDeleteFields(RedisConn_t * redconn, const char * key, const char * fields[], int numFields);
+
+extern int RedisDeleteKey(RedisConn_t * redconn, const char * key);
 
 #if defined(__cplusplus)
 }

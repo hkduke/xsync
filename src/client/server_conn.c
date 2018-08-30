@@ -30,7 +30,7 @@
  *
  * @create: 2018-02-12
  *
- * @update: 2018-08-16 12:50:39
+ * @update: 2018-08-29 18:26:30
  */
 
 #include "client_api.h"
@@ -115,7 +115,7 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
                 close(sockfd);
                return XS_ERROR;
             }
-            
+
             usleep(100);
 
             err = sendlen(sockfd, (char *) connRequest.chunk, XSConnectRequestSize);

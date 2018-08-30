@@ -29,7 +29,7 @@
  *
  * @create: 2018-02-10
  *
- * @update: 2018-08-29 13:09:01
+ * @update: 2018-08-30 11:59:19
  *
  */
 
@@ -58,25 +58,25 @@ int RedisConnInit(RedisConn_t * redconn, int maxNodes, const char * password, in
         authlen = strlen(password);
         if (authlen >= sizeof(redconn->password)) {
             snprintf(redconn->errmsg, sizeof(redconn->errmsg), "%s", "password is too long");
-            redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+            redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
             return REDISAPI_EARG;
         }
     }
 
     if (maxNodes < 1) {
         snprintf(redconn->errmsg, sizeof(redconn->errmsg), "invalid nodes(=%d)", maxNodes);
-        redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+        redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
         return REDISAPI_EARG;
     }
 
     if (maxNodes > 20) {
         snprintf(redconn->errmsg, sizeof(redconn->errmsg), "too many nodes(=%d)", maxNodes);
-        redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+        redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
         return REDISAPI_EARG;
     }
 
     bzero(redconn, sizeof(RedisConn_t));
-
+    
     redconn->nodes = (RedisSynNode_t *) calloc(maxNodes, sizeof(RedisSynNode_t));
     redconn->num = maxNodes;
     do {
@@ -130,7 +130,7 @@ int RedisConnInit2(RedisConn_t * redconn, const char * host_post_pairs, const ch
             free(buf);
 
             snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad argument: port not found");
-            redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+            redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
 
             return REDISAPI_EARG;
         }
@@ -140,7 +140,7 @@ int RedisConnInit2(RedisConn_t * redconn, const char * host_post_pairs, const ch
                 free(buf);
 
                 snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad argument: invalid port");
-                redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+                redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
 
                 return REDISAPI_EARG;
             }
@@ -200,7 +200,7 @@ int RedisConnSetNode(RedisConn_t * redconn, int nodeIndex, const char *host, int
 
     if (redconn->nodes[nodeIndex].index != -1) {
         snprintf(redconn->errmsg, sizeof(redconn->errmsg), "node already existed (index=%d)", nodeIndex);
-        redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+        redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
         return REDISAPI_EINDEX;
     }
 
@@ -208,7 +208,7 @@ int RedisConnSetNode(RedisConn_t * redconn, int nodeIndex, const char *host, int
         if (redconn->nodes[i].index == i) {
             if (redconn->nodes[i].port == port && ! strcmp(redconn->nodes[i].host, host)) {
                 snprintf(redconn->errmsg, sizeof(redconn->errmsg), "duplicated node(%s:%d)", host, port);
-                redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+                redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
                 return REDISAPI_EARG;
             }
         }
@@ -277,7 +277,7 @@ redisContext * RedisConnOpenNode(RedisConn_t * redconn, int index)
 
     /* never run to this. */
     snprintf(redconn->errmsg, sizeof(redconn->errmsg), "should never run to this.");
-    redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+    redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
     return 0;
 }
 
@@ -325,7 +325,7 @@ redisContext * RedisConnGetActiveContext(RedisConn_t * redconn, const char *host
 
     // 没有连接可以使用
     snprintf(redconn->errmsg, sizeof(redconn->errmsg), "no active context.");
-    redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+    redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
     return 0;
 }
 
@@ -354,7 +354,7 @@ redisReply * RedisConnExecCommand(RedisConn_t * redconn, int argc, const char **
     if (! reply) {
         // 执行失败, 连接不能再被使用. 必须建立新连接!!
         snprintf(redconn->errmsg, sizeof(redconn->errmsg), "redisCommandArgv failed: bad context.");
-        redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+        redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
         RedisConnCloseNode(redconn, redconn->active_node->index);
         return 0;
     }
@@ -411,7 +411,7 @@ redisReply * RedisConnExecCommand(RedisConn_t * redconn, int argc, const char **
 
             if (reply) {
                 snprintf(redconn->errmsg, sizeof(redconn->errmsg), "AUTH failed(%d): %s", reply->type, reply->str);
-                redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+                redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
                 freeReplyObject(reply);
             }
 
@@ -419,7 +419,7 @@ redisReply * RedisConnExecCommand(RedisConn_t * redconn, int argc, const char **
         }
 
         snprintf(redconn->errmsg, sizeof(redconn->errmsg), "TODO: REDIS_REPLY_ERROR: %s", reply->str);
-        redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+        redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
         freeReplyObject(reply);
         return 0;
     }
@@ -450,14 +450,35 @@ int RedisExpireSet(RedisConn_t * redconn, const char *key, int64_t expire_ms)
         // 设置过期时间(毫秒): PEXPIRE key expire_ms
         redisReply *reply;
 
-        char str_expire_ms[21];
+        char str_expms[21];
 
-        snprintf(str_expire_ms, sizeof(str_expire_ms), "%ld", expire_ms);
-        str_expire_ms[20] = 0;
+        const char **argv = (const char**) redconn->cmdarg.argv;
+        size_t *argvlen = redconn->cmdarg.argvlen;
 
-        const char * pexpire[] = {"PEXPIRE", key, str_expire_ms};
+        int nch = snprintf(str_expms, sizeof(str_expms), "%ld", expire_ms);
+        if (nch <= 0 || nch > 20) {
+            snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_EAPP: snprintf return(%d)", nch);
+            redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
+            return REDISAPI_EAPP;
+        }
 
-        reply = RedisConnExecCommand(redconn, sizeof(pexpire) / sizeof(pexpire[0]), pexpire, 0);
+        str_expms[nch] = 0;
+
+        // PEXPIRE
+        redconn->cmdarg.cmd[0] = 'P';
+        redconn->cmdarg.cmd[1] = 'E';
+        redconn->cmdarg.cmd[2] = 'X';
+        redconn->cmdarg.cmd[3] = 'P';
+        redconn->cmdarg.cmd[4] = 'I';
+        redconn->cmdarg.cmd[5] = 'R';
+        redconn->cmdarg.cmd[6] = 'E';
+        redconn->cmdarg.cmd[7] = 0;
+
+        argv[0] = redconn->cmdarg.cmd;  argvlen[0] = 7;
+        argv[1] = key;                  argvlen[1] = strlen(key);
+        argv[2] = str_expms;            argvlen[2] = nch;
+
+        reply = RedisConnExecCommand(redconn, 3, argv, argvlen);
 
         if (! reply) {
             // error
@@ -471,8 +492,8 @@ int RedisExpireSet(RedisConn_t * redconn, const char *key, int64_t expire_ms)
                 return REDISAPI_SUCCESS;
             } else {
                 // bad reply integer
-                snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad reply value(=%lld), required(1)", reply->integer);
-                redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+                snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_ERETVAL: bad reply value(=%lld), required(1)", reply->integer);
+                redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
 
                 RedisFreeReplyObject(&reply);
                 return REDISAPI_ERETVAL;
@@ -481,7 +502,7 @@ int RedisExpireSet(RedisConn_t * redconn, const char *key, int64_t expire_ms)
 
         // bad reply type
         snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad reply type(=%d), required REDIS_REPLY_INTEGER(%d)", reply->type, REDIS_REPLY_INTEGER);
-        redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+        redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
 
         RedisFreeReplyObject(&reply);
         return REDISAPI_ETYPE;
@@ -489,9 +510,23 @@ int RedisExpireSet(RedisConn_t * redconn, const char *key, int64_t expire_ms)
         // 永不过期: PERSIST key
         redisReply *reply;
 
-        const char * persist[] = {"PERSIST", key};
+        const char **argv = (const char**) redconn->cmdarg.argv;
+        size_t *argvlen = redconn->cmdarg.argvlen;
 
-        reply = RedisConnExecCommand(redconn, sizeof(persist) / sizeof(persist[0]), persist, 0);
+        // PERSIST
+        redconn->cmdarg.cmd[0] = 'P';
+        redconn->cmdarg.cmd[1] = 'E';
+        redconn->cmdarg.cmd[2] = 'R';
+        redconn->cmdarg.cmd[3] = 'S';
+        redconn->cmdarg.cmd[4] = 'I';
+        redconn->cmdarg.cmd[5] = 'S';
+        redconn->cmdarg.cmd[6] = 'T';
+        redconn->cmdarg.cmd[7] = 0;
+
+        argv[0] = redconn->cmdarg.cmd;  argvlen[0] = 7;
+        argv[1] = key;                  argvlen[1] = strlen(key);
+
+        reply = RedisConnExecCommand(redconn, 2, argv, argvlen);
 
         if (! reply) {
             // error
@@ -499,14 +534,14 @@ int RedisExpireSet(RedisConn_t * redconn, const char *key, int64_t expire_ms)
         }
 
         if (reply->type == REDIS_REPLY_INTEGER) {
-            if (reply->integer == -1) {
+            if (reply->integer == 0 || reply->integer == 1) {
                 // success
                 RedisFreeReplyObject(&reply);
                 return REDISAPI_SUCCESS;
             } else {
                 // bad reply integer
-                snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad reply value(=%lld), required(-1)", reply->integer);
-                redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+                snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_ERETVAL: bad reply integer(=%lld), 0 or 1 required", reply->integer);
+                redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
 
                 RedisFreeReplyObject(&reply);
                 return REDISAPI_ERETVAL;
@@ -514,14 +549,16 @@ int RedisExpireSet(RedisConn_t * redconn, const char *key, int64_t expire_ms)
         }
 
         // bad reply type
-        snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad reply type(=%d), required REDIS_REPLY_INTEGER(%d)", reply->type, REDIS_REPLY_INTEGER);
-        redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+        snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_ETYPE: bad reply type(=%d), REDIS_REPLY_INTEGER(%d) required",
+            reply->type, REDIS_REPLY_INTEGER);
+
+        redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
 
         RedisFreeReplyObject(&reply);
         return REDISAPI_ETYPE;
     } else {
-        snprintf(redconn->errmsg, sizeof(redconn->errmsg), "invalid expire time: %ld", expire_ms);
-        redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+        snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_EARG: invalid expire time(%ld)", expire_ms);
+        redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
         return REDISAPI_EARG;
     }
 }
@@ -540,13 +577,14 @@ __attribute__((used))
 int RedisHashMultiSet(RedisConn_t * redconn, const char *key, const char * fields[], const char *values[], const size_t *valueslen, int64_t expire_ms)
 {
     int i, k, ret;
+
     int setargc = 0;
     int delargc = 0;
-    int argc = 0;
 
     const char ** pfld = &fields[0];
     const char ** pval = &values[0];
 
+    // 统计字段数
     while (*pfld++) {
         if (*pval++) {
             ++setargc;
@@ -555,29 +593,30 @@ int RedisHashMultiSet(RedisConn_t * redconn, const char *key, const char * field
         }
     }
 
-    argc = (setargc * 2 + 2) + (delargc + 2);
+    if (setargc > REDISAPI_ARGV_MAXLEN / 2 || delargc > REDISAPI_ARGV_MAXLEN / 2) {
+        snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_EARG: too many fields (max=%d).", REDISAPI_ARGV_MAXLEN);
+        redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
+        return REDISAPI_EARG;
+    }
 
-    if (argc > 0) {
+    if (setargc + delargc > 0) {
         redisReply *reply;
-        const char **argv;
-        size_t *argvlen;
 
-        void *pv = calloc( argc, sizeof(size_t) + sizeof(char *) );
-        if (! pv) {
-            snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_EMEM: out of memory.");
-            redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
-            return REDISAPI_EMEM;
-        }
-
-        argvlen = (size_t *) pv;
-        argv = (const char **) (& argvlen[argc]);
+        const char **argv = (const char**) redconn->cmdarg.argv;
+        size_t *argvlen = redconn->cmdarg.argvlen;
 
         if (setargc > 0) {
             // hmset key f1 v1 f2 v2 f3 v3
-            const char hmset[] = "HMSET";
+            // HMSET
+            redconn->cmdarg.cmd[0] = 'H';
+            redconn->cmdarg.cmd[1] = 'M';
+            redconn->cmdarg.cmd[2] = 'S';
+            redconn->cmdarg.cmd[3] = 'E';
+            redconn->cmdarg.cmd[4] = 'T';
+            redconn->cmdarg.cmd[5] = 0;
 
-            argv[0] = hmset;  argvlen[0] = 5;
-            argv[1] = key;    argvlen[1] = strlen(key);
+            argv[0] = redconn->cmdarg.cmd;  argvlen[0] = 5;
+            argv[1] = key;                  argvlen[1] = strlen(key);
 
             pfld = &fields[0];
             pval = &values[0];
@@ -606,42 +645,40 @@ int RedisHashMultiSet(RedisConn_t * redconn, const char *key, const char * field
 
             if (! reply) {
                 // error
-                free(pv);
                 return REDISAPI_ERROR;
             }
 
-            if (reply->type == REDIS_REPLY_STATUS &&
-                reply->len == 2 &&
-                reply->str[0] == 'O' && reply->str[1] == 'K') {
+            if (reply->type == REDIS_REPLY_STATUS && reply->len == 2 && reply->str[0] == 'O' && reply->str[1] == 'K') {
                 // success
                 RedisFreeReplyObject(&reply);
 
                 // set time out for key
                 ret = RedisExpireSet(redconn, key, expire_ms);
                 if (ret != REDISAPI_SUCCESS) {
-                    free(pv);
                     return ret;
                 }
             } else {
                 // bad reply type
-                snprintf(redconn->errmsg, sizeof(redconn->errmsg),
-                    "bad reply type(=%d), required REDIS_REPLY_STATUS(%d)",
+                snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_ETYPE: bad reply type(=%d), REDIS_REPLY_STATUS(%d) required",
                     reply->type, REDIS_REPLY_STATUS);
-                redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+                redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
 
                 RedisFreeReplyObject(&reply);
-
-                free(pv);
                 return REDISAPI_ETYPE;
             }
         }
 
         if (delargc > 0) {
             // hdel key f1 f2 f3
-            const char hdel[] = "HDEL";
+            // HDEL
+            redconn->cmdarg.cmd[0] = 'H';
+            redconn->cmdarg.cmd[1] = 'D';
+            redconn->cmdarg.cmd[2] = 'E';
+            redconn->cmdarg.cmd[3] = 'L';
+            redconn->cmdarg.cmd[4] = 0;
 
-            argv[0] = hdel;  argvlen[0] = 4;
-            argv[1] = key;   argvlen[1] = strlen(key);
+            argv[0] = redconn->cmdarg.cmd;  argvlen[0] = 4;
+            argv[1] = key;                  argvlen[1] = strlen(key);
 
             pfld = &fields[0];
             pval = &values[0];
@@ -665,15 +702,12 @@ int RedisHashMultiSet(RedisConn_t * redconn, const char *key, const char * field
 
             reply = RedisConnExecCommand(redconn, delargc, argv, argvlen);
 
-            free(pv);
-
             if (! reply) {
                 // error
                 return REDISAPI_ERROR;
             }
 
-            if ( reply->type == REDIS_REPLY_INTEGER &&
-                (reply->integer == 1 || reply->integer == 0) ) {
+            if ( reply->type == REDIS_REPLY_INTEGER && (reply->integer == 1 || reply->integer == 0) ) {
                 // success
                 RedisFreeReplyObject(&reply);
                 return REDISAPI_SUCCESS;
@@ -682,19 +716,17 @@ int RedisHashMultiSet(RedisConn_t * redconn, const char *key, const char * field
             // bad reply type
             snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_ETYPE: bad reply type(=%d). REDIS_REPLY_INTEGER(%d) required.",
                 reply->type, REDIS_REPLY_INTEGER);
-            redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+            redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
 
             RedisFreeReplyObject(&reply);
             return REDISAPI_ETYPE;
         }
 
-        free(pv);
         return REDISAPI_SUCCESS;
     }
 
-    snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_EARG: no arguments found.");
-    redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
-
+    snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_EARG: no args found.");
+    redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
     return REDISAPI_EARG;
 }
 
@@ -733,45 +765,45 @@ int RedisHashMultiGet(RedisConn_t * redconn, const char * key, const char * fiel
 {
     int i, argc;
 
-    const char **argv;
-    size_t *argvlen;
+    const char **argv = (const char**) redconn->cmdarg.argv;
+    size_t *argvlen = redconn->cmdarg.argvlen;
 
     const char ** pfld = &fields[0];
 
     *outReply = 0;
 
+    // 计算字段数
     argc = 0;
     while ( *pfld++ ) {
         ++argc;
     }
 
+    if (argc > REDISAPI_ARGV_MAXLEN) {
+        snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_EARG: too many fields (max=%d).", REDISAPI_ARGV_MAXLEN);
+        redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
+        return REDISAPI_EARG;
+    }
+    
     if (argc > 0) {
         redisReply *reply;
 
-        const char hmget[] = "HMGET";
+        // HMGET
+        redconn->cmdarg.cmd[0] = 'H';
+        redconn->cmdarg.cmd[1] = 'M';
+        redconn->cmdarg.cmd[2] = 'G';
+        redconn->cmdarg.cmd[3] = 'E';
+        redconn->cmdarg.cmd[4] = 'T';
+        redconn->cmdarg.cmd[5] = 0;
 
-        // we put argvlen and argv together !
-        void *pv = calloc( argc + 2, sizeof(size_t) + sizeof(char*) );
-
-        if (! pv) {
-            snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_EMEM: out of memory.");
-            redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
-            return REDISAPI_EMEM;
-        }
-
-        argvlen = (size_t *) pv;
-        argv = (const char **) (&argvlen[argc + 2]);
-
-        argv[0] = hmget;   argvlen[0] = 5;
-        argv[1] = key;     argvlen[1] = strlen(key);
+        // 设置参数
+        argv[0] = redconn->cmdarg.cmd;   argvlen[0] = 5;
+        argv[1] = key;                   argvlen[1] = strlen(key);
 
         for (i = 0; i < argc; ++i) {
             argv[i + 2] = fields[i];  argvlen[i + 2] = strlen(fields[i]);
         }
 
         reply = RedisConnExecCommand(redconn, argc + 2, argv, argvlen);
-
-        free(pv);
 
         // 检查返回值
         if (! reply) {
@@ -783,7 +815,7 @@ int RedisHashMultiGet(RedisConn_t * redconn, const char * key, const char * fiel
             // bad reply type
             snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_ETYPE: bad reply type(=%d). REDIS_REPLY_ARRAY(%d) required.",
                 reply->type, REDIS_REPLY_ARRAY);
-            redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+            redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
 
             RedisFreeReplyObject(&reply);
             return REDISAPI_ETYPE;
@@ -793,7 +825,7 @@ int RedisHashMultiGet(RedisConn_t * redconn, const char * key, const char * fiel
             // bad reply elements
             snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_EAPP: should never run to this. reply elements(=%ld). (%d) required.",
                 reply->elements, argc);
-            redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+            redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
 
             RedisFreeReplyObject(&reply);
             return REDISAPI_EAPP;
@@ -803,7 +835,7 @@ int RedisHashMultiGet(RedisConn_t * redconn, const char * key, const char * fiel
             if (! reply->element[i]) {
                 // bad reply element
                 snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_EAPP: should never run to this. reply has null element(%d)", i);
-                redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+                redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
 
                 RedisFreeReplyObject(&reply);
                 return REDISAPI_EAPP;
@@ -816,6 +848,108 @@ int RedisHashMultiGet(RedisConn_t * redconn, const char * key, const char * fiel
     }
 
     snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_EARG: no arguments found.");
-    redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+    redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
     return REDISAPI_EARG;
+}
+
+
+__attribute__((used))
+int RedisDeleteKey(RedisConn_t * redconn, const char * key)
+{
+    int ret;
+
+    redisReply *reply = 0;
+
+    const char **argv = (const char**) redconn->cmdarg.argv;
+    size_t *argvlen = redconn->cmdarg.argvlen;
+
+    // DEL
+    redconn->cmdarg.cmd[0] = 'D';
+    redconn->cmdarg.cmd[1] = 'E';
+    redconn->cmdarg.cmd[2] = 'L';
+    redconn->cmdarg.cmd[3] = 0;
+
+    argv[0] = redconn->cmdarg.cmd;  argvlen[0] = 3;
+    argv[1] = key;                  argvlen[1] = strlen(key);
+
+    reply = RedisConnExecCommand(redconn, 2, argv, argvlen);
+
+    if (! reply) {
+        // error
+        return REDISAPI_ERROR;
+    }
+
+    if (reply->type != REDIS_REPLY_INTEGER) {
+        // bad reply type
+        snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_ETYPE: bad reply type(=%d). REDIS_REPLY_INTEGER(%d) required.",
+            reply->type, REDIS_REPLY_INTEGER);
+        redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
+
+        RedisFreeReplyObject(&reply);
+        return REDISAPI_ETYPE;
+    }
+
+    ret = reply->integer;
+    
+    RedisFreeReplyObject(&reply);
+
+    return ret;
+}
+
+
+__attribute__((used))
+int RedisDeleteFields(RedisConn_t * redconn, const char * key, const char * fields[], int numFields)
+{
+    redisReply *reply = 0;
+
+    int i;
+    int argc = numFields + 2;
+
+    const char **argv = (const char**) redconn->cmdarg.argv;
+    size_t *argvlen = redconn->cmdarg.argvlen;
+
+    if (numFields > REDISAPI_ARGV_MAXLEN) {
+        snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_EARG: too many fields (max=%d).", REDISAPI_ARGV_MAXLEN);
+        redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
+        return REDISAPI_EARG;
+    }
+
+    // HDEL
+    redconn->cmdarg.cmd[0] = 'H';
+    redconn->cmdarg.cmd[1] = 'D';
+    redconn->cmdarg.cmd[2] = 'E';
+    redconn->cmdarg.cmd[3] = 'L';
+    redconn->cmdarg.cmd[4] = 0;
+
+    argv[0] = redconn->cmdarg.cmd;   argvlen[0] = 4;
+    argv[1] = key;                   argvlen[1] = strlen(key);
+
+    for (i = 0; i < numFields; ++i) {
+        argv[i + 2] = fields[i];
+        argvlen[i + 2] = strlen(fields[i]);
+    }
+
+    reply = RedisConnExecCommand(redconn, argc, argv, argvlen);
+
+    if (! reply) {
+        // error
+        return REDISAPI_ERROR;
+    }
+
+    if (reply->type != REDIS_REPLY_INTEGER) {
+        // bad reply type
+        snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_ETYPE: bad reply type(=%d). REDIS_REPLY_INTEGER(%d) required.",
+            reply->type, REDIS_REPLY_INTEGER);
+        redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
+
+        RedisFreeReplyObject(&reply);
+        return REDISAPI_ETYPE;
+    }
+
+    argc = reply->integer;
+
+    RedisFreeReplyObject(&reply);
+
+    // 0: not found; >= 1: number of keys deleted
+    return argc;
 }
