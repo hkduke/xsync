@@ -37,7 +37,6 @@
 #include "server_conf.h"
 
 #include "../common/common_util.h"
-
 #include "../redisapi/redis_api.h"
 
 
@@ -51,7 +50,7 @@ static void zdbPoolErrorHandler (const char *error)
 
 
 __attribute__((used))
-static void handleClientPackage (perthread_data *perdata)
+static void handleNewClient (perthread_data *perdata)
 {
     size_t cbsize, totalsize;
 
@@ -127,8 +126,9 @@ void event_task (thread_context_t *thread_ctx)
     LOGGER_TRACE("(thread-%d) task start...", perdata->threadid);
 
     if (task->flags == 100) {
-        handleClientPackage(perdata);
+        handleNewClient(perdata);
     } else {
+        // handleOldClient(perdata);
         LOGGER_ERROR("(thread-%d) unknown task flags(=%d)", perdata->threadid, task->flags);
     }
 
@@ -179,32 +179,76 @@ static inline int epmsg_cb_error_accept(epevent_msg epmsg, void *svrarg)
  */
 static inline int epmsg_cb_epoll_edge_trig(epevent_msg epmsg, void *svrarg)
 {
-    LOGGER_TRACE("=============EPEVT_EPOLLIN_EDGE_TRIG: sock(%d)", epmsg->connfd);
-    
+    int num;
+
     XS_server server = (XS_server) svrarg;
 
     /**
      * 判断用户是否已经连接
      *
-     * hget xs:1:10 clientid
+     * hmget xs:1:10 host port clientid
      */
+    const char * fields[] = {
+        "host",
+        "port",
+        "clientid",
+        0
+    };
+
+    redisReply *reply = 0;
+
     snprintf(server->msgbuf, sizeof(server->msgbuf), "xs:%s:%d", server->serverid, epmsg->connfd);
 
-    // const char * flds[] = { "clientid" };
-    // RedisHashGet(&server->redisconn, server->msgbuf, "clientid")
+    LOGGER_TRACE("EPEVT_EPOLLIN_EDGE_TRIG: sock(%d)", epmsg->connfd);
 
-    int num = threadpool_unused_queues(server->pool);
+    if (RedisHashMultiGet(& server->redisconn, server->msgbuf, fields, &reply) != REDISAPI_SUCCESS) {
+        return 0;
+    }
 
+    LOGGER_TRACE("[%s] => {%s='%s' %s='%s' %s='%s'}", server->msgbuf,
+        fields[0],
+            (reply->element[0]->str? reply->element[0]->str : "(nil)"),
+        fields[1],
+            (reply->element[1]->str? reply->element[1]->str : "(nil)"),
+        fields[2],
+            (reply->element[2]->str? reply->element[2]->str : "(nil)")
+    );
+
+    num = threadpool_unused_queues(server->pool);
     LOGGER_TRACE("threadpool_unused_queues=%d", num);
 
     if (num > 0) {
-        epollin_arg_t * pollin = (epollin_arg_t *) mem_alloc(1, sizeof(epollin_arg_t));
+        int flags = 0;
+        epollin_arg_t * pollin = 0;
+
+        if (reply->element[2]->type == REDIS_REPLY_STRING) {
+            // 用户连接已经存在
+            LOGGER_TRACE("peer connected.");
+
+            pollin = (epollin_arg_t *) mem_alloc(1, sizeof(epollin_arg_t) + reply->element[2]->len + 1);
+
+            // 复制 clientid 到 data
+            memcpy(pollin->data, reply->element[2]->str, reply->element[2]->len);
+
+            flags = 1;
+        } else {
+            // 用户要求建立连接
+            LOGGER_TRACE("peer connecting ...");
+
+            assert(reply->element[2]->type == REDIS_REPLY_NIL);
+
+            pollin = (epollin_arg_t *) mem_alloc(1, sizeof(epollin_arg_t));
+
+            flags = 100;
+        }
+
+        RedisFreeReplyObject(&reply);
 
         pollin->epollfd = epmsg->epollfd;
         pollin->connfd = epmsg->connfd;
         pollin->arg = svrarg;
 
-        if (threadpool_add(server->pool, event_task, (void*) pollin, 100) == 0) {
+        if (threadpool_add(server->pool, event_task, (void*) pollin, flags) == 0) {
             // 增加到线程池成功
             LOGGER_TRACE("threadpool_add task success");
             return 1;
@@ -216,6 +260,8 @@ static inline int epmsg_cb_epoll_edge_trig(epevent_msg epmsg, void *svrarg)
 
         return 0;
     }
+
+    RedisFreeReplyObject(&reply);
 
     /* queue is full */
     return 0;
@@ -243,7 +289,7 @@ static inline int epmsg_cb_peer_nameinfo(epevent_msg epmsg, void *svrarg)
     };
 
     const char * vals[] = {
-        0,
+        0, // delete it
         epmsg->hbuf,
         epmsg->sbuf,
         0

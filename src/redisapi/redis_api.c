@@ -360,15 +360,6 @@ redisReply * RedisConnExecCommand(RedisConn_t * redconn, int argc, const char **
     }
 
     if (reply->type == REDIS_REPLY_ERROR) {
-        /**
-         * REDIS_REPLY_STRING=1
-         * REDIS_REPLY_ARRAY=2
-         * REDIS_REPLY_INTEGER=3
-         * REDIS_REPLY_NIL=4
-         * REDIS_REPLY_STATUS=5
-         * REDIS_REPLY_ERROR=6
-         */
-
         /* 'MOVED 7142 127.0.0.1:7002' */
         if (! strncmp(reply->str, "MOVED ", 6)) {
             char * start = &(reply->str[6]);
@@ -573,6 +564,8 @@ int RedisHashMultiSet(RedisConn_t * redconn, const char *key, const char * field
 
         void *pv = calloc( argc, sizeof(size_t) + sizeof(char *) );
         if (! pv) {
+            snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_EMEM: out of memory.");
+            redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
             return REDISAPI_EMEM;
         }
 
@@ -687,8 +680,7 @@ int RedisHashMultiSet(RedisConn_t * redconn, const char *key, const char * field
             }
 
             // bad reply type
-            snprintf(redconn->errmsg, sizeof(redconn->errmsg),
-                "bad reply type(=%d), required REDIS_REPLY_INTEGER(%d)",
+            snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_ETYPE: bad reply type(=%d). REDIS_REPLY_INTEGER(%d) required.",
                 reply->type, REDIS_REPLY_INTEGER);
             redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
 
@@ -700,5 +692,130 @@ int RedisHashMultiSet(RedisConn_t * redconn, const char *key, const char * field
         return REDISAPI_SUCCESS;
     }
 
+    snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_EARG: no arguments found.");
+    redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+
+    return REDISAPI_EARG;
+}
+
+
+/**
+ * demo for redis command:
+ *  redis > hmget key host port clientid
+ *
+ *  redisReply *reply;
+ *
+ *  const char * fields[] = {
+ *      "host",
+ *      "port",
+ *      "clientid",
+ *      0  // must be 0 as the last
+ *  };
+ *
+ *  int ret = RedisHashMultiGet(redisconn, key, fields, &reply);
+ *
+ *  if (ret == REDISAPI_SUCCESS) {
+ *      printf("%s=%s %s=%s %s=%s\n",
+ *          fields[0],
+ *          reply->element[0]->str ? reply->element[0]->str : "(nil)",
+ *          fields[1],
+ *          reply->element[1]->str ? reply->element[1]->str : "(nil)",
+ *          fields[2],
+ *          reply->element[2]->str ? reply->element[2]->str : "(nil)"
+ *      );
+ *
+ *      RedisFreeReplyObject(&reply);
+ *  }
+ */
+
+__attribute__((used))
+int RedisHashMultiGet(RedisConn_t * redconn, const char * key, const char * fields[], redisReply **outReply)
+{
+    int i, argc;
+
+    const char **argv;
+    size_t *argvlen;
+
+    const char ** pfld = &fields[0];
+
+    *outReply = 0;
+
+    argc = 0;
+    while ( *pfld++ ) {
+        ++argc;
+    }
+
+    if (argc > 0) {
+        redisReply *reply;
+
+        const char hmget[] = "HMGET";
+
+        // we put argvlen and argv together !
+        void *pv = calloc( argc + 2, sizeof(size_t) + sizeof(char*) );
+
+        if (! pv) {
+            snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_EMEM: out of memory.");
+            redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+            return REDISAPI_EMEM;
+        }
+
+        argvlen = (size_t *) pv;
+        argv = (const char **) (&argvlen[argc + 2]);
+
+        argv[0] = hmget;   argvlen[0] = 5;
+        argv[1] = key;     argvlen[1] = strlen(key);
+
+        for (i = 0; i < argc; ++i) {
+            argv[i + 2] = fields[i];  argvlen[i + 2] = strlen(fields[i]);
+        }
+
+        reply = RedisConnExecCommand(redconn, argc + 2, argv, argvlen);
+
+        free(pv);
+
+        // 检查返回值
+        if (! reply) {
+            // error
+            return REDISAPI_ERROR;
+        }
+
+        if (reply->type != REDIS_REPLY_ARRAY) {
+            // bad reply type
+            snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_ETYPE: bad reply type(=%d). REDIS_REPLY_ARRAY(%d) required.",
+                reply->type, REDIS_REPLY_ARRAY);
+            redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+
+            RedisFreeReplyObject(&reply);
+            return REDISAPI_ETYPE;
+        }
+
+        if (reply->elements != argc) {
+            // bad reply elements
+            snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_EAPP: should never run to this. reply elements(=%ld). (%d) required.",
+                reply->elements, argc);
+            redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+
+            RedisFreeReplyObject(&reply);
+            return REDISAPI_EAPP;
+        }
+
+        for (i = 0; i < reply->elements; ++i) {
+            if (! reply->element[i]) {
+                // bad reply element
+                snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_EAPP: should never run to this. reply has null element(%d)", i);
+                redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
+
+                RedisFreeReplyObject(&reply);
+                return REDISAPI_EAPP;
+            }
+        }
+
+        // all is ok
+        *outReply = reply;
+        return REDISAPI_SUCCESS;
+    }
+
+    snprintf(redconn->errmsg, sizeof(redconn->errmsg), "REDISAPI_EARG: no arguments found.");
+    redconn->errmsg[ sizeof(redconn->errmsg) - 1 ] = 0;
     return REDISAPI_EARG;
 }

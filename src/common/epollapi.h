@@ -131,6 +131,8 @@ typedef struct epollin_arg_t
     int connfd;
 
     void *arg;
+
+    char data[0];
 } epollin_arg_t;
 
 

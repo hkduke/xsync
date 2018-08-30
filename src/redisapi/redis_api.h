@@ -53,6 +53,9 @@ extern "C" {
 #include <hiredis/async.h>
 #include <hiredis/adapters/libevent.h>
 
+#define REDISAPI_NULL      0
+
+
 #define REDISAPI_SUCCESS   0
 #define REDISAPI_NOERROR   REDISAPI_SUCCESS
 
@@ -63,7 +66,17 @@ extern "C" {
 #define REDISAPI_ETYPE     (-5)
 #define REDISAPI_EAUTH     (-6)
 #define REDISAPI_ERETVAL   (-7)
+#define REDISAPI_EAPP      (-8)
 
+
+/**
+ * REDIS_REPLY_STRING=1
+ * REDIS_REPLY_ARRAY=2
+ * REDIS_REPLY_INTEGER=3
+ * REDIS_REPLY_NIL=4
+ * REDIS_REPLY_STATUS=5
+ * REDIS_REPLY_ERROR=6
+ */
 
 typedef struct RedisAsynNode_t
 {
@@ -164,6 +177,7 @@ extern int RedisExpireSet(RedisConn_t * redconn, const char *key, int64_t expire
 
 extern int RedisHashMultiSet(RedisConn_t * redconn, const char *key, const char * fields[], const char *values[], const size_t *valueslen, int64_t expire_ms);
 
+extern int RedisHashMultiGet(RedisConn_t * redconn, const char * key, const char * fields[], redisReply **outReply);
 
 #if defined(__cplusplus)
 }
