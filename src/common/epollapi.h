@@ -63,6 +63,7 @@ extern "C" {
 #include "sockapi.h"
 #include "byteorder.h"
 
+#define EPAPI_MSG_MAXLEN  127
 
 /**
  * epapi epevent id
@@ -132,7 +133,7 @@ typedef struct epollin_arg_t
 
     void *arg;
 
-    char data[0];
+    char msg[ EPAPI_MSG_MAXLEN + 1 ];
 } epollin_arg_t;
 
 

@@ -152,6 +152,7 @@ extern "C"
 
 
 /**
+ * 绝对不可以更改下面的值
  * for both server and client
  *   系统支持的最大长度客户ID, 必须最大为: 40 个ANSI字符
  */

@@ -50,22 +50,20 @@ static void zdbPoolErrorHandler (const char *error)
 
 
 __attribute__((used))
-static void handleNewClient (perthread_data *perdata)
+static void handleNewConnection (perthread_data *perdata)
 {
-    size_t cbsize, totalsize;
+    size_t cbsize, offset;
 
     int epollfd = perdata->pollin_data.epollfd;
     int connfd = perdata->pollin_data.connfd;
 
-    char *iobuf = perdata->buffer;
-
     XS_server server = (XS_server) perdata->pollin_data.arg;
     assert(server);
 
-    totalsize = 0;
+    offset = 0;
 
     while (1) {
-        cbsize = read(connfd, iobuf, XSYNC_BUFSIZE);
+        cbsize = read(connfd, perdata->buffer + offset, XSYNC_BUFSIZE);
 
         if (cbsize == 0) {
             /**
@@ -81,15 +79,54 @@ static void handleNewClient (perthread_data *perdata)
             /* If errno == EAGAIN, that means we have read all data. So go back to the main loop. */
             if (errno == EAGAIN) {
                 // socket 是非阻塞时, EAGAIN 表示缓冲队列已满, 并非网络出错，而是可以再次注册事件
-                if (epapi_modify_epoll(epollfd, connfd, EPOLLONESHOT, iobuf, XSYNC_BUFSIZE) == -1) {
-                    LOGGER_ERROR("(thread-%d) epapi_modify_epoll error: %s", perdata->threadid, iobuf);
+                if (epapi_modify_epoll(epollfd, connfd, EPOLLONESHOT, perdata->pollin_data.msg, sizeof(perdata->pollin_data.msg)) == -1) {
+                    LOGGER_ERROR("(thread-%d) epapi_modify_epoll error: %s", perdata->threadid, perdata->pollin_data.msg);
                     close(connfd);
                 } else {
+                    int accepted = 0;
+
                     LOGGER_DEBUG("(thread-%d) epapi_modify_epoll ok", perdata->threadid);
-                    // TODO: 保存 connfd
+                    // TODO: 保存 connfd ?
 
                     // 此处不应该关闭，只是模拟定期清除 sessioin
                     //close(connfd);
+
+                    if (offset == XSConnectRequestSize) {
+                        LOGGER_INFO("(thread-%d) client(%d) request connecting", perdata->threadid, connfd);
+
+                        // 校验
+                        XSConnectRequest xconReq = {0};
+
+                        if (XSConnectRequestParse((unsigned char*) perdata->buffer, &xconReq) == XS_TRUE) {
+                            memcpy(perdata->buffer, xconReq.clientid, sizeof(xconReq.clientid));
+
+                            perdata->buffer[sizeof(xconReq.clientid)] = 0;
+
+                            LOGGER_INFO("(thread-%d): clientid(%s) msgid(%d='%c%c%c%c') magic(%d) version(%d) utctime(%d) randnum(%d)",
+                                perdata->threadid,
+                                perdata->buffer,
+                                xconReq.msgid,
+                                xconReq._request[0], xconReq._request[1], xconReq._request[2], xconReq._request[3],
+                                xconReq.magic,
+                                xconReq.client_version,
+                                xconReq.client_utctime,
+                                xconReq.randnum);
+                                
+                            if (xconReq.msgid == 1313817432) {
+                                if (xconReq.magic == server->magic) {
+                                    LOGGER_INFO("(thread-%d): clientid(%s) accepted.", perdata->threadid, perdata->buffer);
+
+                                    accepted = 1;
+                                }
+                            }
+                        } 
+                    }
+
+                    if (! accepted) {
+                        close(connfd);
+
+                        LOGGER_WARN("(thread-%d) sock(%d) declined.", perdata->threadid, connfd);
+                    }
                 }
 
                 break;
@@ -99,11 +136,11 @@ static void handleNewClient (perthread_data *perdata)
             close(connfd);
             break;
         } else {
-            totalsize += cbsize;
+            offset += cbsize;
 
             // success recv data cbsize
-            LOGGER_DEBUG("(thread-%d) TODO: client(%d): recv %ld bytes. total %ld bytes",
-                perdata->threadid, connfd, cbsize, totalsize);
+            LOGGER_DEBUG("(thread-%d): client(%d): recv %ld bytes. total %ld bytes",
+                perdata->threadid, connfd, cbsize, offset);
         }
     }
 }
@@ -126,7 +163,7 @@ void event_task (thread_context_t *thread_ctx)
     LOGGER_TRACE("(thread-%d) task start...", perdata->threadid);
 
     if (task->flags == 100) {
-        handleNewClient(perdata);
+        handleNewConnection(perdata);
     } else {
         // handleOldClient(perdata);
         LOGGER_ERROR("(thread-%d) unknown task flags(=%d)", perdata->threadid, task->flags);
@@ -225,10 +262,12 @@ static inline int epmsg_cb_epoll_edge_trig(epevent_msg epmsg, void *svrarg)
             // 用户连接已经存在
             LOGGER_TRACE("peer connected.");
 
-            pollin = (epollin_arg_t *) mem_alloc(1, sizeof(epollin_arg_t) + reply->element[2]->len + 1);
+            pollin = (epollin_arg_t *) mem_alloc(1, sizeof(epollin_arg_t));
+            
+            // 复制 clientid 到 msg
+            memcpy(pollin->msg, reply->element[2]->str, reply->element[2]->len);
 
-            // 复制 clientid 到 data
-            memcpy(pollin->data, reply->element[2]->str, reply->element[2]->len);
+            pollin->msg[ reply->element[2]->len ] = 0;
 
             flags = 1;
         } else {
@@ -238,6 +277,8 @@ static inline int epmsg_cb_epoll_edge_trig(epevent_msg epmsg, void *svrarg)
             assert(reply->element[2]->type == REDIS_REPLY_NIL);
 
             pollin = (epollin_arg_t *) mem_alloc(1, sizeof(epollin_arg_t));
+
+            pollin->msg[0] = 0;
 
             flags = 100;
         }

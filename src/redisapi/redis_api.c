@@ -342,11 +342,11 @@ redisContext * RedisConnGetActiveContext(RedisConn_t * redconn, const char *host
 __attribute__((used))
 redisReply * RedisConnExecCommand(RedisConn_t * redconn, int argc, const char **argv, const size_t *argvlen)
 {
-    redisReply * reply = 0;
+    redisReply * reply = REDISAPI_NULL;
 
     redisContext *ctx = RedisConnGetActiveContext(redconn, 0, 0);
     if (ctx == 0) {
-        return 0;
+        return REDISAPI_NULL;
     }
 
     reply = (redisReply *) redisCommandArgv(ctx, argc, argv, argvlen);
@@ -356,7 +356,7 @@ redisReply * RedisConnExecCommand(RedisConn_t * redconn, int argc, const char **
         snprintf(redconn->errmsg, sizeof(redconn->errmsg), "redisCommandArgv failed: bad context.");
         redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
         RedisConnCloseNode(redconn, redconn->active_node->index);
-        return 0;
+        return REDISAPI_NULL;
     }
 
     if (reply->type == REDIS_REPLY_ERROR) {
@@ -382,7 +382,7 @@ redisReply * RedisConnExecCommand(RedisConn_t * redconn, int argc, const char **
                     ctx = RedisConnGetActiveContext(redconn, start, atoi(end));
 
                     if (ctx) {
-                        freeReplyObject(reply);
+                        RedisFreeReplyObject(&reply);
                         return RedisConnExecCommand(redconn, argc, argv, argvlen);
                     }
                 }
@@ -394,7 +394,7 @@ redisReply * RedisConnExecCommand(RedisConn_t * redconn, int argc, const char **
                 redconn->password
             };
 
-            freeReplyObject(reply);
+            RedisFreeReplyObject(&reply);
 
             reply = RedisConnExecCommand(redconn, sizeof(cmds)/sizeof(cmds[0]), cmds, 0);
 
@@ -403,7 +403,7 @@ redisReply * RedisConnExecCommand(RedisConn_t * redconn, int argc, const char **
                 reply->len == 2 &&
                 reply->str[0] == 'O' && reply->str[1] == 'K') {
                 // authentication success
-                freeReplyObject(reply);
+                RedisFreeReplyObject(&reply);
 
                 // do command
                 return RedisConnExecCommand(redconn, argc, argv, argvlen);
@@ -412,16 +412,16 @@ redisReply * RedisConnExecCommand(RedisConn_t * redconn, int argc, const char **
             if (reply) {
                 snprintf(redconn->errmsg, sizeof(redconn->errmsg), "AUTH failed(%d): %s", reply->type, reply->str);
                 redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
-                freeReplyObject(reply);
+                RedisFreeReplyObject(&reply);
             }
 
-            return 0;
+            return REDISAPI_NULL;
         }
 
         snprintf(redconn->errmsg, sizeof(redconn->errmsg), "TODO: REDIS_REPLY_ERROR: %s", reply->str);
         redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
-        freeReplyObject(reply);
-        return 0;
+        RedisFreeReplyObject(&reply);
+        return REDISAPI_NULL;
     }
 
     return reply;
