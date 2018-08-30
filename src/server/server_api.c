@@ -39,6 +39,23 @@
 #include "../common/common_util.h"
 #include "../redisapi/redis_api.h"
 
+/**
+ * redis-cluster 集群存储架构
+ *
+ * [table-1: 客户端连接表] {key=xs:serverid:connfd}
+ *
+ *   key         host:port           clientid
+ * ---------------------------------------------
+ * xs:1:10   127.0.0.1:38690        xsync-test
+ * xs:1:12   127.0.0.1:38691        xsync-test
+ * xs:1:14   127.0.0.1:38694        xsync-test
+ * xs:1:15   127.0.0.1:38696        xsync-test
+ *
+ *
+ *
+ *
+ */
+
 
 __attribute__((used))
 static void zdbPoolErrorHandler (const char *error)
@@ -126,6 +143,10 @@ static void handleNewConnection (perthread_data *perdata)
                         close(connfd);
 
                         LOGGER_WARN("(thread-%d) sock(%d) declined.", perdata->threadid, connfd);
+                    } else {
+                        // TODO: 发送确认消息
+
+                        LOGGER_WARN("(thread-%d) TODO: reply to sock(%d).", perdata->threadid, connfd);
                     }
                 }
 
