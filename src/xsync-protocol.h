@@ -34,23 +34,69 @@
  */
 
 /***********************************************************************
- *     client-request   |  server-reply
- * ---------------------+--------------------------------------------
- * 1) new_connect       |  accept  / reject
- *                      |
- * 2) start_fstream     |  accept  / reject
- * 3) data1, data2, ... |  recv: donot reply
- *                      |  stop: send OOB to client(catch it by SIGURG)
- *                      |     http://www.cnblogs.com/c-slmax/p/5553857.html
- * 4) end_fstream       |  accept
- *                      |
- * 5) del_connect       |  accept
- *                      |
- * 6) start_update      |  accept / reject
- * 7) update_msg1,2,    |
- * 8) end_update        |
+ * 可用命令列表
+ *
+ *     XCON  客户端发起 socket 连接请求        XSConnectReq_t
+ *
+ *     XLOG  客户端发起开始文件条目请求        XSLogEntryReq_t
+ *
+ *     XSYN  客户端发起传输文件条目请求        XSSyncReq_t
+ *
+ *     XCMD  客户端发起让服务器执行命令请求    XSCommandReq_t
  *
  **********************************************************************/
+ 
+/**********************************************************************
+* xsync server tables on redis-cluster:
+*
+* 1) 客户端连接表
+*
+*  { XCON | key=[xs:$serverid:xcon:$connfd] }
+*
+*   key             host:port          clientid       session (shell `date +%s%N`)
+* -----------------------------------------------------------------------------------
+* xs:1:xcon:10   127.0.0.1:38690      xsync-test         1535697852319190425
+* xs:1:xcon:12   127.0.0.1:38691      xsync-test         1535697951786758440
+* xs:1:xcon:14   127.0.0.1:38694      xsync-test2    
+* xs:1:xcon:15   127.0.0.1:38696      xsync-test2
+* ...
+*
+*
+* 2) 传输文件日志表
+*
+*  { XLOG | key=[xs:$serverid:xlog:$clientid:$md5sum(watchfile)] }
+*
+*  ? = md5 = md5sum("/path/to/somefile")
+*
+*  时间戳单位: 秒
+*
+*  全  局                 |  客户端监控         | 条目创建 | 过  期  | 更  新  | 当前更新 | 文件大小  | 最后修改  | 客 户 端 | 服务端条目  | 服务端本地 | 完成   | 错误   | 服务端
+*  唯一键                 |  文件全路径         | 时间戳   | 时间戳  | 时间戳  | 字节偏移 | 字    节  | 时    间  | 文件签名 | 文件全路径  | 文件签名值 | 状态   | 日志   | 条目ID
+*   key                   |   pathfile          | credtime | exptime | updtime | offset   |  filesize |  modtime  | watchmd5 |  entryfile  |  entrymd5  | status | errlog | entryid
+* ------------------------+---------------------+----------+---------+---------+----------+-----------+-----------+----------+-------------+------------+--------+--------+---------
+* xs:1:xlog:xsync-test:?  | /path/to/somefile1  |
+* xs:1:xlog:xsync-test:?  | /path/to/somefile2  |
+* xs:1:xlog:xsync-test2:? | /path/to/somefile3  |
+* xs:1:xlog:xsync-test2:? | /path/to/somefile4  |
+* ...
+*
+*
+* 3) 服务器同步文件会话表: 用户(客户端)与服务器建立连接之后, 发送 XLOG 命令, 服务器返回 entryid, 同步数据开始
+*
+*  { XSYN | key=[xs:$serverid:xsyn:$entryid] }
+*
+*   同步条目ID  |   XLOG 主键              |
+*     key       |    logkey                |
+* --------------+--------------------------+
+* xs:1:xsyn:1   |  xs:1:xlog:xsync-test:?  |
+* xs:1:xsyn:2   |
+* xs:1:xsyn:3   |
+* ...
+*
+*
+*
+**********************************************************************/
+
 #ifndef XSYNC_PROTOCOL_H_
 #define XSYNC_PROTOCOL_H_
 
@@ -81,9 +127,33 @@ extern "C"
 #  define ARM_PACKED
 #endif
 
+__attribute__((used))
+static union {
+    char c[4];
+    ub4 msgid;
+} XS_PROTO_MSG_XCON = {{'X','C','O','N'}};
+
+__attribute__((used))
+static union {
+    char c[4];
+    ub4 msgid;
+} XS_PROTO_MSG_XLOG = {{'X','L','O','G'}};
+
+__attribute__((used))
+static union {
+    char c[4];
+    ub4 msgid;
+} XS_PROTO_MSG_XSYN = {{'X','S','Y','N'}};
+
+__attribute__((used))
+static union {
+    char c[4];
+    ub4 msgid;
+} XS_PROTO_MSG_XCMD = {{'X','C','M','D'}};
+
 
 /***********************************************************************
- * XSConnectRequest
+ * XSConnectReq_t
  *
  *   This is the 1st message sent by client to server so as to
  *     establish a new session connection.
@@ -103,18 +173,18 @@ extern "C"
  * -----------------------------------------
  *  64
  **********************************************************************/
-#define XSConnectRequestSize    64
+#define XS_CONNECT_REQ_SIZE    64
 
 #ifdef _MSC_VER
 #  pragma pack(1)
 #endif
 
-typedef struct XSConnectRequest
+typedef struct XSConnectReq_t
 {
     union {
         struct {
             ub4 msgid;              /* XCON */
-            ub4 magic;
+            ub4 magic;              /* xserver 要求的魔数 */
 
             ub4 client_version;     /* xsync-client version */
             ub4 client_utctime;
@@ -126,122 +196,269 @@ typedef struct XSConnectRequest
             ub4 crc32_checksum;
         };
 
-        ub1 _request[XSConnectRequestSize];
+        ub1 head[XS_CONNECT_REQ_SIZE];
     };
 
-    ub1 chunk[XSConnectRequestSize];
-} GNUC_PACKED ARM_PACKED XSConnectRequest;
+    ub1 chunk[XS_CONNECT_REQ_SIZE];
+} GNUC_PACKED ARM_PACKED XSConnectReq_t;
 
 #ifdef _MSC_VER
 #  pragma pack()
 #endif
 
 
-/***********************************************************************
- * XSYNC_ConnectReply
+/**********************************************************************
+ * XSConnectReply_t
+ *   服务端返回
  *
- **********************************************************************/
+ *********************************************************************/
+#define XS_CONNECT_ACCEPT_REPLY_SIZE    40
+#define XS_CONNECT_REJECT_REPLY_SIZE    8
+
+
 #ifdef _MSC_VER
 #  pragma pack(1)
 #endif
-typedef struct XSYNC_ConnectReply
+typedef struct XSConnectReply_t
 {
     union {
+        // 拒绝连接
         struct {
-            ub4 reject_msgid;        /* 拒绝消息ID */
-            ub4 reject_code;         /* != 0 */
+            ub4 reject_msgid;        /* 拒绝消息 = 'NOCX' */
+            ub4 reject_code;         /* 拒绝代码: 错误代码 */
         };
 
-        /** accept reply */
+        // 接受连接
         struct {
-            ub4 accept_msgid;        /* 接受或指派备用服务器 */
-            ub4 token;               /* token or magic */
+            ub4 msgid;              /* 接受消息 = 'XCON' */
+            ub4 magic;              /* 结果代码: 根据请求的 randnum 和 magic 计算得到的魔数 */
 
-            ub4 server_version;      /* xsync-server version */
-            ub4 server_utctime;
+            ub4 server_version;     /* xsync-server version */
+            ub4 server_utctime;     /* xsync-server time */
 
-            ub8 session_id;
+            ub8 session;            /* global unique id for connection session */
 
-            ub4 standby_port;
+            ub4 bitflags;           /* 附加参数标识: 指定启用的编码, 加密, 压缩, 备用服务等. 默认 0 */
+            ub4 reserved;           /* 保留值 */
 
-            union {
-                struct {
-                    ub4 standby_ipv4;
-                    ub1 placeholder[12];
-                };
+            ub4 paramslen;          /* 附加参数长度: 默认 0 */
+            ub4 crc32_checksum;     /* 校验值: 仅校验以上全部内容 */
 
-                ub1 standby_ipv6[16];
-            };
-
-            ub1 lo_cipher[8];
-            ub1 hi_cipher[8];
-
-            ub4 crc32_checksum;
+            ub1 params[0];          /* 附加参数 */
         };
 
-        ub1 connect_reply[64];
+        ub1 head[XS_CONNECT_ACCEPT_REPLY_SIZE];
     };
-
-    ub1 reply_buffer[64];
-} GNUC_PACKED ARM_PACKED XSYNC_ConnectReply;
+} GNUC_PACKED ARM_PACKED XSConnectReply_t;
 #ifdef _MSC_VER
 #  pragma pack()
 #endif
 
 
-/**
- * version:
+/**********************************************************************
+ * XLOG Command Request
+ *   注册条目命令.
  *
- * 主版本号.子版本号.修正版本号.编译版本号
+ *
+ *********************************************************************/
+#define XS_LOGENTRY_REQ_SIZE    64
+
+#ifdef _MSC_VER
+#  pragma pack(1)
+#endif
+
+typedef struct XSLogEntryReq_t
+{
+    union {
+        struct {
+            ub4 msgid;              /* XLOG */
+            ub4 datalen;            /* data body length in bytes NOT including sizeof head */
+            ub8 session;            /* XCON 成功之后服务端返回全局唯一会话 ID */
+            ub4 reserved1;          /* 0 */
+            ub4 reserved2;          /* 0 */
+
+            ub8 exptime;            /* 文件过期时间: 0 不过期 */
+            ub8 modtime;            /* 文件最后修改时间 */
+            ub8 filesize;           /* 文件最后字节尺寸 */
+
+            ub1 filemd5[16];        /* 文件最后 md5: 16 字节表示 */
+
+            ub1 pathfile[0];        /* 变长数组, 保存文件全路径名. 必须以 '\0' 结尾! */
+        };
+
+        ub1 head[XS_LOGENTRY_REQ_SIZE];
+    };
+} GNUC_PACKED ARM_PACKED XSLogEntryReq_t;
+
+#ifdef _MSC_VER
+#  pragma pack()
+#endif
+
+
+/**********************************************************************
+ * XSYN Command Request
+ *   数据同步命令. 每个数据包的包头都是这个结构 (固定 40 个字节大小).
+ *   datalen 是本次传输文件数据的字节数, 不包括此包头.
+ *
+ *********************************************************************/
+#define XS_SYNC_REQ_SIZE    40
+
+#ifdef _MSC_VER
+#  pragma pack(1)
+#endif
+
+typedef struct XSSyncReq_t
+{
+    union {
+        struct {
+            ub4 msgid;              /* XSYN */
+            ub4 datalen;            /* data body length in bytes NOT including sizeof head */
+            ub8 session;
+            ub4 reserved1;          /* 0 */
+            ub4 reserved2;          /* 0 */
+
+            ub8 entryid;            /* 条目 ID */
+            ub8 offset;             /* 文件偏移字节 */
+        };
+
+        ub1 head[XS_SYNC_REQ_SIZE];
+    };
+} GNUC_PACKED ARM_PACKED XSSyncReq_t;
+
+#ifdef _MSC_VER
+#  pragma pack()
+#endif
+
+
+/**********************************************************************
+ * XSVersion_t:
+ *
+ *  主版本号.子版本号.修正版本号.编译版本号
+ *   1.0.2.3
  *
  *   MajorVersion.MinorVersion.RevisionNumber[.BuildNumber]
  *
  *  string: "1.2.3"
  *  ub4:    [1|2|3|0]
- */
+ *********************************************************************/
+
+#ifdef _MSC_VER
+#  pragma pack(1)
+#endif
+
+typedef struct XSVersion_t {
+    union {
+        struct {
+            ub1 buildno;
+            ub1 revision;
+            ub1 minor;
+            ub1 major;
+        };
+
+        ub4 verno;
+    };
+
+    char verstring[16];
+} GNUC_PACKED ARM_PACKED XSVersion_t;
+
+#ifdef _MSC_VER
+#  pragma pack()
+#endif
+
+
 __no_warning_unused(static)
-inline ub4 version_string_to_ub4 (const char * version)
+ub4 build_version_from_string (const char * verstring, XSVersion_t * version)
 {
-    ub4 vernum = 0;
-    ub1 verbuf[4] = {0, 0, 0, 0};
+    int i, len, ndot, dot[4];
 
-    char tmpver[16];
-    char *dot;
-    int col = 4;
+    version->verno = 0;
 
-    strncpy(tmpver, version, sizeof(tmpver));
+    len = (int) strlen(verstring);
 
-    tmpver[sizeof(tmpver) - 1] = 0;
-
-    dot= strtok(tmpver, ".");
-
-    while (dot && col-- > 0) {
-        verbuf[col] = (ub1) atoi(dot);
-        dot = strtok(NULL, ".");
+    if ( len >= (int) sizeof(version->verstring) ) {
+        return (-1);
     }
 
-    memcpy(&vernum, verbuf, sizeof(ub4));
+    i = ndot = 0;
+    while (i < len) {
+        if (verstring[i] == '.') {
+            dot[ndot++] = i;
+        }
 
-    return vernum;
+        if (ndot == 4) {
+            return (-1);
+        }
+
+        ++i;
+    }
+
+    if (ndot >= 2) {
+        bzero(version->verstring, sizeof(version->verstring));
+        strncpy(version->verstring, verstring, dot[0]);
+        version->major = (ub1) atoi(version->verstring);
+
+        bzero(version->verstring, sizeof(version->verstring));
+        strncpy(version->verstring, verstring + dot[0] + 1, dot[1] - dot[0] - 1);
+        version->minor = (ub1) atoi(version->verstring);
+
+        if (ndot == 2) {
+            bzero(version->verstring, sizeof(version->verstring));
+            strncpy(version->verstring, verstring + dot[1] + 1, len - dot[1] - 1);
+            version->revision = (ub1) atoi(version->verstring);
+        } else {
+            bzero(version->verstring, sizeof(version->verstring));
+            strncpy(version->verstring, verstring + dot[1] + 1, dot[2] - dot[1] - 1);
+            version->revision = (ub1) atoi(version->verstring);
+        }
+
+        if (ndot == 3) {
+            bzero(version->verstring, sizeof(version->verstring));
+            strncpy(version->verstring, verstring + dot[2] + 1, len - dot[2] - 1);
+            version->buildno = (ub1) atoi(version->verstring);
+        }
+
+        memcpy(version->verstring, verstring, len);
+        version->verstring[len] = 0;
+
+        return version->verno;
+    }
+
+    return (-1);
 }
 
 
 __no_warning_unused(static)
-inline ub1 * XSConnectRequestBuild (XSConnectRequest *req, uint32_t magic, ub4 utctime, ub4 randnum, char clientid[40])
+const char * parse_version_to_string (ub4 verno, XSVersion_t * version)
+{
+    version->verno = verno;
+
+    snprintf(version->verstring, sizeof(version->verstring), "%d.%d.%d.%d",
+        version->major, version->minor, version->revision, version->buildno);
+
+    version->verstring[ sizeof(version->verstring) - 1 ] = 0;
+
+    return version->verstring;
+}
+
+
+__no_warning_unused(static)
+inline ub1 * XSConnectRequestBuild (XSConnectReq_t *req, uint32_t magic, ub4 utctime, ub4 randnum, char clientid[40])
 {
     ub4 be;
 
-    bzero(req, sizeof(XSConnectRequest));
+    bzero(req, sizeof(XSConnectReq_t));
 
     /* XCON */
-    req->_request[0] = 'X';
-    req->_request[1] = 'C';
-    req->_request[2] = 'O';
-    req->_request[3] = 'N';
+    req->head[0] = 'X';
+    req->head[1] = 'C';
+    req->head[2] = 'O';
+    req->head[3] = 'N';
 
     req->magic = magic;
 
-    req->client_version = version_string_to_ub4(XSYNC_CLIENT_VERSION);
+    XSVersion_t appver;
+
+    req->client_version = build_version_from_string(XSYNC_CLIENT_VERSION, &appver);
 
     memcpy(req->clientid, clientid, 40);
 
@@ -289,14 +506,14 @@ inline ub1 * XSConnectRequestBuild (XSConnectRequest *req, uint32_t magic, ub4 u
 
 
 __no_warning_unused(static)
-inline XS_BOOL XSConnectRequestParse (unsigned char *chunk, XSConnectRequest *req)
+inline XS_BOOL XSConnectRequestParse (unsigned char *chunk, XSConnectReq_t *req)
 {
     ub4 b;
     ub1 * pbuf = chunk;
 
-    b = (ub4) crc32(0L, (const unsigned char *) chunk, XSConnectRequestSize - sizeof(b));
+    b = (ub4) crc32(0L, (const unsigned char *) chunk, XS_CONNECT_REQ_SIZE - sizeof(b));
 
-    req->crc32_checksum = (ub4) BO_bytes_betoh_i32(chunk + XSConnectRequestSize - sizeof(b));
+    req->crc32_checksum = (ub4) BO_bytes_betoh_i32(chunk + XS_CONNECT_REQ_SIZE - sizeof(b));
 
     if (b != req->crc32_checksum) {
         return XS_FALSE;
@@ -326,7 +543,7 @@ inline XS_BOOL XSConnectRequestParse (unsigned char *chunk, XSConnectRequest *re
 
 
 __no_warning_unused(static)
-inline void XSYNC_ConnectReplyInit (XSYNC_ConnectReply *msg)
+inline void XSYNC_ConnectReplyInit (XSConnectReply_t *msg)
 {
 
 }

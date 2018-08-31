@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.1
+ * @version: 0.2.1
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-29 14:53:15
+ * @update: 2018-08-31 10:43:19
  */
 
 #ifndef SERVER_H_INCLUDED
@@ -89,9 +89,9 @@ void print_usage(void)
         "\t                                    \033[35m 'stderr' - using appender stderr\033[0m\n"
         "\t                                    \033[35m 'syslog' - using appender syslog\033[0m\n"
         "\n"
-        "\t-i, --server-id=<ID>         \033[35m specify an unique identifier for server. '1' (default)\033[0m\n"
+        "\t-i, --server-id=<ID>         \033[35m specify an unique numberic identifier for server. '1' (default)\033[0m\n"
         "\n"
-        "\t-n, --magic=<NUMBER>         \033[35m specify a numeric as magic. '%s' (default)\033[0m\n"
+        "\t-n, --magic=<NUMBER>         \033[35m specify magic number for server. '%s' (default)\033[0m\n"
         "\n"
         "\t-s, --host=<SERVER>          \033[35m specify server ip or hostname to bind. '0.0.0.0' (default)\033[0m\n"
         "\n"
@@ -315,35 +315,14 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
 
             case 'i':
                 do {
-                    size_t ich;
-                    size_t idlen = strlen(optarg);
+                    int server_id = atoi(optarg);
 
-                    if (idlen == 0 || idlen >= sizeof(opts->serverid)) {
+                    if (server_id < XS_SERVERID_MINID || server_id > XS_SERVERID_MAXID) {
                         fprintf(stderr, "\033[1;31m[error]\033[0m invalid server-id: \033[31m%s\033[0m\n", optarg);
                         exit(-1);
                     }
 
-                    if (optarg[0] == '-' || optarg[0] == '_') {
-                        fprintf(stderr, "\033[1;31m[error]\033[0m invalid server-id: \033[31m%s\033[0m\n", optarg);
-                        exit(-1);
-                    }
-
-                    for (ich = 0; ich < idlen; ich++) {
-                        if (! ((optarg[ich] >= 'a' && optarg[ich] <= 'z') ||
-                            (optarg[ich] >= 'A' && optarg[ich] <= 'Z') ||
-                            (optarg[ich] >= '0' && optarg[ich] <= '9') ||
-                            (optarg[ich] == '_') ||
-                            (optarg[ich] == '-'))) {
-                            fprintf(stderr, "\033[1;31m[error]\033[0m invalid server-id: \033[31m%s\033[0m\n", optarg);
-                            exit(-1);
-                        }
-                    }
-
-                    ret = snprintf(opts->serverid, sizeof(opts->serverid), "%s", optarg);
-                    if (ret < 0 || ret >= sizeof(opts->serverid)) {
-                        fprintf(stderr, "\033[1;31m[error]\033[0m invalid server-id: \033[31m%s\033[0m\n", optarg);
-                        exit(-1);
-                    }
+                    snprintf(opts->serverid, sizeof(opts->serverid), "%d", server_id);
                 } while (0);
                 break;
 

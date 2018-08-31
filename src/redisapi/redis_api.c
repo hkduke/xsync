@@ -25,11 +25,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.1
+ * @version: 0.2.1
  *
  * @create: 2018-02-10
  *
- * @update: 2018-08-30 11:59:19
+ * @update: 2018-08-30 17:09:28
  *
  */
 
@@ -76,7 +76,7 @@ int RedisConnInit(RedisConn_t * redconn, int maxNodes, const char * password, in
     }
 
     bzero(redconn, sizeof(RedisConn_t));
-    
+
     redconn->nodes = (RedisSynNode_t *) calloc(maxNodes, sizeof(RedisSynNode_t));
     redconn->num = maxNodes;
     do {
@@ -783,7 +783,7 @@ int RedisHashMultiGet(RedisConn_t * redconn, const char * key, const char * fiel
         redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
         return REDISAPI_EARG;
     }
-    
+
     if (argc > 0) {
         redisReply *reply;
 
@@ -890,7 +890,7 @@ int RedisDeleteKey(RedisConn_t * redconn, const char * key)
     }
 
     ret = reply->integer;
-    
+
     RedisFreeReplyObject(&reply);
 
     return ret;

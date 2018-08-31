@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.1
+ * @version: 0.2.1
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-29 14:51:12
+ * @update: 2018-08-31 12:38:30
  */
 
 #ifndef SERVER_API_H_INCLUDED
@@ -51,7 +51,10 @@ extern "C" {
 
 #include "../common/epollapi.h"
 
-#define XS_SERVERID_MAXLEN  8
+#define XS_SERVERID_MINID   1
+#define XS_SERVERID_MAXID   65535
+
+#define XS_SERVERID_MAXLEN  5
 
 
 typedef struct xs_server_t * XS_server;
@@ -83,6 +86,17 @@ typedef struct xs_appopts_t
 
     char config[XSYNC_PATHFILE_MAXLEN + 1];
 } xs_appopts_t;
+
+
+/**
+ * 生成 redis XCON 表的 key = 'xs:$serverid:xcon:$connfd'
+ *   size of key[] specified by len must > 30
+ */
+static inline const char * XCON_redis_table_key(const char *serverid, int connfd, char key[], int len) {
+    len = snprintf(key, 30, "xs:%s:xcon:%d", serverid, connfd);
+    key[len] = 0;
+    return key;
+}
 
 
 /**

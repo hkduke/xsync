@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.1
+ * @version: 0.2.1
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-30 12:36:28
+ * @update: 2018-08-31 18:50:51
  */
 
 #include "server_api.h"
@@ -38,23 +38,6 @@
 
 #include "../common/common_util.h"
 #include "../redisapi/redis_api.h"
-
-/**
- * redis-cluster 集群存储架构
- *
- * [table-1: 客户端连接表] {key=xs:serverid:connfd}
- *
- *   key         host:port           clientid
- * ---------------------------------------------
- * xs:1:10   127.0.0.1:38690        xsync-test
- * xs:1:12   127.0.0.1:38691        xsync-test
- * xs:1:14   127.0.0.1:38694        xsync-test
- * xs:1:15   127.0.0.1:38696        xsync-test
- *
- *
- *
- *
- */
 
 
 __attribute__((used))
@@ -108,27 +91,30 @@ static void handleNewConnection (perthread_data *perdata)
                     // 此处不应该关闭，只是模拟定期清除 sessioin
                     //close(connfd);
 
-                    if (offset == XSConnectRequestSize) {
+                    if (offset == XS_CONNECT_REQ_SIZE) {
                         LOGGER_INFO("(thread-%d) client(%d) request connecting", perdata->threadid, connfd);
 
                         // 校验
-                        XSConnectRequest xconReq = {0};
+                        XSConnectReq_t xconReq = {0};
 
                         if (XSConnectRequestParse((unsigned char*) perdata->buffer, &xconReq) == XS_TRUE) {
                             memcpy(perdata->buffer, xconReq.clientid, sizeof(xconReq.clientid));
 
                             perdata->buffer[sizeof(xconReq.clientid)] = 0;
 
-                            LOGGER_INFO("(thread-%d): clientid(%s) msgid(%d='%c%c%c%c') magic(%d) version(%d) utctime(%d) randnum(%d)",
+                            XSVersion_t verstr;
+
+                            LOGGER_INFO("(thread-%d): clientid(%s) msgid(%d='%c%c%c%c') magic(%d) version(%d:%s) utctime(%d) randnum(%d)",
                                 perdata->threadid,
                                 perdata->buffer,
                                 xconReq.msgid,
-                                xconReq._request[0], xconReq._request[1], xconReq._request[2], xconReq._request[3],
+                                xconReq.head[0], xconReq.head[1], xconReq.head[2], xconReq.head[3],
                                 xconReq.magic,
                                 xconReq.client_version,
+                                parse_version_to_string(xconReq.client_version, &verstr),
                                 xconReq.client_utctime,
                                 xconReq.randnum);
-                                
+
                             if (xconReq.msgid == 1313817432) {
                                 if (xconReq.magic == server->magic) {
                                     LOGGER_INFO("(thread-%d): clientid(%s) accepted.", perdata->threadid, perdata->buffer);
@@ -136,7 +122,7 @@ static void handleNewConnection (perthread_data *perdata)
                                     accepted = 1;
                                 }
                             }
-                        } 
+                        }
                     }
 
                     if (! accepted) {
@@ -244,7 +230,7 @@ static inline int epmsg_cb_epoll_edge_trig(epevent_msg epmsg, void *svrarg)
     /**
      * 判断用户是否已经连接
      *
-     * hmget xs:1:10 host port clientid
+     * hmget xs:1:xcon:10 host port clientid
      */
     const char * fields[] = {
         "host",
@@ -255,7 +241,7 @@ static inline int epmsg_cb_epoll_edge_trig(epevent_msg epmsg, void *svrarg)
 
     redisReply *reply = 0;
 
-    snprintf(server->msgbuf, sizeof(server->msgbuf), "xs:%s:%d", server->serverid, epmsg->connfd);
+    XCON_redis_table_key(server->serverid, epmsg->connfd, server->msgbuf, sizeof server->msgbuf);
 
     LOGGER_TRACE("EPEVT_EPOLLIN_EDGE_TRIG: sock(%d)", epmsg->connfd);
 
@@ -284,7 +270,7 @@ static inline int epmsg_cb_epoll_edge_trig(epevent_msg epmsg, void *svrarg)
             LOGGER_TRACE("peer connected.");
 
             pollin = (epollin_arg_t *) mem_alloc(1, sizeof(epollin_arg_t));
-            
+
             // 复制 clientid 到 msg
             memcpy(pollin->msg, reply->element[2]->str, reply->element[2]->len);
 
@@ -340,8 +326,8 @@ static inline int epmsg_cb_peer_nameinfo(epevent_msg epmsg, void *svrarg)
 
     XS_server server = (XS_server) svrarg;
 
-    // xs:1:10 host port clientid
-    snprintf(server->msgbuf, sizeof(server->msgbuf), "xs:%s:%d", server->serverid, epmsg->connfd);
+    // xs:1:xcon:10 host port clientid
+    XCON_redis_table_key(server->serverid, epmsg->connfd, server->msgbuf, sizeof server->msgbuf);
 
     const char * flds[] = {
         "clientid",

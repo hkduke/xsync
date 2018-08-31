@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.1
+ * @version: 0.2.1
  *
  * @create: 2018-02-02
  *
- * @update: 2018-08-29 14:51:11
+ * @update: 2018-08-31 10:44:22
  */
 
 #ifndef SERVER_CONF_H_INCLUDED
@@ -61,7 +61,7 @@ typedef struct xs_server_t
 
     /**
      * an unique identifier for xs_server in redis-cluster
-     * xs:serverid:sockfd
+     * xs:serverid:xcon:sockfd
      */
     char serverid[XS_SERVERID_MAXLEN + 1];
 

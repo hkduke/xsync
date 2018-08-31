@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.1
+ * @version: 0.2.1
  *
  * @create: 2018-02-12
  *
- * @update: 2018-08-29 18:26:30
+ * @update: 2018-08-31 15:02:41
  */
 
 #include "client_api.h"
@@ -71,25 +71,25 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
 
         char errmsg[256];
 
-        XSConnectRequest connRequest;
+        XSConnectReq_t xconReq;
 
-        XSConnectRequestBuild(&connRequest, servOpts->magic, t32, rand_gen(&xcon->rctx), clientid);
+        XSConnectRequestBuild(&xconReq, servOpts->magic, t32, rand_gen(&xcon->rctx), clientid);
 
         LOGGER_TRACE("msgid=%d('%c%c%c%c'), magic=%d, version=%d('%d.%d.%d'), time=%d, clientid=%s, randnum=%d, crc32=%d",
-                connRequest.msgid,
-                connRequest._request[0],
-                connRequest._request[1],
-                connRequest._request[2],
-                connRequest._request[3],
-                connRequest.magic,
-                connRequest.client_version,
-                connRequest._request[11],
-                connRequest._request[10],
-                connRequest._request[9],
-                connRequest.client_utctime,
-                connRequest.clientid,
-                connRequest.randnum,
-                connRequest.crc32_checksum);
+                xconReq.msgid,
+                xconReq.head[0],
+                xconReq.head[1],
+                xconReq.head[2],
+                xconReq.head[3],
+                xconReq.magic,
+                xconReq.client_version,
+                xconReq.head[11],
+                xconReq.head[10],
+                xconReq.head[9],
+                xconReq.client_utctime,
+                xconReq.clientid,
+                xconReq.randnum,
+                xconReq.crc32_checksum);
 
         sockfd = opensocket_v2(servOpts->host, servOpts->sport, servOpts->sockopts.timeosec, &servOpts->sockopts, errmsg);
 
@@ -100,8 +100,8 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
             LOGGER_INFO("opensocket_v2 success: %s:%s", servOpts->host, servOpts->sport);
 
             // 发送连接请求: 64 字节
-            int err = sendlen(sockfd, (char *) connRequest.chunk, XSConnectRequestSize);
-            if (err != XSConnectRequestSize) {
+            int err = sendlen(sockfd, (char *) xconReq.chunk, XS_CONNECT_REQ_SIZE);
+            if (err != XS_CONNECT_REQ_SIZE) {
                 LOGGER_ERROR("sendlen error(%d): %s", errno, strerror(errno));
                 close(sockfd);
                return XS_ERROR;
