@@ -129,27 +129,31 @@ extern "C"
 
 __attribute__((used))
 static union {
+    /* big endian */
     char c[4];
     ub4 msgid;
-} XS_PROTO_MSG_XCON = {{'X','C','O','N'}};
+} XS_MSGID_XCON = {{'X','C','O','N'}};
 
 __attribute__((used))
 static union {
+    /* big endian */
     char c[4];
     ub4 msgid;
-} XS_PROTO_MSG_XLOG = {{'X','L','O','G'}};
+} XS_MSGID_XLOG = {{'X','L','O','G'}};
 
 __attribute__((used))
 static union {
+    /* big endian */
     char c[4];
     ub4 msgid;
-} XS_PROTO_MSG_XSYN = {{'X','S','Y','N'}};
+} XS_MSGID_XSYN = {{'X','S','Y','N'}};
 
 __attribute__((used))
 static union {
+    /* big endian */
     char c[4];
     ub4 msgid;
-} XS_PROTO_MSG_XCMD = {{'X','C','M','D'}};
+} XS_MSGID_XCMD = {{'X','C','M','D'}};
 
 
 /***********************************************************************
@@ -338,8 +342,8 @@ typedef struct XSSyncReq_t
  *
  *   MajorVersion.MinorVersion.RevisionNumber[.BuildNumber]
  *
- *  string: "1.2.3"
- *  ub4:    [1|2|3|0]
+ *  verstring: "1.2.3.0"
+ *
  *********************************************************************/
 
 #ifdef _MSC_VER
@@ -348,13 +352,15 @@ typedef struct XSSyncReq_t
 
 typedef struct XSVersion_t {
     union {
+        /* big endian */
         struct {
-            ub1 buildno;
-            ub1 revision;
-            ub1 minor;
             ub1 major;
+            ub1 minor;
+            ub1 revision;
+            ub1 buildno;
         };
 
+        /* big endian */
         ub4 verno;
     };
 
@@ -420,7 +426,7 @@ ub4 build_version_from_string (const char * verstring, XSVersion_t * version)
         memcpy(version->verstring, verstring, len);
         version->verstring[len] = 0;
 
-        return version->verno;
+        return (ub4) BO_i32_betoh(version->verno);
     }
 
     return (-1);
@@ -430,7 +436,7 @@ ub4 build_version_from_string (const char * verstring, XSVersion_t * version)
 __no_warning_unused(static)
 const char * parse_version_to_string (ub4 verno, XSVersion_t * version)
 {
-    version->verno = verno;
+    version->verno = (ub4) BO_i32_htobe(verno);
 
     snprintf(version->verstring, sizeof(version->verstring), "%d.%d.%d.%d",
         version->major, version->minor, version->revision, version->buildno);
@@ -449,10 +455,7 @@ inline ub1 * XSConnectRequestBuild (XSConnectReq_t *req, uint32_t magic, ub4 utc
     bzero(req, sizeof(XSConnectReq_t));
 
     /* XCON */
-    req->head[0] = 'X';
-    req->head[1] = 'C';
-    req->head[2] = 'O';
-    req->head[3] = 'N';
+    req->msgid = XS_MSGID_XCON.msgid;
 
     req->magic = magic;
 

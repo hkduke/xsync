@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.1
+ * @version: 0.0.1
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-31 18:50:51
+ * @update: 2018-08-31 23:00:13
  */
 
 #include "server_api.h"
@@ -104,10 +104,9 @@ static void handleNewConnection (perthread_data *perdata)
 
                             XSVersion_t verstr;
 
-                            LOGGER_INFO("(thread-%d): clientid(%s) msgid(%d='%c%c%c%c') magic(%d) version(%d:%s) utctime(%d) randnum(%d)",
+                            LOGGER_INFO("(thread-%d): clientid(%s) msgid('%c%c%c%c') magic(%d) version(%d:%s) utctime(%d) randnum(%d)",
                                 perdata->threadid,
                                 perdata->buffer,
-                                xconReq.msgid,
                                 xconReq.head[0], xconReq.head[1], xconReq.head[2], xconReq.head[3],
                                 xconReq.magic,
                                 xconReq.client_version,
@@ -115,7 +114,7 @@ static void handleNewConnection (perthread_data *perdata)
                                 xconReq.client_utctime,
                                 xconReq.randnum);
 
-                            if (xconReq.msgid == 1313817432) {
+                            if (xconReq.msgid == XS_MSGID_XCON.msgid) {
                                 if (xconReq.magic == server->magic) {
                                     LOGGER_INFO("(thread-%d): clientid(%s) accepted.", perdata->threadid, perdata->buffer);
 

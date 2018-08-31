@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.1
+ * @version: 0.0.1
  *
  * @create: 2013-06-19
  *
- * @update: 2018-08-10 18:11:59
+ * @update: 2018-08-31 22:29:51
  *
  *---------------------------------------------------------------------
  *  Big Endian: XDR (big endian) encoding of numeric types
@@ -169,6 +169,7 @@ __INLINE void BO_swap_bytes(void *value, int size)
         b[size-i-1] = t;
     }
 }
+
 
 /**
  * 2 bytes numeric converter: int16_t, uint16_t
