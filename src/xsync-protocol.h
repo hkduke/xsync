@@ -40,7 +40,7 @@
  *
  *     XLOG  客户端发起开始文件条目请求        XSLogEntryReq_t
  *
- *     XSYN  客户端发起传输文件条目请求        XSSyncReq_t
+ *     XSYN  客户端发起传输文件条目请求        XSSyncFileReq_t
  *
  *     XCMD  客户端发起让服务器执行命令请求    XSCommandReq_t
  *
@@ -311,7 +311,7 @@ typedef struct XSLogEntryReq_t
 #  pragma pack(1)
 #endif
 
-typedef struct XSSyncReq_t
+typedef struct XSSyncFileReq_t
 {
     union {
         struct {
@@ -327,7 +327,7 @@ typedef struct XSSyncReq_t
 
         ub1 head[XS_SYNC_REQ_SIZE];
     };
-} GNUC_PACKED ARM_PACKED XSSyncReq_t;
+} GNUC_PACKED ARM_PACKED XSSyncFileReq_t;
 
 #ifdef _MSC_VER
 #  pragma pack()
