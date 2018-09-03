@@ -152,11 +152,11 @@ extern "C"
 
 
 /**
- * 绝对不可以更改下面的值
+ * 绝对不可以更改下面的值!!
  * for both server and client
- *   系统支持的最大长度客户ID, 必须最大为: 40 个ANSI字符
+ *   系统支持的最大长度客户 ID, 必须最大为: 36 个ANSI字符
  */
-#define XSYNC_CLIENTID_MAXLEN           40
+#define XSYNC_CLIENTID_MAXLEN           36
 
 
 /**

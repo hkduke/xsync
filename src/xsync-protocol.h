@@ -53,12 +53,12 @@
 *
 *  { XCON | key=[xs:$serverid:xcon:$connfd] }
 *
-*   key             host:port          clientid       session (shell `date +%s%N`)
+*   key             host   port          clientid       session (shell `date +%s%N`)
 * -----------------------------------------------------------------------------------
-* xs:1:xcon:10   127.0.0.1:38690      xsync-test         1535697852319190425
-* xs:1:xcon:12   127.0.0.1:38691      xsync-test         1535697951786758440
-* xs:1:xcon:14   127.0.0.1:38694      xsync-test2    
-* xs:1:xcon:15   127.0.0.1:38696      xsync-test2
+* xs:1:xcon:10   127.0.0.1  38690      xsync-test         1535697852319190425
+* xs:1:xcon:12   127.0.0.1  38691      xsync-test         1535697951786758440
+* xs:1:xcon:14   127.0.0.1  38694      xsync-test2    
+* xs:1:xcon:15   127.0.0.1  38696      xsync-test2
 * ...
 *
 *
@@ -190,20 +190,19 @@ typedef struct XSConnectReq_t
             ub4 msgid;              /* XCON */
             ub4 magic;              /* xserver 要求的魔数 */
 
+            ub4 randnum;
             ub4 client_version;     /* xsync-client version */
-            ub4 client_utctime;
 
-            /* 40 characters length id */
+            ub8 client_utctime;     /* 64 bits time */
+
+            /* 36 characters length of client id */
             ub1 clientid[XSYNC_CLIENTID_MAXLEN];
 
-            ub4 randnum;
             ub4 crc32_checksum;
         };
 
         ub1 head[XS_CONNECT_REQ_SIZE];
     };
-
-    ub1 chunk[XS_CONNECT_REQ_SIZE];
 } GNUC_PACKED ARM_PACKED XSConnectReq_t;
 
 #ifdef _MSC_VER
@@ -238,12 +237,11 @@ typedef struct XSConnectReply_t
             ub4 magic;              /* 结果代码: 根据请求的 randnum 和 magic 计算得到的魔数 */
 
             ub4 server_version;     /* xsync-server version */
-            ub4 server_utctime;     /* xsync-server time */
+            ub4 bitflags;           /* 附加参数标识: 指定启用的编码, 加密, 压缩, 备用服务等. 默认 0 */
+
+            ub8 server_utctime;     /* xsync-server time */
 
             ub8 session;            /* global unique id for connection session */
-
-            ub4 bitflags;           /* 附加参数标识: 指定启用的编码, 加密, 压缩, 备用服务等. 默认 0 */
-            ub4 reserved;           /* 保留值 */
 
             ub4 paramslen;          /* 附加参数长度: 默认 0 */
             ub4 crc32_checksum;     /* 校验值: 仅校验以上全部内容 */
@@ -277,12 +275,16 @@ typedef struct XSLogEntryReq_t
         struct {
             ub4 msgid;              /* XLOG */
             ub4 datalen;            /* data body length in bytes NOT including sizeof head */
+
             ub8 session;            /* XCON 成功之后服务端返回全局唯一会话 ID */
+
             ub4 reserved1;          /* 0 */
             ub4 reserved2;          /* 0 */
 
             ub8 exptime;            /* 文件过期时间: 0 不过期 */
+
             ub8 modtime;            /* 文件最后修改时间 */
+
             ub8 filesize;           /* 文件最后字节尺寸 */
 
             ub1 filemd5[16];        /* 文件最后 md5: 16 字节表示 */
@@ -317,11 +319,14 @@ typedef struct XSSyncFileReq_t
         struct {
             ub4 msgid;              /* XSYN */
             ub4 datalen;            /* data body length in bytes NOT including sizeof head */
+
             ub8 session;
+
             ub4 reserved1;          /* 0 */
             ub4 reserved2;          /* 0 */
 
             ub8 entryid;            /* 条目 ID */
+
             ub8 offset;             /* 文件偏移字节 */
         };
 
@@ -448,77 +453,81 @@ const char * parse_version_to_string (ub4 verno, XSVersion_t * version)
 
 
 __no_warning_unused(static)
-inline ub1 * XSConnectRequestBuild (XSConnectReq_t *req, uint32_t magic, ub4 utctime, ub4 randnum, char clientid[40])
+ub1 * XSConnectRequestBuild (XSConnectReq_t *req,
+    char clientid[XSYNC_CLIENTID_MAXLEN],
+    uint32_t magic,
+    ub8 utctime,
+    ub4 randnum,
+    ub1 *chunk)
 {
-    ub4 be;
+    ub4 b;
+    ub8 b2;
 
-    bzero(req, sizeof(XSConnectReq_t));
+    XSVersion_t appver;
+
+    bzero(req, sizeof(*req));
 
     /* XCON */
     req->msgid = XS_MSGID_XCON.msgid;
 
     req->magic = magic;
 
-    XSVersion_t appver;
-
-    req->client_version = build_version_from_string(XSYNC_CLIENT_VERSION, &appver);
-
-    memcpy(req->clientid, clientid, 40);
-
-    req->client_utctime = utctime;
     req->randnum = randnum;
+    req->client_version = build_version_from_string(XSYNC_CLIENT_VERSION, &appver);
+    req->client_utctime = utctime;
+
+    memcpy(req->clientid, clientid, XSYNC_CLIENTID_MAXLEN);
 
     /**
      * write to send buffer
      */
     do {
-        ub1 * pbuf = req->chunk;
+        ub1 *pbuf = chunk;
 
-        memcpy(pbuf, &req->msgid, sizeof(be));
-        pbuf += sizeof(be);
+        memcpy(pbuf, &req->msgid, sizeof(req->msgid));
+        pbuf += sizeof(req->msgid);
 
-        be = BO_i32_htobe(req->magic);
-        memcpy(pbuf, &be, sizeof(be));
-        pbuf += sizeof(be);
+        b = BO_i32_htobe(req->magic);
+        memcpy(pbuf, &b, sizeof(b));
+        pbuf += sizeof(b);
+
+        b = BO_i32_htobe(req->randnum);
+        memcpy(pbuf, &b, sizeof(b));
+        pbuf += sizeof(b);
 
         memcpy(pbuf, &req->client_version, sizeof(req->client_version));
-        pbuf += sizeof(be);
+        pbuf += sizeof(req->client_version);
 
-        be = BO_i32_htobe(req->client_utctime);
-        memcpy(pbuf, &be, sizeof(be));
-        pbuf += sizeof(be);
+        b2 = BO_i64_htole(req->client_utctime);
+        memcpy(pbuf, &b2, sizeof(b2));
+        pbuf += sizeof(b2);
 
-        memcpy(pbuf, req->clientid, sizeof(req->clientid));
-        pbuf += sizeof(req->clientid);
+        memcpy(pbuf, req->clientid, XSYNC_CLIENTID_MAXLEN);
+        pbuf += XSYNC_CLIENTID_MAXLEN;
 
-        be = BO_i32_htobe(req->randnum);
-        memcpy(pbuf, &be, sizeof(be));
-        pbuf += sizeof(be);
+        req->crc32_checksum = (ub4) crc32(0L, (const unsigned char *) chunk, XS_CONNECT_REQ_SIZE - sizeof(req->crc32_checksum));
 
-        req->crc32_checksum = (ub4) crc32(0L, (const unsigned char *) req->chunk, sizeof(req->chunk) - sizeof(be));
+        b = BO_i32_htobe(req->crc32_checksum);
+        memcpy(pbuf, &b, sizeof(b));
+        pbuf += sizeof(b);
 
-        be = BO_i32_htobe(req->crc32_checksum);
-        memcpy(pbuf, &be, sizeof(be));
-        pbuf += sizeof(be);
-
-        assert(pbuf - req->chunk == 64);
+        assert(pbuf - chunk == XS_CONNECT_REQ_SIZE);
     } while(0);
 
-    return req->chunk;
+    return chunk;
 }
 
 
 __no_warning_unused(static)
-inline XS_BOOL XSConnectRequestParse (unsigned char *chunk, XSConnectReq_t *req)
+inline XS_BOOL XSConnectRequestParse (ub1 *chunk, XSConnectReq_t *req)
 {
-    ub4 b;
     ub1 * pbuf = chunk;
 
-    b = (ub4) crc32(0L, (const unsigned char *) chunk, XS_CONNECT_REQ_SIZE - sizeof(b));
+    ub4 crcsum = (ub4) crc32(0L, (const unsigned char *) chunk, XS_CONNECT_REQ_SIZE - sizeof(ub4));
 
-    req->crc32_checksum = (ub4) BO_bytes_betoh_i32(chunk + XS_CONNECT_REQ_SIZE - sizeof(b));
+    req->crc32_checksum = (ub4) BO_bytes_betoh_i32(chunk + XS_CONNECT_REQ_SIZE - sizeof(ub4));
 
-    if (b != req->crc32_checksum) {
+    if (crcsum != req->crc32_checksum) {
         return XS_FALSE;
     }
 
@@ -528,29 +537,104 @@ inline XS_BOOL XSConnectRequestParse (unsigned char *chunk, XSConnectReq_t *req)
     req->magic = (ub4) BO_bytes_betoh_i32(pbuf);
     pbuf += sizeof(ub4);
 
+    req->randnum = (ub4) BO_bytes_betoh_i32(pbuf);
+    pbuf += sizeof(ub4);
+
     memcpy(&req->client_version, pbuf, sizeof(ub4));
     pbuf += sizeof(ub4);
 
-    req->client_utctime = (ub4) BO_bytes_betoh_i32(pbuf);
+    req->client_utctime = (ub8) BO_bytes_betoh_i64(pbuf);
+    pbuf += sizeof(ub8);
+
+    memcpy(req->clientid, pbuf, XSYNC_CLIENTID_MAXLEN);
+    pbuf += XSYNC_CLIENTID_MAXLEN;
+
+    /* crcsum */
     pbuf += sizeof(ub4);
 
-    memcpy(req->clientid, pbuf, sizeof(req->clientid));
-    pbuf += sizeof(req->clientid);
-
-    req->randnum = (ub4) BO_bytes_betoh_i32(pbuf);
-    pbuf += sizeof(ub4);
-    pbuf += sizeof(ub4);
+    assert(pbuf - chunk == XS_CONNECT_REQ_SIZE);
 
     return XS_TRUE;
 }
 
 
 __no_warning_unused(static)
-inline void XSYNC_ConnectReplyInit (XSConnectReply_t *msg)
+inline const char * XSConnectRequestPrint (const XSConnectReq_t *req, char *buffer, int bufsize)
 {
+    char clientid[XSYNC_CLIENTID_MAXLEN + 1];
+    memcpy(clientid, req->clientid, XSYNC_CLIENTID_MAXLEN);
+    clientid[XSYNC_CLIENTID_MAXLEN] = 0;
 
+    XSVersion_t ver;
+
+    snprintf(buffer, bufsize, "\n  clientid='%s'\n  msgid='%c%c%c%c'\n  magic=%d\n  randnum=%d\n  version=%s(%d)\n  utctime=%ju",
+        clientid,
+        req->head[0], req->head[1], req->head[2], req->head[3],
+        req->magic,
+        req->randnum,
+        parse_version_to_string(req->client_version, &ver),
+        req->client_version,
+        req->client_utctime);
+
+    buffer[bufsize - 1] = 0;
+    
+    return buffer;
 }
 
+
+__no_warning_unused(static)
+ub1 * XSConnectReplyRejectBuild (XSConnectReply_t *reply,
+    ub4 reject_code,
+    ub1 *chunk)
+{
+    ub4 b;
+    ub1 *pbuf = chunk;
+
+    bzero(reply, sizeof(*reply));
+
+    reply->msgid = XS_MSGID_XCON.msgid;
+
+    BO_swap_bytes(&reply->msgid, sizeof(reply->msgid));
+    reply->reject_code = reject_code;
+
+    memcpy(pbuf, &reply->msgid, sizeof(reply->msgid));
+    pbuf += sizeof(reply->msgid);
+
+    b = BO_i32_htobe(reply->reject_code);
+    memcpy(pbuf, &b, sizeof(b));
+    pbuf += sizeof(b);
+
+    return chunk;
+}
+
+
+__no_warning_unused(static)
+ub1 * XSConnectReplyAcceptBuild (XSConnectReply_t *reply,
+    ub4 magic,
+    ub8 utctime,
+    ub8 session,
+    ub1 *chunk)
+{
+    XSVersion_t appver;
+
+    bzero(reply, sizeof(*reply));
+
+    reply->msgid = XS_MSGID_XCON.msgid;
+
+    reply->magic = 0;
+
+    reply->server_version = build_version_from_string(XSYNC_SERVER_VERSION, &appver);
+    reply->bitflags = 0;
+
+    reply->server_utctime = utctime;
+    reply->session = session;
+
+    reply->paramslen = 0;
+
+    //reply->crc32_checksum = ();
+    
+    return chunk;
+}
 
 #if defined(__cplusplus)
 }

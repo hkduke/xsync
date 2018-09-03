@@ -69,43 +69,30 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
     do {
         int sockfd;
 
-        char errmsg[256];
+        char msg[256];
 
-        XSConnectReq_t xconReq;
-
-        XSConnectRequestBuild(&xconReq, servOpts->magic, t32, rand_gen(&xcon->rctx), clientid);
-
-        LOGGER_TRACE("msgid=%d('%c%c%c%c'), magic=%d, version=%d('%d.%d.%d'), time=%d, clientid=%s, randnum=%d, crc32=%d",
-                xconReq.msgid,
-                xconReq.head[0],
-                xconReq.head[1],
-                xconReq.head[2],
-                xconReq.head[3],
-                xconReq.magic,
-                xconReq.client_version,
-                xconReq.head[11],
-                xconReq.head[10],
-                xconReq.head[9],
-                xconReq.client_utctime,
-                xconReq.clientid,
-                xconReq.randnum,
-                xconReq.crc32_checksum);
-
-        sockfd = opensocket_v2(servOpts->host, servOpts->sport, servOpts->sockopts.timeosec, &servOpts->sockopts, errmsg);
+        sockfd = opensocket_v2(servOpts->host, servOpts->sport, servOpts->sockopts.timeosec, &servOpts->sockopts, msg);
 
         if (sockfd == -1) {
-            LOGGER_ERROR("opensocket_v2 failed: %s", errmsg);
+            LOGGER_ERROR("opensocket_v2 failed: %s", msg);
             return XS_ERROR;
         } else {
             LOGGER_INFO("opensocket_v2 success: %s:%s", servOpts->host, servOpts->sport);
 
-            // 发送连接请求: 64 字节
-            int err = sendlen(sockfd, (char *) xconReq.chunk, XS_CONNECT_REQ_SIZE);
+            XSConnectReq_t xconReq;
+
+            XSConnectRequestBuild(&xconReq, clientid, servOpts->magic, xcon->client_utctime, rand_gen(&xcon->rctx), (ub1*) msg);
+            
+            // 发送连接请求: XS_CONNECT_REQ_SIZE 字节
+            int err = sendlen(sockfd, msg, XS_CONNECT_REQ_SIZE);
+
             if (err != XS_CONNECT_REQ_SIZE) {
                 LOGGER_ERROR("sendlen error(%d): %s", errno, strerror(errno));
                 close(sockfd);
-               return XS_ERROR;
+                return XS_ERROR;
             }
+
+            LOGGER_TRACE("%s", XSConnectRequestPrint(&xconReq, msg, sizeof(msg)));
 
             sleep(60);
 

@@ -80,12 +80,11 @@ static void handleNewConnection (perthread_data *perdata)
             if (errno == EAGAIN) {
                 // socket 是非阻塞时, EAGAIN 表示缓冲队列已满, 并非网络出错，而是可以再次注册事件
                 if (epapi_modify_epoll(epollfd, connfd, EPOLLONESHOT, perdata->pollin_data.msg, sizeof(perdata->pollin_data.msg)) == -1) {
-                    LOGGER_ERROR("(thread-%d) epapi_modify_epoll error: %s", perdata->threadid, perdata->pollin_data.msg);
+                    LOGGER_ERROR("(thread-%d) - client(%d): epapi_modify_epoll error: %s",
+                        perdata->threadid, connfd, perdata->pollin_data.msg);
                     close(connfd);
                 } else {
-                    int accepted = 0;
-
-                    LOGGER_DEBUG("(thread-%d) epapi_modify_epoll ok", perdata->threadid);
+                    LOGGER_DEBUG("(thread-%d) - client(%d): epapi_modify_epoll ok", perdata->threadid, connfd);
                     // TODO: 保存 connfd ?
 
                     // 此处不应该关闭，只是模拟定期清除 sessioin
@@ -94,45 +93,38 @@ static void handleNewConnection (perthread_data *perdata)
                     if (offset == XS_CONNECT_REQ_SIZE) {
                         LOGGER_INFO("(thread-%d) client(%d) request connecting", perdata->threadid, connfd);
 
-                        // 校验
+                        int accepted = 0;
+
                         XSConnectReq_t xconReq = {0};
 
                         if (XSConnectRequestParse((unsigned char*) perdata->buffer, &xconReq) == XS_TRUE) {
-                            memcpy(perdata->buffer, xconReq.clientid, sizeof(xconReq.clientid));
-
-                            perdata->buffer[sizeof(xconReq.clientid)] = 0;
-
-                            XSVersion_t verstr;
-
-                            LOGGER_INFO("(thread-%d): clientid(%s) msgid('%c%c%c%c') magic(%d) version(%d:%s) utctime(%d) randnum(%d)",
-                                perdata->threadid,
-                                perdata->buffer,
-                                xconReq.head[0], xconReq.head[1], xconReq.head[2], xconReq.head[3],
-                                xconReq.magic,
-                                xconReq.client_version,
-                                parse_version_to_string(xconReq.client_version, &verstr),
-                                xconReq.client_utctime,
-                                xconReq.randnum);
-
                             if (xconReq.msgid == XS_MSGID_XCON.msgid) {
                                 if (xconReq.magic == server->magic) {
-                                    LOGGER_INFO("(thread-%d): clientid(%s) accepted.", perdata->threadid, perdata->buffer);
-
                                     accepted = 1;
+                                } else {
+                                    LOGGER_WARN("(thread-%d) - client(%d): bad magic", perdata->threadid, connfd);
                                 }
+                            } else {
+                                LOGGER_WARN("(thread-%d) - client(%d): bad msgid", perdata->threadid, connfd);
                             }
                         }
-                    }
+                        
+                        if (! accepted) {
+                            LOGGER_WARN("(thread-%d) - client(%d) rejected: %s", perdata->threadid, connfd,
+                                XSConnectRequestPrint(&xconReq, perdata->buffer, sizeof(perdata->buffer)));
 
-                    if (! accepted) {
-                        close(connfd);
+                            close(connfd);
+                        } else {
+                            // TODO: 接受连接, 发送确认消息
 
-                        LOGGER_WARN("(thread-%d) sock(%d) declined.", perdata->threadid, connfd);
+                            LOGGER_INFO("(thread-%d) peer(%d) accepted: %s", perdata->threadid, connfd,
+                                XSConnectRequestPrint(&xconReq, perdata->buffer, sizeof(perdata->buffer)));
+                        }
                     } else {
-                        // TODO: 发送确认消息
+                        LOGGER_ERROR("(thread-%d) peer(%d) rejected: bad data size", perdata->threadid, connfd);
 
-                        LOGGER_WARN("(thread-%d) TODO: reply to sock(%d).", perdata->threadid, connfd);
-                    }
+                        close(connfd);
+                    }                  
                 }
 
                 break;
@@ -145,7 +137,7 @@ static void handleNewConnection (perthread_data *perdata)
             offset += cbsize;
 
             // success recv data cbsize
-            LOGGER_DEBUG("(thread-%d): client(%d): recv %ld bytes. total %ld bytes",
+            LOGGER_DEBUG("(thread-%d) - client(%d): recv %ld bytes. total %ld bytes",
                 perdata->threadid, connfd, cbsize, offset);
         }
     }
