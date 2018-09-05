@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.1
+ * @version: 0.0.2
  *
  * @create: 2018-02-12
  *
- * @update: 2018-08-31 15:02:41
+ * @update: 2018-09-04 18:34:56
  */
 
 #include "client_api.h"
@@ -93,7 +93,7 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
             XSConnectReq_t xconReq;
             while(1) {
                 XSConnectRequestBuild(&xconReq, clientid, servOpts->magic, xcon->client_utctime, rand_gen(&xcon->rctx), (ub1*) msg);
-                
+
                 // 发送连接请求: XS_CONNECT_REQ_SIZE 字节
                 err = sendlen(sockfd, msg, XS_CONNECT_REQ_SIZE);
                 if (err != XS_CONNECT_REQ_SIZE) {
@@ -112,7 +112,7 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
                         msg[cbread] = 0;
 
                         LOGGER_DEBUG("read: %s", msg);
-                    }                    
+                    }
                 }
 
                 if (cbread < 0) {

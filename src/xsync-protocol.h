@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.1
+ * @version: 0.0.2
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-15 15:55:10
+ * @update: 2018-09-04 11:33:19
  */
 
 /***********************************************************************
@@ -45,7 +45,7 @@
  *     XCMD  客户端发起让服务器执行命令请求    XSCommandReq_t
  *
  **********************************************************************/
- 
+
 /**********************************************************************
 * xsync server tables on redis-cluster:
 *
@@ -57,7 +57,7 @@
 * -----------------------------------------------------------------------------------
 * xs:1:xcon:10   127.0.0.1  38690      xsync-test         1535697852319190425
 * xs:1:xcon:12   127.0.0.1  38691      xsync-test         1535697951786758440
-* xs:1:xcon:14   127.0.0.1  38694      xsync-test2    
+* xs:1:xcon:14   127.0.0.1  38694      xsync-test2
 * xs:1:xcon:15   127.0.0.1  38696      xsync-test2
 * ...
 *
@@ -577,7 +577,7 @@ inline const char * XSConnectRequestPrint (const XSConnectReq_t *req, char *buff
         req->client_utctime);
 
     buffer[bufsize - 1] = 0;
-    
+
     return buffer;
 }
 
@@ -632,7 +632,7 @@ ub1 * XSConnectReplyAcceptBuild (XSConnectReply_t *reply,
     reply->paramslen = 0;
 
     //reply->crc32_checksum = ();
-    
+
     return chunk;
 }
 

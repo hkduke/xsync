@@ -21,7 +21,7 @@
 ***********************************************************************/
 
 /**
- * @file: file_entry.c
+ * @file: server_epcb.c
  *
  *
  * @author: master@pepstack.com
@@ -30,43 +30,60 @@
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-10 18:11:59
+ * @update: 2018-09-05 15:26:43
  */
 
 #include "server_api.h"
+#include "server_conf.h"
 
-#include "file_entry.h"
+#include "../common/common_util.h"
+#include "../redisapi/redis_api.h"
 
 
-extern XS_VOID XS_file_entry_create (XS_file_entry *outEntry)
+int epcb_event_trace(epollet_msg epmsg, void *arg)
 {
-    XS_file_entry entry;
-
-    *outEntry = 0;
-
-    entry = (XS_file_entry) mem_alloc(1, sizeof(struct xs_file_entry_t));
-
-    entry->wofd = -1;
-
-    __interlock_set(&entry->in_use, 1);
-
-    *outEntry = (XS_file_entry) RefObjectInit(entry);
-
-    LOGGER_TRACE("entry=%p", entry);
+    LOGGER_TRACE("EPEVT_TRACE(%d): %s", epmsg->clientfd, epmsg->buf);
+    return 1;
 }
 
 
-extern XS_VOID XS_file_entry_release (XS_file_entry * inEntry)
+int epcb_event_warn(epollet_msg epmsg, void *arg)
 {
-    LOGGER_TRACE0();
-
-    RefObjectRelease((void**) inEntry, xs_file_entry_delete);
+    LOGGER_WARN("EPEVT_WARN(%d): %s", epmsg->clientfd, epmsg->buf);
+    return 1;
 }
 
 
-extern XS_BOOL XS_file_entry_not_in_use (XS_file_entry entry)
+int epcb_event_fatal(epollet_msg epmsg, void *arg)
 {
-    int in_use = __interlock_get(&entry->in_use);
+    LOGGER_FATAL("EPEVT_FATAL(%d): %s", epmsg->clientfd, epmsg->buf);
+    return 0;
+}
 
-    return (in_use == 0? 1 : 0);
+
+int epcb_event_accept_new(epollet_msg epmsg, void *arg)
+{
+    LOGGER_DEBUG("EPEVT_ACCEPT_NEW(%d): %s:%s", epmsg->clientfd, epmsg->hbuf, epmsg->sbuf);
+    return 1;
+}
+
+
+int epcb_event_accepted(epollet_msg epmsg, void *arg)
+{
+    LOGGER_TRACE("EPEVT_ACCEPTED(%d)", epmsg->clientfd);
+    return 0;
+}
+
+
+int epcb_event_pollin(epollet_msg epmsg, void *arg)
+{
+    LOGGER_TRACE("EPEVT_POLLIN(%d): %s", epmsg->clientfd, epmsg->buf);
+    return 0;
+}
+
+
+int epcb_event_peer_close(epollet_msg epmsg, void *arg)
+{
+    LOGGER_TRACE("EPEVT_PEER_CLOSE(%d): %s", epmsg->clientfd, epmsg->buf);
+    return 0;
 }

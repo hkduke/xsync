@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.1
+ * @version: 0.0.2
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-31 12:38:30
+ * @update: 2018-09-05 15:31:06
  */
 
 #ifndef SERVER_API_H_INCLUDED
@@ -49,9 +49,7 @@ extern "C" {
 #include "../xsync-config.h"
 #include "../xsync-protocol.h"
 
-#include "../common/epollapi.h"
 #include "../common/epollet.h"
-
 
 #define XS_SERVERID_MINID   1
 #define XS_SERVERID_MAXID   65535
@@ -88,6 +86,24 @@ typedef struct xs_appopts_t
 
     char config[XSYNC_PATHFILE_MAXLEN + 1];
 } xs_appopts_t;
+
+
+/**
+ * epollet event 回调函数
+ */
+extern int epcb_event_trace(epollet_msg epmsg, void *arg);
+
+extern int epcb_event_warn(epollet_msg epmsg, void *arg);
+
+extern int epcb_event_fatal(epollet_msg epmsg, void *arg);
+
+extern int epcb_event_accept_new(epollet_msg epmsg, void *arg);
+
+extern int epcb_event_accepted(epollet_msg epmsg, void *arg);
+
+extern int epcb_event_pollin(epollet_msg epmsg, void *arg);
+
+extern int epcb_event_peer_close(epollet_msg epmsg, void *arg);
 
 
 /**

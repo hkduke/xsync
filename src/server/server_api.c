@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.1
+ * @version: 0.0.2
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-31 23:00:13
+ * @update: 2018-09-05 15:36:50
  */
 
 #include "server_api.h"
@@ -38,22 +38,6 @@
 
 #include "../common/common_util.h"
 #include "../redisapi/redis_api.h"
-
-
-static inline int epcb_event_trace(epollet_msg epmsg, void *arg)
-{
-    LOGGER_TRACE("EPEVT_TRACE: %s", epmsg->buf);
-
-    return 0;
-}
-
-
-static inline int epcb_event_pollin(epollet_msg epmsg, void *arg)
-{
-    LOGGER_TRACE("EPEVT_POLLIN: client(%d)", epmsg->clientfd);
-
-    return 0;
-}
 
 
 __attribute__((used))
@@ -65,264 +49,35 @@ static void zdbPoolErrorHandler (const char *error)
 }
 
 
-__attribute__((used))
-static void handleNewConnection (perthread_data *perdata)
-{
-    size_t cbsize, offset;
-
-    int epollfd = perdata->pollin_data.epollfd;
-    int connfd = perdata->pollin_data.connfd;
-
-    XS_server server = (XS_server) perdata->pollin_data.arg;
-    assert(server);
-
-    offset = 0;
-
-    while (1) {
-        cbsize = read(connfd, perdata->buffer + offset, XSYNC_BUFSIZE);
-
-        if (cbsize == 0) {
-            /**
-             * End of file. The remote has closed the connection.
-             * 对方关闭了连接: close(fd)
-             * close the descriptor will make epoll remove it
-             *   from the set of descriptors which are monitored.
-             **/
-            LOGGER_WARN("(thread-%d) peer(%d) closed: %s", perdata->threadid, connfd, strerror(errno));
-            close(connfd);
-            break;
-        } else if (cbsize == -1) {
-            /* If errno == EAGAIN, that means we have read all data. So go back to the main loop. */
-            if (errno == EAGAIN) {
-                // socket 是非阻塞时, EAGAIN 表示缓冲队列已满, 并非网络出错，而是可以再次注册事件
-                if (epapi_modify_epoll(epollfd, connfd, EPOLLONESHOT, perdata->pollin_data.msg, sizeof(perdata->pollin_data.msg)) == -1) {
-                    LOGGER_ERROR("(thread-%d) - client(%d): epapi_modify_epoll error: %s",
-                        perdata->threadid, connfd, perdata->pollin_data.msg);
-                    close(connfd);
-                } else {
-                    LOGGER_DEBUG("(thread-%d) - client(%d): epapi_modify_epoll ok", perdata->threadid, connfd);
-                    // TODO: 保存 connfd ?
-
-                    // 此处不应该关闭，只是模拟定期清除 sessioin
-                    //close(connfd);
-
-                    if (offset == XS_CONNECT_REQ_SIZE) {
-                        LOGGER_INFO("(thread-%d) client(%d) request connecting", perdata->threadid, connfd);
-
-                        int accepted = 0;
-
-                        XSConnectReq_t xconReq = {0};
-
-                        if (XSConnectRequestParse((unsigned char*) perdata->buffer, &xconReq) == XS_TRUE) {
-                            if (xconReq.msgid == XS_MSGID_XCON.msgid) {
-                                if (xconReq.magic == server->magic) {
-                                    accepted = 1;
-                                } else {
-                                    LOGGER_WARN("(thread-%d) - client(%d): bad magic", perdata->threadid, connfd);
-                                }
-                            } else {
-                                LOGGER_WARN("(thread-%d) - client(%d): bad msgid", perdata->threadid, connfd);
-                            }
-                        }
-                        
-                        if (! accepted) {
-                            LOGGER_WARN("(thread-%d) - client(%d) rejected: %s", perdata->threadid, connfd,
-                                XSConnectRequestPrint(&xconReq, perdata->buffer, sizeof(perdata->buffer)));
-
-                            close(connfd);
-                        } else {
-                            // TODO: 接受连接, 发送确认消息
-
-                            LOGGER_INFO("(thread-%d) peer(%d) accepted: %s", perdata->threadid, connfd,
-                                XSConnectRequestPrint(&xconReq, perdata->buffer, sizeof(perdata->buffer)));
-                        }
-                    } else {
-                        LOGGER_ERROR("(thread-%d) peer(%d) rejected: bad data size", perdata->threadid, connfd);
-
-                        close(connfd);
-                    }                  
-                }
-
-                break;
-            }
-
-            LOGGER_ERROR("(thread-%d) recv error(%d): %s", perdata->threadid, errno, strerror(errno));
-            close(connfd);
-            break;
-        } else {
-            offset += cbsize;
-
-            // success recv data cbsize
-            LOGGER_DEBUG("(thread-%d) - client(%d): recv %ld bytes. total %ld bytes",
-                perdata->threadid, connfd, cbsize, offset);
-        }
-    }
-}
-
-
 __no_warning_unused(static)
 void event_task (thread_context_t *thread_ctx)
 {
     threadpool_task_t *task = thread_ctx->task;
 
-    epollin_arg_t *pollin = (epollin_arg_t *) task->argument;
+    //epollin_arg_t *pollin = (epollin_arg_t *) task->argument;
 
     perthread_data *perdata = (perthread_data *) thread_ctx->thread_arg;
 
-    memcpy(&perdata->pollin_data, pollin, sizeof(perdata->pollin_data));
+    //memcpy(&perdata->pollin_data, pollin, sizeof(perdata->pollin_data));
 
     task->argument = 0;
-    free(pollin);
+
+    //free(pollin);
 
     LOGGER_TRACE("(thread-%d) task start...", perdata->threadid);
 
+    /*
     if (task->flags == 100) {
         handleNewConnection(perdata);
     } else {
         // handleOldClient(perdata);
         LOGGER_ERROR("(thread-%d) unknown task flags(=%d)", perdata->threadid, task->flags);
     }
+    */
 
     task->flags = 0;
 
     LOGGER_TRACE("(thread-%d) task end.", perdata->threadid);
-}
-
-
-
-/**
- * 当用户发送数据
- *
- */
-static inline int epmsg_cb_epoll_edge_trig(epevent_msg epmsg, void *svrarg)
-{
-    int num;
-
-    XS_server server = (XS_server) svrarg;
-
-    /**
-     * 判断用户是否已经连接
-     *
-     * hmget xs:1:xcon:10 host port clientid
-     */
-    const char * fields[] = {
-        "host",
-        "port",
-        "clientid",
-        0
-    };
-
-    redisReply *reply = 0;
-
-    XCON_redis_table_key(server->serverid, epmsg->connfd, server->msgbuf, sizeof server->msgbuf);
-
-    LOGGER_TRACE("EPEVT_POLLIN_EDGE_TRIG: sock(%d)", epmsg->connfd);
-
-    if (RedisHashMultiGet(& server->redisconn, server->msgbuf, fields, &reply) != REDISAPI_SUCCESS) {
-        return 0;
-    }
-
-    LOGGER_TRACE("[%s] => {%s='%s' %s='%s' %s='%s'}", server->msgbuf,
-        fields[0],
-            (reply->element[0]->str? reply->element[0]->str : "(nil)"),
-        fields[1],
-            (reply->element[1]->str? reply->element[1]->str : "(nil)"),
-        fields[2],
-            (reply->element[2]->str? reply->element[2]->str : "(nil)")
-    );
-
-    num = threadpool_unused_queues(server->pool);
-    LOGGER_TRACE("threadpool_unused_queues=%d", num);
-
-    if (num > 0) {
-        int flags = 0;
-        epollin_arg_t * pollin = 0;
-
-        if (reply->element[2]->type == REDIS_REPLY_STRING) {
-            // 用户连接已经存在
-            LOGGER_TRACE("peer connected.");
-
-            pollin = (epollin_arg_t *) mem_alloc(1, sizeof(epollin_arg_t));
-
-            // 复制 clientid 到 msg
-            memcpy(pollin->msg, reply->element[2]->str, reply->element[2]->len);
-
-            pollin->msg[ reply->element[2]->len ] = 0;
-
-            flags = 1;
-        } else {
-            // 用户要求建立连接
-            LOGGER_TRACE("peer connecting ...");
-
-            assert(reply->element[2]->type == REDIS_REPLY_NIL);
-
-            pollin = (epollin_arg_t *) mem_alloc(1, sizeof(epollin_arg_t));
-
-            pollin->msg[0] = 0;
-
-            flags = 100;
-        }
-
-        RedisFreeReplyObject(&reply);
-
-        pollin->epollfd = epmsg->epollfd;
-        pollin->connfd = epmsg->connfd;
-        pollin->arg = svrarg;
-
-        if (threadpool_add(server->pool, event_task, (void*) pollin, flags) == 0) {
-            // 增加到线程池成功
-            LOGGER_TRACE("threadpool_add task success");
-            return 1;
-        }
-
-        // 增加到线程池失败
-        LOGGER_ERROR("threadpool_add task failed");
-        free(pollin);
-
-        return 0;
-    }
-
-    RedisFreeReplyObject(&reply);
-
-    /* queue is full */
-    return 0;
-}
-
-
-/**
- * 当有新用户连接
- *
- */
-static inline int epmsg_cb_peer_nameinfo(epevent_msg epmsg, void *svrarg)
-{
-    LOGGER_DEBUG("EPEVT_PEER_NAMEINFO: sock(%d)=%s:%s", epmsg->connfd, epmsg->hbuf, epmsg->sbuf);
-
-    XS_server server = (XS_server) svrarg;
-
-    // xs:1:xcon:10 host port clientid
-    XCON_redis_table_key(server->serverid, epmsg->connfd, server->msgbuf, sizeof server->msgbuf);
-
-    const char * flds[] = {
-        "clientid",
-        "host",
-        "port",
-        0
-    };
-
-    const char * vals[] = {
-        0, // delete it
-        epmsg->hbuf,
-        epmsg->sbuf,
-        0
-    };
-
-    if (RedisHashMultiSet(&server->redisconn, server->msgbuf, flds, vals, 0, 60 * 1000) != 0) {
-        LOGGER_ERROR("RedisHashMultiSet(%s): %s", server->msgbuf, server->redisconn.errmsg);
-    } else {
-        LOGGER_DEBUG("RedisHashMultiSet(%s): {host=%s, port=%s}", server->msgbuf, epmsg->hbuf, epmsg->sbuf);
-    }
-
-    return 0;
 }
 
 
@@ -496,8 +251,14 @@ extern XS_VOID XS_server_bootstrap (XS_server server)
 
     bzero(&epmsg, sizeof(epmsg));
 
+    // 设置回调函数
     epmsg.msg_cbs[EPEVT_TRACE] = epcb_event_trace;
+    epmsg.msg_cbs[EPEVT_WARN] = epcb_event_warn;
+    epmsg.msg_cbs[EPEVT_FATAL] = epcb_event_fatal;
+    epmsg.msg_cbs[EPEVT_ACCEPT_NEW] = epcb_event_accept_new;
+    epmsg.msg_cbs[EPEVT_ACCEPTED] = epcb_event_accepted;
     epmsg.msg_cbs[EPEVT_POLLIN] = epcb_event_pollin;
+    epmsg.msg_cbs[EPEVT_PEER_CLOSE] = epcb_event_peer_close;
 
     LOGGER_INFO("epollet_server_loop_events ...");
 

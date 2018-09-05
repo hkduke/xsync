@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.1
+ * @version: 0.0.2
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-29 13:24:56
+ * @update: 2018-09-05 15:34:46
  */
 
 #ifndef FILE_ENTRY_H_INCLUDED
@@ -40,7 +40,7 @@
 extern "C" {
 #endif
 
-#include "../common/epollapi.h"
+#include "../common/epollet.h"
 
 #include "../common/common_util.h"
 #include "../common/mul_timer.h"
@@ -53,8 +53,9 @@ extern "C" {
 
 typedef struct perthread_data
 {
-    epollin_arg_t  pollin_data;
-    epevent_msg_t  epmsg;
+    //epollin_arg_t  pollin_data;
+
+    epollet_msg_t  epmsg;
 
     int threadid;
 

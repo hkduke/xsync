@@ -1,14 +1,14 @@
 #######################################################################
 # @file: server.mk
 #
-# @version: 0.0.1
+# @version: 0.0.2
 # @create: 2018-05-18 14:00:00
-# @update: 2018-08-31 22:47:46
+# @update: 2018-09-05 15:29:50
 #######################################################################
 
 # !!! DO NOT change APPNAME and VERSION only when you make sure do that !
 APPNAME := xsync-server
-VERSION := 0.0.1
+VERSION := 0.0.2
 
 TARGET := ${APPNAME}-${VERSION}
 
@@ -49,6 +49,7 @@ TGT_LDLIBS  := \
 
 SOURCES := \
     server.c \
+    server_epcb.c \
     server_api.c \
     server_conf.c \
     client_session.c \
