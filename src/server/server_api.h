@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.2
+ * @version: 0.0.3
  *
  * @create: 2018-01-29
  *
- * @update: 2018-09-05 15:31:06
+ * @update: 2018-09-05 18:29:02
  */
 
 #ifndef SERVER_API_H_INCLUDED
@@ -44,6 +44,8 @@ extern "C" {
 #include "../common/log4c_logger.h"
 
 #include "../common/threadlock.h"
+#include "../common/common_util.h"
+#include "../redisapi/redis_api.h"
 
 #include "../xsync-error.h"
 #include "../xsync-config.h"
@@ -88,6 +90,8 @@ typedef struct xs_appopts_t
 } xs_appopts_t;
 
 
+extern void event_task (thread_context_t *thread_ctx);
+
 /**
  * epollet event 回调函数
  */
@@ -97,13 +101,17 @@ extern int epcb_event_warn(epollet_msg epmsg, void *arg);
 
 extern int epcb_event_fatal(epollet_msg epmsg, void *arg);
 
-extern int epcb_event_accept_new(epollet_msg epmsg, void *arg);
+extern int epcb_event_peer_open(epollet_msg epmsg, void *arg);
 
-extern int epcb_event_accepted(epollet_msg epmsg, void *arg);
+extern int epcb_event_peer_close(epollet_msg epmsg, void *arg);
+
+extern int epcb_event_accept(epollet_msg epmsg, void *arg);
+
+extern int epcb_event_reject(epollet_msg epmsg, void *arg);
 
 extern int epcb_event_pollin(epollet_msg epmsg, void *arg);
 
-extern int epcb_event_peer_close(epollet_msg epmsg, void *arg);
+
 
 
 /**

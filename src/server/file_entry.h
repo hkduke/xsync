@@ -26,7 +26,7 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.2
+ * @version: 0.0.3
  *
  * @create: 2018-01-29
  *
@@ -51,10 +51,12 @@ extern "C" {
 
 typedef struct PollinData_t
 {
+    struct epoll_event event;
+
     int epollfd;
-    int clientfd;
 
     void *arg;
+
     char buf[256];
 } PollinData_t;
 

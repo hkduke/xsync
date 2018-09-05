@@ -40,11 +40,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.2
+ * @version: 0.0.3
  *
  * @create: 2018-09-04
  *
- * @update: 2018-09-05 15:59:05
+ * @update: 2018-09-05 18:40:05
  *
  *
  *----------------------------------------------------------------------
@@ -89,11 +89,12 @@ extern "C" {
 #define EPEVT_TRACE               0
 #define EPEVT_WARN                1
 #define EPEVT_FATAL               2
-#define EPEVT_ACCEPT_NEW          3
-#define EPEVT_ACCEPTED            4
-#define EPEVT_POLLIN              5
-#define EPEVT_PEER_CLOSE          6
-#define EPEVT_COUNT              (EPEVT_PEER_CLOSE + 1)
+#define EPEVT_PEER_OPEN           3
+#define EPEVT_PEER_CLOSE          4
+#define EPEVT_ACCEPT              5
+#define EPEVT_REJECT              6
+#define EPEVT_POLLIN              7
+#define EPEVT_COUNT              (EPEVT_POLLIN + 1)
 
 
 #define EPOLLET_EVENT_CB(evtid, epmsg)  (epmsg->msg_cbs[evtid])(epmsg, epmsg->userarg)
@@ -119,6 +120,8 @@ typedef struct epollet_msg_t
 {
     int epollfd;
     int clientfd;
+
+    struct epoll_event pollin_event;
 
     // 用户指定的参数
     void *userarg;
@@ -175,25 +178,34 @@ static inline int epcb_warn(epollet_msg epmsg, void *arg)
 static inline int epcb_fatal(epollet_msg epmsg, void *arg)
 {
     printf("EPEVT_FATAL(%d): %s", epmsg->clientfd, epmsg->buf);
+
+    /* 1=忽略错误, 0=退出服务 */
     return 0;
 }
 
-static inline int epcb_accept_new(epollet_msg epmsg, void *arg)
+static inline int epcb_peer_open(epollet_msg epmsg, void *arg)
 {
-    printf("EPEVT_ACCEPT_NEW(%d): %s:%s", epmsg->clientfd, epmsg->hbuf, epmsg->sbuf);
+    printf("EPEVT_PEER_OPEN(%d): %s:%s", epmsg->clientfd, epmsg->hbuf, epmsg->sbuf);
+
+    /* 1=接受新客户连接, 0=拒绝新客户连接 */
     return 1;
 }
 
 static inline int epcb_accepted(epollet_msg epmsg, void *arg)
 {
-    printf("EPEVT_ACCEPTED(%d)", epmsg->clientfd);
+    printf("EPEVT_ACCEPT(%d)", epmsg->clientfd);
     return 0;
 }
 
 static inline int epcb_pollin(epollet_msg epmsg, void *arg)
 {
     printf("EPEVT_POLLIN(%d): TODO", epmsg->clientfd);
-    return 0;
+
+    // -1: 没有实现, 使用默认实现
+    // 0: 暂时无法提供服务
+    // 1: 接受请求
+
+    return -1;
 }
 
 static inline int epcb_peer_close(epollet_msg epmsg, void *arg)
@@ -316,6 +328,32 @@ static inline int epollet_ctl_mod (int epollfd, struct epoll_event *evi, char *e
     }
 
     return 0;
+}
+
+
+__attribute__((unused))
+static inline int epollet_ctl_del (int epollfd, struct epoll_event *evi, char *errmsg, ssize_t msglen)
+{
+    if (epoll_ctl(epollfd, EPOLL_CTL_DEL, evi->data.fd, evi) == -1) {
+        snprintf(errmsg, msglen, "epoll_ctl error(%d): %s", errno, strerror(errno));
+        errmsg[msglen] = 0;
+        return (-1);
+    }
+
+    return 0;
+}
+
+
+__attribute__((unused))
+static inline void close_socket_fd (int *fd_addr)
+{
+    int fd = *fd_addr;
+
+    *fd_addr = -1;
+
+    if (fd != -1) {
+        close(fd);
+    }
 }
 
 
@@ -488,7 +526,7 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
 
     struct epoll_event *evi;
 
-    int nfd, infd, i, err;
+    int nfd, i, err;
 
     char *msg = epserver->msg;
 
@@ -543,7 +581,8 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
 
                 EPOLLET_EVENT_CB(EPEVT_TRACE, epmsg);
 
-                close(evi->data.fd);
+                close_socket_fd(&evi->data.fd);
+
                 continue;
             }
 
@@ -558,12 +597,9 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
                      *   Grab an incoming connection socket and its address
                      */
                     epmsg->in_len = sizeof(epmsg->in_addr);
+                    epmsg->clientfd = accept(listenfd, &epmsg->in_addr, &epmsg->in_len);
 
-                    infd = accept(listenfd, &epmsg->in_addr, &epmsg->in_len);
-
-                    epmsg->clientfd = infd;
-
-                    if (infd == -1) {
+                    if (epmsg->clientfd == -1) {
                         // Nothing was waiting
 
                         if ( (errno == EAGAIN) || (errno == EWOULDBLOCK) ) {
@@ -589,10 +625,12 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
 
                     if (err == 0) {
                         // success
-                        if (! EPOLLET_EVENT_CB(EPEVT_ACCEPT_NEW, epmsg)) {
+                        if (! EPOLLET_EVENT_CB(EPEVT_PEER_OPEN, epmsg)) {
                             // client rejected
-                            close(infd);
-                            infd = -1;
+
+                            EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
+                            close_socket_fd(&epmsg->clientfd);
+
                             continue;
                         }
                     } else {
@@ -601,25 +639,31 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
                         epmsg->buf[EPET_BUF_MAXSIZE] = 0;
                         EPOLLET_EVENT_CB(EPEVT_WARN, epmsg);
 
-                        close(infd);
-                        infd = -1;
+                        EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
+                        close_socket_fd(&epmsg->clientfd);
+
                         continue;
                     }
 
                     /**
                      * Make the incoming socket non-blocking (required for epoll edge-triggered mode)
                      */
-                    err = set_socket_nonblock(infd, msg, EPET_MSG_MAXLEN);
+                    err = set_socket_nonblock(epmsg->clientfd, msg, EPET_MSG_MAXLEN);
                     if ( err == -1 ) {
                         snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "set_socket_nonblock error: %s", msg);
                         epmsg->buf[EPET_BUF_MAXSIZE] = 0;
 
                         if (EPOLLET_EVENT_CB(EPEVT_FATAL, epmsg)) {
-                            close(infd);
+
+                            EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
+                            close_socket_fd(&epmsg->clientfd);
+
                             continue;
                         }
 
-                        close(infd);
+                        EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
+                        close_socket_fd(&epmsg->clientfd);
+
                         goto exit_fatal_error;
                     }
 
@@ -628,21 +672,26 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
                      *  edge triggered mode ( EPOLLET ) on the same epoll instance we
                      *  are already using
                      */
-                    if (epollet_ctl_add(epollfd, infd, msg, EPET_MSG_MAXLEN) == -1) {
+                    if (epollet_ctl_add(epollfd, epmsg->clientfd, msg, EPET_MSG_MAXLEN) == -1) {
                         snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "epollet_ctl_add error: %s", msg);
                         epmsg->buf[EPET_BUF_MAXSIZE] = 0;
 
                         if (EPOLLET_EVENT_CB(EPEVT_FATAL, epmsg)) {
-                            close(infd);
+
+                            EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
+                            close_socket_fd(&epmsg->clientfd);
+
                             continue;
                         }
 
-                        close(infd);
+                        EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
+                        close_socket_fd(&epmsg->clientfd);
+
                         goto exit_fatal_error;
                     }
 
                     /* here we accept client */
-                    EPOLLET_EVENT_CB(EPEVT_ACCEPTED, epmsg);
+                    EPOLLET_EVENT_CB(EPEVT_ACCEPT, epmsg);
                 }
 
                 /**
@@ -660,26 +709,31 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
                 /* next event please */
                 continue;
             } else if (evi->events & EPOLLIN) {
-                infd = evi->data.fd;
+                /**
+                 * The event was on a client socket:
+                 * We have data on the fd waiting to be read. Take action.
+                 * We must read whatever data is available completely,
+                 * as we are running in edge-triggered mode and we won't
+                 * get a notification again for the same data.
+                 */
+                epmsg->clientfd = evi->data.fd;
 
-                epmsg->clientfd = infd;
+                memcpy(&epmsg->pollin_event, evi, sizeof(epmsg->pollin_event));
 
                 *epmsg->buf = 0;
 
-                if (EPOLLET_EVENT_CB(EPEVT_POLLIN, epmsg) == 0) {
-                    /**
-                     * The event was on a client socket:
-                     * We have data on the fd waiting to be read. Take action.
-                     * We must read whatever data is available completely,
-                     * as we are running in edge-triggered mode and we won't
-                     * get a notification again for the same data.
-                     */
+                err = EPOLLET_EVENT_CB(EPEVT_POLLIN, epmsg);
+
+                if (err == 0) {
+                    /* 暂时无法提供服务 */
+                    EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
+                    close_socket_fd(&epmsg->clientfd);
+                } else if (err == -1) {
+                    /* 没有实现, 使用默认实现 */
                     int next = 1;
                     int cb = 0;
 
-                    infd = evi->data.fd;
-
-                    while (next && (cb = readlen_next(infd, msg, EPET_MSG_MAXLEN + 1, &next)) >= 0) {
+                    while (next && (cb = readlen_next(epmsg->clientfd, msg, EPET_MSG_MAXLEN + 1, &next)) >= 0) {
                         if (cb > 0) {
                             msg[cb] = 0;
 
@@ -699,21 +753,21 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
                         epmsg->buf[EPET_BUF_MAXSIZE] = 0;
 
                         EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
+                        close_socket_fd(&epmsg->clientfd);
 
-                        close(infd);
                         continue;
                     }
 
                     cb = snprintf(msg, EPET_MSG_MAXLEN, "SUCCESS");
                     msg[cb] = 0;
 
-                    if (write(infd, msg, cb + 1) == -1) {
+                    if (write(epmsg->clientfd, msg, cb + 1) == -1) {
                         snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "peer close: write error(%d): %s", errno, strerror(errno));
                         epmsg->buf[EPET_BUF_MAXSIZE] = 0;
 
                         EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
+                        close_socket_fd(&epmsg->clientfd);
 
-                        close(infd);
                         continue;
                     }
 
@@ -726,7 +780,9 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
 
                         EPOLLET_EVENT_CB(EPEVT_FATAL, epmsg);
 
-                        close(infd);
+                        EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
+                        close_socket_fd(&epmsg->clientfd);
+
                         goto exit_fatal_error;
                     }
                 }

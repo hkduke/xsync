@@ -26,21 +26,18 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.2
+ * @version: 0.0.3
  *
  * @create: 2018-01-29
  *
- * @update: 2018-09-05 16:28:47
+ * @update: 2018-09-05 18:49:39
  */
 
 #include "server_api.h"
 #include "server_conf.h"
 
-#include "../common/common_util.h"
-#include "../redisapi/redis_api.h"
 
-
-__attribute__((used))
+__attribute__((unused))
 static void zdbPoolErrorHandler (const char *error)
 {
     LOGGER_FATAL("%s", error);
@@ -49,7 +46,52 @@ static void zdbPoolErrorHandler (const char *error)
 }
 
 
-__no_warning_unused(static)
+__attribute__((used))
+static void handleNewConnection (perthread_data *perdata)
+{
+    XS_server server = (XS_server) perdata->pollin.arg;
+
+    int epollfd = perdata->pollin.epollfd;
+    int clientfd = perdata->pollin.event.data.fd;
+
+    int next = 1;
+    int cb = 0;
+
+    while (next && (cb = readlen_next(clientfd, perdata->buffer, XSYNC_BUFSIZE, &next)) >= 0) {
+        if (cb > 0) {
+            LOGGER_DEBUG("(thread-%d) sock(%d): read %d bytes.", perdata->threadid, clientfd, cb);
+        }
+    }
+
+    if (cb < 0) {
+        LOGGER_ERROR("(thread-%d) sock(%d): read error(%d).", perdata->threadid, clientfd, cb);
+
+        /**
+         * Closing the descriptor will make epoll remove it from the set of
+         *  descriptors which are monitored.
+         */
+        close(clientfd);
+    } else {
+        cb = snprintf(perdata->buffer, XSYNC_BUFSIZE, "SUCCESS");
+        perdata->buffer[cb] = 0;
+
+        if (write(clientfd, perdata->buffer, cb + 1) == -1) {
+            LOGGER_ERROR("(thread-%d) sock(%d): write error(%d): %s", perdata->threadid, clientfd, errno, strerror(errno));
+
+            close(clientfd);
+        } else {
+            /* Re-arm the socket */
+            if (epollet_ctl_mod(epollfd, &perdata->pollin.event, perdata->buffer, XSYNC_BUFSIZE - 1) == -1) {
+                LOGGER_ERROR("(thread-%d) sock(%d): epollet_ctl_mod error: %s", perdata->threadid, clientfd, perdata->buffer);
+
+                close(clientfd);
+            }
+        }
+    }
+}
+
+
+__attribute__((unused))
 void event_task (thread_context_t *thread_ctx)
 {
     perthread_data *perdata = (perthread_data *) thread_ctx->thread_arg;
@@ -64,7 +106,7 @@ void event_task (thread_context_t *thread_ctx)
     LOGGER_TRACE("(thread-%d) task start...", perdata->threadid);
 
     if (task->flags == 100) {
-        // handleNewConnection(perdata);
+        handleNewConnection(perdata);
     } else {
         // handleOldClient(perdata);
         LOGGER_ERROR("(thread-%d) unknown task flags(=%d)", perdata->threadid, task->flags);
@@ -249,14 +291,15 @@ extern XS_VOID XS_server_bootstrap (XS_server server)
     // 设置回调参数
     epmsg.userarg = server;
 
-    // 设置回调函数
+    // 设置回调函数: 必须全部设置
     epmsg.msg_cbs[EPEVT_TRACE] = epcb_event_trace;
     epmsg.msg_cbs[EPEVT_WARN] = epcb_event_warn;
     epmsg.msg_cbs[EPEVT_FATAL] = epcb_event_fatal;
-    epmsg.msg_cbs[EPEVT_ACCEPT_NEW] = epcb_event_accept_new;
-    epmsg.msg_cbs[EPEVT_ACCEPTED] = epcb_event_accepted;
-    epmsg.msg_cbs[EPEVT_POLLIN] = epcb_event_pollin;
+    epmsg.msg_cbs[EPEVT_PEER_OPEN] = epcb_event_peer_open;
     epmsg.msg_cbs[EPEVT_PEER_CLOSE] = epcb_event_peer_close;
+    epmsg.msg_cbs[EPEVT_ACCEPT] = epcb_event_accept;
+    epmsg.msg_cbs[EPEVT_REJECT] = epcb_event_reject;
+    epmsg.msg_cbs[EPEVT_POLLIN] = epcb_event_pollin;
 
     LOGGER_INFO("epollet_server_loop_events ...");
 
