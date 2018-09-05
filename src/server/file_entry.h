@@ -30,7 +30,7 @@
  *
  * @create: 2018-01-29
  *
- * @update: 2018-09-05 15:34:46
+ * @update: 2018-09-05 16:31:15
  */
 
 #ifndef FILE_ENTRY_H_INCLUDED
@@ -39,8 +39,6 @@
 #if defined(__cplusplus)
 extern "C" {
 #endif
-
-#include "../common/epollet.h"
 
 #include "../common/common_util.h"
 #include "../common/mul_timer.h"
@@ -51,13 +49,21 @@ extern "C" {
 #include "../redisapi/redis_api.h"
 
 
+typedef struct PollinData_t
+{
+    int epollfd;
+    int clientfd;
+
+    void *arg;
+    char buf[256];
+} PollinData_t;
+
+
 typedef struct perthread_data
 {
-    //epollin_arg_t  pollin_data;
-
-    epollet_msg_t  epmsg;
-
     int threadid;
+
+    PollinData_t pollin;
 
     RedisConn_t  redconn;
 

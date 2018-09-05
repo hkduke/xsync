@@ -30,7 +30,7 @@
  *
  * @create: 2018-01-29
  *
- * @update: 2018-09-05 15:36:50
+ * @update: 2018-09-05 16:28:47
  */
 
 #include "server_api.h"
@@ -52,28 +52,23 @@ static void zdbPoolErrorHandler (const char *error)
 __no_warning_unused(static)
 void event_task (thread_context_t *thread_ctx)
 {
-    threadpool_task_t *task = thread_ctx->task;
-
-    //epollin_arg_t *pollin = (epollin_arg_t *) task->argument;
-
     perthread_data *perdata = (perthread_data *) thread_ctx->thread_arg;
 
-    //memcpy(&perdata->pollin_data, pollin, sizeof(perdata->pollin_data));
+    threadpool_task_t *task = thread_ctx->task;
 
+    memcpy(&perdata->pollin, (PollinData_t *) task->argument, sizeof(PollinData_t));
+
+    free(task->argument);
     task->argument = 0;
-
-    //free(pollin);
 
     LOGGER_TRACE("(thread-%d) task start...", perdata->threadid);
 
-    /*
     if (task->flags == 100) {
-        handleNewConnection(perdata);
+        // handleNewConnection(perdata);
     } else {
         // handleOldClient(perdata);
         LOGGER_ERROR("(thread-%d) unknown task flags(=%d)", perdata->threadid, task->flags);
     }
-    */
 
     task->flags = 0;
 
@@ -251,6 +246,9 @@ extern XS_VOID XS_server_bootstrap (XS_server server)
 
     bzero(&epmsg, sizeof(epmsg));
 
+    // 设置回调参数
+    epmsg.userarg = server;
+
     // 设置回调函数
     epmsg.msg_cbs[EPEVT_TRACE] = epcb_event_trace;
     epmsg.msg_cbs[EPEVT_WARN] = epcb_event_warn;
@@ -262,7 +260,7 @@ extern XS_VOID XS_server_bootstrap (XS_server server)
 
     LOGGER_INFO("epollet_server_loop_events ...");
 
-    epollet_server_loop_events(&server->epserver, &epmsg, server);
+    epollet_server_loop_events(&server->epserver, &epmsg);
 
     mul_timer_pause();
 

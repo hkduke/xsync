@@ -44,7 +44,7 @@
  *
  * @create: 2018-09-04
  *
- * @update: 2018-09-05 15:33:23
+ * @update: 2018-09-05 15:59:05
  *
  *
  *----------------------------------------------------------------------
@@ -96,7 +96,7 @@ extern "C" {
 #define EPEVT_COUNT              (EPEVT_PEER_CLOSE + 1)
 
 
-#define EPOLLET_EVENT_CB(evtid, epmsg, arg)  (epmsg->msg_cbs[evtid])(epmsg, arg)
+#define EPOLLET_EVENT_CB(evtid, epmsg)  (epmsg->msg_cbs[evtid])(epmsg, epmsg->userarg)
 
 
 /**
@@ -119,6 +119,9 @@ typedef struct epollet_msg_t
 {
     int epollfd;
     int clientfd;
+
+    // 用户指定的参数
+    void *userarg;
 
     struct sockaddr in_addr;
     socklen_t in_len;
@@ -475,7 +478,7 @@ static void epollet_server_finalize (epollet_server_t *epserver)
 
 
 __attribute__((unused))
-static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg epmsg, void *arg)
+static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg epmsg)
 {
     int epollfd = epserver->epollfd;
     int listenfd = epserver->listenfd;
@@ -501,7 +504,7 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
         if (nfd == 0) {
             snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "epoll_wait: no file descriptor ready");
             epmsg->buf[EPET_BUF_MAXSIZE] = 0;
-            EPOLLET_EVENT_CB(EPEVT_TRACE, epmsg, arg);
+            EPOLLET_EVENT_CB(EPEVT_TRACE, epmsg);
 
             continue;
         }
@@ -510,7 +513,7 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
             snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "epoll_wait error(%d): %s", errno, strerror(errno));
             epmsg->buf[EPET_BUF_MAXSIZE] = 0;
 
-            if (EPOLLET_EVENT_CB(EPEVT_FATAL, epmsg, arg)) {
+            if (EPOLLET_EVENT_CB(EPEVT_FATAL, epmsg)) {
                 continue;
             }
 
@@ -538,7 +541,7 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
 
                 epmsg->clientfd = -1;
 
-                EPOLLET_EVENT_CB(EPEVT_TRACE, epmsg, arg);
+                EPOLLET_EVENT_CB(EPEVT_TRACE, epmsg);
 
                 close(evi->data.fd);
                 continue;
@@ -567,12 +570,12 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
                             // We have processed all incoming connections
                             snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "accept again(%d): %s", errno, strerror(errno));
                             epmsg->buf[EPET_BUF_MAXSIZE] = 0;
-                            EPOLLET_EVENT_CB(EPEVT_TRACE, epmsg, arg);
+                            EPOLLET_EVENT_CB(EPEVT_TRACE, epmsg);
                         } else {
                             // unexpected error
                             snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "accept error(%d): %s", errno, strerror(errno));
                             epmsg->buf[EPET_BUF_MAXSIZE] = 0;
-                            EPOLLET_EVENT_CB(EPEVT_WARN, epmsg, arg);
+                            EPOLLET_EVENT_CB(EPEVT_WARN, epmsg);
                         }
 
                         break;
@@ -586,7 +589,7 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
 
                     if (err == 0) {
                         // success
-                        if (! EPOLLET_EVENT_CB(EPEVT_ACCEPT_NEW, epmsg, arg)) {
+                        if (! EPOLLET_EVENT_CB(EPEVT_ACCEPT_NEW, epmsg)) {
                             // client rejected
                             close(infd);
                             infd = -1;
@@ -596,7 +599,7 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
                         // error
                         snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "getnameinfo error(%d): %s", err, strerror(err));
                         epmsg->buf[EPET_BUF_MAXSIZE] = 0;
-                        EPOLLET_EVENT_CB(EPEVT_WARN, epmsg, arg);
+                        EPOLLET_EVENT_CB(EPEVT_WARN, epmsg);
 
                         close(infd);
                         infd = -1;
@@ -611,7 +614,7 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
                         snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "set_socket_nonblock error: %s", msg);
                         epmsg->buf[EPET_BUF_MAXSIZE] = 0;
 
-                        if (EPOLLET_EVENT_CB(EPEVT_FATAL, epmsg, arg)) {
+                        if (EPOLLET_EVENT_CB(EPEVT_FATAL, epmsg)) {
                             close(infd);
                             continue;
                         }
@@ -629,7 +632,7 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
                         snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "epollet_ctl_add error: %s", msg);
                         epmsg->buf[EPET_BUF_MAXSIZE] = 0;
 
-                        if (EPOLLET_EVENT_CB(EPEVT_FATAL, epmsg, arg)) {
+                        if (EPOLLET_EVENT_CB(EPEVT_FATAL, epmsg)) {
                             close(infd);
                             continue;
                         }
@@ -639,7 +642,7 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
                     }
 
                     /* here we accept client */
-                    EPOLLET_EVENT_CB(EPEVT_ACCEPTED, epmsg, arg);
+                    EPOLLET_EVENT_CB(EPEVT_ACCEPTED, epmsg);
                 }
 
                 /**
@@ -649,7 +652,7 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
                     snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "epollet_ctl_mod error: %s", msg);
                     epmsg->buf[EPET_BUF_MAXSIZE] = 0;
 
-                    EPOLLET_EVENT_CB(EPEVT_FATAL, epmsg, arg);
+                    EPOLLET_EVENT_CB(EPEVT_FATAL, epmsg);
 
                     goto exit_fatal_error;
                 }
@@ -663,7 +666,7 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
 
                 *epmsg->buf = 0;
 
-                if (EPOLLET_EVENT_CB(EPEVT_POLLIN, epmsg, arg) == 0) {
+                if (EPOLLET_EVENT_CB(EPEVT_POLLIN, epmsg) == 0) {
                     /**
                      * The event was on a client socket:
                      * We have data on the fd waiting to be read. Take action.
@@ -683,7 +686,7 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
                             snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "read %d bytes", cb);
                             epmsg->buf[EPET_BUF_MAXSIZE] = 0;
 
-                            EPOLLET_EVENT_CB(EPEVT_TRACE, epmsg, arg);
+                            EPOLLET_EVENT_CB(EPEVT_TRACE, epmsg);
                         }
                     }
 
@@ -695,7 +698,7 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
                         snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "peer close: read error(%d)", cb);
                         epmsg->buf[EPET_BUF_MAXSIZE] = 0;
 
-                        EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg, arg);
+                        EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
 
                         close(infd);
                         continue;
@@ -708,7 +711,7 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
                         snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "peer close: write error(%d): %s", errno, strerror(errno));
                         epmsg->buf[EPET_BUF_MAXSIZE] = 0;
 
-                        EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg, arg);
+                        EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
 
                         close(infd);
                         continue;
@@ -721,7 +724,7 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
                         snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "epollet_ctl_mod error: %s", msg);
                         epmsg->buf[EPET_BUF_MAXSIZE] = 0;
 
-                        EPOLLET_EVENT_CB(EPEVT_FATAL, epmsg, arg);
+                        EPOLLET_EVENT_CB(EPEVT_FATAL, epmsg);
 
                         close(infd);
                         goto exit_fatal_error;
@@ -736,7 +739,7 @@ exit_fatal_error:
     snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "exit_fatal_error");
     epmsg->buf[EPET_BUF_MAXSIZE] = 0;
 
-    EPOLLET_EVENT_CB(EPEVT_FATAL, epmsg, arg);
+    EPOLLET_EVENT_CB(EPEVT_FATAL, epmsg);
 }
 
 
