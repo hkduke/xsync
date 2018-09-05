@@ -52,7 +52,7 @@ static void handleNewConnection (perthread_data *perdata)
     XS_server server = (XS_server) perdata->pollin.arg;
 
     int epollfd = perdata->pollin.epollfd;
-    int clientfd = perdata->pollin.event.data.fd;
+    int clientfd = perdata->pollin.epevent.data.fd;
 
     int next = 1;
     int cb = 0;
@@ -81,7 +81,7 @@ static void handleNewConnection (perthread_data *perdata)
             close(clientfd);
         } else {
             /* Re-arm the socket */
-            if (epollet_ctl_mod(epollfd, &perdata->pollin.event, perdata->buffer, XSYNC_BUFSIZE - 1) == -1) {
+            if (epollet_ctl_mod(epollfd, &perdata->pollin.epevent, perdata->buffer, XSYNC_BUFSIZE - 1) == -1) {
                 LOGGER_ERROR("(thread-%d) sock(%d): epollet_ctl_mod error: %s", perdata->threadid, clientfd, perdata->buffer);
 
                 close(clientfd);

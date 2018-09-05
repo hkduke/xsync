@@ -57,6 +57,8 @@ int epcb_event_warn(epollet_msg epmsg, void *arg)
 int epcb_event_fatal(epollet_msg epmsg, void *arg)
 {
     LOGGER_FATAL("EPEVT_FATAL(%d): %s", epmsg->clientfd, epmsg->buf);
+    
+    /* always return 0 */
     return 0;
 }
 
@@ -183,15 +185,15 @@ int epcb_event_pollin(epollet_msg epmsg, void *arg)
 
             assert(reply->element[2]->type == REDIS_REPLY_NIL);
 
+            pollin->buf[0] = 0;
+
             flags = 100;
         }
 
         RedisFreeReplyObject(&reply);
 
         pollin->epollfd = epmsg->epollfd;
-
-        memcpy(&pollin->event, &epmsg->pollin_event, sizeof(pollin->event));
-
+        pollin->epevent = epmsg->pollin_event;
         pollin->arg = arg;
 
         if (threadpool_add(server->pool, event_task, (void*) pollin, flags) == 0) {

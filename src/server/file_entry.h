@@ -51,9 +51,9 @@ extern "C" {
 
 typedef struct PollinData_t
 {
-    struct epoll_event event;
-
     int epollfd;
+
+    struct epoll_event epevent;
 
     void *arg;
 
