@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.2
+ * @version: 0.0.4
  *
  * @create: 2018-01-29
  *
- * @update: 2018-09-05 15:26:43
+ * @update: 2018-09-05 20:17:27
  */
 
 #include "server_api.h"
@@ -57,7 +57,7 @@ int epcb_event_warn(epollet_msg epmsg, void *arg)
 int epcb_event_fatal(epollet_msg epmsg, void *arg)
 {
     LOGGER_FATAL("EPEVT_FATAL(%d): %s", epmsg->clientfd, epmsg->buf);
-    
+
     /* always return 0 */
     return 0;
 }
@@ -88,12 +88,12 @@ int epcb_event_peer_open(epollet_msg epmsg, void *arg)
 
     if (RedisHashMultiSet(&server->redisconn, server->msgbuf, flds, vals, 0, 60 * 1000) != 0) {
         LOGGER_ERROR("RedisHashMultiSet(%s): %s", server->msgbuf, server->redisconn.errmsg);
-        
+
         /* 0=拒绝新客户连接 */
         return 0;
     } else {
         LOGGER_DEBUG("RedisHashMultiSet(%s): {host=%s, port=%s}", server->msgbuf, epmsg->hbuf, epmsg->sbuf);
-    
+
         /* 1=接受新客户连接 */
         return 1;
     }

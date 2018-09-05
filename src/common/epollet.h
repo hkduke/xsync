@@ -40,11 +40,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.3
+ * @version: 0.0.4
  *
  * @create: 2018-09-04
  *
- * @update: 2018-09-05 18:40:05
+ * @update: 2018-09-05 20:28:25
  *
  *
  *----------------------------------------------------------------------
@@ -710,7 +710,7 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
                 if (epollet_ctl_mod(epollfd, epevent, msg, EPET_MSG_MAXLEN) == -1) {
                     snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "epollet_ctl_mod error: %s", msg);
                     epmsg->buf[EPET_BUF_MAXSIZE] = 0;
-                    
+
                     EPOLLET_EVENT_CB(EPEVT_FATAL, epmsg);
 
                     goto exit_fatal_error;
