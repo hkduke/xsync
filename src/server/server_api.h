@@ -50,6 +50,8 @@ extern "C" {
 #include "../xsync-protocol.h"
 
 #include "../common/epollapi.h"
+#include "../common/epollet.h"
+
 
 #define XS_SERVERID_MINID   1
 #define XS_SERVERID_MAXID   65535

@@ -690,6 +690,101 @@ static inline ssize_t sendfile_len (int sockfd, int filefd, size_t len, off_t po
     return (ssize_t) (off - pos);
 }
 
+
+/**********************************************************************
+ *                                                                    *
+ *                        socket no-block api                         *
+ *                                                                    *
+ **********************************************************************/
+__attribute__((unused))
+static inline int socket_set_nonblock (int fd, char *errmsg, ssize_t msglen)
+{
+    int flags;
+
+    /* Get the current flags on this socket */
+    flags = fcntl(fd, F_GETFL, 0);
+    if (flags == -1) {
+        snprintf(errmsg, msglen, "fcntl error(%d): %s", errno, strerror(errno));
+        errmsg[msglen] = '\0';
+        return -1;
+    }
+
+    /* Add the non-block flag */
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
+        snprintf(errmsg, msglen, "fcntl error(%d): %s", errno, strerror(errno));
+        errmsg[msglen] = '\0';
+        return -1;
+    }
+
+    return flags;
+}
+
+
+/**
+ * 读非阻塞数据
+ *   buf - 存放读入的数据
+ *   len - 要读的数据字节
+ *   返回实际读的字节. 如果返回的字节数 >=0 且 errno == EAGAIN, 则数据已经读完
+ *
+    char msg[256];
+    int next = 1;
+    int cbread = 0;
+
+    while (next && (cbread = nb_readlen_next(sockfd, msg, sizeof(msg), &next)) >= 0) {
+        if (cbread > 0) {
+            msg[cbread] = 0;
+
+            LOGGER_DEBUG("read: %s", msg);
+        }
+    }
+
+    if (cbread < 0) {
+        LOGGER_ERROR("read (%d)", cbread);
+        close(sockfd);
+        sockfd = -1;
+    }
+ *
+ */
+__attribute__((unused))
+static inline int nb_readlen_next (int fd, char * buf, int len, int *next)
+{
+    ssize_t count;
+
+    // 已读字节
+    int offset = 0;
+
+    // 剩余未读字节
+    int remain = len - offset;
+
+    *next = 1;
+
+    while (remain > 0) {
+        count = read(fd, buf + offset, remain);
+        if (count == -1) {
+            if (errno != EAGAIN) {
+                perror("read");
+                return (-1);
+            }
+
+            /**
+             * if (errno == EAGAIN) that means we have read all data.
+             */
+            *next = 0;
+            break;
+        } else if (count == 0) {
+            /* End of file. The remote has closed the connection. */
+            printf("remote has closed the connection.\n");
+            return (-2);
+        } else {
+            offset += count;
+            remain = len - offset;
+        }
+    }
+
+    return offset;
+}
+
+
 #if defined(__cplusplus)
 }
 #endif

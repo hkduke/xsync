@@ -54,20 +54,8 @@ extern void xs_server_delete (void *pv)
     LOGGER_TRACE("pthread_cond_destroy");
     pthread_cond_destroy(&server->condition);
 
-    if (server->events) {
-        LOGGER_DEBUG("destroy epoll_events");
-
-        fcntl(server->listenfd, F_SETFL, server->listenfd_oldopt);
-
-        close(server->listenfd);
-        close(server->epollfd);
-
-        free(server->events);
-
-        server->epollfd = -1;
-        server->listenfd = -1;
-        server->events = 0;
-    }
+    LOGGER_TRACE("epollet_server_finalize");
+    epollet_server_finalize(&server->epserver);
 
     if (server->pool) {
         LOGGER_DEBUG("threadpool_destroy");

@@ -75,29 +75,55 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
 
         if (sockfd == -1) {
             LOGGER_ERROR("opensocket_v2 failed: %s", msg);
+            mem_free((void**) &xcon);
             return XS_ERROR;
         } else {
+            int flags, err;
+
             LOGGER_INFO("opensocket_v2 success: %s:%s", servOpts->host, servOpts->sport);
 
-            XSConnectReq_t xconReq;
-
-            XSConnectRequestBuild(&xconReq, clientid, servOpts->magic, xcon->client_utctime, rand_gen(&xcon->rctx), (ub1*) msg);
-            
-            // 发送连接请求: XS_CONNECT_REQ_SIZE 字节
-            int err = sendlen(sockfd, msg, XS_CONNECT_REQ_SIZE);
-
-            if (err != XS_CONNECT_REQ_SIZE) {
-                LOGGER_ERROR("sendlen error(%d): %s", errno, strerror(errno));
+            flags = socket_set_nonblock(sockfd, msg, sizeof(msg));
+            if (flags == -1) {
+                LOGGER_ERROR("socket_set_nonblock failed: %s", msg);
                 close(sockfd);
+                mem_free((void**) &xcon);
                 return XS_ERROR;
             }
 
-            LOGGER_TRACE("%s", XSConnectRequestPrint(&xconReq, msg, sizeof(msg)));
+            XSConnectReq_t xconReq;
+            while(1) {
+                XSConnectRequestBuild(&xconReq, clientid, servOpts->magic, xcon->client_utctime, rand_gen(&xcon->rctx), (ub1*) msg);
+                
+                // 发送连接请求: XS_CONNECT_REQ_SIZE 字节
+                err = sendlen(sockfd, msg, XS_CONNECT_REQ_SIZE);
+                if (err != XS_CONNECT_REQ_SIZE) {
+                    LOGGER_ERROR("sendlen error(%d): %s", errno, strerror(errno));
+                    close(sockfd);
+                    return XS_ERROR;
+                }
 
-            sleep(60);
+                LOGGER_DEBUG("%s", XSConnectRequestPrint(&xconReq, msg, sizeof(msg)));
 
-            //TODO:
-            LOGGER_DEBUG("TODO: recv");
+                int next = 1;
+                int cbread = 0;
+
+                while (next && (cbread = nb_readlen_next(sockfd, msg, sizeof(msg), &next)) >= 0) {
+                    if (cbread > 0) {
+                        msg[cbread] = 0;
+
+                        LOGGER_DEBUG("read: %s", msg);
+                    }                    
+                }
+
+                if (cbread < 0) {
+                    LOGGER_ERROR("read (%d)", cbread);
+                    close(sockfd);
+                    sockfd = -1;
+                    break;
+                }
+
+                sleep(1);
+            }
         }
 
         // 保存当前连接描述符

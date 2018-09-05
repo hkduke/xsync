@@ -40,6 +40,22 @@
 #include "../redisapi/redis_api.h"
 
 
+static inline int epcb_event_trace(epollet_msg epmsg, void *arg)
+{
+    LOGGER_TRACE("EPEVT_TRACE: %s", epmsg->buf);
+
+    return 0;
+}
+
+
+static inline int epcb_event_pollin(epollet_msg epmsg, void *arg)
+{
+    LOGGER_TRACE("EPEVT_POLLIN: client(%d)", epmsg->clientfd);
+
+    return 0;
+}
+
+
 __attribute__((used))
 static void zdbPoolErrorHandler (const char *error)
 {
@@ -173,40 +189,6 @@ void event_task (thread_context_t *thread_ctx)
 }
 
 
-static inline int epmsg_cb_error_epoll_wait(epevent_msg epmsg, void *svrarg)
-{
-    LOGGER_ERROR("EPEVT_ERROR_EPOLL_WAIT: %s", epmsg->msgbuf);
-    return 0;
-}
-
-
-static inline int epmsg_cb_error_epoll_event(epevent_msg epmsg, void *svrarg)
-{
-    LOGGER_ERROR("EPEVT_ERROR_EPOLL_EVENT: %s", epmsg->msgbuf);
-    return 0;
-}
-
-
-static inline int epmsg_cb_accept_eagain(epevent_msg epmsg, void *svrarg)
-{
-    LOGGER_TRACE("EPEVT_ACCEPT_EAGAIN");
-    return 0;
-}
-
-
-static inline int epmsg_cb_accept_ewouldblock(epevent_msg epmsg, void *svrarg)
-{
-    LOGGER_WARN("EPEVT_ACCEPT_EWOULDBLOCK");
-    return 0;
-}
-
-
-static inline int epmsg_cb_error_accept(epevent_msg epmsg, void *svrarg)
-{
-    LOGGER_ERROR("EPEVT_ERROR_ACCEPT: %s", epmsg->msgbuf);
-    return 0;
-}
-
 
 /**
  * 当用户发送数据
@@ -234,7 +216,7 @@ static inline int epmsg_cb_epoll_edge_trig(epevent_msg epmsg, void *svrarg)
 
     XCON_redis_table_key(server->serverid, epmsg->connfd, server->msgbuf, sizeof server->msgbuf);
 
-    LOGGER_TRACE("EPEVT_EPOLLIN_EDGE_TRIG: sock(%d)", epmsg->connfd);
+    LOGGER_TRACE("EPEVT_POLLIN_EDGE_TRIG: sock(%d)", epmsg->connfd);
 
     if (RedisHashMultiGet(& server->redisconn, server->msgbuf, fields, &reply) != REDISAPI_SUCCESS) {
         return 0;
@@ -344,43 +326,11 @@ static inline int epmsg_cb_peer_nameinfo(epevent_msg epmsg, void *svrarg)
 }
 
 
-static inline int epmsg_cb_error_peername(epevent_msg epmsg, void *svrarg)
-{
-    LOGGER_ERROR("EPEVT_ERROR_PEERNAME: %s", epmsg->msgbuf);
-    return 0;
-}
-
-
-static inline int epmsg_cb_error_setnonblock(epevent_msg epmsg, void *svrarg)
-{
-    LOGGER_ERROR("EPEVT_ERROR_SETNONBLOCK: %s", epmsg->msgbuf);
-    return 0;
-}
-
-
-static inline int epmsg_cb_error_epoll_add_oneshot(epevent_msg epmsg, void *svrarg)
-{
-    LOGGER_ERROR("EPEVT_ERROR_EPOLL_ADD_ONESHOT: %s", epmsg->msgbuf);
-    return 0;
-}
-
-
-static inline int epmsg_cb_peer_closed(epevent_msg epmsg, void *svrarg)
-{
-    LOGGER_WARN("EPEVT_PEER_CLOSED: sock(%d)", epmsg->connfd);
-    return 0;
-}
-
-
 extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
 {
     int i;
 
-    int listenfd, epollfd, old_sockopt;
-
     XS_server server;
-
-    struct epoll_event *events;
 
     struct zdbpool_t db_pool;
 
@@ -438,8 +388,7 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
         INIT_HLIST_HEAD(&server->client_hlist[i]);
     }
 
-    LOGGER_INFO("serverid=%s threads=%d queues=%d maxevents=%d somaxconn=%d timeout_ms=%d",
-        opts->serverid, THREADS, QUEUES, MAXEVENTS, BACKLOGS, TIMEOUTMS);
+    LOGGER_INFO("serverid=%s threads=%d queues=%d timeout_ms=%d", opts->serverid, THREADS, QUEUES, TIMEOUTMS);
 
     /* create per thread data */
     server->thread_args = (void **) mem_alloc(THREADS, sizeof(void*));
@@ -469,69 +418,21 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
         exit(XS_ERROR);
     }
 
-    LOGGER_INFO("epapi_create_and_bind: %s:%s", opts->host, opts->port);
+    LOGGER_DEBUG("epollet_server_initiate(%s:%s): somaxconn=%d maxevents=%d", opts->host, opts->port, BACKLOGS, MAXEVENTS);
     do {
-        listenfd = epapi_create_and_bind(opts->host, opts->port, server->msgbuf, XSYNC_ERRBUF_MAXLEN);
-        if (listenfd == -1) {
-            LOGGER_FATAL("epapi_create_and_bind error: %s", server->msgbuf);
-
+        if (epollet_server_initiate(&server->epserver, opts->host, opts->port, BACKLOGS, MAXEVENTS) == -1) {
+            LOGGER_FATAL("epollet_server_initiate failed: %s", server->epserver.msg);
             xs_server_delete((void*) server);
-
             exit(XS_ERROR);
         }
 
-        old_sockopt = epapi_set_nonblock(listenfd, server->msgbuf, XSYNC_ERRBUF_MAXLEN);
-        if (old_sockopt == -1) {
-            LOGGER_FATAL("epapi_set_nonblock error: %s", server->msgbuf);
-
-            close(listenfd);
-
-            xs_server_delete((void*) server);
-
-            exit(XS_ERROR);
-        }
-
-        LOGGER_INFO("epapi_init_epoll (backlog=%d)", BACKLOGS);
-        epollfd = epapi_init_epoll(listenfd, BACKLOGS, server->msgbuf, XSYNC_ERRBUF_MAXLEN);
-        if (epollfd == -1) {
-            LOGGER_FATAL("epapi_init_epoll error: %s", server->msgbuf);
-
-            fcntl(listenfd, F_SETFL, old_sockopt);
-            close(listenfd);
-
-            xs_server_delete((void*) server);
-
-            exit(XS_ERROR);
-        }
-
-        LOGGER_INFO("create epoll events (maxevents=%d)", MAXEVENTS);
-        events = (struct epoll_event *) calloc(MAXEVENTS, sizeof(struct epoll_event));
-        if (! events) {
-            LOGGER_FATAL("out of memory");
-
-            fcntl(listenfd, F_SETFL, old_sockopt);
-            close(listenfd);
-            close(epollfd);
-
-            xs_server_delete((void*) server);
-
-            exit(XS_ERROR);
-        }
-    } while(0);
-
-    /**
-     * here we got success
-     *   output XS_server
-     */
-    server->events = events;
-    server->epollfd = epollfd;
-    server->listenfd = listenfd;
-    server->listenfd_oldopt = old_sockopt;
+        LOGGER_INFO("epollet_server_initiate: %s", server->epserver.msg);
+    } while (0);
 
     memcpy(server->host, opts->host, sizeof(opts->host));
     server->port = atoi(opts->port);
 
-    server->maxevents = MAXEVENTS;
+    //DEL:server->maxevents = MAXEVENTS;
     server->timeout_ms = TIMEOUTMS;
 
     /* 服务ID: 整数表示, 整个 redis-cluster 中必须唯一 */
@@ -587,34 +488,20 @@ static void exit_cleanup_server (int code, void *server)
 
 extern XS_VOID XS_server_bootstrap (XS_server server)
 {
-    LOGGER_INFO("server starting epapi_loop_events ...");
-
     on_exit(exit_cleanup_server, (void *) server);
 
     mul_timer_start();
 
-    epevent_msg_t event_msg;
-    bzero(&event_msg, sizeof(epevent_msg_t));
+    epollet_msg_t epmsg;
 
-    event_msg.msg_cb_handlers[EPEVT_EPOLLIN_EDGE_TRIG]       = epmsg_cb_epoll_edge_trig;
-    event_msg.msg_cb_handlers[EPEVT_ERROR_EPOLL_WAIT]        = epmsg_cb_error_epoll_wait;
-    event_msg.msg_cb_handlers[EPEVT_ERROR_EPOLL_EVENT]       = epmsg_cb_error_epoll_event;
-    event_msg.msg_cb_handlers[EPEVT_ACCEPT_EAGAIN]           = epmsg_cb_accept_eagain;
-    event_msg.msg_cb_handlers[EPEVT_ACCEPT_EWOULDBLOCK]      = epmsg_cb_accept_ewouldblock;
-    event_msg.msg_cb_handlers[EPEVT_ERROR_ACCEPT]            = epmsg_cb_error_accept;
-    event_msg.msg_cb_handlers[EPEVT_PEER_NAMEINFO]           = epmsg_cb_peer_nameinfo;
-    event_msg.msg_cb_handlers[EPEVT_ERROR_PEERNAME]          = epmsg_cb_error_peername;
-    event_msg.msg_cb_handlers[EPEVT_ERROR_SETNONBLOCK]       = epmsg_cb_error_setnonblock;
-    event_msg.msg_cb_handlers[EPEVT_ERROR_EPOLL_ADD_ONESHOT] = epmsg_cb_error_epoll_add_oneshot;
-    event_msg.msg_cb_handlers[EPEVT_PEER_CLOSED]             = epmsg_cb_peer_closed;
+    bzero(&epmsg, sizeof(epmsg));
 
-    epapi_loop_events(server->epollfd,
-        server->listenfd,
-        server->timeout_ms,
-        server->events,
-        server->maxevents,
-        &event_msg,
-        server);
+    epmsg.msg_cbs[EPEVT_TRACE] = epcb_event_trace;
+    epmsg.msg_cbs[EPEVT_POLLIN] = epcb_event_pollin;
+
+    LOGGER_INFO("epollet_server_loop_events ...");
+
+    epollet_server_loop_events(&server->epserver, &epmsg, server);
 
     mul_timer_pause();
 

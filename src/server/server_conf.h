@@ -87,13 +87,7 @@ typedef struct xs_server_t
     /**
      * epoll data
      */
-    int epollfd;
-    int listenfd;
-    int listenfd_oldopt;
-
-    int maxevents;
-
-    struct epoll_event *events;
+    epollet_server_t epserver;
 
     /**
      * thread pool specific
