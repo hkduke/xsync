@@ -24,13 +24,13 @@
  * @file: server_api.c
  *
  *
- * @author: master@pepstack.com
+ * @author: master@pepstack.epcb_event_peer_open
  *
  * @version: 0.0.4
  *
  * @create: 2018-01-29
  *
- * @update: 2018-09-05 20:15:25
+ * @update: 2018-09-06 10:48:36
  */
 
 #include "server_api.h"
@@ -71,21 +71,27 @@ static void handleNewConnection (perthread_data *perdata)
          *  descriptors which are monitored.
          */
         close(clientfd);
-    } else {
-        cb = snprintf(perdata->buffer, XSYNC_BUFSIZE, "SUCCESS");
-        perdata->buffer[cb] = 0;
 
-        if (write(clientfd, perdata->buffer, cb + 1) == -1) {
-            LOGGER_ERROR("(thread-%d) sock(%d): write error(%d): %s", perdata->threadid, clientfd, errno, strerror(errno));
+        return;
+    }
+
+    /**
+     * 如果本连接是客户端接收 socket 用于消息通知, 则不要添加到 epollet 中
+     * 可以将 clientfd 缓存起来 (Redis?), 当有消息需要通知客户时, 再写入消息
+     */
+    cb = snprintf(perdata->buffer, XSYNC_BUFSIZE, "SUCCESS");
+    perdata->buffer[cb] = 0;
+
+    if (write(clientfd, perdata->buffer, cb + 1) == -1) {
+        LOGGER_ERROR("(thread-%d) sock(%d): write error(%d): %s", perdata->threadid, clientfd, errno, strerror(errno));
+
+        close(clientfd);
+    } else {
+        // Re-arm the socket 添加到 epollet 中
+        if (epollet_ctl_mod(epollfd, &perdata->pollin.epevent, perdata->buffer, XSYNC_BUFSIZE - 1) == -1) {
+            LOGGER_ERROR("(thread-%d) sock(%d): epollet_ctl_mod error: %s", perdata->threadid, clientfd, perdata->buffer);
 
             close(clientfd);
-        } else {
-            /* Re-arm the socket */
-            if (epollet_ctl_mod(epollfd, &perdata->pollin.epevent, perdata->buffer, XSYNC_BUFSIZE - 1) == -1) {
-                LOGGER_ERROR("(thread-%d) sock(%d): epollet_ctl_mod error: %s", perdata->threadid, clientfd, perdata->buffer);
-
-                close(clientfd);
-            }
         }
     }
 }
@@ -285,7 +291,6 @@ extern XS_VOID XS_server_bootstrap (XS_server server)
     mul_timer_start();
 
     epollet_msg_t epmsg;
-
     bzero(&epmsg, sizeof(epmsg));
 
     // 设置回调参数
@@ -301,13 +306,13 @@ extern XS_VOID XS_server_bootstrap (XS_server server)
     epmsg.msg_cbs[EPEVT_REJECT] = epcb_event_reject;
     epmsg.msg_cbs[EPEVT_POLLIN] = epcb_event_pollin;
 
-    LOGGER_INFO("epollet_server_loop_events ...");
+    LOGGER_INFO("epollet_server starting...");
 
     epollet_server_loop_events(&server->epserver, &epmsg);
 
     mul_timer_pause();
 
-    LOGGER_FATAL("server stopped epapi_loop_events.");
+    LOGGER_FATAL("epollet_server stopped.");
 }
 
 

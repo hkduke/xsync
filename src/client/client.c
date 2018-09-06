@@ -200,10 +200,9 @@ void run_forever (xs_appopts_t *opts)
 
     if (XS_client_create(opts, &client) == XS_SUCCESS) {
 
-#ifdef DEBUG
-        XS_client_conf_save_xml(client, "/tmp/xsync-client-conf_DEBUG.xml");
-        XS_client_conf_save_ini(client, "/tmp/xsync-client-conf_DEBUG.ini");
-#endif
+        if (opts->save_config[0]) {
+            XS_client_conf_save_xml(client, opts->save_config);
+        }
 
         /** 启动客户端服务程序, 永远运行 */
         XS_client_bootstrap(client);

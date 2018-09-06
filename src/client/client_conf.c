@@ -263,7 +263,6 @@ error_exit:
 }
 
 
-__no_warning_unused(static)
 int lscb_add_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client)
 {
     int  lnk;
@@ -280,7 +279,7 @@ int lscb_add_watch_path (const char * path, int pathlen, struct dirent *ent, XS_
 
                 char * pathid = strrchr(path, '/') + 1;
 
-                LOGGER_DEBUG("watch pathid=[%s] -> (%s)", pathid, abspath);
+                LOGGER_DEBUG("path-id: %s -> (%s)", pathid, abspath);
 
                 if (XS_watch_path_create(pathid, abspath, IN_ACCESS | IN_MODIFY | IN_ONLYDIR, &wp) == XS_SUCCESS) {
                     if (! XS_client_add_watch_path(client, wp)) {
@@ -304,7 +303,6 @@ int lscb_add_watch_path (const char * path, int pathlen, struct dirent *ent, XS_
 }
 
 
-__no_warning_unused(static)
 int lscb_init_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client)
 {
     int  lnk, sid, err;
@@ -757,6 +755,8 @@ extern XS_RESULT XS_client_conf_save_xml (XS_client client, const char * config_
 
             fclose(fp);
 
+            LOGGER_INFO("saved config file: %s", config_file);
+
             return XS_SUCCESS;
         }
 
@@ -770,152 +770,34 @@ extern XS_RESULT XS_client_conf_save_xml (XS_client client, const char * config_
 }
 
 
-extern XS_RESULT XS_client_conf_load_ini (XS_client client, const char * config_ini)
+extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_parent)
 {
-    int i, numsecs, sidmax;
-    void *seclist;
-
-    char *key, *val, *sec;
-
-    char *family;
-    char *qualifier;
-
-    char sid_filter[20];
-
-    char secname[CONF_MAX_SECNAME];
-
-    LOGGER_DEBUG("[xsync-client-conf]");
-    if (ConfReadValueRef(config_ini, "xsync-client-conf", "namespace", &val)) {
-        LOGGER_DEBUG("  namespace=%s", val);
-    } else {
-        LOGGER_WARN("not found key: 'namespace'");
-    }
-    if (ConfReadValueRef(config_ini, "xsync-client-conf", "copyright", &val)) {
-        LOGGER_DEBUG("  copyright=%s", val);
-    } else {
-        LOGGER_WARN("not found key: 'copyright'");
-    }
-    if (ConfReadValueRef(config_ini, "xsync-client-conf", "version", &val)) {
-        LOGGER_DEBUG("  version=%s", val);
-    } else {
-        LOGGER_WARN("not found key: 'version'");
-    }
-    if (ConfReadValueRef(config_ini, "xsync-client-conf", "author", &val)) {
-        LOGGER_DEBUG("  author=%s", val);
-    } else {
-        LOGGER_WARN("not found key: 'author'");
-    }
-
-    LOGGER_DEBUG("[application]");
-    if (ConfReadValueRef(config_ini, "application", "threads", &val)) {
-        LOGGER_DEBUG("  threads=%s", val);
-    } else {
-        LOGGER_WARN("not found key: 'threads'");
-    }
-    if (ConfReadValueRef(config_ini, "application", "clientid", &val)) {
-        LOGGER_DEBUG("  clientid=%s", val);
-    } else {
-        LOGGER_WARN("not found key: 'clientid'");
-    }
-    if (ConfReadValueRef(config_ini, "application", "queues", &val)) {
-        LOGGER_DEBUG("  queues=%s", val);
-    } else {
-        LOGGER_WARN("not found key: 'queues'");
-    }
-
-    // [server:id]
-    sidmax = 0;
-    numsecs = ConfGetSectionList(config_ini, &seclist);
-    for (i = 0; i < numsecs; i++) {
-        sec = ConfSectionListGetAt(seclist, i);
-
-        strcpy(secname, sec);
-
-        if (ConfSectionParse(secname, &family, &qualifier) == 2) {
-            if (! strcmp(family, "server")) {
-                LOGGER_DEBUG("[%s:%s]", family, qualifier);
-
-                ConfReadValueRef(config_ini, sec, "host", &val);
-                LOGGER_DEBUG("  host=%s", val);
-
-                ConfReadValueRef(config_ini, sec, "port", &val);
-                LOGGER_DEBUG("  port=%s", val);
-
-                ConfReadValueRef(config_ini, sec, "magic", &val);
-                LOGGER_DEBUG("  magic=%s", val);
-
-                sidmax++;
-            }
-        }
-    }
-    ConfSectionListFree(seclist);
-
-    // [watch-path:id]
-    numsecs = ConfGetSectionList(config_ini, &seclist);
-    for (i = 0; i < numsecs; i++) {
-        sec = ConfSectionListGetAt(seclist, i);
-
-        strcpy(secname, sec);
-
-        if (ConfSectionParse(secname, &family, &qualifier) == 2) {
-            if (! strcmp(family, "watch-path")) {
-                LOGGER_DEBUG("[%s:%s]", family, qualifier);
-
-                ConfReadValueRef(config_ini, sec, "fullpath", &val);
-                LOGGER_DEBUG("  fullpath=%s", val);
-
-                CONF_position cpos = ConfOpenFile(config_ini);
-                char * str = ConfGetFirstPair(cpos, &key, &val);
-                while (str) {
-                    if (! strcmp(ConfGetSection(cpos), sec) && strcmp(key, "fullpath")) {
-                        int sid;
-                        char *filter;
-
-                        snprintf(sid_filter, sizeof(sid_filter), "%s", key);
-
-                        filter = strchr(sid_filter, '.');
-                        *filter++ = 0;
-
-                        if (! strcmp(filter, "included")) {
-                            sid = atoi(sid_filter);
-
-                            LOGGER_DEBUG("  %d.included=%s", sid, val);
-                        } else if (! strcmp(filter, "excluded")) {
-                            sid = atoi(sid_filter);
-
-                            LOGGER_DEBUG("  %d.excluded=%s", sid, val);
-                        } else {
-                            LOGGER_WARN("  %s=%s", key, val);
-                        }
-                    }
-
-                    str = ConfGetNextPair(cpos, &key, &val);
-                }
-                ConfCloseFile(cpos);
-            }
-        }
-    }
-    ConfSectionListFree(seclist);
-
-    return XS_ERROR;
-}
-
-
-extern XS_RESULT XS_client_conf_save_ini (XS_client client, const char * config_ini)
-{
-    return XS_ERROR;
-}
-
-
-extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watchdir)
-{
-    int err;
+    int err, n;
 
     char inbuf[XSYNC_PATH_MAXSIZE];
 
-    err = listdir(watchdir, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_add_watch_path, (void*) client);
+    err = getfullpath(watch_parent, inbuf, sizeof(inbuf));
+    if (err != 0) {
+        LOGGER_ERROR("bad path: %s", watch_parent);
+        return err;
+    }
+
+    memcpy(client->watch_root, inbuf, sizeof(inbuf));
+
+    n = (int) strlen(inbuf);
+    if ( inbuf[n - 1] == '/' ) {
+        inbuf[n - 1] = '\0';
+    }
+
+    if (! strcmp(watch_parent, inbuf)) {
+        LOGGER_INFO("watch root: %s", client->watch_root);
+    } else {
+        LOGGER_INFO("watch root: %s -> %s", watch_parent, client->watch_root);
+    }
+
+    err = listdir(watch_parent, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_add_watch_path, (void*) client);
     if (! err) {
-        err = listdir(watchdir, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_init_watch_path, (void*) client);
+        err = listdir(watch_parent, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_init_watch_path, (void*) client);
 
         if (! err) {
             XS_client_list_watch_paths(client, watch_path_set_sid_masks_cb, client);

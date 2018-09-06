@@ -40,6 +40,8 @@
 #include "watch_entry.h"
 #include "watch_event.h"
 
+#include "client_conf.h"
+
 #include "../common/common_util.h"
 
 
@@ -137,10 +139,26 @@ XS_path_filter XS_watch_path_get_excluded_filter (XS_watch_path wp, int sid)
 }
 
 
-extern XS_RESULT XS_watch_path_sweep (XS_watch_path wp)
+extern XS_RESULT XS_watch_path_sweep (XS_watch_path wp, void *client)
 {
-    LOGGER_WARN("TODO: sweep %s", wp->fullpath);
+    int err;
 
-    return XS_SUCCESS;
+    char inbuf[XSYNC_PATH_MAXSIZE];
+
+    LOGGER_DEBUG("sweeping: %s", wp->fullpath);
+
+    err = listdir(wp->fullpath, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_add_watch_path, client);
+
+    if (! err) {
+        err = listdir(wp->fullpath, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_init_watch_path, client);
+
+        if (! err) {
+            //XS_client_list_watch_paths(client, watch_path_set_sid_masks_cb, client);
+
+            return XS_SUCCESS;
+        }
+    }
+
+    return err;
 }
 

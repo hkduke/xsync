@@ -40,13 +40,13 @@
  *
  *  xsync-client-home/                           (客户端主目录)
  *            |
- *            +---- CLIENTID  (客户端唯一标识 ID, 确保名称符合文件目录名规则, 长度不大于 40 字符)
+ *            +---- CLIENTID  (客户端唯一标识 ID, 确保名称符合文件目录名规则, 长度不大于 36 字符)
  *            |
  *            +---- LICENCE                      (客户端版权文件)
  *            |
  *            +---- bin/
  *            |       |
- *            |       +---- xsync-client-1.0.0   (客户端程序)
+ *            |       +---- xsync-client-$version (客户端程序)
  *            |
  *            |
  *            +---- conf/                        (客户端配置文件目录)
@@ -63,7 +63,7 @@
  *            |       |        +---- SERVERID    (内容仅1行 = "host:port#magic")
  *            |       |          ...
  *            |       |
- *            |       +---- 91wifi-logserver/           (服务器名称目录)
+ *            |       +---- giant-logserver/           (服务器名称目录)
  *            |       |        |
  *            |       |        +---- SERVERID    (内容仅1行 = "host:port#magic")
  *            |       |
@@ -71,7 +71,7 @@
  *            |
  *            |
  *            |
- *            +---- watch/             (可选, 客户端 watch 目录)
+ *            +---- watch/             (可选, 客户端 watch 目录 - 符号链接)
  *                    |
  *                    +---- pathlinkA -> /path/to/A/
  *                    |
@@ -116,6 +116,9 @@
 
 #include "../common/common_util.h"
 
+// 定时器启动延时秒
+#define MUL_TIMER_START_DELAY  10
+
 
 __no_warning_unused(static)
 int OnEventSweepWatchPath (mul_event_hdl eventhdl, int eventargid, void *eventarg, void *timerarg)
@@ -124,10 +127,10 @@ int OnEventSweepWatchPath (mul_event_hdl eventhdl, int eventargid, void *eventar
     printf("    => event_%lld: on_counter=%lld hash=%d\n",
         (long long) event->eventid, (long long) event->on_counter, event->hash);
 
-    //XS_client client = (XS_client) timerarg;
+    XS_client client = (XS_client) timerarg;
     XS_watch_path wp = (XS_watch_path) eventarg;
 
-    if (XS_watch_path_sweep(wp) != XS_SUCCESS) {
+    if (XS_watch_path_sweep(wp, client) != XS_SUCCESS) {
         // 如果刷新目录失败
 
         // 删除事件
@@ -255,13 +258,13 @@ XS_RESULT client_on_inotify_event (XS_client client, struct inotify_event * inev
  **********************************************************************/
 extern XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
 {
+    XS_client client;
+
     int i, err;
 
     int SERVERS;
-    int THREADS;
-    int QUEUES;
-
-    XS_client client;
+    int THREADS = opts->threads;
+    int QUEUES = opts->queues;
 
     *outClient = 0;
 
@@ -297,8 +300,9 @@ extern XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
         return XS_ERROR;
     }
 
-    // 创建定时器, 60秒之后启动. 失败退出程序
-    if (mul_timer_init(MUL_TIMEUNIT_SEC, 1, 60, MULTIMER_DEFAULT_HANDLER, client, 0) != 0) {
+    // 创建定时器, MUL_TIMER_START_DELAY 秒之后启动. 失败退出程序
+    LOGGER_DEBUG("mul_timer_init: delay %d seconds", MUL_TIMER_START_DELAY);
+    if (mul_timer_init(MUL_TIMEUNIT_SEC, 1, MUL_TIMER_START_DELAY, MULTIMER_DEFAULT_HANDLER, client, 0) != 0) {
         LOGGER_FATAL("mul_timer_init error");
 
         xs_client_delete((void*) client);
@@ -307,16 +311,14 @@ extern XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
 
     // 初始化客户端
     if (opts->from_watch) {
-        // 从监控目录初始化客户端
+        // 从监控目录初始化客户端: 是否递归?
         err = XS_client_conf_from_watch(client, opts->config);
     } else {
-        // 从配置文件初始化客户端
+        // 从 XML 配置文件初始化客户端
         if ( ! strcmp(strrchr(opts->config, '.'), ".xml") ) {
             err = XS_client_conf_load_xml(client, opts->config);
-        } else if ( ! strcmp(strrchr(opts->config, '.'), ".ini") ) {
-            err = XS_client_conf_load_ini(client, opts->config);
         } else {
-            LOGGER_ERROR("unknown config: %s", opts->config);
+            LOGGER_ERROR("bad config xml file: %s", opts->config);
             err = XS_E_FILE;
         }
     }
@@ -328,8 +330,8 @@ extern XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
 
     SERVERS = XS_client_get_server_maxid(client);
 
-    THREADS = client->threads;
-    QUEUES = client->queues;
+    client->threads = THREADS;
+    client->queues = QUEUES;
 
     LOGGER_INFO("threads=%d queues=%d servers=%d", THREADS, QUEUES, SERVERS);
 
@@ -339,6 +341,7 @@ extern XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
     for (i = 0; i < THREADS; ++i) {
         perthread_data *perdata = (perthread_data *) mem_alloc(1, sizeof(perthread_data));
 
+        // 服务器数量
         perdata->server_conns[0] = (XS_server_conn) (long) SERVERS;
 
         perdata->threadid = i + 1;
@@ -411,28 +414,32 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
 
     ssize_t len, at = 0;
 
-    LOGGER_TRACE("event_size=%d, wait_seconds=%d", XSYNC_INEVENT_BUFSIZE, wait_seconds);
+    LOGGER_INFO("inevent_size=%d, wait_seconds=%d", XSYNC_INEVENT_BUFSIZE, wait_seconds);
 
     for (i = 0; i < client->threads; ++i) {
         perthread_data * perdata = (perthread_data *) client->thread_args[i];
 
-        for (sid = 1; sid <= XS_client_get_server_maxid(client); sid++) {
-            xs_server_opts * srv = XS_client_get_server_opts(client, sid);
+        if (XS_client_get_server_maxid(client) == 0) {
+            LOGGER_WARN("no server specified: see reference for how to add server!");
+        } else {
+            for (sid = 1; sid <= XS_client_get_server_maxid(client); sid++) {
+                xs_server_opts * srv = XS_client_get_server_opts(client, sid);
 
-            XS_server_conn_create(srv, client->clientid, &perdata->server_conns[sid]);
+                XS_server_conn_create(srv, client->clientid, &perdata->server_conns[sid]);
 
-            if (perdata->server_conns[sid]->sockfd == -1) {
-                LOGGER_ERROR("[thread_%d] connect server-%d (%s:%d)",
-                    perdata->threadid,
-                    sid,
-                    srv->host,
-                    srv->port);
-            } else {
-                LOGGER_INFO("[thread_%d] connected server-%d (%s:%d)",
-                    perdata->threadid,
-                    sid,
-                    srv->host,
-                    srv->port);
+                if (perdata->server_conns[sid]->sockfd == -1) {
+                    LOGGER_ERROR("[thread_%d] connect server-%d (%s:%d)",
+                        perdata->threadid,
+                        sid,
+                        srv->host,
+                        srv->port);
+                } else {
+                    LOGGER_INFO("[thread_%d] connected server-%d (%s:%d)",
+                        perdata->threadid,
+                        sid,
+                        srv->host,
+                        srv->port);
+                }
             }
         }
     }
@@ -440,8 +447,10 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
     // 启动定时器
     mul_timer_start();
 
-    for ( ; ; ) {
+    // 开始 inotify
+    LOGGER_INFO("inotify start running...");
 
+    for ( ; ; ) {
         FD_ZERO(&set);
 
         // TODO: https://stackoverflow.com/questions/7976388/increasing-limit-of-fd-setsize-and-select
@@ -449,7 +458,7 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
 
         FD_SET(client->infd, &set);
 
-        timeout.tv_sec =  wait_seconds;
+        timeout.tv_sec = wait_seconds;
         timeout.tv_usec = 0;
 
         if (select(client->infd + 1, &set, 0, 0, &timeout) > 0) {
@@ -564,8 +573,7 @@ extern XS_BOOL XS_client_add_watch_path (XS_client client, XS_watch_path wp)
         // 设置多定时器: 刷新目录事件. 增加 watch_path 计数
         RefObjectRetain((void**) &wp);
 
-        if (mul_timer_set_event(XSYNC_SWEEP_PATH_INTERVAL +
-                    (wp->watch_wd & XSYNC_WATCH_PATH_HASHMAX),
+        if (mul_timer_set_event(XSYNC_SWEEP_PATH_INTERVAL + (wp->watch_wd & XSYNC_WATCH_PATH_HASHMAX),
                 XSYNC_SWEEP_PATH_INTERVAL,
                 MULTIMER_EVENT_INFINITE,
                 OnEventSweepWatchPath,

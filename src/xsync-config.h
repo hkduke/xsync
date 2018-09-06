@@ -30,7 +30,7 @@
  *
  * @create: 2018-01-24
  *
- * @update: 2018-09-05 18:58:16
+ * @update: 2018-09-05 20:35:18
  */
 
 #ifndef XSYNC_CONFIG_H_
@@ -120,7 +120,7 @@ extern "C"
 #endif
 
 #ifndef XSYNC_CLIENT_THREADS_MAX
-#define XSYNC_CLIENT_THREADS_MAX        8192
+#define XSYNC_CLIENT_THREADS_MAX        16
 #endif
 
 /**
@@ -202,7 +202,7 @@ extern "C"
 
 
 /**
- * for xsync client
+ * for xsync client: 监控路径 hashmap 最大条目
  */
 #ifndef XSYNC_WATCH_PATH_HASHMAX
 #  define XSYNC_WATCH_PATH_HASHMAX      255
@@ -210,7 +210,7 @@ extern "C"
 
 
 /**
- * for xsync client
+ * for xsync client: 监控文件 hashmap 最大条目
  */
 #ifndef XSYNC_WATCH_ENTRY_HASHMAX
 #  define XSYNC_WATCH_ENTRY_HASHMAX     1023

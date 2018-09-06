@@ -73,7 +73,7 @@ void print_usage(void)
         "\t-h, --help                   \033[35m display help messages\033[0m\n"
         "\t-V, --version                \033[35m print version information\033[0m\n"
         "\n"
-        "\t-C, --config=PATHFILE        \033[35m specify path file to conf. '../conf/%s.conf' (default)\033[0m\n"
+        "\t-C, --config=XMLFILE         \033[35m specify path file to conf. '../conf/%s.xml' (default)\033[0m\n"
         "\t-W, --from-watch             \033[35m config client from watch path no matter if specify config(-C, --config) or not.\033[0m\n"
         "\t                               \033[35m if enable watch path by '--use-watch', config=PATHFILE will be ignored.\033[0m\n"
         "\t                               \033[35m NOTE: watch/ folder lives alway in the sibling directory of config PATHFILE, for example:\033[0m\n"
@@ -85,7 +85,7 @@ void print_usage(void)
         "\t                                     \033[35m |\033[0m\n"
         "\t                                     \033[35m +--- conf/%s.conf    (default config file)\033[0m\n"
         "\t                                     \033[35m |\033[0m\n"
-        "\t                                     \033[35m +--- watch/\033[0m\n"
+        "\t                                     \033[35m +--- watch/          (can also be symlink)\033[0m\n"
         "\t                                     \033[35m       |\033[0m\n"
         "\t                                     \033[35m       +--- pathlinkA/ -> A    (symlink to path A)\033[0m\n"
         "\t                                     \033[35m       +--- pathlinkB/ -> B    (symlink to path A)\033[0m\n"
@@ -116,6 +116,7 @@ void print_usage(void)
         "\t-K, --kill                   \033[35m kill all processes for this program.\033[0m\n"
         "\t-L, --list                   \033[35m list of pids for this program.\033[0m\n"
         "\t-I, --interactive            \033[35m run as interactive mode for testing.\033[0m\n"
+        "\t-S, --save-config            \033[35m save config xml file specified by '--config' or '--save-config'.\033[0m\n"
         "\n"
         "\t-m, --md5=FILE               \033[35m md5sum on given file.\033[0m\n"
         "\t-r, --regexp=PATTERN         \033[35m use pattern for matching on <express>.\033[0m\n"
@@ -140,6 +141,8 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     char config[XSYNC_PATHFILE_MAXLEN + 1];
     char log4crc[XSYNC_PATHFILE_MAXLEN + 1];
 
+    char save_config[XSYNC_PATHFILE_MAXLEN + 1];
+    
     char priority[20] = { "debug" };
     char appender[60] = { "stdout" };
 
@@ -148,13 +151,15 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     int interactive = 0;
     int isdaemon = 0;
 
-    int threads = INT_MAX;
-    int queues = INT_MAX;
+    int threads = 0;
+    int queues = 0;
 
     bzero(opts, sizeof(*opts));
 
     opts->threads = XSYNC_CLIENT_THREADS;
     opts->queues = XSYNC_CLIENT_QUEUES;
+
+    *save_config = 0;
 
     /* command arguments */
     const struct option lopts[] = {
@@ -172,6 +177,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
         {"kill", no_argument, 0, 'K'},
         {"list", no_argument, 0, 'L'},
         {"interactive", no_argument, 0, 'I'},
+        {"save-config", optional_argument , 0, 'S'},
         {"md5", required_argument, 0, 'm'},
         {"regexp", required_argument, 0, 'r'},
         {0, 0, 0, 0}
@@ -194,7 +200,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     *strrchr(buff, '/') = 0;
     *(strrchr(buff, '/') + 1) = 0;
 
-    ret = snprintf(config, sizeof(config), "%sconf/%s-conf.ini", buff, APP_NAME);
+    ret = snprintf(config, sizeof(config), "%sconf/%s-conf.xml", buff, APP_NAME);
     if (ret < 20 || ret >= sizeof(config)) {
         fprintf(stderr, "\033[1;31m[error]\033[0m invalid conf path: %s\n", buff);
         exit(-1);
@@ -207,7 +213,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     }
 
     /* parse command arguments */
-    while ((ret = getopt_long(argc, argv, "hVC:WO:P:A:t:q:N:DKLIm:r:", lopts, 0)) != EOF) {
+    while ((ret = getopt_long(argc, argv, "hVC:WO:P:A:t:q:N:DKLS::Im:r:", lopts, 0)) != EOF) {
         switch (ret) {
         case 'D':
             isdaemon = 1;
@@ -222,7 +228,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
             /* overwrite default config file */
             ret = snprintf(config, sizeof(config), "%s", optarg);
             if (ret < 20 || ret >= sizeof(config)) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m specified invalid conf file: %s\n", optarg);
+                fprintf(stderr, "\033[1;31m[error]\033[0m invalid config xml file: %s\n", optarg);
                 exit(-1);
             }
 
@@ -232,12 +238,37 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
             } else {
                 ret = snprintf(config, sizeof(config), "%s", buff);
                 if (ret < 20 || ret >= sizeof(config)) {
-                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid conf file: %s\n", buff);
+                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid config xml file: %s\n", buff);
                     exit(-1);
                 }
             }
             break;
 
+        case 'S':
+            if (optarg) {
+                /* overwrite default config file */
+                ret = snprintf(save_config, sizeof(save_config), "%s", optarg);
+                if (ret < 20 || ret >= sizeof(save_config)) {
+                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid config xml file: %s\n", optarg);
+                    exit(-1);
+                }
+
+                if (getfullpath(save_config, buff, sizeof(buff)) != 0) {
+                    fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buff);
+                    exit(-1);
+                } else {
+                    ret = snprintf(save_config, sizeof(save_config), "%s", buff);
+                    if (ret < 20 || ret >= sizeof(save_config)) {
+                        fprintf(stderr, "\033[1;31m[error]\033[0m invalid config xml file: %s\n", buff);
+                        exit(-1);
+                    }
+                }
+            } else {
+                save_config[0] = '-';
+                save_config[1] = 0;
+            }
+            break;
+            
         case 'W':
             from_watch = 1;
             break;
@@ -338,10 +369,8 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
         }
     }
 
-    fprintf(stdout, "\033[1;34m* Default log4c path : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
-    fprintf(stdout, "\033[1;34m* Default config file: %s\033[0m\n\n", config);
-    fprintf(stdout, "\033[1;32m* Using log4c path   : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
-    fprintf(stdout, "\033[1;32m* Using config file  : %s\033[0m\n\n", config);
+    fprintf(stdout, "\033[1;34m* default log4c path : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
+    fprintf(stdout, "\033[1;34m* default config xml : %s\033[0m\n\n", config);
 
     if (interactive) {
         if (isdaemon) {
@@ -355,29 +384,22 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
         }
     }
 
-    if (threads != INT_MAX) {
-        // 用户指定了线程覆盖配置文件, 此时队列也必须覆盖
-        if (threads > XSYNC_CLIENT_THREADS_MAX) {
-            opts->threads = XSYNC_CLIENT_THREADS_MAX;
-        } else if (threads < 1) {
-            opts->threads = 1;
-        } else {
-            opts->threads = threads;
-        }
-
-        fprintf(stdout, "\033[1;33m* Overwritten config : threads=%d queues=%d\033[0m\n\n", opts->threads, opts->queues);
-    } else if (queues != INT_MAX) {
-        // 用户只指定了队列覆盖配置文件
-        if (queues > XSYNC_CLIENT_THREADS_MAX * 4) {
-            opts->queues = XSYNC_CLIENT_THREADS_MAX * 4;
-        } else if (queues < 64) {
-            opts->queues = 64;
-        } else {
-            opts->queues = queues;
-        }
-
-        fprintf(stdout, "\033[1;33m* Overwritten config : threads=? queues=%d\033[0m\n\n", opts->queues);
+    if (threads != 0) {
+        // 用户指定了线程数, 覆盖配置文件
+        opts->threads = threads;
     }
+
+    if (queues != 0) {
+        // 用户只指定了队列数, 覆盖配置文件
+        opts->queues = queues;
+    }
+    
+    if (save_config[0] == '-') {
+        memcpy(save_config, config, XSYNC_PATHFILE_MAXLEN);
+        save_config[XSYNC_PATHFILE_MAXLEN] = 0;
+    }
+    memcpy(opts->save_config, save_config, XSYNC_PATHFILE_MAXLEN);
+    opts->save_config[XSYNC_PATHFILE_MAXLEN] = 0;
 
     if (from_watch) {
         // 强迫从 watch 目录自动配置
@@ -398,10 +420,10 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
         }
 
         snprintf(config, sizeof(config), "%s", buff);
-        fprintf(stdout, "\033[1;36m* Force using watch  : %s\033[0m\n", config);
+        fprintf(stdout, "\033[1;36m* force using watch  : %s\033[0m\n", config);
     }
 
-    // 设置log4c
+    // 设置log4c: common_util.h
     config_log4crc(APP_NAME, log4crc, priority, appender, sizeof(appender), buff, sizeof(buff));
 
     // 得到启动命令
@@ -422,7 +444,6 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     opts->interactive = interactive;
 
     memcpy(opts->config, config, XSYNC_PATHFILE_MAXLEN);
-
     opts->config[XSYNC_PATHFILE_MAXLEN] = 0;
 }
 

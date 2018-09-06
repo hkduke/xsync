@@ -82,6 +82,7 @@ typedef struct xs_appopts_t
     char diagnose_server[XSYNC_PATHFILE_MAXLEN + 1];
 
     char config[XSYNC_PATHFILE_MAXLEN + 1];
+    char save_config[XSYNC_PATHFILE_MAXLEN + 1];
 } xs_appopts_t;
 
 
@@ -109,11 +110,7 @@ extern XS_RESULT XS_client_conf_load_xml (XS_client client, const char *xmlfile)
 
 extern XS_RESULT XS_client_conf_save_xml (XS_client client, const char *xmlfile);
 
-extern XS_RESULT XS_client_conf_load_ini (XS_client client, const char *inifile);
-
-extern XS_RESULT XS_client_conf_save_ini (XS_client client, const char *inifile);
-
-extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watchdir);
+extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_parent);
 
 
 /**

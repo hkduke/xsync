@@ -44,7 +44,7 @@
  *
  * @create: 2018-09-04
  *
- * @update: 2018-09-05 20:28:25
+ * @update: 2018-09-06 10:29:04
  *
  *
  *----------------------------------------------------------------------
@@ -676,7 +676,7 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
                     }
 
                     /**
-                     * Start watching for events to read ( EPOLLIN ) on this socket in
+                     * Start watching for events to READ ( EPOLLIN ) on this socket in
                      *  edge triggered mode ( EPOLLET ) on the same epoll instance we
                      *  are already using
                      */

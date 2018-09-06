@@ -110,7 +110,7 @@ extern XS_path_filter XS_watch_path_get_included_filter (XS_watch_path wp, int s
 
 extern XS_path_filter XS_watch_path_get_excluded_filter (XS_watch_path wp, int sid);
 
-extern XS_RESULT XS_watch_path_sweep (XS_watch_path wp);
+extern XS_RESULT XS_watch_path_sweep (XS_watch_path wp, void *client);
 
 #if defined(__cplusplus)
 }

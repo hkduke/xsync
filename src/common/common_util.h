@@ -378,7 +378,7 @@ static int getpwd (char *path, int size)
 
 
 __attribute__((used))
-static int getfullpath (char * path, char * outpath, size_t size_outpath)
+static int getfullpath (const char * path, char * outpath, size_t size_outpath)
 {
     int rc;
 
