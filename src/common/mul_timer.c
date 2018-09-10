@@ -36,6 +36,7 @@
  * create: 2018-02-03 11:00
  * update: 2018-02-04
  **********************************************************************/
+#define MULTIMER_PRINT  0
 
 #include "mul_timer.h"
 
@@ -46,7 +47,7 @@ struct mul_timer_t multimer_singleton = {0};
 extern struct mul_timer_t * get_multimer_singleton ()
 {
     struct mul_timer_t *mtr = &multimer_singleton;
-#if 0
+#if MULTIMER_PRINT == 1
     printf("\033[32m* mul_timer=%p\033[0m\n", mtr);
 #endif
     return mtr;
@@ -279,7 +280,7 @@ extern int mul_timer_init (mul_timeunit_t timeunit, unsigned int timeintval, uns
     mtr->timeunit_usec = mtr->value.it_interval.tv_usec + mtr->value.it_interval.tv_sec * 1000000;
 
 #if MULTIMER_PRINT == 1
-    printf("[] timeunit=%lld microseconds.\n", (long long) mtr->timeunit_usec);
+    printf("[mul:info] timeunit=%lld microseconds.\n", (long long) mtr->timeunit_usec);
 #endif
 
     err = -1;

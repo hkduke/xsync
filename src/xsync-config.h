@@ -222,7 +222,7 @@ extern "C"
  *   should in [60, 300]
  */
 #ifndef XSYNC_SWEEP_PATH_INTERVAL
-#  define XSYNC_SWEEP_PATH_INTERVAL     10
+#  define XSYNC_SWEEP_PATH_INTERVAL     3
 #endif
 
 

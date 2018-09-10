@@ -238,8 +238,8 @@ typedef struct mul_timer_t
     int start_flag;
 
     /** 最小时间单元值: 微秒 */
-    bigint_t         timeunit_usec;
-    mul_timeunit_t  timeunit_id;
+    bigint_t timeunit_usec;
+    mul_timeunit_t timeunit_id;
 
     struct itimerval value;
 

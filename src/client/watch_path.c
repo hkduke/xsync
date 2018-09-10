@@ -57,7 +57,7 @@ static inline void free_watch_path (void *pv)
 }
 
 
-XS_RESULT XS_watch_path_create (const char * pathid, const char * fullpath, uint32_t events_mask, XS_watch_path * outwp)
+XS_RESULT XS_watch_path_create (const char * pathid, const char * fullpath, uint32_t events_mask, XS_watch_path parent, XS_watch_path * outwp)
 {
     int sid;
     size_t cb;
@@ -91,9 +91,11 @@ XS_RESULT XS_watch_path_create (const char * pathid, const char * fullpath, uint
         wpath->sid_masks[sid] = 0;
     }
 
+    wpath->parent_wp = parent;
+    
     *outwp = (XS_watch_path) RefObjectInit(wpath);
 
-    LOGGER_TRACE("path=%p (%s=>%s)", wpath, wpath->pathid, wpath->fullpath);
+    LOGGER_DEBUG("path=%p (%s=>%s)", wpath, wpath->pathid, wpath->fullpath);
 
     return XS_SUCCESS;
 }
@@ -147,18 +149,41 @@ extern XS_RESULT XS_watch_path_sweep (XS_watch_path wp, void *client)
 
     LOGGER_DEBUG("sweeping: %s", wp->fullpath);
 
-    err = listdir(wp->fullpath, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_add_watch_path, client);
+    err = listdir(wp->fullpath, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_add_watch_path, client, wp);
 
     if (! err) {
-        err = listdir(wp->fullpath, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_init_watch_path, client);
+        err = listdir(wp->fullpath, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_init_watch_path, client, wp);
 
         if (! err) {
-            //XS_client_list_watch_paths(client, watch_path_set_sid_masks_cb, client);
+            XS_client_list_watch_paths(client, watch_path_set_sid_masks_cb, client);
 
             return XS_SUCCESS;
         }
     }
 
     return err;
+}
+
+
+extern XS_watch_path XS_watch_path_get_parent (XS_watch_path wp)
+{
+    if (! wp) {
+        return 0;
+    }
+
+    return wp->parent_wp;
+}
+
+
+extern int XS_watch_path_get_pathid_route (XS_watch_path wp, char route[XSYNC_PATH_MAXSIZE])
+{
+    XS_watch_path parent = XS_watch_path_get_parent(wp);
+   
+    if (parent) {
+        int len = XS_watch_path_get_pathid_route(parent, route);
+        return len + snprintf(route + len, XSYNC_PATH_MAXSIZE, "/%s", wp->pathid);
+    } else {
+        return snprintf(route, XSYNC_PATH_MAXSIZE, "/%s", wp->pathid);
+    }
 }
 

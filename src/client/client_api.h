@@ -44,6 +44,7 @@ extern "C" {
 #include "../common/log4c_logger.h"
 
 #include "../common/threadlock.h"
+#include "../common/inotiapi.h"
 
 #include "../xsync-error.h"
 #include "../xsync-config.h"
@@ -93,9 +94,11 @@ extern XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient);
 
 extern XS_VOID XS_client_release (XS_client *pClient);
 
-extern int XS_client_lock (XS_client client);
+extern int XS_client_lock (XS_client client, int try);
 
 extern void XS_client_unlock (XS_client client);
+
+extern int XS_client_wait_condition(XS_client client, struct timespec * timo);
 
 extern XS_VOID XS_client_bootstrap (XS_client client);
 

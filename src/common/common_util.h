@@ -294,10 +294,11 @@ static int isdir(const char *path)
 }
 
 
-typedef int (*listdir_callback_t)(const char * path, int pathlen, struct dirent *ent, void * data);
+typedef int (*listdir_callback_t)(const char * path, int pathlen, struct dirent *ent, void * arg1, void *arg2);
+
 
 __attribute__((used))
-static int listdir(const char * path, char * inbuf, ssize_t inbufsize, listdir_callback_t lscb, void * data)
+static int listdir(const char * path, char * inbuf, ssize_t inbufsize, listdir_callback_t lscb, void *arg1, void *arg2)
 {
     DIR *dir;
     struct dirent *ent;
@@ -326,7 +327,7 @@ static int listdir(const char * path, char * inbuf, ssize_t inbufsize, listdir_c
 
                 inbuf[pathlen] = 0;
 
-                if (lscb(inbuf, pathlen, ent, data) != 1) {
+                if (lscb(inbuf, pathlen, ent, arg1, arg2) != 1) {
                     err = (-3);
                     break;
                 }

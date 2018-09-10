@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <xs:xsync-client-conf xmlns:xs="http://github.com/pepstack/xsync/client" copyright="pepstack.com" version="0.0.4" author="master@pepstack.com">
-	<xs:application clientid="" threads="1" queues="256" />
+	<xs:application clientid="" threads="4" queues="256" />
 	<xs:server-list />
 	<xs:watch-path-list>
 		<xs:watch-path pathid="logs" fullpath="/tmp/logs">
+			<xs:included-filters />
+			<xs:excluded-filters />
+		</xs:watch-path>
+		<xs:watch-path pathid="logs2" fullpath="/tmp/logs/logs2">
 			<xs:included-filters />
 			<xs:excluded-filters />
 		</xs:watch-path>

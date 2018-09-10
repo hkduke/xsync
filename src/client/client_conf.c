@@ -119,7 +119,7 @@ int OnEventCheckEntrySession (mul_event_hdl eventhdl, int argid, void *arg, void
     assert(entry);
 
     if (XS_watch_entry_not_in_use(entry)) {
-        if (XS_client_lock(client) == 0) {
+        if (XS_client_lock(client, 1) == 0) {
 
             if (client_remove_watch_entry_inlock(client, entry)) {
                 // 删除事件成功, 释放增加到定时器中的引用: entry
@@ -263,38 +263,86 @@ error_exit:
 }
 
 
-int lscb_add_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client)
+int lscb_add_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client, XS_watch_path parent)
 {
     int  lnk;
+
     char resolved_path[XSYNC_PATH_MAXSIZE];
+    char route[XSYNC_PATH_MAXSIZE];
 
     lnk = fileislink(path, 0, 0);
 
     if (isdir(path)) {
-        if (lnk) {
+        if (! parent) {
+            // watch 的子目录必须是符号链接
+            if (lnk) {
+                char * abspath = realpath(path, resolved_path);
+
+                if (abspath) {
+                    XS_watch_path  wp;
+
+                    // abspath = '/path/to/watch-local/logs'
+                    // path   = '/path/to/watch/logs'
+                    // pathid = 'logs'
+
+                    char *pathid = strrchr(path, '/') + 1;
+
+                    LOGGER_DEBUG("path-id: %s -> (%s)", pathid, abspath);
+
+                    if (XS_client_lock(client, 1) == 0) {
+
+                        if (XS_watch_path_create(pathid, abspath, IN_ACCESS | IN_MODIFY | IN_ONLYDIR, parent, &wp) == XS_SUCCESS) {
+                            // route 是服务端的路径
+                            int len = XS_watch_path_get_pathid_route(wp, route);
+                            route[len] = 0;
+
+                            LOGGER_DEBUG("pathid-route(%s): %s -> (%s)", route, pathid, abspath);
+
+                            if (! XS_client_add_watch_path(client, wp)) {
+                                XS_watch_path_release(&wp);
+                            }
+                        }
+
+                        XS_client_unlock(client);
+                    }
+                } else {
+                    LOGGER_ERROR("realpath error(%d): %s - (%s)", errno, strerror(errno), path);
+                    return (-4);
+                }
+            } else {
+                LOGGER_WARN("ignored path: %s", path);
+            }
+        } else {
+            // 目录无所谓是不是链接
             char * abspath = realpath(path, resolved_path);
 
             if (abspath) {
                 XS_watch_path  wp;
 
-                char * pathid = strrchr(path, '/') + 1;
+                char *pathid = strrchr(path, '/') + 1;
 
-                LOGGER_DEBUG("path-id: %s -> (%s)", pathid, abspath);
+                LOGGER_DEBUG("path-id: %s => (%s)", pathid, abspath);
 
-                if (XS_watch_path_create(pathid, abspath, IN_ACCESS | IN_MODIFY | IN_ONLYDIR, &wp) == XS_SUCCESS) {
-                    if (! XS_client_add_watch_path(client, wp)) {
-                        XS_watch_path_release(&wp);
+                if (XS_client_lock(client, 1) == 0) {
 
-                        // break on error
-                        return 0;
+                    if (XS_watch_path_create(pathid, abspath, IN_ACCESS | IN_MODIFY | IN_ONLYDIR, parent, &wp) == XS_SUCCESS) {
+                        // route 是服务端的路径
+                        int len = XS_watch_path_get_pathid_route(wp, route);
+                        route[len] = 0;
+
+                        LOGGER_DEBUG("pathid-route(%s): %s -> (%s)", route, pathid, abspath);
+
+                        if (! XS_client_add_watch_path(client, wp)) {
+                            XS_watch_path_release(&wp);
+                        }
                     }
+
+                    XS_client_unlock(client);
                 }
             } else {
-                LOGGER_ERROR("realpath error(%d): %s", errno, strerror(errno));
+                LOGGER_ERROR("realpath error(%d): %s - (%s)", errno, strerror(errno), path);
                 return (-4);
             }
-        } else {
-            LOGGER_WARN("ignored path due to not a symbol link: %s", path);
         }
     }
 
@@ -303,7 +351,7 @@ int lscb_add_watch_path (const char * path, int pathlen, struct dirent *ent, XS_
 }
 
 
-int lscb_init_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client)
+int lscb_init_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client, XS_watch_path parent)
 {
     int  lnk, sid, err;
 
@@ -319,7 +367,7 @@ int lscb_init_watch_path (const char * path, int pathlen, struct dirent *ent, XS
         char * sidfile = realpath(path, resolved_path);
 
         if (! sidfile) {
-            LOGGER_ERROR("realpath error(%d): %s", errno, strerror(errno));
+            LOGGER_ERROR("realpath error(%d): %s - (%s)", errno, strerror(errno), path);
             return (-4);
         }
 
@@ -382,7 +430,6 @@ int lscb_init_watch_path (const char * path, int pathlen, struct dirent *ent, XS
 }
 
 
-__no_warning_unused(static)
 int watch_path_set_sid_masks_cb (XS_watch_path wp, void * data)
 {
     int sid;
@@ -782,7 +829,7 @@ extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_
         return err;
     }
 
-    memcpy(client->watch_root, inbuf, sizeof(inbuf));
+    memcpy(client->watch_parent, inbuf, sizeof(inbuf));
 
     n = (int) strlen(inbuf);
     if ( inbuf[n - 1] == '/' ) {
@@ -790,14 +837,14 @@ extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_
     }
 
     if (! strcmp(watch_parent, inbuf)) {
-        LOGGER_INFO("watch root: %s", client->watch_root);
+        LOGGER_INFO("watch parent: %s", client->watch_parent);
     } else {
-        LOGGER_INFO("watch root: %s -> %s", watch_parent, client->watch_root);
+        LOGGER_INFO("watch parent: %s -> %s", watch_parent, client->watch_parent);
     }
 
-    err = listdir(watch_parent, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_add_watch_path, (void*) client);
+    err = listdir(watch_parent, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_add_watch_path, (void*) client, 0);
     if (! err) {
-        err = listdir(watch_parent, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_init_watch_path, (void*) client);
+        err = listdir(watch_parent, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_init_watch_path, (void*) client, 0);
 
         if (! err) {
             XS_client_list_watch_paths(client, watch_path_set_sid_masks_cb, client);
@@ -814,7 +861,7 @@ extern int XS_client_prepare_events (XS_client client, const XS_watch_path wp, s
 {
     int events_maxsid = 0;
 
-    if (XS_client_lock(client) == 0) {
+    if (XS_client_lock(client, 1) == 0) {
         int sid = 1;
         int maxsid = XS_client_get_server_maxid(client);
 

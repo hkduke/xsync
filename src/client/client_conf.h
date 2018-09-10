@@ -99,8 +99,8 @@ typedef struct xs_client_t
     threadpool_t *pool;
     void        **thread_args;
 
-    /* 监控的根目录的绝对路径: 其子目录必须符号链接, 作为 path-id */
-    char watch_root[XSYNC_PATH_MAXSIZE];
+    /* 监控目录的父目录的绝对路径: 监控的目录必须符号链接, 作为 path-id */
+    char watch_parent[XSYNC_PATH_MAXSIZE];
 
     /** hash table for wd (watch descriptor) -> watch_path */
     XS_watch_path wd_table[XSYNC_WATCH_PATH_HASHMAX + 1];
@@ -126,13 +126,16 @@ typedef struct xs_client_t
  */
 extern void xs_client_delete (void *pv);
 
+
+extern int watch_path_set_sid_masks_cb (XS_watch_path wp, void * data);
+
 /**
  * level = 0 : 必须是目录符号链接
  * level = 1, 2, ... : 可以是目录符号链接, 也可以是物理目录
  */
-extern int lscb_add_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client);
+extern int lscb_add_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client, XS_watch_path parent);
 
-extern int lscb_init_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client);
+extern int lscb_init_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client, XS_watch_path parent);
 
 
 __no_warning_unused(static)
