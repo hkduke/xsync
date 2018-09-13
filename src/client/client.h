@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.7
  *
  * @create: 2018-01-24
  *
- * @update: 2018-08-13 17:25:32
+ * @update: 2018-09-07 18:07:12
  */
 
 #ifndef CLIENT_H_INCLUDED
@@ -142,7 +142,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     char log4crc[XSYNC_PATHFILE_MAXLEN + 1];
 
     char save_config[XSYNC_PATHFILE_MAXLEN + 1];
-    
+
     char priority[20] = { "debug" };
     char appender[60] = { "stdout" };
 
@@ -268,7 +268,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
                 save_config[1] = 0;
             }
             break;
-            
+
         case 'W':
             from_watch = 1;
             break;
@@ -393,7 +393,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
         // 用户只指定了队列数, 覆盖配置文件
         opts->queues = queues;
     }
-    
+
     if (save_config[0] == '-') {
         memcpy(save_config, config, XSYNC_PATHFILE_MAXLEN);
         save_config[XSYNC_PATHFILE_MAXLEN] = 0;

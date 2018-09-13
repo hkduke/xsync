@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.5
  *
  * @create: 2018-01-26
  *
- * @update: 2018-08-10 18:11:59
+ * @update: 2018-09-10 11:48:26
  */
 
 #include "client_api.h"
@@ -45,18 +45,12 @@
 
 extern void xs_client_delete (void *pv)
 {
-    int i, sid, infd;
+    int i, sid;
 
     XS_client client = (XS_client) pv;
 
-    LOGGER_TRACE("pause and destroy timer");
-    mul_timer_pause();
-    if (mul_timer_destroy() != 0) {
-        LOGGER_ERROR("mul_timer_destroy failed");
-    }
-
-    LOGGER_TRACE("pthread_cond_destroy");
-    pthread_cond_destroy(&client->condition);
+    LOGGER_TRACE("inotifytools_cleanup");
+    inotifytools_cleanup();
 
     if (client->pool) {
         LOGGER_DEBUG("threadpool_destroy");
@@ -89,51 +83,21 @@ extern void xs_client_delete (void *pv)
         free(client->thread_args);
     }
 
+    //??DEL
     client_clear_entry_map(client);
 
+    //??DEL
     XS_client_clear_watch_paths(client);
 
-    infd = client->infd;
-    if (infd != -1) {
-        client->infd = -1;
+    LOGGER_TRACE("threadlock_destroy event_map_lock");
+    threadlock_destroy(&client->event_map_lock);
 
-        LOGGER_DEBUG("inotify closed");
-        close(infd);
-    }
+    LOGGER_TRACE("pthread_cond_destroy");
+    pthread_cond_destroy(&client->condition);
 
     LOGGER_TRACE("%p", client);
 
     free(client);
-}
-
-
-__no_warning_unused(static)
-int OnEventCheckEntrySession (mul_event_hdl eventhdl, int argid, void *arg, void *param)
-{
-    int ret = 0;
-
-    XS_client client = (XS_client) param;
-    XS_watch_entry entry = (XS_watch_entry) arg;
-
-    assert(client);
-    assert(entry);
-
-    if (XS_watch_entry_not_in_use(entry)) {
-        if (XS_client_lock(client, 1) == 0) {
-
-            if (client_remove_watch_entry_inlock(client, entry)) {
-                // 删除事件成功, 释放增加到定时器中的引用: entry
-                XS_watch_entry_release(&entry);
-
-                // 删除事件成功, 移除本事件
-                ret = -1;
-            }
-
-            XS_client_unlock(client);
-        }
-    }
-
-    return ret;
 }
 
 
@@ -265,84 +229,43 @@ error_exit:
 
 int lscb_add_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client, XS_watch_path parent)
 {
-    int  lnk;
+    int  len;
 
     char resolved_path[XSYNC_PATH_MAXSIZE];
-    char route[XSYNC_PATH_MAXSIZE];
+    char pathbuf[XSYNC_PATH_MAXSIZE];
 
-    lnk = fileislink(path, 0, 0);
+    assert(parent == 0);
 
     if (isdir(path)) {
-        if (! parent) {
-            // watch 的子目录必须是符号链接
-            if (lnk) {
-                char * abspath = realpath(path, resolved_path);
+        char * abspath = realpath(path, resolved_path);
 
-                if (abspath) {
-                    XS_watch_path  wp;
+        if (abspath) {
+            /**
+             * abspath = '/path/to/watch-local/logs'
+             * path   = '/path/to/watch/logs'
+             * pathid = 'logs'
+             */
+            XS_watch_path  wp;
 
-                    // abspath = '/path/to/watch-local/logs'
-                    // path   = '/path/to/watch/logs'
-                    // pathid = 'logs'
+            char *pathid = strrchr(path, '/') + 1;
 
-                    char *pathid = strrchr(path, '/') + 1;
+            LOGGER_DEBUG("path-id: %s -> (%s)", pathid, abspath);
 
-                    LOGGER_DEBUG("path-id: %s -> (%s)", pathid, abspath);
+            if (XS_watch_path_create(pathid, abspath, IN_ACCESS | IN_MODIFY | IN_ONLYDIR, parent, &wp) == XS_SUCCESS) {
+                // route 是服务端的路径
+                len = XS_watch_path_get_pathid_route(wp, pathbuf);
 
-                    if (XS_client_lock(client, 1) == 0) {
+                pathbuf[len] = 0;
 
-                        if (XS_watch_path_create(pathid, abspath, IN_ACCESS | IN_MODIFY | IN_ONLYDIR, parent, &wp) == XS_SUCCESS) {
-                            // route 是服务端的路径
-                            int len = XS_watch_path_get_pathid_route(wp, route);
-                            route[len] = 0;
+                LOGGER_DEBUG("path-route(%s): %s -> (%s)", pathbuf, pathid, abspath);
 
-                            LOGGER_DEBUG("pathid-route(%s): %s -> (%s)", route, pathid, abspath);
-
-                            if (! XS_client_add_watch_path(client, wp)) {
-                                XS_watch_path_release(&wp);
-                            }
-                        }
-
-                        XS_client_unlock(client);
-                    }
-                } else {
-                    LOGGER_ERROR("realpath error(%d): %s - (%s)", errno, strerror(errno), path);
+                if (! XS_client_add_watch_path(client, wp)) {
+                    XS_watch_path_release(&wp);
                     return (-4);
                 }
-            } else {
-                LOGGER_WARN("ignored path: %s", path);
             }
         } else {
-            // 目录无所谓是不是链接
-            char * abspath = realpath(path, resolved_path);
-
-            if (abspath) {
-                XS_watch_path  wp;
-
-                char *pathid = strrchr(path, '/') + 1;
-
-                LOGGER_DEBUG("path-id: %s => (%s)", pathid, abspath);
-
-                if (XS_client_lock(client, 1) == 0) {
-
-                    if (XS_watch_path_create(pathid, abspath, IN_ACCESS | IN_MODIFY | IN_ONLYDIR, parent, &wp) == XS_SUCCESS) {
-                        // route 是服务端的路径
-                        int len = XS_watch_path_get_pathid_route(wp, route);
-                        route[len] = 0;
-
-                        LOGGER_DEBUG("pathid-route(%s): %s -> (%s)", route, pathid, abspath);
-
-                        if (! XS_client_add_watch_path(client, wp)) {
-                            XS_watch_path_release(&wp);
-                        }
-                    }
-
-                    XS_client_unlock(client);
-                }
-            } else {
-                LOGGER_ERROR("realpath error(%d): %s - (%s)", errno, strerror(errno), path);
-                return (-4);
-            }
+            LOGGER_WARN("realpath error(%d): %s - (%s)", errno, strerror(errno), path);
         }
     }
 
@@ -650,6 +573,11 @@ XS_RESULT XS_client_conf_load_xml (XS_client client, const char * config_file)
     mxmlDelete(xml);
     fclose(fp);
 
+    client->is_config_xml = (int) strlen(config_file);
+    strncpy(client->watch_parent, config_file, client->is_config_xml);
+    client->watch_parent[client->is_config_xml] = 0;
+    client->is_config_xml = 1;
+
     return XS_SUCCESS;
 
 error_exit:
@@ -829,6 +757,8 @@ extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_
         return err;
     }
 
+    client->is_config_xml = 0;
+
     memcpy(client->watch_parent, inbuf, sizeof(inbuf));
 
     n = (int) strlen(inbuf);
@@ -843,26 +773,52 @@ extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_
     }
 
     err = listdir(watch_parent, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_add_watch_path, (void*) client, 0);
+
     if (! err) {
-        err = listdir(watch_parent, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_init_watch_path, (void*) client, 0);
-
-        if (! err) {
-            XS_client_list_watch_paths(client, watch_path_set_sid_masks_cb, client);
-
-            return XS_SUCCESS;
-        }
+        return XS_SUCCESS;
     }
 
-    return err;
+    return XS_ERROR;
 }
 
 
-extern int XS_client_prepare_events (XS_client client, const XS_watch_path wp, struct inotify_event *inevent, XS_watch_event events[])
+/**
+ * 必须在锁 event_map_lock 中调用
+ */
+extern int XS_client_prepare_watch_events (XS_client client, struct inotify_event *inevent, XS_watch_event events[XSYNC_SERVER_MAXID + 1])
 {
+    int num = 0;
+
+    XS_watch_event event = 0;
+
+    int hash = BKDRHash2(inevent->name, XSYNC_WATCH_PATH_HASHMAX);
+
+    do {
+        struct hlist_node *hp;
+
+        hlist_for_each(hp, &client->event_map_hlist[hash]) {
+            struct xs_watch_event_t *p = hlist_entry(hp, struct xs_watch_event_t, i_hash);
+
+            if (p->namelen == inevent->len && ! strncmp(p->pathname, inevent->name, inevent->len)) {
+                LOGGER_DEBUG("existed event=%p (task=%lld name=%s)", p, (long long) p->taskid, p->pathname);
+                return 0;
+            }
+        }
+    } while(0);
+
+    XS_watch_event_create(inevent, client, hash, &event);
+
+    hlist_add_head(&event->i_hash, &client->event_map_hlist[event->hash]);
+
+    events[num++] = event;
+
+    return num;
+
+    /*
     int events_maxsid = 0;
 
-    if (XS_client_lock(client, 1) == 0) {
-        int sid = 1;
+
+    int sid = 1;
         int maxsid = XS_client_get_server_maxid(client);
 
         for (; sid <= maxsid; sid++) {
@@ -915,10 +871,9 @@ extern int XS_client_prepare_events (XS_client client, const XS_watch_path wp, s
                 events_maxsid = sid;
             }
         }
-
-        XS_client_unlock(client);
     }
+    */
 
-    return events_maxsid;
+    return 0;
 }
 

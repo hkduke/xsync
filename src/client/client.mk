@@ -2,14 +2,14 @@
 # @file: client.mk
 #   see: "client.mk.another" for another style of client.mk
 #
-# @version: 0.0.4
+# @version: 0.0.7
 # @create: 2018-05-18 14:00:00
-# @update: 2018-09-05 20:35:18
+# @update: 2018-09-12 16:47:57
 #######################################################################
 
 # !!! DO NOT change APPNAME and VERSION only when you make sure do that !
 APPNAME := xsync-client
-VERSION := 0.0.4
+VERSION := 0.0.7
 
 TARGET := ${APPNAME}-${VERSION}
 
@@ -28,6 +28,7 @@ TGT_LDLIBS  := \
 	${LIB_PREFIX}/libcrypto.a \
 	${LIB_PREFIX}/libssl.a \
 	${LIB_PREFIX}/libz.a \
+	${LIB_PREFIX}/libinotifytools.a \
 	-lrt \
 	-ldl \
 	-lpthread

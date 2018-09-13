@@ -44,13 +44,14 @@ extern "C" {
 #include "../common/log4c_logger.h"
 
 #include "../common/threadlock.h"
-#include "../common/inotiapi.h"
 
 #include "../xsync-error.h"
 #include "../xsync-config.h"
 #include "../xsync-protocol.h"
 
 #include "server_opts.h"
+
+#include "inotiapi.h"
 
 
 typedef struct xs_client_t              * XS_client;
@@ -91,6 +92,8 @@ typedef struct xs_appopts_t
  * XS_client application api
  */
 extern XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient);
+
+extern XS_client XS_client_retain (XS_client *pClient);
 
 extern XS_VOID XS_client_release (XS_client *pClient);
 

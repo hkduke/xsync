@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.7
  *
  * @create: 2018-01-29
  *
- * @update: 2018-08-10 18:11:59
+ * @update: 2018-09-12 16:45:03
  */
 
 #include "client_api.h"
@@ -92,7 +92,7 @@ XS_RESULT XS_watch_path_create (const char * pathid, const char * fullpath, uint
     }
 
     wpath->parent_wp = parent;
-    
+
     *outwp = (XS_watch_path) RefObjectInit(wpath);
 
     LOGGER_DEBUG("path=%p (%s=>%s)", wpath, wpath->pathid, wpath->fullpath);
@@ -141,30 +141,6 @@ XS_path_filter XS_watch_path_get_excluded_filter (XS_watch_path wp, int sid)
 }
 
 
-extern XS_RESULT XS_watch_path_sweep (XS_watch_path wp, void *client)
-{
-    int err;
-
-    char inbuf[XSYNC_PATH_MAXSIZE];
-
-    LOGGER_DEBUG("sweeping: %s", wp->fullpath);
-
-    err = listdir(wp->fullpath, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_add_watch_path, client, wp);
-
-    if (! err) {
-        err = listdir(wp->fullpath, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_init_watch_path, client, wp);
-
-        if (! err) {
-            XS_client_list_watch_paths(client, watch_path_set_sid_masks_cb, client);
-
-            return XS_SUCCESS;
-        }
-    }
-
-    return err;
-}
-
-
 extern XS_watch_path XS_watch_path_get_parent (XS_watch_path wp)
 {
     if (! wp) {
@@ -178,7 +154,7 @@ extern XS_watch_path XS_watch_path_get_parent (XS_watch_path wp)
 extern int XS_watch_path_get_pathid_route (XS_watch_path wp, char route[XSYNC_PATH_MAXSIZE])
 {
     XS_watch_path parent = XS_watch_path_get_parent(wp);
-   
+
     if (parent) {
         int len = XS_watch_path_get_pathid_route(parent, route);
         return len + snprintf(route + len, XSYNC_PATH_MAXSIZE, "/%s", wp->pathid);

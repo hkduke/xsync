@@ -26,7 +26,7 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.7
  *
  * @create: 2018-01-24
  *
@@ -52,19 +52,14 @@ void xs_watch_event_delete (void *pv)
 
     LOGGER_TRACE0();
 
-    // 本对象(event)即将被删除, 先设置本对象不再被 entry 使用
-    assert(event->entry);
+    // TODO: 本对象(event)即将被删除
 
-    // 告诉 entry 不再使用, 先关闭文件对象
-    watch_entry_close_file(event->entry);
-
-    __interlock_release(&event->entry->in_use);
+    // 从 event_map_hlist 清除自身
+    hlist_del(&event->i_hash);
 
     // 释放引用计数
-    XS_watch_entry_release(&event->entry);
     XS_client_release(&event->client);
 
-    event->entry = 0;
     event->client = 0;
 
     // DONOT release XS_server_conn since it not a RefObject !
@@ -73,36 +68,37 @@ void xs_watch_event_delete (void *pv)
 }
 
 
-extern XS_VOID XS_watch_event_create (int inevent_mask, XS_client client, XS_watch_entry entry, XS_watch_event *outEvent)
+extern XS_VOID XS_watch_event_create (struct inotify_event * inevent, XS_client client, int hash, XS_watch_event *outEvent)
 {
     XS_watch_event event;
 
     *outEvent = 0;
 
-    event = (XS_watch_event) mem_alloc(1, sizeof(struct xs_watch_event_t));
+    event = (XS_watch_event) mem_alloc(1, sizeof(struct xs_watch_event_t) + inevent->len + 1);
 
     // 增加 client 计数
-    event->client = (XS_client) RefObjectRetain((void**) &client);
+    event->client = XS_client_retain(&client);
 
-    // 增加 entry 计数
-    event->entry = (XS_watch_entry) RefObjectRetain((void**) &entry);
+    //event->server = XS_client_get_server_opts(client, entry->sid);
 
-    if (! event->client || ! event->entry) {
-        LOGGER_FATAL("exit for application error");
-        exit(XS_ERROR);
+    event->inevent_mask = inevent->mask;
+
+    // 复制文件名
+    event->namelen = inevent->len;
+    memcpy(event->pathname, inevent->name, inevent->len);
+    event->pathname[event->namelen] = 0;
+
+    if (hash == -1) {
+        event->hash = BKDRHash2(event->pathname, XSYNC_WATCH_PATH_HASHMAX);
+    } else {
+        event->hash = hash;
     }
-
-    __interlock_set(&entry->in_use, 1);
-
-    event->server = XS_client_get_server_opts(client, entry->sid);
-
-    event->inevent_mask = inevent_mask;
 
     event->taskid = __interlock_add(&client->task_counter);
 
     *outEvent = (XS_watch_event) RefObjectInit(event);
 
-    LOGGER_TRACE("event=%p (task=%lld)", event, (long long) event->taskid);
+    LOGGER_DEBUG("new event=%p (task=%lld name=%s)", event, (long long) event->taskid, (char*) event->pathname);
 }
 
 

@@ -82,4 +82,12 @@ make && make install
 rm -rf ${_cdir}/libevent-2.1.8-stable
 cd ${_cdir}
 
+echo "---- build and install <inotify-tools-3.20.2> ..."
+tar -zxf ${_cdir}/inotify-tools-3.20.2.tar.gz
+cd ${_cdir}/inotify-tools-3.20.2/
+./configure --prefix=${INSTALLDIR}
+make && make install
+rm -rf ${_cdir}/inotify-tools-3.20.2
+cd ${_cdir}
+
 echo "[success] all packages installed at: ${INSTALLDIR}"

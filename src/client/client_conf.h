@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.5
  *
  * @create: 2018-01-25
  *
- * @update: 2018-08-10 18:11:59
+ * @update: 2018-09-07 18:59:41
  */
 
 #ifndef CLIENT_CONF_H_INCLUDED
@@ -86,8 +86,10 @@ typedef struct xs_client_t
      */
     xs_server_opts  servers_opts[XSYNC_SERVER_MAXID + 1];
 
-    /** inotify fd */
-    int infd;
+    /**
+     * interval in seconds
+     */
+    int interval_seconds;
 
     /** queue size per thread */
     int queues;
@@ -99,26 +101,53 @@ typedef struct xs_client_t
     threadpool_t *pool;
     void        **thread_args;
 
-    /* 监控目录的父目录的绝对路径: 监控的目录必须符号链接, 作为 path-id */
+    /* 是(1)否(0)重启监控(当配置更改时有必要重启监控) */
+    volatile int inotify_reload;
+
+    /* 监控目录的父目录的绝对路径: 监控的目录名作为 pathid */
     char watch_parent[XSYNC_PATH_MAXSIZE];
 
-    /** hash table for wd (watch descriptor) -> watch_path */
-    XS_watch_path wd_table[XSYNC_WATCH_PATH_HASHMAX + 1];
+    /* 上述 watch_parent 是(1)否(0)为保存配置文件全路径 */
+    int is_config_xml;
+
+
+    /**
+     * event_map_hlist: a hash map for XS_watch_event
+     * event_map_lock: 访问 event_map_hlist 的锁
+     */
+    struct hlist_head event_map_hlist[XSYNC_WATCH_PATH_HASHMAX + 1];
+    thread_lock_t event_map_lock;
+
+
 
     /**
      * hash map for watch_entry -> watch_entry
      */
     XS_watch_entry entry_map[XSYNC_WATCH_ENTRY_HASHMAX + 1];
 
-    /**
-     * dhlist for watch path:
-     *    watch_path list and hashmap
-     */
+    /** hash table for wd (watch descriptor) -> watch_path */
+    XS_watch_path wd_table[XSYNC_WATCH_PATH_HASHMAX + 1];
+
+    //DEL
     struct hlist_head wp_hlist[XSYNC_WATCH_PATH_HASHMAX + 1];
 
     /* buffer must be in lock */
     char inlock_buffer[XSYNC_BUFSIZE];
 } xs_client_t;
+
+
+__no_warning_unused(static)
+inline int client_is_inotify_reload(struct xs_client_t *client)
+{
+    return __interlock_get(&client->inotify_reload);
+}
+
+
+__no_warning_unused(static)
+inline void client_set_inotify_reload(struct xs_client_t *client, int reload)
+{
+    __interlock_set(&client->inotify_reload, reload);
+}
 
 
 /**
@@ -322,7 +351,7 @@ XS_BOOL client_remove_watch_entry_inlock (XS_client client, XS_watch_entry entry
 }
 
 
-extern int XS_client_prepare_events (XS_client client, const XS_watch_path wp, struct inotify_event *inevent, XS_watch_event events[]);
+extern int XS_client_prepare_watch_events (XS_client client, struct inotify_event *inevent, XS_watch_event events[XSYNC_SERVER_MAXID + 1]);
 
 
 #if defined(__cplusplus)

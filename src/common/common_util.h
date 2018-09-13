@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.7
  *
  * @create: 2018-01-09
  *
- * @update: 2018-08-10 18:11:59
+ * @update: 2018-09-12 16:36:09
  */
 
 #ifndef COMMON_UTIL_H_INCLUDED
@@ -52,9 +52,6 @@ extern "C"
 
 #include "cshell.h"
 
-/** inotify api */
-#include "inotiapi.h"
-
 /** socket api */
 #include "sockapi.h"
 
@@ -66,9 +63,25 @@ extern "C"
 int  getrusage (int, struct rusage *);
 #endif
 
+/**
+* The compiler tries to warn you that you lose bits when casting from void *
+*   to int. It doesn't know that the void * is actually an int cast, so the
+*   lost bits are meaningless.
+*
+* A double cast would solve this (int)(uintptr_t)t->key. It first casts void *
+*   to uintptr_t (same size, no warning), then uintptr_t to int (number to
+*   number, no warning). Need to include <stdint.h> to have the uintptr_t type
+*   (an integral type with the same size as a pointer).
+*/
+#define pv_cast_to_int(pv)    ((int) (uintptr_t) (void*) (pv))
+#define int_cast_to_pv(ival)    ((void*) (uintptr_t) (int) (ival))
 
-__attribute__((used))
-static void print_cpu_time (void)
+
+typedef int (*listdir_callback_t)(const char * path, int pathlen, struct dirent *ent, void * arg1, void *arg2);
+
+
+__no_warning_unused(static)
+void print_cpu_time (void)
 {
     double user, sys;
     struct rusage myusage, childusage;
@@ -93,8 +106,8 @@ static void print_cpu_time (void)
 #ifndef _SIGNAL_H
 typedef void sigfunc(int);
 
-__attribute__((used))
-static sigfunc * signal (int signo, sigfunc *func)
+__no_warning_unused(static)
+sigfunc * signal (int signo, sigfunc *func)
 {
     struct sigaction act, oact;
 
@@ -124,8 +137,8 @@ static sigfunc * signal (int signo, sigfunc *func)
 /**
  * memory helper api
  */
-__attribute__((used)) __attribute__((malloc))
-static inline void * mem_alloc (int num, size_t size)
+__no_warning_unused(static) __attribute__((malloc))
+inline void * mem_alloc (int num, size_t size)
 {
     void * pv = calloc(num, size);
     if (! pv) {
@@ -136,8 +149,8 @@ static inline void * mem_alloc (int num, size_t size)
 }
 
 
-__attribute__((used)) __attribute__((malloc))
-static inline void * mem_realloc (void * pvOld, size_t newSize)
+__no_warning_unused(static) __attribute__((malloc))
+inline void * mem_realloc (void * pvOld, size_t newSize)
 {
     void * pvNew = realloc(pvOld, newSize);
     if (! pvNew) {
@@ -148,8 +161,8 @@ static inline void * mem_realloc (void * pvOld, size_t newSize)
 }
 
 
-__attribute__((used))
-static inline void mem_free (void **ppv)
+__no_warning_unused(static)
+inline void mem_free (void **ppv)
 {
     if (ppv) {
         void * pv = *ppv;
@@ -160,33 +173,38 @@ static inline void mem_free (void **ppv)
     }
 }
 
-
 /**
-* The compiler tries to warn you that you lose bits when casting from void *
-*   to int. It doesn't know that the void * is actually an int cast, so the
-*   lost bits are meaningless.
-*
-* A double cast would solve this (int)(uintptr_t)t->key. It first casts void *
-*   to uintptr_t (same size, no warning), then uintptr_t to int (number to
-*   number, no warning). Need to include <stdint.h> to have the uintptr_t type
-*   (an integral type with the same size as a pointer).
-*/
-#define pv_cast_to_int(pv)    ((int) (uintptr_t) (void*) (pv))
-#define int_cast_to_pv(ival)    ((void*) (uintptr_t) (int) (ival))
+ * set timeout in milliseconds
+ *   struct timeval now;
+ *   struct timespec timo;
+ *
+ *   timespec_reset_timeout(&timo, &now, 100);
+ */
+__no_warning_unused(static)
+inline void timespec_reset_timeout (struct timespec *timo, struct timeval *now, long timeout_ms)
+{
+    gettimeofday(now, 0);
+
+    long nsec = now->tv_usec * 1000 + (timeout_ms % 1000) * 1000000;
+
+    timo->tv_sec = now->tv_sec + nsec / 1000000000 + timeout_ms / 1000;
+
+    timo->tv_nsec = nsec % 1000000000;
+}
 
 
 /**
  * trim specified character in given string
  */
-__attribute__((used))
-static inline char * trim (char * s, char c)
+__no_warning_unused(static)
+inline char * trim (char * s, char c)
 {
     return (*s==0)?s:(((*s!=c)?(((trim(s+1,c)-1)==s)?s:(*(trim(s+1,c)-1)=*s,*s=c,trim(s+1,c))):trim(s+1,c)));
 }
 
 
-__attribute__((used))
-static inline char * lrtrim (char * s, char c)
+__no_warning_unused(static)
+inline char * lrtrim (char * s, char c)
 {
     char * l, *r;
 
@@ -209,8 +227,8 @@ static inline char * lrtrim (char * s, char c)
 /**
  * trim specified characters in given string
  */
-__attribute__((used))
-static inline char * trims (char *s, char *chrs)
+__no_warning_unused(static)
+inline char * trims (char *s, char *chrs)
 {
     char *p = chrs;
     while (*p != 0) {
@@ -219,8 +237,8 @@ static inline char * trims (char *s, char *chrs)
     return s;
 }
 
-
-static inline char * strrplchr (char *s, char c, char d)
+__no_warning_unused(static)
+inline char * strrplchr (char *s, char c, char d)
 {
     char * p = s;
     while (*p) {
@@ -234,8 +252,8 @@ static inline char * strrplchr (char *s, char c, char d)
 
 
 #ifndef _MSC_VER
-__attribute__((used))
-static inline char * strlwr(char * str)
+__no_warning_unused(static)
+inline char * strlwr(char * str)
 {
     if (! str) {
         return str;
@@ -252,8 +270,8 @@ static inline char * strlwr(char * str)
 }
 
 
-__attribute__((used))
-static inline char * strupr(char * str)
+__no_warning_unused(static)
+inline char * strupr(char * str)
 {
     char * p = str;
 
@@ -266,8 +284,8 @@ static inline char * strupr(char * str)
 #endif /* _MSC_VER */
 
 
-__attribute__((used))
-static int check_file_mode (const char * file, int mode /* R_OK, W_OK */)
+__no_warning_unused(static)
+int check_file_mode (const char * file, int mode /* R_OK, W_OK */)
 {
     if (0 == access(file, mode)) {
         return 0;
@@ -278,8 +296,8 @@ static int check_file_mode (const char * file, int mode /* R_OK, W_OK */)
 }
 
 
-__attribute__((used))
-static int isdir(const char *path)
+__no_warning_unused(static)
+int isdir(const char *path)
 {
     struct stat sb;
     int rc;
@@ -294,11 +312,66 @@ static int isdir(const char *path)
 }
 
 
-typedef int (*listdir_callback_t)(const char * path, int pathlen, struct dirent *ent, void * arg1, void *arg2);
+__no_warning_unused(static)
+int fileislink (const char * pathfile, char * inbuf, ssize_t inbufsize)
+{
+    char * sbbuf;
+
+    ssize_t bufsize;
+    ssize_t size;
+
+    if (inbuf) {
+        bufsize = inbufsize;
+        sbbuf = inbuf;
+    } else {
+        bufsize = PATHFILE_MAXLEN + 1;
+        sbbuf = (char *) malloc(bufsize);
+    }
+
+    size = readlink(pathfile, sbbuf, bufsize);
+
+    if (sbbuf != inbuf) {
+        free(sbbuf);
+    }
+
+    if (size == bufsize) {
+        if (inbuf) {
+            snprintf(inbuf, inbufsize, "buff is too small");
+            inbuf[inbufsize - 1] = 0;
+        }
+        return (-1);
+    }
+
+    if (size == -1) {
+        /** errno:
+         *    http://www.virtsync.com/c-error-codes-include-errno
+         */
+        if (errno == EINVAL) {
+            /** file not a link:
+             *    When returned inbuf is undetermined
+             */
+            return 0;
+        }
+
+        if (inbuf) {
+            snprintf(inbuf, inbufsize, "fileislink error(%d): %s", errno, strerror(errno));
+            inbuf[inbufsize - 1] = 0;
+        }
+
+        /* fileislink error */
+        return (-2);
+    }
+
+    /* 1: fileislink ok */
+    if (inbuf) {
+        inbuf[size] = 0;
+    }
+    return 1;
+}
 
 
-__attribute__((used))
-static int listdir(const char * path, char * inbuf, ssize_t inbufsize, listdir_callback_t lscb, void *arg1, void *arg2)
+__no_warning_unused(static)
+int listdir(const char * path, char * inbuf, ssize_t inbufsize, listdir_callback_t lscb, void *arg1, void *arg2)
 {
     DIR *dir;
     struct dirent *ent;
@@ -312,7 +385,12 @@ static int listdir(const char * path, char * inbuf, ssize_t inbufsize, listdir_c
         while ((ent = readdir(dir)) != 0) {
             if (strcmp(ent->d_name, ".") && strcmp(ent->d_name, "..")) {
 
-                pathlen = snprintf(inbuf, inbufsize, "%s/%s", path, ent->d_name);
+                if (path[ strlen(path) - 1 ] == '/') {
+                    pathlen = snprintf(inbuf, inbufsize, "%s%s", path, ent->d_name);
+                } else {
+                    pathlen = snprintf(inbuf, inbufsize, "%s/%s", path, ent->d_name);
+                }
+
                 if (pathlen < 0) {
                     // strerror(errno);
                     err = (-1);
@@ -323,6 +401,25 @@ static int listdir(const char * path, char * inbuf, ssize_t inbufsize, listdir_c
                     // buff is too small
                     err = (-2);
                     break;
+                }
+
+                inbuf[pathlen] = 0;
+
+                if (ent->d_type == DT_DIR) {
+                    inbuf[pathlen++] = '/';
+                } else if (ent->d_type == DT_UNKNOWN) {
+                    if (isdir(inbuf)) {
+                        ent->d_type = DT_DIR;
+                        inbuf[pathlen++] = '/';
+                    }
+
+                    if (fileislink(inbuf, 0, 0)) {
+                        ent->d_type = DT_LNK;
+                    }
+                } else if (ent->d_type == DT_LNK) {
+                    if (isdir(inbuf)) {
+                        inbuf[pathlen++] = '/';
+                    }
                 }
 
                 inbuf[pathlen] = 0;
@@ -348,8 +445,8 @@ static int listdir(const char * path, char * inbuf, ssize_t inbufsize, listdir_c
  *
  * last: 2017-01-09
  */
-__attribute__((used))
-static int getpwd (char *path, int size)
+__no_warning_unused(static)
+int getpwd (char *path, int size)
 {
     ssize_t r;
     char * p;
@@ -378,8 +475,8 @@ static int getpwd (char *path, int size)
 }
 
 
-__attribute__((used))
-static int getfullpath (const char * path, char * outpath, size_t size_outpath)
+__no_warning_unused(static)
+int getfullpath (const char * path, char * outpath, size_t size_outpath)
 {
     int rc;
 
@@ -452,8 +549,8 @@ static int getfullpath (const char * path, char * outpath, size_t size_outpath)
 }
 
 
-__attribute__((used))
-static const char* cmd_system(const char * cmd, char *outbuf, ssize_t outsize)
+__no_warning_unused(static)
+const char* cmd_system(const char * cmd, char *outbuf, ssize_t outsize)
 {
     char * result = 0;
 
@@ -474,8 +571,8 @@ static const char* cmd_system(const char * cmd, char *outbuf, ssize_t outsize)
 
 typedef void (*sighandler_t)(int);
 
-__attribute__((used))
-static int pox_system (const char * cmd)
+__no_warning_unused(static)
+int pox_system (const char * cmd)
 {
     int ret = 0;
     sighandler_t old_handler;
@@ -490,64 +587,6 @@ static int pox_system (const char * cmd)
 }
 
 
-__attribute__((used))
-static int fileislink (const char * pathfile, char * inbuf, ssize_t inbufsize)
-{
-    char * sbbuf;
-
-    ssize_t bufsize;
-    ssize_t size;
-
-    if (inbuf) {
-        bufsize = inbufsize;
-        sbbuf = inbuf;
-    } else {
-        bufsize = PATHFILE_MAXLEN + 1;
-        sbbuf = (char *) malloc(bufsize);
-    }
-
-    size = readlink(pathfile, sbbuf, bufsize);
-
-    if (sbbuf != inbuf) {
-        free(sbbuf);
-    }
-
-    if (size == bufsize) {
-        if (inbuf) {
-            snprintf(inbuf, inbufsize, "buff is too small");
-            inbuf[inbufsize - 1] = 0;
-        }
-        return (-1);
-    }
-
-    if (size == -1) {
-        /** errno:
-         *    http://www.virtsync.com/c-error-codes-include-errno
-         */
-        if (errno == EINVAL) {
-            /** file not a link:
-             *    When returned inbuf is undetermined
-             */
-            return 0;
-        }
-
-        if (inbuf) {
-            snprintf(inbuf, inbufsize, "fileislink error(%d): %s", errno, strerror(errno));
-            inbuf[inbufsize - 1] = 0;
-        }
-
-        /* fileislink error */
-        return (-2);
-    }
-
-    /* 1: fileislink ok */
-    if (inbuf) {
-        inbuf[size] = 0;
-    }
-    return 1;
-}
-
-
 /**
  * returns:
  *
@@ -557,8 +596,8 @@ static int fileislink (const char * pathfile, char * inbuf, ssize_t inbufsize)
  *   error:
  *     <= 0 - failed anyway
  */
-__attribute__((used))
-static int realpathdir (const char * file, char * rpdir, size_t size)
+__no_warning_unused(static)
+int realpathdir (const char * file, char * rpdir, size_t size)
 {
     char * p;
 
@@ -605,8 +644,8 @@ static int realpathdir (const char * file, char * rpdir, size_t size)
 /**
  * http://www.virtsync.com/c-error-codes-include-errno
  */
-__attribute__((used))
-static int getstartcmd (int argc, char ** argv, char * cmdbuf, ssize_t bufsize, const char * link_name)
+__no_warning_unused(static)
+int getstartcmd (int argc, char ** argv, char * cmdbuf, ssize_t bufsize, const char * link_name)
 {
     int err, len;
     char *tmpbin;
@@ -717,8 +756,8 @@ static int getstartcmd (int argc, char ** argv, char * cmdbuf, ssize_t bufsize, 
 }
 
 
-__attribute__((used))
-static void config_log4crc (const char * catname, char * log4crc, char * priority, char * appender, size_t sizeappd, char * buff, ssize_t sizebuf)
+__no_warning_unused(static)
+void config_log4crc (const char * catname, char * log4crc, char * priority, char * appender, size_t sizeappd, char * buff, ssize_t sizebuf)
 {
     int i, ret;
 
@@ -942,8 +981,8 @@ static void config_log4crc (const char * catname, char * log4crc, char * priorit
  *   $ md5sum $file
  *   $ openssl md5 $file
  */
-__attribute__((used))
-static int md5sum_file (const char * filename, char * sbbuf, size_t bufsize)
+__no_warning_unused(static)
+int md5sum_file (const char * filename, char * sbbuf, size_t bufsize)
 {
     FILE * fd;
 

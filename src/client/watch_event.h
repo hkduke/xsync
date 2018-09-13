@@ -26,7 +26,7 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.7
  *
  * @create: 2018-01-24
  *
@@ -59,29 +59,36 @@ typedef struct perthread_data
 } perthread_data;
 
 
-typedef struct xs_watch_event_t
+struct xs_watch_event_t
 {
     EXTENDS_REFOBJECT_TYPE();
 
     /* inotify event mask */
-    int               inevent_mask;
+    int inevent_mask;
 
     /* task serial id */
-    int64_t          taskid;
+    int64_t taskid;
 
     /* reference of XS_client */
-    XS_client        client;
+    XS_client client;
 
     /* reference of XS_watch_entry */
-    XS_watch_entry  entry;
+    XS_watch_entry entry;
 
     /* const reference of server opts for read only */
     xs_server_opts *server;
 
-} xs_watch_event_t;
+    /* see event_map_hlist of XS_client */
+    int hash;
+    struct hlist_node i_hash;
+
+    /* 文件的全路径名长度和全路径名 */
+    int namelen;
+    char pathname[0];
+} __attribute((packed));
 
 
-extern XS_VOID XS_watch_event_create (int inevent_mask, XS_client client, XS_watch_entry entry, XS_watch_event *outEvent);
+extern XS_VOID XS_watch_event_create (struct inotify_event * inevent, XS_client client, int hash, XS_watch_event *outEvent);
 
 extern XS_VOID XS_watch_event_release (XS_watch_event *inEvent);
 
