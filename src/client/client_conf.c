@@ -49,7 +49,7 @@ extern void xs_client_delete (void *pv)
 
     XS_client client = (XS_client) pv;
 
-    LOGGER_TRACE("inotifytools_cleanup");
+    LOGGER_TRACE("inotifytools_cleanup()");
     inotifytools_cleanup();
 
     if (client->pool) {
@@ -82,6 +82,25 @@ extern void xs_client_delete (void *pv)
 
         free(client->thread_args);
     }
+
+    if (client->config_xml_len) {
+        client->config_xml_len = 0;
+        free(client->config_xml);
+        client->config_xml = 0;       
+    }
+
+    if (client->watch_root_len) {
+        client->watch_root_len = 0;
+        free(client->watch_root);
+        client->watch_root = 0;       
+    }
+
+    if (client->path_filter_len) {
+        client->path_filter_len = 0;
+        free(client->path_filter);
+        client->path_filter = 0;       
+    }
+
 
     //??DEL
     client_clear_entry_map(client);
@@ -227,17 +246,16 @@ error_exit:
 }
 
 
-int lscb_add_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client, XS_watch_path parent)
+int lscb_add_watch_path (const char *path, int pathlen, struct dirent *ent, void *arg1, void *arg2)
 {
-    int  len;
-
-    char resolved_path[XSYNC_PATH_MAXSIZE];
     char pathbuf[XSYNC_PATH_MAXSIZE];
 
-    assert(parent == 0);
+    XS_client client = (XS_client) arg1;
+
+    assert(arg2 == 0);
 
     if (isdir(path)) {
-        char * abspath = realpath(path, resolved_path);
+        char *abspath = realpath(path, pathbuf);
 
         if (abspath) {
             /**
@@ -246,18 +264,20 @@ int lscb_add_watch_path (const char * path, int pathlen, struct dirent *ent, XS_
              * pathid = 'logs'
              */
             XS_watch_path  wp;
-
             char *pathid = strrchr(path, '/') + 1;
 
-            LOGGER_DEBUG("path-id: %s -> (%s)", pathid, abspath);
+            LOGGER_INFO("pathid=%s -> (%s)", pathid, abspath);
 
-            if (XS_watch_path_create(pathid, abspath, IN_ACCESS | IN_MODIFY | IN_ONLYDIR, parent, &wp) == XS_SUCCESS) {
+            if (XS_watch_path_create(pathid, abspath, INOTI_EVENTS_MASK, 0, &wp) == XS_SUCCESS) {
+                /*
                 // route 是服务端的路径
                 len = XS_watch_path_get_pathid_route(wp, pathbuf);
 
                 pathbuf[len] = 0;
 
                 LOGGER_DEBUG("path-route(%s): %s -> (%s)", pathbuf, pathid, abspath);
+
+                */
 
                 if (! XS_client_add_watch_path(client, wp)) {
                     XS_watch_path_release(&wp);
@@ -513,82 +533,6 @@ error_exit:
 }
 
 
-XS_RESULT XS_client_conf_load_xml (XS_client client, const char * config_file)
-{
-    FILE *fp;
-
-    const char * attr;
-
-    mxml_node_t *xml;
-    mxml_node_t *root;
-    mxml_node_t *node;
-
-    if (strcmp(strrchr(config_file, '.'), ".xml")) {
-        LOGGER_ERROR("config file end with not '.xml': %s", config_file);
-        return XS_E_PARAM;
-    }
-
-    if (strstr(strrchr(config_file, '/'), XSYNC_CLIENT_APPNAME) !=  strrchr(config_file, '/') + 1) {
-        LOGGER_ERROR("config file start with not '%s': %s", XSYNC_CLIENT_APPNAME, config_file);
-        return XS_E_PARAM;
-    }
-
-    fp = fopen(config_file, "r");
-    if (! fp) {
-        LOGGER_ERROR("fopen error(%d): %s. (%s)", errno, strerror(errno), config_file);
-        return XS_ERROR;
-    }
-
-    xml = mxmlLoadFile(0, fp, MXML_TEXT_CALLBACK);
-    if (! xml) {
-        LOGGER_ERROR("mxmlLoadFile error. (%s)", config_file);
-        fclose(fp);
-        return XS_ERROR;
-    }
-
-    xmlconf_find_element_node(xml, "xs:"XSYNC_CLIENT_APPNAME"-conf", root);
-    {
-        xmlconf_element_attr_check(root, "xmlns:xs", XSYNC_CLIENT_XMLNS, attr);
-        xmlconf_element_attr_check(root, "copyright", XSYNC_COPYRIGHT, attr);
-        xmlconf_element_attr_check(root, "version", XSYNC_CLIENT_VERSION, attr);
-    }
-
-    xmlconf_find_element_node(root, "xs:application", node);
-    {
-        xmlconf_element_attr_read(node, "clientid", 0, attr);
-        xmlconf_element_attr_read(node, "threads", 0, attr);
-        xmlconf_element_attr_read(node, "queues", 0, attr);
-    }
-
-    xmlconf_find_element_node(root, "xs:server-list", node);
-    {
-        xmlconf_list_mxml_nodes(node, "xs:server", (xmlconf_list_node_cb_t) list_server_cb, (void *) client);
-    }
-
-    xmlconf_find_element_node(root, "xs:watch-path-list", node);
-    {
-        xmlconf_list_mxml_nodes(node, "xs:watch-path", (xmlconf_list_node_cb_t) list_watch_path_cb, (void *) client);
-    }
-
-    mxmlDelete(xml);
-    fclose(fp);
-
-    client->is_config_xml = (int) strlen(config_file);
-    strncpy(client->watch_parent, config_file, client->is_config_xml);
-    client->watch_parent[client->is_config_xml] = 0;
-    client->is_config_xml = 1;
-
-    return XS_SUCCESS;
-
-error_exit:
-
-    mxmlDelete(xml);
-    fclose(fp);
-
-    return XS_ERROR;
-}
-
-
 // MXML_WS_BEFORE_OPEN, MXML_WS_AFTER_OPEN, MXML_WS_BEFORE_CLOSE, MXML_WS_AFTER_CLOSE
 //
 static const char * whitespace_cb(mxml_node_t *node, int where)
@@ -745,40 +689,155 @@ extern XS_RESULT XS_client_conf_save_xml (XS_client client, const char * config_
 }
 
 
-extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_parent)
+// 只能初始化一次
+//
+XS_RESULT XS_client_conf_from_xml (XS_client client, const char *config_xml)
 {
-    int err, n;
+    int len;
 
-    char inbuf[XSYNC_PATH_MAXSIZE];
+    FILE *fp;
+    const char * attr;
 
-    err = getfullpath(watch_parent, inbuf, sizeof(inbuf));
-    if (err != 0) {
-        LOGGER_ERROR("bad path: %s", watch_parent);
-        return err;
+    mxml_node_t *xml;
+    mxml_node_t *root;
+    mxml_node_t *node;
+
+    if (! client->config_xml_len) {
+
+        if (client->watch_root_len) {
+            client->watch_root_len = 0;
+            free(client->watch_root);
+            client->watch_root = 0;
+        }
+
+        if (strcmp(strrchr(config_xml, '.'), ".xml")) {
+            LOGGER_ERROR("config file end with not '.xml': %s", config_xml);
+            return XS_E_PARAM;
+        }
+
+        if (strstr(strrchr(config_xml, '/'), XSYNC_CLIENT_APPNAME) !=  strrchr(config_xml, '/') + 1) {
+            LOGGER_ERROR("config file start without '%s': %s", XSYNC_CLIENT_APPNAME, config_xml);
+            return XS_E_PARAM;
+        }
+
+        len = (int) strlen(config_xml);
+        client->config_xml = malloc(len + 1);
+        memcpy(client->config_xml, config_xml, len);
+        client->config_xml[len] = 0;
+        client->config_xml_len = len;
     }
 
-    client->is_config_xml = 0;
-
-    memcpy(client->watch_parent, inbuf, sizeof(inbuf));
-
-    n = (int) strlen(inbuf);
-    if ( inbuf[n - 1] == '/' ) {
-        inbuf[n - 1] = '\0';
+    fp = fopen(client->config_xml, "r");
+    if (! fp) {
+        LOGGER_ERROR("fopen error(%d): %s. (%s)", errno, strerror(errno), client->config_xml);
+        return XS_ERROR;
     }
 
-    if (! strcmp(watch_parent, inbuf)) {
-        LOGGER_INFO("watch parent: %s", client->watch_parent);
-    } else {
-        LOGGER_INFO("watch parent: %s -> %s", watch_parent, client->watch_parent);
+    xml = mxmlLoadFile(0, fp, MXML_TEXT_CALLBACK);
+    if (! xml) {
+        LOGGER_ERROR("mxmlLoadFile error. (%s)", client->config_xml);
+        fclose(fp);
+        return XS_ERROR;
     }
 
-    err = listdir(watch_parent, inbuf, sizeof(inbuf), (listdir_callback_t) lscb_add_watch_path, (void*) client, 0);
-
-    if (! err) {
-        return XS_SUCCESS;
+    xmlconf_find_element_node(xml, "xs:"XSYNC_CLIENT_APPNAME"-conf", root);
+    {
+        xmlconf_element_attr_check(root, "xmlns:xs", XSYNC_CLIENT_XMLNS, attr);
+        xmlconf_element_attr_check(root, "copyright", XSYNC_COPYRIGHT, attr);
+        xmlconf_element_attr_check(root, "version", XSYNC_CLIENT_VERSION, attr);
     }
 
+    xmlconf_find_element_node(root, "xs:application", node);
+    {
+        xmlconf_element_attr_read(node, "clientid", 0, attr);
+        xmlconf_element_attr_read(node, "threads", 0, attr);
+        xmlconf_element_attr_read(node, "queues", 0, attr);
+    }
+
+    xmlconf_find_element_node(root, "xs:server-list", node);
+    {
+        xmlconf_list_mxml_nodes(node, "xs:server", (xmlconf_list_node_cb_t) list_server_cb, (void *) client);
+    }
+
+    xmlconf_find_element_node(root, "xs:watch-path-list", node);
+    {
+        xmlconf_list_mxml_nodes(node, "xs:watch-path", (xmlconf_list_node_cb_t) list_watch_path_cb, (void *) client);
+    }
+
+    mxmlDelete(xml);
+    fclose(fp);
+    return XS_SUCCESS;
+
+error_exit:
+    mxmlDelete(xml);
+    fclose(fp);
     return XS_ERROR;
+}
+
+
+// 只能初始化一次
+//
+extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_root)
+{
+    int err, len;
+    char pathbuf[XSYNC_PATH_MAXSIZE];
+
+    if (! client->watch_root_len) {
+        if (client->config_xml_len) {
+            client->config_xml_len = 0;
+            free(client->config_xml);
+            client->config_xml = 0;
+        }
+
+        if (client->path_filter_len) {
+            client->path_filter_len = 0;
+            free(client->path_filter);
+            client->path_filter = 0;
+        }
+
+        err = getfullpath(watch_root, pathbuf, sizeof(pathbuf));
+        if (err != 0) {
+            LOGGER_ERROR("bad watch root: %s", pathbuf);
+            return XS_ERROR;
+        }
+
+        len = (int) strlen(pathbuf);
+        if ( pathbuf[len - 1] != '/' ) {
+            pathbuf[len++] = '/';
+            pathbuf[len] = '\0';
+        }
+
+        client->watch_root = (char *) malloc(len + 1);
+        memcpy(client->watch_root, pathbuf, len);
+        client->watch_root[len] = 0;
+        client->watch_root_len = len;
+
+        if (! strncmp(watch_root, pathbuf, len-1)) {
+            // 绝对路径
+            LOGGER_INFO("init watch root: %s", client->watch_root);
+        } else {
+            // 符号链接路径
+            LOGGER_INFO("init watch root: %s -> %s", watch_root, client->watch_root);
+        }
+
+        len = snprintf(pathbuf, sizeof(pathbuf), "%spath-filter.sh", client->watch_root);
+        pathbuf[len] = 0;
+
+        if (access(pathbuf, F_OK|R_OK|X_OK) == 0) {
+            client->path_filter = (char *) malloc(len + 1);
+            memcpy(client->path_filter, pathbuf, len);
+            client->path_filter[len] = 0;
+            client->path_filter_len = len;
+
+            LOGGER_INFO("access path-filter.sh ok. (%s)", client->path_filter);
+        } else {
+            LOGGER_ERROR("access path-filter.sh failed(%d): %s (%s)", errno, strerror(errno), pathbuf);
+        }
+    }
+
+    err = listdir(client->watch_root, pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_add_watch_path, (void*) client, 0);
+
+    return (err == 0? XS_SUCCESS : XS_ERROR);
 }
 
 

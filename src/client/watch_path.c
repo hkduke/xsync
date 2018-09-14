@@ -57,18 +57,17 @@ static inline void free_watch_path (void *pv)
 }
 
 
-XS_RESULT XS_watch_path_create (const char * pathid, const char * fullpath, uint32_t events_mask, XS_watch_path parent, XS_watch_path * outwp)
+XS_RESULT XS_watch_path_create (const char *pathid, const char * fullpath, uint32_t events_mask, XS_watch_path parent, XS_watch_path * outwp)
 {
-    int sid;
-    size_t cb;
+    int sid, cb;
 
     XS_watch_path wpath;
 
     *outwp = 0;
 
-    cb = strlen(fullpath) + 1;
+    cb = (int) strlen(fullpath) + 1;
 
-    wpath = (XS_watch_path) mem_alloc(1, sizeof(*wpath) + sizeof(char) * cb);
+    wpath = (XS_watch_path) mem_alloc(1, sizeof(xs_watch_path_t)+sizeof(char)*cb);
 
     // size of fullpath including '\0'
     wpath->pathsize = cb;
@@ -92,11 +91,9 @@ XS_RESULT XS_watch_path_create (const char * pathid, const char * fullpath, uint
     }
 
     wpath->parent_wp = parent;
-
     *outwp = (XS_watch_path) RefObjectInit(wpath);
 
-    LOGGER_DEBUG("path=%p (%s=>%s)", wpath, wpath->pathid, wpath->fullpath);
-
+    LOGGER_DEBUG("path=%p (%s => %s)", wpath, wpath->pathid, wpath->fullpath);
     return XS_SUCCESS;
 }
 

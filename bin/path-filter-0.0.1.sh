@@ -2,6 +2,9 @@
 #
 # @file: path-filter.h
 #   监控目录过滤脚本.
+#
+#      path-filter.h $fullpath $filename
+#
 #   返回值:
 #      100=接受
 #        0=拒绝
@@ -32,21 +35,39 @@ REJECT="-100"
 RELOAD="-1"
 
 ###########################################################
-# 目录过滤函数!!
+# 仅路径(path)过滤: 路径是绝对路径的全路径名, 以 '/' 结尾 !
 #
-function do_path_filter() {
-    local wp="$1"
+function filter_path() {
+    local path="$1"
 
 
     echo "$ACCEPT"
 }
 
+
 ###########################################################
-# 目录的绝对全路径以第一个参数传递进来
+# 路径(path)+文件名(name)过滤
 #
-watchpath="$1"
+function filter_file() {
+    local path="$1"
+    local name="$2"
 
-echoinfo "filter path: '"$watchpath"'"
 
-# 调用过滤函数
-do_path_filter "$watchpath"
+    echo "$ACCEPT"
+}
+
+
+###########################################################
+# 参数 1: 全路径(必选)
+# 参数 2: 文件名(可选)
+#
+
+if [ $# == 1 ]; then
+    echoinfo "filter path: '"$1"'"
+
+    filter_path "$1"
+elif [ $# == 2 ]; then
+    echoinfo "filter file: '"$1""$2"'"
+
+    filter_file "$1" "$2"
+fi

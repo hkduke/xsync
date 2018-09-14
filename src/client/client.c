@@ -26,7 +26,7 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.7
+ * @version: 0.0.5
  *
  * @create: 2018-01-24
  *
@@ -309,9 +309,6 @@ static void * thread_func (void *arg)
     printf("thread#%lld start ...\n", (long long) tid);
 
     do {
-        char msg[256];
-        int len, total = 0;
-
         xres = XS_server_conn_create((xs_server_opts *) arg, clientid, &xcon);
 
         if (xres != XS_SUCCESS) {

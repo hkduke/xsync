@@ -112,11 +112,11 @@ extern XS_VOID XS_client_bootstrap (XS_client client);
  * implemented in:
  *   client_conf.c
  */
-extern XS_RESULT XS_client_conf_load_xml (XS_client client, const char *xmlfile);
+extern XS_RESULT XS_client_conf_save_xml (XS_client client, const char *config_xml);
 
-extern XS_RESULT XS_client_conf_save_xml (XS_client client, const char *xmlfile);
+extern XS_RESULT XS_client_conf_from_xml (XS_client client, const char *config_xml);
 
-extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_parent);
+extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_root);
 
 
 /**

@@ -285,7 +285,7 @@ inline char * strupr(char * str)
 
 
 __no_warning_unused(static)
-int check_file_mode (const char * file, int mode /* R_OK, W_OK */)
+inline int check_file_mode (const char * file, int mode /* R_OK, W_OK */)
 {
     if (0 == access(file, mode)) {
         return 0;
@@ -296,8 +296,35 @@ int check_file_mode (const char * file, int mode /* R_OK, W_OK */)
 }
 
 
+/**
+ * append slash '/' to path
+ */
 __no_warning_unused(static)
-int isdir(const char *path)
+int slashpath(char *pathbuf, ssize_t bufsize)
+{
+    char *q = pathbuf;
+    char *p = 0;
+
+    while(*q) {
+        p = q++;
+    }
+
+    if (p && (*p) != '/') {
+        if (q - pathbuf >= bufsize - 1) {
+            /* insufficent path */
+            return (-1);
+        }
+
+        *q++ = '/';
+        *q = '\0';
+    }
+
+    return (q - pathbuf);
+}
+
+
+__no_warning_unused(static)
+inline int isdir(const char *path)
 {
     struct stat sb;
     int rc;

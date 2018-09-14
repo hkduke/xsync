@@ -93,10 +93,7 @@
  *                    |
  *                    |     (以下文件为可选)
  *                    |
- *                    +---- path-filter.sh  (目录过滤脚本: 用户实现)
- *                    |
- *                    +---- file-filter.sh  (文件过滤脚本: 用户实现)
- *
+ *                    +---- path-filter.sh  (路径和文件名过滤脚本: 用户实现)
  *
  */
 #include "client_api.h"
@@ -228,94 +225,64 @@ XS_RESULT client_add_inotify_event (XS_client client, struct inotify_event * ine
 __no_warning_unused(static)
 int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX])
 {
-    int len, ok, wd;
-    char *abspath = realpath(path, pathbuf);
+    int len, ret, wd;
 
+    char *abspath = realpath(path, pathbuf);
     if (! abspath) {
         LOGGER_ERROR("realpath error(%d): %s (%s)", errno, strerror(errno), path);
         return 0;
     }
 
-    // 目录以 '/' 结尾
-    len = strlen(abspath);
-    abspath[ len++ ] = '/';
-    abspath[ len ] = '\0';
+    len = slashpath(abspath, PATH_MAX);
+    if (len <= 0) {
+        LOGGER_ERROR("path too long: %s", path);
+        return 0;
+    }
+
+    LOGGER_TRACE("wpath={%s}", abspath);
 
     // 调用外部脚本, 过滤监控路径
-    ok = 0;
-    do {
-        char path_filter_sh[XSYNC_PATH_MAXSIZE + XSYNC_PATH_MAXSIZE];
+    ret = FILTER_WPATH_ACCEPT;
 
-        if (client->is_config_xml) {
-            // 取得外部脚本文件全路径名
-            LOGGER_ERROR("TODO: get filter shell file if using config xml");
+    if (client->path_filter_len) {
+        if (access(client->path_filter, F_OK|R_OK|X_OK) == 0) {
+            int cbsh = client->path_filter_len + len + 4;
 
+            char *filter_sh = mem_alloc(1, sizeof(char)*(cbsh + 256));
+
+            snprintf(filter_sh, cbsh, "%s '%s'", client->path_filter, abspath);
+            LOGGER_INFO("cmd={%s}", filter_sh);
+
+            const char *result = cmd_system(filter_sh, filter_sh + cbsh, 256);
+            if (result) {
+                ret = atoi(result);
+            }
+
+            mem_free((void**) &filter_sh);
 
         } else {
-            len = snprintf(path_filter_sh, XSYNC_PATH_MAXSIZE, "%spath-filter.sh", client->watch_parent);
-            if (len > 0) {
-                path_filter_sh[len] = 0;
-
-                if ( access(path_filter_sh, F_OK|R_OK|X_OK) == 0 ) {
-                    len = snprintf(path_filter_sh, sizeof(path_filter_sh), "%spath-filter.sh '%s'",
-                        client->watch_parent, abspath);
-
-                    if (len > 0) {
-                        path_filter_sh[len] = 0;
-                        ok = 1;
-                    } else {
-                        LOGGER_ERROR("path is too long: %spath-filter.sh '%s'", client->watch_parent, abspath);
-                    }
-                } else {
-                    LOGGER_ERROR("path filter cannot access: %s (%s)", strerror(errno), path_filter_sh);
-                }
-            } else {
-                LOGGER_ERROR("path filter is too long: %spath-filter.sh", client->watch_parent);
-            }
+            LOGGER_ERROR("access failed(%d): %s (%s)", errno, strerror(errno), client->path_filter);
         }
+    }
 
-        if (ok) {
-            // 发现有效的脚本, 执行过滤命令
-            char outbuf[XSYNC_PATH_MAXSIZE];
-            LOGGER_INFO("command: %s", path_filter_sh);
-            const char *result = cmd_system(path_filter_sh, outbuf, sizeof(outbuf));
+    if (ret == FILTER_WPATH_ACCEPT) {
+        // 接受目录
+        LOGGER_DEBUG("ACCEPT(=%d): %s", ret, abspath);
 
-            ok = 0;
-
-            if (result) {
-                ok = atoi(result);
-            }
-
-            if (ok == FILTER_WPATH_ACCEPT) {
-                LOGGER_INFO("result(=%d): ACCEPT", ok);
-            } else if (ok == FILTER_WPATH_REJECT) {
-                LOGGER_INFO("result(=%d): REJECT", ok);
-            } else if (ok == FILTER_WPATH_RELOAD) {
-                LOGGER_INFO("result(=%d): RELOAD", ok);
-            } else {
-                LOGGER_ERROR("result(=%d): UNKNOWN", ok);
-                return 0;
-            }
-        }
-    } while (0);
-
-    if (! ok || ok == FILTER_WPATH_ACCEPT) {
-        // 不使用过滤脚本或接受目录
         wd = inotifytools_wd_from_filename(abspath);
-
         if (wd < 1) {
             // 接受的监视目录不存在, 重启监视
             LOGGER_ERROR("path not in watch: %s", abspath);
             return (-1);
         }
-
         return wd;
     }
 
-    if (ok == FILTER_WPATH_REJECT) {
+    if (ret == FILTER_WPATH_REJECT) {
         // 拒绝目录
-        wd = inotifytools_wd_from_filename(abspath);
+        LOGGER_DEBUG("REJECT(=%d): %s", ret, abspath);
 
+        wd = inotifytools_wd_from_filename(abspath);
         if (wd > 0) {
             // 拒绝的监视目录存在, 删除监视
             if (inotifytools_remove_watch_by_wd(wd)) {
@@ -330,95 +297,97 @@ int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX
         }
 
         // 拒绝目录已经被移除监视, 不再递归
-        LOGGER_DEBUG("reject watch path: %s", abspath);
         return 0;
     }
 
-    LOGGER_WARN("reload inotify watch(%d)", ok);
-    return (-1);
+    if (ret == FILTER_WPATH_RELOAD) {
+        // 重置
+        LOGGER_DEBUG("RELOAD(=%d): %s", ret, abspath);
+        return (-1);
+    }
+
+    LOGGER_ERROR("UNEXPECTED(=%d): %s", ret, abspath);
+    return 0;
 }
 
 
 __no_warning_unused(static)
-int filter_watch_file (XS_client client, int wd, const char * pathfile, char pathbuf[PATH_MAX])
+int filter_watch_file (XS_client client, int wd, const char *pname, int pnamelen, char pathbuf[PATH_MAX])
 {
-    int len, ok;
+    int ret;
+    int namelen = 0;
+    const char *name = 0;
 
-    const char *abspathfile = (pathbuf? realpath(pathfile, pathbuf) : pathfile);
-    if (! abspathfile) {
-        LOGGER_ERROR("realpath error(%d): %s (%s)", errno, strerror(errno), pathfile);
+    char *wpath = 0;
+
+    if (! pname) {
+        LOGGER_ERROR("application error: null name");
         return 0;
     }
 
-    // 调用外部脚本, 过滤监控路径
-    ok = 0;
-    do {
-        char path_filter_sh[XSYNC_PATH_MAXSIZE + XSYNC_PATH_MAXSIZE];
+    if (wd > 0) {
+        wpath = inotifytools_filename_from_wd(wd);
+        name = pname;
+        namelen = pnamelen;
+    } else {
+        name = strrchr(pname, '/');
+        if (! name || ! *name++) {
+            LOGGER_ERROR("application error: null path name");
+            return 0;
+        }
+        memcpy(pathbuf, pname, name - pname);
+        pathbuf[name - pname] = 0;
+        wpath = pathbuf;
+        namelen = pnamelen - (name - pname);
+    }
 
-        if (client->is_config_xml) {
-            // 取得外部脚本文件全路径名
-            LOGGER_ERROR("TODO: get filter shell file if using config xml");
+    if (! wpath) {
+        LOGGER_ERROR("application error: null path");
+        return 0;
+    }
 
+    LOGGER_TRACE("wpath={%s} name={%s}", wpath, name);
+
+    // const char *abspathfile = (pathbuf? realpath(pathfile, pathbuf) : pathfile);
+
+    // 调用外部脚本, 过滤监控路径2
+    ret = FILTER_WPATH_ACCEPT;
+
+    if (client->path_filter_len) {
+
+        if (access(client->path_filter, F_OK|R_OK|X_OK) == 0) {
+            int cbsh = client->path_filter_len + strlen(wpath) + namelen + 8;
+
+            char *filter_sh = mem_alloc(1, sizeof(char)*(cbsh + 256));
+
+            snprintf(filter_sh, cbsh, "%s '%s' '%s'", client->path_filter, wpath, name);
+            LOGGER_DEBUG("cmd={%s}", filter_sh);
+
+            const char *result = cmd_system(filter_sh, filter_sh + cbsh, 256);
+            if (result) {
+                ret = atoi(result);
+            }
+
+            mem_free((void**) &filter_sh);
 
         } else {
-            len = snprintf(path_filter_sh, XSYNC_PATH_MAXSIZE, "%sfile-filter.sh", client->watch_parent);
-            if (len > 0) {
-                path_filter_sh[len] = 0;
-
-                if ( access(path_filter_sh, F_OK|R_OK|X_OK) == 0 ) {
-                    len = snprintf(path_filter_sh, sizeof(path_filter_sh), "%sfile-filter.sh '%s'",
-                        client->watch_parent, abspathfile);
-
-                    if (len > 0) {
-                        path_filter_sh[len] = 0;
-                        ok = 1;
-                    } else {
-                        LOGGER_ERROR("path is too long: %sfile-filter.sh '%s'", client->watch_parent, abspathfile);
-                    }
-                } else {
-                    LOGGER_ERROR("path filter cannot access: %s (%s)", strerror(errno), path_filter_sh);
-                }
-            } else {
-                LOGGER_ERROR("path filter is too long: %sfile-filter.sh", client->watch_parent);
-            }
+            LOGGER_ERROR("access failed(%d): %s (%s)", errno, strerror(errno), client->path_filter);
         }
+    }
 
-        if (ok) {
-            // 发现有效的脚本, 执行过滤命令
-            char outbuf[XSYNC_PATH_MAXSIZE];
-            LOGGER_INFO("command: %s", path_filter_sh);
-            const char *result = cmd_system(path_filter_sh, outbuf, sizeof(outbuf));
-
-            ok = 0;
-
-            if (result) {
-                ok = atoi(result);
-            }
-
-            if (ok == FILTER_WPATH_ACCEPT) {
-                LOGGER_INFO("result(=%d): ACCEPT", ok);
-            } else if (ok == FILTER_WPATH_REJECT) {
-                LOGGER_INFO("result(=%d): REJECT", ok);
-            } else if (ok == FILTER_WPATH_RELOAD) {
-                LOGGER_INFO("result(=%d): RELOAD", ok);
-            } else {
-                LOGGER_ERROR("result(=%d): UNKNOWN", ok);
-                return 0;
-            }
-        }
-    } while (0);
-
-    if (! ok || ok == FILTER_WPATH_ACCEPT) {
-        LOGGER_TRACE("accept file: %s", pathfile);
+    if (ret == FILTER_WPATH_ACCEPT) {
+        LOGGER_DEBUG("ACCEPT(=%d): %s%s", ret, wpath, name);
         return 1;
     }
-
-    if (ok == FILTER_WPATH_REJECT) {
-        LOGGER_TRACE("reject file: %s", pathfile);
+    if (ret == FILTER_WPATH_REJECT) {
+        LOGGER_DEBUG("REJECT(=%d): %s%s", ret, wpath, name);
         return 0;
     }
-
-    LOGGER_WARN("unexpected(=%d)", ok);
+    if (ret == FILTER_WPATH_RELOAD) {
+        LOGGER_DEBUG("RELOAD(=%d): %s%s", ret, wpath, name);
+        return (-1);
+    }
+    LOGGER_ERROR("UNEXPECTED(=%d): %s%s", ret, wpath, name);
     return 0;
 }
 
@@ -426,13 +395,13 @@ int filter_watch_file (XS_client client, int wd, const char * pathfile, char pat
 __no_warning_unused(static)
 int lscb_sweep_watch_path (const char * path, int pathlen, struct dirent *ent, void *arg1, void *arg2)
 {
-    int wd;
+    int wd, ret;
     char pathbuf[PATH_MAX];
 
     if (path[pathlen - 1] == '/') {
 
         if (ent->d_type == DT_DIR) {
-            wd = filter_watch_path( (XS_client) arg1, path, pathbuf);
+            wd = filter_watch_path( (XS_client) arg1, path, pathbuf );
 
             if (wd > 0) {
                 LOGGER_TRACE("sweep path(wd=%d): %s", wd, pathbuf);
@@ -460,16 +429,31 @@ int lscb_sweep_watch_path (const char * path, int pathlen, struct dirent *ent, v
         }
 
     } else if (ent->d_type == DT_REG) {
-
         wd = pv_cast_to_int(arg2);
 
         LOGGER_TRACE("sweep file(wd=%d): %s", wd, path);
 
-        if (filter_watch_file((XS_client) arg1, wd, path, pathbuf) > 0) {
+        ret = 0;
+
+        if (wd > 0) {
+            // 监控的目录文件
+            char *name = strrchr(path, '/');
+            if (name && *name++) {
+                ret = filter_watch_file((XS_client) arg1, wd, name, strlen(name), pathbuf);
+            }
+        } else {
+            // 根目录的文件不被监视
+            ret = filter_watch_file((XS_client) arg1, 0, path, pathlen, pathbuf);
+        }
+
+        if (ret > 0) {
             // 添加任务到线程池
             struct inotify_event_equivalent event = {0};
-
             client_add_inotify_event((XS_client) arg1, makeup_inotify_event(&event, wd, IN_CLOSE_NOWRITE, 0, path, pathlen));
+        } else if (ret == -1) {
+            // 要求重启服务
+            client_set_inotify_reload((XS_client) arg1, 1);
+            return 0;
         }
 
     } else if (ent->d_type == DT_LNK) {
@@ -518,7 +502,7 @@ void sweep_worker (void *arg)
 
             if (err == 0) {
                 // 在此刷新目录树
-                err = listdir(client->watch_parent, pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_sweep_watch_path, (void*) client, 0);
+                err = listdir(client->watch_root, pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_sweep_watch_path, (void*) client, 0);
             }
 
             /* unlock immediatedly so as to accept other events to be handled */
@@ -535,9 +519,9 @@ void sweep_worker (void *arg)
 __no_warning_unused(static)
 void inotifytools_restart(XS_client client)
 {
-    int err;
+    int err = (-1);
 
-    LOGGER_DEBUG("inotifytools_restart");
+    LOGGER_DEBUG("inotifytools_cleanup()");
 
     inotifytools_cleanup();
 
@@ -546,17 +530,21 @@ void inotifytools_restart(XS_client client)
         exit(XS_ERROR);
     }
 
-    if (client->is_config_xml) {
+    if (client->config_xml) {
         // 从 XML 配置文件初始化客户端
-        LOGGER_ERROR("TODO: XS_client_conf_load_xml");
-        err = XS_client_conf_load_xml(client, client->watch_parent);
-    } else {
+        err = XS_client_conf_from_xml(client, 0);
+    } else if (client->watch_root) {
         // 从监控目录初始化客户端
-        err = XS_client_conf_from_watch(client, client->watch_parent);
+        err = XS_client_conf_from_watch(client, 0);
+    } else {
+        LOGGER_ERROR("should nerver run to this !");
     }
 
-    if (err) {
-        LOGGER_ERROR("inotifytools_restart failed");
+    if (err != XS_SUCCESS) {
+        inotifytools_cleanup();
+
+        LOGGER_ERROR("failed");
+
         exit(XS_ERROR);
     }
 }
@@ -614,16 +602,11 @@ extern XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
     }
 
     if (opts->from_watch) {
-        // 从监控目录初始化客户端: 是否递归?
+        // 从监控目录初始化客户端: 是否递归
         err = XS_client_conf_from_watch(client, opts->config);
     } else {
         // 从 XML 配置文件初始化客户端
-        if ( ! strcmp(strrchr(opts->config, '.'), ".xml") ) {
-            err = XS_client_conf_load_xml(client, opts->config);
-        } else {
-            LOGGER_ERROR("bad config xml file: %s", opts->config);
-            err = XS_E_FILE;
-        }
+        err = XS_client_conf_from_xml(client, opts->config);
     }
 
     if (err) {
@@ -750,7 +733,9 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
 
     struct inotify_event *event;
 
-    /* connect to servers for each threads */
+    /**
+     * connect to servers for each threads
+     */
     LOGGER_INFO("create connections to servers");
 
     if (XS_client_get_server_maxid(client) == 0) {
@@ -783,8 +768,9 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
         }
     }
 
-
-    /* create a sweep thread for readdir */
+    /**
+     * create a sweep thread for readdir
+     */
     pthread_t sweep_thread_id;
 
     LOGGER_INFO("create sweep worker thread");
@@ -836,7 +822,7 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
             LOGGER_FATAL("bad inotifytools_filename_from_wd(%d)", event->wd);
             continue;
         }
-        
+
         len = snprintf(pathbuf, sizeof(pathbuf), "%s%s", wpath, event->name);
         if (len < event->len) {
             LOGGER_FATAL("event path is too long: %s%s", wpath, event->name);
@@ -893,7 +879,8 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
                 }
             }
         } else {
-            if (filter_watch_file(client, event->wd, pathbuf, 0) > 0) {
+            if (filter_watch_file(client, event->wd, event->name, event->len, 0) > 0) {
+
                 if (event->mask & IN_MODIFY) {
                     LOGGER_INFO("IN_MODIFY: %s", pathbuf);
                     client_add_inotify_event(client, event);
@@ -904,6 +891,7 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
                     LOGGER_INFO("IN_MOVE: %s", pathbuf);
                     client_add_inotify_event(client, event);
                 }
+
             } else {
                 LOGGER_TRACE("reject file: %s", pathbuf);
             }
@@ -941,7 +929,7 @@ extern XS_VOID XS_client_clear_watch_paths (XS_client client)
 
 extern XS_BOOL XS_client_add_watch_path (XS_client client, XS_watch_path wp)
 {
-    if (! inotifytools_watch_recursively(wp->fullpath, INOTI_EVENTS_MASK) ) {
+    if (! inotifytools_watch_recursively(wp->fullpath, wp->events_mask) ) {
         LOGGER_ERROR("inotifytools_watch_recursively(): %s", strerror(inotifytools_error()));
         return XS_FALSE;
     }

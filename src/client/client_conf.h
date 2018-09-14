@@ -105,11 +105,14 @@ typedef struct xs_client_t
     volatile int inotify_reload;
 
     /* 监控目录的父目录的绝对路径: 监控的目录名作为 pathid */
-    char watch_parent[XSYNC_PATH_MAXSIZE];
+    int config_xml_len;
+    char *config_xml;
+    
+    int watch_root_len;
+    char *watch_root;
 
-    /* 上述 watch_parent 是(1)否(0)为保存配置文件全路径 */
-    int is_config_xml;
-
+    int path_filter_len;
+    char *path_filter;
 
     /**
      * event_map_hlist: a hash map for XS_watch_event
@@ -162,7 +165,7 @@ extern int watch_path_set_sid_masks_cb (XS_watch_path wp, void * data);
  * level = 0 : 必须是目录符号链接
  * level = 1, 2, ... : 可以是目录符号链接, 也可以是物理目录
  */
-extern int lscb_add_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client, XS_watch_path parent);
+extern int lscb_add_watch_path (const char * path, int pathlen, struct dirent *ent, void *arg1, void *arg2);
 
 extern int lscb_init_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client, XS_watch_path parent);
 
