@@ -123,7 +123,7 @@ typedef struct xs_client_t
 
 
 
-    /**
+    /** DEL??
      * hash map for watch_entry -> watch_entry
      */
     XS_watch_entry entry_map[XSYNC_WATCH_ENTRY_HASHMAX + 1];

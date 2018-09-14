@@ -83,20 +83,23 @@ extern void xs_client_delete (void *pv)
         free(client->thread_args);
     }
 
-    if (client->config_xml_len) {
-        client->config_xml_len = 0;
+    if (__interlock_get(&client->config_xml_len)) {
+        __interlock_set(&client->config_xml_len, 0);
+
         free(client->config_xml);
         client->config_xml = 0;       
     }
 
-    if (client->watch_root_len) {
-        client->watch_root_len = 0;
+    if (__interlock_get(&client->watch_root_len)) {
+        __interlock_set(&client->watch_root_len, 0);
+
         free(client->watch_root);
         client->watch_root = 0;       
     }
 
-    if (client->path_filter_len) {
-        client->path_filter_len = 0;
+    if (__interlock_get(&client->path_filter_len)) {
+        __interlock_set(&client->path_filter_len, 0);
+
         free(client->path_filter);
         client->path_filter = 0;       
     }
@@ -702,10 +705,10 @@ XS_RESULT XS_client_conf_from_xml (XS_client client, const char *config_xml)
     mxml_node_t *root;
     mxml_node_t *node;
 
-    if (! client->config_xml_len) {
+    if (! __interlock_get(&client->config_xml_len)) {
 
-        if (client->watch_root_len) {
-            client->watch_root_len = 0;
+        if (__interlock_get(&client->watch_root_len)) {
+            __interlock_set(&client->watch_root_len, 0);
             free(client->watch_root);
             client->watch_root = 0;
         }
@@ -724,7 +727,8 @@ XS_RESULT XS_client_conf_from_xml (XS_client client, const char *config_xml)
         client->config_xml = malloc(len + 1);
         memcpy(client->config_xml, config_xml, len);
         client->config_xml[len] = 0;
-        client->config_xml_len = len;
+
+        __interlock_set(&client->config_xml_len, len);
     }
 
     fp = fopen(client->config_xml, "r");
@@ -782,15 +786,18 @@ extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_
     int err, len;
     char pathbuf[XSYNC_PATH_MAXSIZE];
 
-    if (! client->watch_root_len) {
-        if (client->config_xml_len) {
-            client->config_xml_len = 0;
+    if (! __interlock_get(&client->watch_root_len)) {
+
+        if (__interlock_get(&client->config_xml_len)) {
+            __interlock_set(&client->config_xml_len, 0);
+
             free(client->config_xml);
             client->config_xml = 0;
         }
 
-        if (client->path_filter_len) {
-            client->path_filter_len = 0;
+        if (__interlock_get(&client->path_filter_len)) {
+            __interlock_set(&client->path_filter_len, 0);
+
             free(client->path_filter);
             client->path_filter = 0;
         }
@@ -810,7 +817,8 @@ extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_
         client->watch_root = (char *) malloc(len + 1);
         memcpy(client->watch_root, pathbuf, len);
         client->watch_root[len] = 0;
-        client->watch_root_len = len;
+
+        __interlock_set(&client->watch_root_len, len);
 
         if (! strncmp(watch_root, pathbuf, len-1)) {
             // 绝对路径
@@ -824,10 +832,12 @@ extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_
         pathbuf[len] = 0;
 
         if (access(pathbuf, F_OK|R_OK|X_OK) == 0) {
+
             client->path_filter = (char *) malloc(len + 1);
             memcpy(client->path_filter, pathbuf, len);
             client->path_filter[len] = 0;
-            client->path_filter_len = len;
+
+            __interlock_set(&client->path_filter_len, len);
 
             LOGGER_INFO("access path-filter.sh ok. (%s)", client->path_filter);
         } else {

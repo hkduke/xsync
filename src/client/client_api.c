@@ -239,12 +239,12 @@ int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX
         return 0;
     }
 
-    LOGGER_TRACE("wpath={%s}", abspath);
+    LOGGER_TRACE("path={%s}", abspath);
 
     // 调用外部脚本, 过滤监控路径
     ret = FILTER_WPATH_ACCEPT;
 
-    if (client->path_filter_len) {
+    if (__interlock_get(&client->path_filter_len)) {
         if (access(client->path_filter, F_OK|R_OK|X_OK) == 0) {
             int cbsh = client->path_filter_len + len + 4;
 
@@ -346,17 +346,20 @@ int filter_watch_file (XS_client client, int wd, const char *pname, int pnamelen
         return 0;
     }
 
-    LOGGER_TRACE("wpath={%s} name={%s}", wpath, name);
+    LOGGER_TRACE("path={%s} name={%s}", wpath, name);
 
     // const char *abspathfile = (pathbuf? realpath(pathfile, pathbuf) : pathfile);
 
     // 调用外部脚本, 过滤监控路径2
     ret = FILTER_WPATH_ACCEPT;
 
-    if (client->path_filter_len) {
+    int path_filter_len = __interlock_get(&client->path_filter_len);
+
+    if (path_filter_len) {
 
         if (access(client->path_filter, F_OK|R_OK|X_OK) == 0) {
-            int cbsh = client->path_filter_len + strlen(wpath) + namelen + 8;
+
+            int cbsh = path_filter_len + strlen(wpath) + namelen + 8;
 
             char *filter_sh = mem_alloc(1, sizeof(char)*(cbsh + 256));
 
@@ -457,15 +460,16 @@ int lscb_sweep_watch_path (const char * path, int pathlen, struct dirent *ent, v
         }
 
     } else if (ent->d_type == DT_LNK) {
-
-        char * abspath = realpath(path, pathbuf);
-
-        if (abspath) {
-            LOGGER_WARN("ignored file link(=%d): %s -> %s", ent->d_type, path, abspath);
+        if (! arg2) {
+            // 忽略根目录的文件链接
         } else {
-            LOGGER_ERROR("realpath error(%d): %s (%s)", errno, strerror(errno), path);
+            char * abspath = realpath(path, pathbuf);
+            if (abspath) {
+                LOGGER_WARN("ignored file link(=%d): %s -> %s", ent->d_type, path, abspath);
+            } else {
+                LOGGER_ERROR("realpath error(%d): %s (%s)", errno, strerror(errno), path);
+            }
         }
-
     }
 
     return 1;
@@ -824,8 +828,8 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
         }
 
         len = snprintf(pathbuf, sizeof(pathbuf), "%s%s", wpath, event->name);
-        if (len < event->len) {
-            LOGGER_FATAL("event path is too long: %s%s", wpath, event->name);
+        if (len < 4 || len >= sizeof(pathbuf)) {
+            LOGGER_FATAL("bad event file: %s%s", wpath, event->name);
             continue;
         }
         pathbuf[len] = 0;
@@ -879,7 +883,9 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
                 }
             }
         } else {
-            if (filter_watch_file(client, event->wd, event->name, event->len, 0) > 0) {
+            // event->len 不总是等于 strlen(event->name)
+            //
+            if (filter_watch_file(client, event->wd, event->name, strlen(event->name), 0) > 0) {
 
                 if (event->mask & IN_MODIFY) {
                     LOGGER_INFO("IN_MODIFY: %s", pathbuf);
