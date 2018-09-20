@@ -68,7 +68,7 @@ void xs_watch_event_delete (void *pv)
 }
 
 
-extern XS_VOID XS_watch_event_create (struct inotify_event * inevent, XS_client client, int hash, XS_watch_event *outEvent)
+extern XS_VOID XS_watch_event_create (struct inotify_event * inevent, XS_client client, int hash, int sid, XS_watch_event *outEvent)
 {
     XS_watch_event event;
 
@@ -79,7 +79,7 @@ extern XS_VOID XS_watch_event_create (struct inotify_event * inevent, XS_client 
     // 增加 client 计数
     event->client = XS_client_retain(&client);
 
-    //event->server = XS_client_get_server_opts(client, entry->sid);
+    event->server = XS_client_get_server_opts(client, sid);
 
     event->inevent_mask = inevent->mask;
 
@@ -110,7 +110,7 @@ extern XS_VOID XS_watch_event_release (XS_watch_event *inEvent)
 }
 
 
-/* called in event_task() */
+/* called in do_event_task() */
 extern ssize_t XS_watch_event_sync_file (XS_watch_event event, perthread_data *perdata)
 {
     off_t pos;
@@ -133,7 +133,7 @@ extern ssize_t XS_watch_event_sync_file (XS_watch_event event, perthread_data *p
         pos = (off_t) entry->offset;
 
         while (sendbytes < XSYNC_BATCH_SEND_MAXSIZE &&
-            (cbread = pread_len(rofd, perdata->buffer, sizeof(perdata->buffer), pos)) > 0) {
+            (cbread = pread_len(rofd, (ub1 *) perdata->buffer, sizeof(perdata->buffer), pos)) > 0) {
 
             #if XSYNC_LINUX_SENDFILE == 1
                 //watch_entry_read_and_sendfile

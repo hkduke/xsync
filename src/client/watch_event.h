@@ -55,7 +55,7 @@ typedef struct perthread_data
 
     XS_server_conn server_conns[XSYNC_SERVER_MAXID + 1];;
 
-    unsigned char buffer[XSYNC_BUFSIZE];
+    char buffer[XSYNC_BUFSIZE];
 } perthread_data;
 
 
@@ -88,11 +88,11 @@ struct xs_watch_event_t
 } __attribute((packed));
 
 
-extern XS_VOID XS_watch_event_create (struct inotify_event * inevent, XS_client client, int hash, XS_watch_event *outEvent);
+extern XS_VOID XS_watch_event_create (struct inotify_event * inevent, XS_client client, int hash, int sid, XS_watch_event *outEvent);
 
 extern XS_VOID XS_watch_event_release (XS_watch_event *inEvent);
 
-/* called in event_task() */
+/* called in do_event_task() */
 extern ssize_t XS_watch_event_sync_file (XS_watch_event event, perthread_data *perdata);
 
 

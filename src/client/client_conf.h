@@ -61,9 +61,6 @@ extern "C" {
 #define XS_client_get_server_maxid(client)            \
     (client->servers_opts->sidmax)
 
-#define XS_client_get_server_opts(client, sid)        \
-    (client->servers_opts + sid)
-
 
 /**
  * xs_client_t singleton
@@ -104,15 +101,15 @@ typedef struct xs_client_t
     /* 是(1)否(0)重启监控(当配置更改时有必要重启监控) */
     volatile int inotify_reload;
 
-    /* 监控目录的父目录的绝对路径: 监控的目录名作为 pathid */
-    int config_xml_len;
-    char *config_xml;
-    
-    int watch_root_len;
-    char *watch_root;
+    /* 路径组合配置 */
+    int offs_watch_root;
+    int offs_path_filter;
+    int offs_event_task;
+    volatile int size_paths;
+    char *paths;
 
-    int path_filter_len;
-    char *path_filter;
+    char file_filter_buf[XSYNC_BUFSIZE];
+    char path_filter_buf[XSYNC_BUFSIZE];
 
     /**
      * event_map_hlist: a hash map for XS_watch_event
@@ -120,6 +117,10 @@ typedef struct xs_client_t
      */
     struct hlist_head event_map_hlist[XSYNC_WATCH_PATH_HASHMAX + 1];
     thread_lock_t event_map_lock;
+
+
+
+
 
 
 
@@ -139,15 +140,39 @@ typedef struct xs_client_t
 } xs_client_t;
 
 
+#define get_watch_root_len(client)  (client->offs_path_filter - client->offs_watch_root - 1)
+
+#define get_path_filter_len(client)  (client->offs_event_task - client->offs_path_filter - 1)
+
+#define get_event_task_len(client)  (client->size_paths - client->offs_event_task - 1)
+
+#define watch_root_path(client)  (client->paths + client->offs_watch_root)
+
+#define path_filter_path(client)  (client->paths + client->offs_path_filter)
+
+#define event_task_path(client)  (client->paths + client->offs_event_task)
+
+    
 __no_warning_unused(static)
-inline int client_is_inotify_reload(struct xs_client_t *client)
+inline xs_server_opts* XS_client_get_server_opts (XS_client client, int sid)
+{
+    if (sid > 0 && sid <= XSYNC_SERVER_MAXID) {
+        return (client->servers_opts + sid);
+    } else {
+        return 0;
+    }
+}
+    
+    
+__no_warning_unused(static)
+inline int client_is_inotify_reload (struct xs_client_t *client)
 {
     return __interlock_get(&client->inotify_reload);
 }
 
 
 __no_warning_unused(static)
-inline void client_set_inotify_reload(struct xs_client_t *client, int reload)
+inline void client_set_inotify_reload (struct xs_client_t *client, int reload)
 {
     __interlock_set(&client->inotify_reload, reload);
 }

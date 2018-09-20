@@ -83,27 +83,12 @@ extern void xs_client_delete (void *pv)
         free(client->thread_args);
     }
 
-    if (__interlock_get(&client->config_xml_len)) {
-        __interlock_set(&client->config_xml_len, 0);
+    if (__interlock_get(&client->size_paths)) {
+        __interlock_set(&client->size_paths, 0);
 
-        free(client->config_xml);
-        client->config_xml = 0;       
+        free(client->paths);
+        client->paths = 0;      
     }
-
-    if (__interlock_get(&client->watch_root_len)) {
-        __interlock_set(&client->watch_root_len, 0);
-
-        free(client->watch_root);
-        client->watch_root = 0;       
-    }
-
-    if (__interlock_get(&client->path_filter_len)) {
-        __interlock_set(&client->path_filter_len, 0);
-
-        free(client->path_filter);
-        client->path_filter = 0;       
-    }
-
 
     //??DEL
     client_clear_entry_map(client);
@@ -705,13 +690,16 @@ XS_RESULT XS_client_conf_from_xml (XS_client client, const char *config_xml)
     mxml_node_t *root;
     mxml_node_t *node;
 
-    if (! __interlock_get(&client->config_xml_len)) {
+    if (config_xml && ! __interlock_get(&client->size_paths)) {
+        int size_paths;
+        char *paths;
 
-        if (__interlock_get(&client->watch_root_len)) {
-            __interlock_set(&client->watch_root_len, 0);
-            free(client->watch_root);
-            client->watch_root = 0;
-        }
+        int offs_config_xml;
+
+        /* TODO:
+        int offs_path_filter;
+        int offs_event_task;
+        */
 
         if (strcmp(strrchr(config_xml, '.'), ".xml")) {
             LOGGER_ERROR("config file end with not '.xml': %s", config_xml);
@@ -724,22 +712,37 @@ XS_RESULT XS_client_conf_from_xml (XS_client client, const char *config_xml)
         }
 
         len = (int) strlen(config_xml);
-        client->config_xml = malloc(len + 1);
-        memcpy(client->config_xml, config_xml, len);
-        client->config_xml[len] = 0;
 
-        __interlock_set(&client->config_xml_len, len);
+        /* paths =  'w'+config_xml+'\0'+path_filter+'\0'+event_task+'\0'*/
+        size_paths = 1 + (len + 1); //TODO: +   (len + 15) +      (len + 14);
+
+        paths = mem_alloc(1, sizeof(char) * size_paths);
+        paths[0] = 'C';
+
+        offs_config_xml = 1;
+
+        /* TODO:
+        offs_path_filter = offs_config_xml + (len + 1);
+        offs_event_task = offs_path_filter + (len + 15);
+        */
+
+        memcpy(paths + offs_config_xml, config_xml, len);
+
+        client->offs_watch_root = offs_config_xml;
+
+        client->paths = paths;
+        __interlock_set(&client->size_paths, size_paths);
     }
 
-    fp = fopen(client->config_xml, "r");
+    fp = fopen(client->paths + client->offs_watch_root, "r");
     if (! fp) {
-        LOGGER_ERROR("fopen error(%d): %s. (%s)", errno, strerror(errno), client->config_xml);
+        LOGGER_ERROR("fopen error(%d): %s. (%s)", errno, strerror(errno), client->paths + client->offs_watch_root);
         return XS_ERROR;
     }
 
     xml = mxmlLoadFile(0, fp, MXML_TEXT_CALLBACK);
     if (! xml) {
-        LOGGER_ERROR("mxmlLoadFile error. (%s)", client->config_xml);
+        LOGGER_ERROR("mxmlLoadFile error. (%s)", client->paths + client->offs_watch_root);
         fclose(fp);
         return XS_ERROR;
     }
@@ -786,21 +789,13 @@ extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_
     int err, len;
     char pathbuf[XSYNC_PATH_MAXSIZE];
 
-    if (! __interlock_get(&client->watch_root_len)) {
+    if (watch_root && ! __interlock_get(&client->size_paths)) {
+        int size_paths;
+        char *paths;
 
-        if (__interlock_get(&client->config_xml_len)) {
-            __interlock_set(&client->config_xml_len, 0);
-
-            free(client->config_xml);
-            client->config_xml = 0;
-        }
-
-        if (__interlock_get(&client->path_filter_len)) {
-            __interlock_set(&client->path_filter_len, 0);
-
-            free(client->path_filter);
-            client->path_filter = 0;
-        }
+        int offs_watch_root;
+        int offs_path_filter;
+        int offs_event_task;
 
         err = getfullpath(watch_root, pathbuf, sizeof(pathbuf));
         if (err != 0) {
@@ -814,38 +809,59 @@ extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_
             pathbuf[len] = '\0';
         }
 
-        client->watch_root = (char *) malloc(len + 1);
-        memcpy(client->watch_root, pathbuf, len);
-        client->watch_root[len] = 0;
+        /* paths =  'w'+watch_root+'\0'+path_filter+'\0'+event_task+'\0'*/
+        size_paths = 1 + (len + 1) +   (len + 15) +      (len + 14);
 
-        __interlock_set(&client->watch_root_len, len);
+        paths = mem_alloc(1, sizeof(char) * size_paths);
+        paths[0] = 'W';
 
-        if (! strncmp(watch_root, pathbuf, len-1)) {
+        offs_watch_root = 1;
+        offs_path_filter = offs_watch_root + (len + 1);
+        offs_event_task = offs_path_filter + (len + 15);
+
+        memcpy(paths + offs_watch_root, pathbuf, len);
+
+        if (! strncmp(watch_root, pathbuf, len - 1)) {
             // 绝对路径
-            LOGGER_INFO("init watch root: %s", client->watch_root);
+            LOGGER_INFO("init watch root: %s", paths + offs_watch_root);
         } else {
             // 符号链接路径
-            LOGGER_INFO("init watch root: %s -> %s", watch_root, client->watch_root);
+            LOGGER_INFO("init watch root: %s -> %s", watch_root, paths + offs_watch_root);
         }
 
-        len = snprintf(pathbuf, sizeof(pathbuf), "%spath-filter.sh", client->watch_root);
-        pathbuf[len] = 0;
+        client->offs_watch_root = offs_watch_root;
+
+        // path-filter.sh
+        len = snprintf(pathbuf, sizeof(pathbuf), "%spath-filter.sh", paths + client->offs_watch_root);
 
         if (access(pathbuf, F_OK|R_OK|X_OK) == 0) {
+            client->offs_path_filter = offs_path_filter;
 
-            client->path_filter = (char *) malloc(len + 1);
-            memcpy(client->path_filter, pathbuf, len);
-            client->path_filter[len] = 0;
+            memcpy(paths + client->offs_path_filter, pathbuf, len);
 
-            __interlock_set(&client->path_filter_len, len);
-
-            LOGGER_INFO("access path-filter.sh ok. (%s)", client->path_filter);
+            LOGGER_INFO("access path-filter.sh ok. (%s)", paths + client->offs_path_filter);
         } else {
             LOGGER_ERROR("access path-filter.sh failed(%d): %s (%s)", errno, strerror(errno), pathbuf);
         }
+
+        // event-task.sh
+        len = snprintf(pathbuf, sizeof(pathbuf), "%sevent-task.sh", paths + client->offs_watch_root);
+
+        if (access(pathbuf, F_OK|R_OK|X_OK) == 0) {
+            client->offs_event_task = offs_event_task;
+
+            memcpy(paths + client->offs_event_task, pathbuf, len);
+
+            LOGGER_INFO("access event-task.sh ok. (%s)", paths + client->offs_event_task);
+        } else {
+            LOGGER_ERROR("access event-task.sh failed(%d): %s (%s)", errno, strerror(errno), pathbuf);
+        }
+
+        client->paths = paths;
+        __interlock_set(&client->size_paths, size_paths);
     }
 
-    err = listdir(client->watch_root, pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_add_watch_path, (void*) client, 0);
+    err = listdir(watch_root_path(client), pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_add_watch_path, (void*) client, 0);
 
     return (err == 0? XS_SUCCESS : XS_ERROR);
 }
@@ -856,32 +872,34 @@ extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_
  */
 extern int XS_client_prepare_watch_events (XS_client client, struct inotify_event *inevent, XS_watch_event events[XSYNC_SERVER_MAXID + 1])
 {
-    int num = 0;
+    struct hlist_node *hp;
 
+    int num_events = 0;
     XS_watch_event event = 0;
 
     int hash = BKDRHash2(inevent->name, XSYNC_WATCH_PATH_HASHMAX);
 
-    do {
-        struct hlist_node *hp;
+    hlist_for_each(hp, &client->event_map_hlist[hash]) {
+        struct xs_watch_event_t *p = hlist_entry(hp, struct xs_watch_event_t, i_hash);
 
-        hlist_for_each(hp, &client->event_map_hlist[hash]) {
-            struct xs_watch_event_t *p = hlist_entry(hp, struct xs_watch_event_t, i_hash);
-
-            if (p->namelen == inevent->len && ! strncmp(p->pathname, inevent->name, inevent->len)) {
-                LOGGER_DEBUG("existed event=%p (task=%lld name=%s)", p, (long long) p->taskid, p->pathname);
-                return 0;
-            }
+        if (p->namelen == inevent->len && ! strncmp(p->pathname, inevent->name, inevent->len)) {
+            LOGGER_WARN("existing event(=%p): (task=%lld name=%s)", p, (long long) p->taskid, p->pathname);
+            return 0;
         }
-    } while(0);
+    }
 
-    XS_watch_event_create(inevent, client, hash, &event);
+    XS_watch_event_create(inevent, client, hash, 0, &event);
 
     hlist_add_head(&event->i_hash, &client->event_map_hlist[event->hash]);
 
-    events[num++] = event;
+    // events[0] 不属于任何 sid 的事件
+    // events[1] 是 sid=1 的事件
+    // events[2] 是 sid=2 的事件
+    // events[maxsid] 是 sid=maxsid 的事件
+    //
+    events[num_events++] = event;
 
-    return num;
+    return num_events;
 
     /*
     int events_maxsid = 0;

@@ -69,7 +69,7 @@ extern "C"
 
 /**
  * DO NOT CHANGE BELOW VALUE
- *   4096 or 8192
+ *   4096 or 8192. 必须大于 ERRORMSG_MAXLEN
  */
 #define XSYNC_BUFSIZE                   BUFFER_MAXSIZE
 
@@ -169,7 +169,7 @@ extern "C"
 
 
 /**
- * 支持的最大的服务器数目. 根据需要可以更改这个值 (不可以大于 30)
+ * 支持的最大的服务器数目. 根据需要可以更改这个值. 不可配置, 编译时确定!
  */
 #ifndef XSYNC_SERVER_MAXID
 #  define XSYNC_SERVER_MAXID            255

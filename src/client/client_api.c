@@ -111,32 +111,18 @@
 
 
 __no_warning_unused(static)
-void event_task (thread_context_t *thread_ctx)
+void do_event_task (thread_context_t *thread_ctx)
 {
     threadpool_task_t *task = thread_ctx->task;
 
     if (task->flags == 10) {
-        XS_watch_event event = (XS_watch_event) task->argument;
-
-        task->argument = 0;
         task->flags = 0;
 
-        LOGGER_DEBUG("TODO:(thread-%d: task=%lld) sync file ...", thread_ctx->id, (long long) event->taskid);
+        XS_watch_event event = (XS_watch_event) task->argument;
+        task->argument = 0;
 
-        /*
-        LOGGER_TRACE("thread-%d: start task=%lld (entryid=%llu, offset=%llu)",
-            thread_ctx->id, (long long) event->taskid,
-            (long long) event->entry->entryid,
-            (long long) event->entry->offset);
-
-        ssize_t sendbytes = XS_watch_event_sync_file(event, (perthread_data *) thread_ctx->thread_arg);
-
-        LOGGER_TRACE("thread-%d: end task=%lld (entryid=%llu,  offset=%llu, send=%lu)",
-            thread_ctx->id, (long long) event->taskid,
-            (long long) event->entry->entryid,
-            (long long) event->entry->offset,
-            (long unsigned int) sendbytes);
-        */
+        /* perthread_data defined in watch_event.h */
+        perthread_data *perdata = (perthread_data *) thread_ctx->thread_arg;
 
         /**
          * MUST release event after use
@@ -145,6 +131,37 @@ void event_task (thread_context_t *thread_ctx)
         {
             threadlock_lock(&client->event_map_lock);
             {
+                LOGGER_DEBUG("thread-%d: task=%lld file=%s", perdata->threadid, (long long) event->taskid, event->pathname);
+
+                if (client->offs_event_task) {
+                    int bufcb = sizeof(perdata->buffer) - ERRORMSG_MAXLEN - 1;
+
+                    int ret = snprintf(perdata->buffer, bufcb, "%s '%s'", event_task_path(client), event->pathname);
+
+                    perdata->buffer[ret] = 0;
+
+                    ret = 0;
+
+                    const char *result = cmd_system(perdata->buffer, perdata->buffer + bufcb, ERRORMSG_MAXLEN + 1);
+                    if (result) {
+                        ret = atoi(result);
+                    }
+
+                    if (ret == 1) {
+                        LOGGER_INFO("cmd={%s} result(%d)=OK", perdata->buffer, ret);
+
+                        // TODO:
+
+                    } else if (ret == 0) {
+                        LOGGER_WARN("cmd={%s} result(%d)=IGN", perdata->buffer, ret);
+                    } else if (ret == -1) {
+                        LOGGER_ERROR("cmd={%s} result(%d)=ERR", perdata->buffer, ret);
+                    } else {
+                        LOGGER_WARN("cmd={%s} result=%s", perdata->buffer, result);
+                    }
+                }
+
+                /* 执行完任务后必须释放 event */
                 XS_watch_event_release(&event);
             }
             threadlock_unlock(&client->event_map_lock);
@@ -162,25 +179,26 @@ void event_task (thread_context_t *thread_ctx)
 __no_warning_unused(static)
 XS_RESULT client_add_inotify_event (XS_client client, struct inotify_event * inevent)
 {
-    int num = XS_client_threadpool_unused_queues(client);
-    if (num < 1) {
+    int count = XS_client_threadpool_unused_queues(client);
+    if (count < 1) {
         LOGGER_WARN("threadpool queues is full");
         return XS_E_POOL;
     }
-    LOGGER_TRACE("threadpool_unused_queues=%d", num);
+
+    LOGGER_TRACE("threadpool unused queues: %d", count);
 
     if (threadlock_trylock(&client->event_map_lock) == 0) {
         int sid, err;
 
         XS_watch_event events[XSYNC_SERVER_MAXID + 1] = { 0 };
 
-        num = XS_client_prepare_watch_events(client, inevent, events);
+        count = XS_client_prepare_watch_events(client, inevent, events);
 
-        for (sid = 0; sid < num; sid++) {
+        for (sid = 0; sid < count; sid++) {
             XS_watch_event event = events[sid];
 
             if (event) {
-                err = threadpool_add(client->pool, event_task, (void*) event, 10);
+                err = threadpool_add(client->pool, do_event_task, (void*) event, 10);
 
                 if (err) {
                     LOGGER_ERROR("threadpool_add task(=%lld) error(%d): %s", (long long) event->taskid, err, threadpool_error_messages[-err]);
@@ -244,24 +262,23 @@ int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX
     // 调用外部脚本, 过滤监控路径
     ret = FILTER_WPATH_ACCEPT;
 
-    if (__interlock_get(&client->path_filter_len)) {
-        if (access(client->path_filter, F_OK|R_OK|X_OK) == 0) {
-            int cbsh = client->path_filter_len + len + 4;
+    if (client->offs_path_filter) {
+        if (access(path_filter_path(client), F_OK|R_OK|X_OK) == 0) {
+            int bufcb = sizeof(client->path_filter_buf) - ERRORMSG_MAXLEN - 1;
 
-            char *filter_sh = mem_alloc(1, sizeof(char)*(cbsh + 256));
+            int len = snprintf(client->path_filter_buf, bufcb, "%s '%s'", path_filter_path(client), abspath);
 
-            snprintf(filter_sh, cbsh, "%s '%s'", client->path_filter, abspath);
-            LOGGER_INFO("cmd={%s}", filter_sh);
+            client->path_filter_buf[len] = 0;
 
-            const char *result = cmd_system(filter_sh, filter_sh + cbsh, 256);
+            LOGGER_INFO("cmd={%s}", client->path_filter_buf);
+
+            const char *result = cmd_system(client->path_filter_buf, client->path_filter_buf + bufcb, ERRORMSG_MAXLEN + 1);
+
             if (result) {
                 ret = atoi(result);
             }
-
-            mem_free((void**) &filter_sh);
-
         } else {
-            LOGGER_ERROR("access failed(%d): %s (%s)", errno, strerror(errno), client->path_filter);
+            LOGGER_ERROR("access failed(%d): %s (%s)", errno, strerror(errno), path_filter_path(client));
         }
     }
 
@@ -315,10 +332,10 @@ __no_warning_unused(static)
 int filter_watch_file (XS_client client, int wd, const char *pname, int pnamelen, char pathbuf[PATH_MAX])
 {
     int ret;
-    int namelen = 0;
     const char *name = 0;
-
     char *wpath = 0;
+
+    //DEL: int namelen = 0;
 
     if (! pname) {
         LOGGER_ERROR("application error: null name");
@@ -328,7 +345,7 @@ int filter_watch_file (XS_client client, int wd, const char *pname, int pnamelen
     if (wd > 0) {
         wpath = inotifytools_filename_from_wd(wd);
         name = pname;
-        namelen = pnamelen;
+        //DEL: namelen = pnamelen;
     } else {
         name = strrchr(pname, '/');
         if (! name || ! *name++) {
@@ -338,7 +355,7 @@ int filter_watch_file (XS_client client, int wd, const char *pname, int pnamelen
         memcpy(pathbuf, pname, name - pname);
         pathbuf[name - pname] = 0;
         wpath = pathbuf;
-        namelen = pnamelen - (name - pname);
+        //DEL: namelen = pnamelen - (name - pname);
     }
 
     if (! wpath) {
@@ -353,28 +370,21 @@ int filter_watch_file (XS_client client, int wd, const char *pname, int pnamelen
     // 调用外部脚本, 过滤监控路径2
     ret = FILTER_WPATH_ACCEPT;
 
-    int path_filter_len = __interlock_get(&client->path_filter_len);
+    if (client->offs_path_filter) {
 
-    if (path_filter_len) {
+        if (access(path_filter_path(client), F_OK|R_OK|X_OK) == 0) {
+            int bufcb = sizeof(client->file_filter_buf) - ERRORMSG_MAXLEN - 1;
 
-        if (access(client->path_filter, F_OK|R_OK|X_OK) == 0) {
+            snprintf(client->file_filter_buf, bufcb, "%s '%s' '%s'", path_filter_path(client), wpath, name);
 
-            int cbsh = path_filter_len + strlen(wpath) + namelen + 8;
+            LOGGER_DEBUG("cmd={%s}", client->file_filter_buf);
 
-            char *filter_sh = mem_alloc(1, sizeof(char)*(cbsh + 256));
-
-            snprintf(filter_sh, cbsh, "%s '%s' '%s'", client->path_filter, wpath, name);
-            LOGGER_DEBUG("cmd={%s}", filter_sh);
-
-            const char *result = cmd_system(filter_sh, filter_sh + cbsh, 256);
+            const char *result = cmd_system(client->file_filter_buf, client->file_filter_buf + bufcb, 256);
             if (result) {
                 ret = atoi(result);
             }
-
-            mem_free((void**) &filter_sh);
-
         } else {
-            LOGGER_ERROR("access failed(%d): %s (%s)", errno, strerror(errno), client->path_filter);
+            LOGGER_ERROR("access failed(%d): %s (%s)", errno, strerror(errno), path_filter_path(client));
         }
     }
 
@@ -506,7 +516,7 @@ void sweep_worker (void *arg)
 
             if (err == 0) {
                 // 在此刷新目录树
-                err = listdir(client->watch_root, pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_sweep_watch_path, (void*) client, 0);
+                err = listdir(client->paths + client->offs_watch_root, pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_sweep_watch_path, (void*) client, 0);
             }
 
             /* unlock immediatedly so as to accept other events to be handled */
@@ -534,10 +544,10 @@ void inotifytools_restart(XS_client client)
         exit(XS_ERROR);
     }
 
-    if (client->config_xml) {
+    if (__interlock_get(&client->size_paths) && client->paths[0] == 'C') {
         // 从 XML 配置文件初始化客户端
         err = XS_client_conf_from_xml(client, 0);
-    } else if (client->watch_root) {
+    } else if (__interlock_get(&client->size_paths) && client->paths[0] == 'W') {
         // 从监控目录初始化客户端
         err = XS_client_conf_from_watch(client, 0);
     } else {
@@ -591,6 +601,8 @@ extern XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
     }
 
     client->servers_opts->sidmax = 0;
+
+    client->size_paths = 0;
 
     /**
      * initialize and watch the entire directory tree from the current working
