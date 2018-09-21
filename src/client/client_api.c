@@ -106,9 +106,6 @@
 
 #include "../common/common_util.h"
 
-// 刷新超时秒
-#define SWEEP_INTERVAL_SECONDS  3
-
 
 __no_warning_unused(static)
 void do_event_task (thread_context_t *thread_ctx)
@@ -118,58 +115,57 @@ void do_event_task (thread_context_t *thread_ctx)
     if (task->flags == 10) {
         task->flags = 0;
 
-        XS_watch_event event = (XS_watch_event) task->argument;
-        task->argument = 0;
-
         /* perthread_data defined in watch_event.h */
         perthread_data *perdata = (perthread_data *) thread_ctx->thread_arg;
+
+        XS_watch_event event = (XS_watch_event) task->argument;
+        task->argument = 0;
 
         /**
          * MUST release event after use
          */
         XS_client client = XS_client_retain(&event->client);
         {
-            threadlock_lock(&client->event_map_lock);
-            {
-                LOGGER_DEBUG("thread-%d: task=%lld file=%s", perdata->threadid, (long long) event->taskid, event->pathname);
+            if (client->offs_event_task) {
+                int bufcb = sizeof(perdata->buffer) - ERRORMSG_MAXLEN - 1;
 
-                if (client->offs_event_task) {
-                    int bufcb = sizeof(perdata->buffer) - ERRORMSG_MAXLEN - 1;
+                int ret = snprintf(perdata->buffer, bufcb, "%s '%s' '%s'", event_task_path(client), inotify_event_name(event->inevent_mask), event->pathname);
 
-                    int ret = snprintf(perdata->buffer, bufcb, "%s '%s'", event_task_path(client), event->pathname);
+                perdata->buffer[ret] = 0;
 
-                    perdata->buffer[ret] = 0;
+                ret = 0;
 
-                    ret = 0;
-
-                    const char *result = cmd_system(perdata->buffer, perdata->buffer + bufcb, ERRORMSG_MAXLEN + 1);
-                    if (result) {
-                        ret = atoi(result);
-                    }
-
-                    if (ret == 1) {
-                        LOGGER_INFO("cmd={%s} result(%d)=OK", perdata->buffer, ret);
-
-                        // TODO:
-
-                    } else if (ret == 0) {
-                        LOGGER_WARN("cmd={%s} result(%d)=IGN", perdata->buffer, ret);
-                    } else if (ret == -1) {
-                        LOGGER_ERROR("cmd={%s} result(%d)=ERR", perdata->buffer, ret);
-                    } else {
-                        LOGGER_WARN("cmd={%s} result=%s", perdata->buffer, result);
-                    }
+                const char *result = cmd_system(perdata->buffer, perdata->buffer + bufcb, ERRORMSG_MAXLEN + 1);
+                if (result) {
+                    ret = atoi(result);
                 }
 
-                /* 执行完任务后必须释放 event */
+                if (ret == 1) {
+                    LOGGER_INFO("cmd={%s} result(%d)=OK", perdata->buffer, ret);
+
+                    // TODO: 传输文件
+
+
+                } else if (ret == 0) {
+                    LOGGER_WARN("cmd={%s} result(%d)=IGN", perdata->buffer, ret);
+                } else if (ret == -1) {
+                    LOGGER_ERROR("cmd={%s} result(%d)=ERR", perdata->buffer, ret);
+                } else {
+                    LOGGER_WARN("cmd={%s} result=%s", perdata->buffer, result);
+                }
+            }
+
+            // 执行完任务后必须释放 event
+            XS_watch_event_release(&event);
+
+            // 从 event_hmap 中删除自身
+            threadlock_lock(&client->event_lock);
+            {
                 XS_watch_event_release(&event);
             }
-            threadlock_unlock(&client->event_map_lock);
+            threadlock_unlock(&client->event_lock);
         }
         XS_client_release(&client);
-    } else if (task->flags == 90) {
-
-
     } else {
         LOGGER_ERROR("unknown event task flags(=%d)", task->flags);
     }
@@ -177,17 +173,17 @@ void do_event_task (thread_context_t *thread_ctx)
 
 
 __no_warning_unused(static)
-XS_RESULT client_add_inotify_event (XS_client client, struct inotify_event * inevent)
+XS_RESULT client_add_inotify_event (XS_client client, struct inotify_event *inevent)
 {
     int count = XS_client_threadpool_unused_queues(client);
     if (count < 1) {
-        LOGGER_WARN("threadpool queues is full");
+        LOGGER_WARN("queues full");
         return XS_E_POOL;
     }
 
-    LOGGER_TRACE("threadpool unused queues: %d", count);
+    LOGGER_TRACE("unused queues=%d", count);
 
-    if (threadlock_trylock(&client->event_map_lock) == 0) {
+    if (threadlock_trylock(&client->event_lock) == 0) {
         int sid, err;
 
         XS_watch_event events[XSYNC_SERVER_MAXID + 1] = { 0 };
@@ -201,18 +197,18 @@ XS_RESULT client_add_inotify_event (XS_client client, struct inotify_event * ine
                 err = threadpool_add(client->pool, do_event_task, (void*) event, 10);
 
                 if (err) {
-                    LOGGER_ERROR("threadpool_add task(=%lld) error(%d): %s", (long long) event->taskid, err, threadpool_error_messages[-err]);
+                    LOGGER_ERROR("add task(=%lld) error(%d): %s", (long long) event->taskid, err, threadpool_error_messages[-err]);
 
                     // 增加到线程池失败, 必须释放 (从 watch_map 中删除自身)
                     XS_watch_event_release(&event);
                 } else {
                     // 增加到线程池成功
-                    LOGGER_DEBUG("threadpool_add task(=%lld) success", (long long) event->taskid);
+                    LOGGER_DEBUG("add task(=%lld) success", (long long) event->taskid);
                 }
             }
         }
 
-        threadlock_unlock(&client->event_map_lock);
+        threadlock_unlock(&client->event_lock);
 
         return XS_SUCCESS;
     }
@@ -329,43 +325,37 @@ int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX
 
 
 __no_warning_unused(static)
-int filter_watch_file (XS_client client, int wd, const char *pname, int pnamelen, char pathbuf[PATH_MAX])
+int filter_watch_file (XS_client client, char *wpath, const char *pname, int pnamelen, char pathbuf[PATH_MAX])
 {
     int ret;
     const char *name = 0;
-    char *wpath = 0;
 
-    //DEL: int namelen = 0;
+    *pathbuf = 0;
 
     if (! pname) {
         LOGGER_ERROR("application error: null name");
         return 0;
     }
 
-    if (wd > 0) {
-        wpath = inotifytools_filename_from_wd(wd);
+    if (wpath) {
+        // 监控文件名称
         name = pname;
-        //DEL: namelen = pnamelen;
+
+        LOGGER_TRACE("wpath={%s} name={%s}", wpath, name);
     } else {
+        // 从全路径名中截取文件名
         name = strrchr(pname, '/');
         if (! name || ! *name++) {
             LOGGER_ERROR("application error: null path name");
             return 0;
         }
+
+        // 从全路径名中截取目录的全路径
         memcpy(pathbuf, pname, name - pname);
         pathbuf[name - pname] = 0;
-        wpath = pathbuf;
-        //DEL: namelen = pnamelen - (name - pname);
+
+        LOGGER_TRACE("path={%s} name={%s}", pathbuf, name);
     }
-
-    if (! wpath) {
-        LOGGER_ERROR("application error: null path");
-        return 0;
-    }
-
-    LOGGER_TRACE("path={%s} name={%s}", wpath, name);
-
-    // const char *abspathfile = (pathbuf? realpath(pathfile, pathbuf) : pathfile);
 
     // 调用外部脚本, 过滤监控路径2
     ret = FILTER_WPATH_ACCEPT;
@@ -375,7 +365,11 @@ int filter_watch_file (XS_client client, int wd, const char *pname, int pnamelen
         if (access(path_filter_path(client), F_OK|R_OK|X_OK) == 0) {
             int bufcb = sizeof(client->file_filter_buf) - ERRORMSG_MAXLEN - 1;
 
-            snprintf(client->file_filter_buf, bufcb, "%s '%s' '%s'", path_filter_path(client), wpath, name);
+            if (wpath) {
+                snprintf(client->file_filter_buf, bufcb, "%s '%s' '%s'", path_filter_path(client), wpath, name);
+            } else {
+                snprintf(client->file_filter_buf, bufcb, "%s '%s' '%s'", path_filter_path(client), pathbuf, name);
+            }
 
             LOGGER_DEBUG("cmd={%s}", client->file_filter_buf);
 
@@ -388,32 +382,58 @@ int filter_watch_file (XS_client client, int wd, const char *pname, int pnamelen
         }
     }
 
+    if (wpath) {
+        snprintf(pathbuf, PATH_MAX, "%s%s", wpath, name);
+    } else {
+        strcat(pathbuf, name);
+    }
+    pathbuf[PATH_MAX - 1] = 0;
+
     if (ret == FILTER_WPATH_ACCEPT) {
-        LOGGER_DEBUG("ACCEPT(=%d): %s%s", ret, wpath, name);
+        LOGGER_DEBUG("ACCEPT(=%d): %s", ret, pathbuf);
         return 1;
     }
+
     if (ret == FILTER_WPATH_REJECT) {
-        LOGGER_DEBUG("REJECT(=%d): %s%s", ret, wpath, name);
+        LOGGER_DEBUG("REJECT(=%d): %s", ret, pathbuf);
         return 0;
     }
+
     if (ret == FILTER_WPATH_RELOAD) {
-        LOGGER_DEBUG("RELOAD(=%d): %s%s", ret, wpath, name);
+        LOGGER_WARN("RELOAD(=%d): %s", ret, pathbuf);
         return (-1);
     }
-    LOGGER_ERROR("UNEXPECTED(=%d): %s%s", ret, wpath, name);
+
+    LOGGER_ERROR("UNEXPECTED(=%d): %s", ret, pathbuf);
     return 0;
 }
 
 
 __no_warning_unused(static)
-int lscb_sweep_watch_path (const char * path, int pathlen, struct dirent *ent, void *arg1, void *arg2)
+int lscb_sweep_watch_path (const char * path, int pathlen, struct mydirent *myent, void *arg1, void *arg2)
 {
     int wd, ret;
     char pathbuf[PATH_MAX];
 
-    if (path[pathlen - 1] == '/') {
+    if (myent->isdir) {
+        // path 是目录
+        if (myent->islnk) {
+            // path 是目录链接
+            wd = filter_watch_path( (XS_client) arg1, path, pathbuf);
 
-        if (ent->d_type == DT_DIR) {
+            if (wd > 0) {
+                if (arg2) {
+                    // 当前子目录不支持符号链接
+                    LOGGER_ERROR("child dir link not supported: %s -> %s", path, pathbuf);
+                } else {
+                    listdir(path, pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_sweep_watch_path, arg1, int_cast_to_pv(wd));
+                }
+            } else if (wd == -1) {
+                client_set_inotify_reload((XS_client) arg1, 1);
+                return 0;
+            }
+        } else {
+            // path 是物理目录
             wd = filter_watch_path( (XS_client) arg1, path, pathbuf );
 
             if (wd > 0) {
@@ -423,28 +443,9 @@ int lscb_sweep_watch_path (const char * path, int pathlen, struct dirent *ent, v
                 client_set_inotify_reload((XS_client) arg1, 1);
                 return 0;
             }
-        } else if (ent->d_type == DT_LNK) {
-            wd = filter_watch_path( (XS_client) arg1, path, pathbuf);
-
-            if (wd > 0) {
-                if (arg2) {
-                    // 当前子目录不支持符号链接
-                    LOGGER_ERROR("child dir is link: %s -> %s", path, pathbuf);
-                } else {
-                    listdir(path, pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_sweep_watch_path, arg1, int_cast_to_pv(wd));
-                }
-            } else if (wd == -1) {
-                client_set_inotify_reload((XS_client) arg1, 1);
-                return 0;
-            }
-        } else {
-            LOGGER_WARN("ignored dir type(=%d): %s", ent->d_type, path);
         }
-
-    } else if (ent->d_type == DT_REG) {
+    } else if (myent->ent.d_type == DT_REG) {
         wd = pv_cast_to_int(arg2);
-
-        LOGGER_TRACE("sweep file(wd=%d): %s", wd, path);
 
         ret = 0;
 
@@ -452,7 +453,7 @@ int lscb_sweep_watch_path (const char * path, int pathlen, struct dirent *ent, v
             // 监控的目录文件
             char *name = strrchr(path, '/');
             if (name && *name++) {
-                ret = filter_watch_file((XS_client) arg1, wd, name, strlen(name), pathbuf);
+                ret = filter_watch_file((XS_client) arg1, inotifytools_filename_from_wd(wd), name, strlen(name), pathbuf);
             }
         } else {
             // 根目录的文件不被监视
@@ -462,20 +463,22 @@ int lscb_sweep_watch_path (const char * path, int pathlen, struct dirent *ent, v
         if (ret > 0) {
             // 添加任务到线程池
             struct inotify_event_equivalent event = {0};
-            client_add_inotify_event((XS_client) arg1, makeup_inotify_event(&event, wd, IN_CLOSE_NOWRITE, 0, path, pathlen));
+
+            client_add_inotify_event((XS_client) arg1, makeup_inotify_event(&event, wd, IN_CLOSE_NOWRITE, 0, pathbuf, strlen(pathbuf)));
         } else if (ret == -1) {
             // 要求重启服务
             client_set_inotify_reload((XS_client) arg1, 1);
             return 0;
         }
-
-    } else if (ent->d_type == DT_LNK) {
+    } else if (myent->islnk) {
         if (! arg2) {
             // 忽略根目录的文件链接
         } else {
-            char * abspath = realpath(path, pathbuf);
+            // 忽略子目录的文件链接
+            char *abspath = realpath(path, pathbuf);
+
             if (abspath) {
-                LOGGER_WARN("ignored file link(=%d): %s -> %s", ent->d_type, path, abspath);
+                LOGGER_WARN("ignored file link: %s -> %s", path, abspath);
             } else {
                 LOGGER_ERROR("realpath error(%d): %s (%s)", errno, strerror(errno), path);
             }
@@ -569,13 +572,13 @@ void inotifytools_restart(XS_client client)
  * XS_client application api
  *
  **********************************************************************/
-extern XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
+XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
 {
     XS_client client;
 
     int i, err;
 
-    int SERVERS;
+    int SERVERS = 0;
     int THREADS = opts->threads;
     int QUEUES = opts->queues;
 
@@ -594,14 +597,7 @@ extern XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
         return XS_ERROR;
     }
 
-    /* init dhlist for watch path */
-    LOGGER_TRACE("hlist_init");
-    for (i = 0; i <= XSYNC_WATCH_PATH_HASHMAX; i++) {
-        INIT_HLIST_HEAD(&client->wp_hlist[i]);
-    }
-
     client->servers_opts->sidmax = 0;
-
     client->size_paths = 0;
 
     /**
@@ -634,7 +630,7 @@ extern XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
 
     client->threads = THREADS;
     client->queues = QUEUES;
-    client->interval_seconds = SWEEP_INTERVAL_SECONDS;
+    client->interval_seconds = opts->sweep_interval;
 
     LOGGER_INFO("threads=%d queues=%d servers=%d interval=%d sec", THREADS, QUEUES, SERVERS, client->interval_seconds);
 
@@ -663,12 +659,19 @@ extern XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
         exit(XS_ERROR);
     }
 
-    // 初始化 event map
-    for (i = 0; i <= XSYNC_WATCH_PATH_HASHMAX; i++) {
-        INIT_HLIST_HEAD(&client->event_map_hlist[i]);
+    // 初始化 event_hmap
+    LOGGER_TRACE("event_hmap");
+    for (i = 0; i <= XSYNC_HASHMAP_MAX_LEN; i++) {
+        INIT_HLIST_HEAD(&client->event_hmap[i]);
     }
+    threadlock_init(&client->event_lock);
 
-    threadlock_init(&client->event_map_lock);
+    // 初始化 wpath_hmap
+    LOGGER_TRACE("wpath_hmap");
+    for (i = 0; i <= XSYNC_HASHMAP_MAX_LEN; i++) {
+        INIT_HLIST_HEAD(&client->wpath_hmap[i]);
+    }
+    threadlock_init(&client->wpath_lock);
 
     /**
      * output XS_client
@@ -679,13 +682,13 @@ extern XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
 }
 
 
-extern XS_client XS_client_retain (XS_client *pClient)
+XS_client XS_client_retain (XS_client *pClient)
 {
     return (XS_client) RefObjectRetain((void**) pClient);
 }
 
 
-extern XS_VOID XS_client_release (XS_client * inClient)
+XS_VOID XS_client_release (XS_client * inClient)
 {
     LOGGER_TRACE0();
 
@@ -693,7 +696,7 @@ extern XS_VOID XS_client_release (XS_client * inClient)
 }
 
 
-extern int XS_client_lock (XS_client client, int try)
+int XS_client_lock (XS_client client, int try)
 {
     int err = 0;
 
@@ -715,13 +718,13 @@ extern int XS_client_lock (XS_client client, int try)
 }
 
 
-extern XS_VOID XS_client_unlock (XS_client client)
+XS_VOID XS_client_unlock (XS_client client)
 {
     RefObjectUnlock(client);
 }
 
 
-extern int XS_client_wait_condition(XS_client client, struct timespec * timo)
+int XS_client_wait_condition(XS_client client, struct timespec * timo)
 {
     int err = pthread_cond_timedwait(&client->condition, &((RefObjectPtr) client)->lock__, timo);
 
@@ -741,10 +744,11 @@ extern int XS_client_wait_condition(XS_client client, struct timespec * timo)
 }
 
 
-extern XS_VOID XS_client_bootstrap (XS_client client)
+XS_VOID XS_client_bootstrap (XS_client client)
 {
-    int len, is_dir, is_lnk;
+    int is_dir, is_lnk;
 
+    int pathlen;
     char pathbuf[XSYNC_PATH_MAXSIZE];
 
     struct inotify_event *event;
@@ -839,12 +843,12 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
             continue;
         }
 
-        len = snprintf(pathbuf, sizeof(pathbuf), "%s%s", wpath, event->name);
-        if (len < 4 || len >= sizeof(pathbuf)) {
+        pathlen = snprintf(pathbuf, sizeof(pathbuf), "%s%s", wpath, event->name);
+        if (pathlen < 4 || pathlen >= sizeof(pathbuf)) {
             LOGGER_FATAL("bad event file: %s%s", wpath, event->name);
             continue;
         }
-        pathbuf[len] = 0;
+        pathbuf[pathlen] = 0;
 
         is_dir = isdir(pathbuf);
         is_lnk = fileislink(pathbuf, 0, 0);
@@ -852,8 +856,8 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
         LOGGER_TRACE("events(num=%d): event=%s (isdir=%d islnk=%d)", inotifytools_get_num_watches(), pathbuf, is_dir, is_lnk);
 
         if (event->mask & IN_ISDIR) {
-            pathbuf[len++] = '/';
-            pathbuf[len] = '\0';
+            pathbuf[pathlen++] = '/';
+            pathbuf[pathlen] = '\0';
 
             int wd = inotifytools_wd_from_filename(pathbuf);
 
@@ -894,22 +898,26 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
                     }
                 }
             }
-        } else {
+        } else if (event->mask & INOTI_EVENTS_MASK) {
             // event->len 不总是等于 strlen(event->name)
-            //
-            if (filter_watch_file(client, event->wd, event->name, strlen(event->name), 0) > 0) {
+            struct inotify_event_equivalent eqevent = {0};
 
+            struct inotify_event *eqev = makeup_inotify_event(&eqevent, event->wd, event->mask, event->cookie, pathbuf, pathlen);
+
+            if (filter_watch_file(client, inotifytools_filename_from_wd(event->wd), event->name, strlen(event->name), pathbuf) > 0) {
                 if (event->mask & IN_MODIFY) {
-                    LOGGER_INFO("IN_MODIFY: %s", pathbuf);
-                    client_add_inotify_event(client, event);
-                } else if (event->mask & IN_CLOSE) {
-                    LOGGER_INFO("IN_CLOSE: %s", pathbuf);
-                    client_add_inotify_event(client, event);
-                } else if (event->mask & IN_MOVE) {
-                    LOGGER_INFO("IN_MOVE: %s", pathbuf);
-                    client_add_inotify_event(client, event);
-                }
+                    LOGGER_INFO("IN_MODIFY: %s", eqev->name);
 
+                    client_add_inotify_event(client, eqev);
+                } else if (event->mask & IN_CLOSE) {
+                    LOGGER_INFO("IN_CLOSE: %s", eqev->name);
+
+                    client_add_inotify_event(client, eqev);
+                } else if (event->mask & IN_MOVE) {
+                    LOGGER_INFO("IN_MOVE: %s", eqev->name);
+
+                    client_add_inotify_event(client, eqev);
+                }
             } else {
                 LOGGER_TRACE("reject file: %s", pathbuf);
             }
@@ -922,55 +930,68 @@ extern XS_VOID XS_client_bootstrap (XS_client client)
 }
 
 
-extern XS_VOID XS_client_list_watch_paths (XS_client client, list_watch_path_cb_t list_wp_cb, void * data)
+XS_VOID XS_client_clear_event_map (XS_client client)
 {
-    int hash;
     struct hlist_node *hp, *hn;
+    int hash;
 
-    for (hash = 0; hash <= XSYNC_WATCH_PATH_HASHMAX; hash++) {
-        hlist_for_each_safe(hp, hn, &client->wp_hlist[hash]) {
-            struct xs_watch_path_t *wp = hlist_entry(hp, struct xs_watch_path_t, i_hash);
-
-            if (list_wp_cb(wp, data) != 1) {
-                return;
-            }
+    for (hash = 0; hash <= XSYNC_HASHMAP_MAX_LEN; hash++) {
+        hlist_for_each_safe(hp, hn, &client->event_hmap[hash]) {
+            XS_watch_event event = hlist_entry(hp, struct xs_watch_event_t, i_hash);
+            XS_watch_event_release(&event);
         }
     }
 }
 
 
-extern XS_VOID XS_client_clear_watch_paths (XS_client client)
+XS_VOID XS_client_clear_wpath_map (XS_client client)
 {
-    LOGGER_TRACE("TODO: hlist clear");
+    struct hlist_node *hp, *hn;
+    int hash;
+
+    for (hash = 0; hash <= XSYNC_HASHMAP_MAX_LEN; hash++) {
+        hlist_for_each_safe(hp, hn, &client->wpath_hmap[hash]) {
+            XS_watch_path wp = hlist_entry(hp, struct xs_watch_path_t, i_hash);
+            XS_watch_path_release(&wp);
+        }
+    }
 }
 
 
-extern XS_BOOL XS_client_add_watch_path (XS_client client, XS_watch_path wp)
+XS_BOOL XS_client_add_watch_path (XS_client client, XS_watch_path wp)
 {
     if (! inotifytools_watch_recursively(wp->fullpath, wp->events_mask) ) {
         LOGGER_ERROR("inotifytools_watch_recursively(): %s", strerror(inotifytools_error()));
         return XS_FALSE;
-    }
+    } else {
+        int hash = 0;
 
-    return XS_TRUE;
+        if (! XS_client_find_watch_path(client, wp->pathid, &hash, 0)) {
+            // 添加到 wpath_hmap
+            hlist_add_head(&wp->i_hash, &client->wpath_hmap[hash]);
+            return XS_TRUE;
+        }
+
+        return XS_FALSE;
+    }
 }
 
 
-extern XS_BOOL XS_client_find_watch_path (XS_client client, char *path, XS_watch_path * outwp)
+XS_BOOL XS_client_find_watch_path (XS_client client, char *pathid, int *outhash, XS_watch_path * outwp)
 {
-    struct hlist_node * hp;
+    struct hlist_node *hp;
+    int hash;
 
-    // 计算 hash
-    int hash = XS_watch_path_hash_get(path);
+    hash = BKDRHash2(pathid, XSYNC_HASHMAP_MAX_LEN);
 
-    LOGGER_DEBUG("fullpath=%s", path);
+    if (*outhash) {
+        *outhash = hash;
+    }
 
-    hlist_for_each(hp, &client->wp_hlist[hash]) {
-        struct xs_watch_path_t * wp = hlist_entry(hp, struct xs_watch_path_t, i_hash);
+    hlist_for_each(hp, &client->wpath_hmap[hash]) {
+        XS_watch_path wp = hlist_entry(hp, struct xs_watch_path_t, i_hash);
 
-        LOGGER_DEBUG("hlist(wp=%p): fullpath=(%s)", wp, wp->fullpath);
-
-        if (! strcmp(wp->fullpath, path)) {
+        if ( ! strncmp(wp->pathid, pathid, XSYNC_CLIENTID_MAXLEN) ) {
             if (outwp) {
                 *outwp = (XS_watch_path) RefObjectRetain((void**) &wp);
             }
@@ -978,44 +999,6 @@ extern XS_BOOL XS_client_find_watch_path (XS_client client, char *path, XS_watch
             return XS_TRUE;
         }
     }
-
-    return XS_FALSE;
-}
-
-
-extern XS_BOOL XS_client_remove_watch_path (XS_client client, char * path)
-{
-    /*
-    struct hlist_node *hp;
-    struct hlist_node *hn;
-
-    int hash = XS_watch_path_hash_get(path);
-
-    hlist_for_each_safe(hp, hn, &client->wp_hlist[hash]) {
-        struct xs_watch_path_t * wp = hlist_entry(hp, struct xs_watch_path_t, i_hash);
-        if (! strcmp(wp->fullpath, path)) {
-            int wd = wp->watch_wd;
-
-            if (inotify_rm_watch(client->infd, wd) == 0) {
-                LOGGER_DEBUG("xpath=%p, inotify_rm_watch success(0). (%s)", wp, wp->fullpath);
-
-                wp = client_wd_table_remove(client, wp);
-                assert(wp->watch_wd == wd);
-                wp->watch_wd = -1;
-
-                //?? hlist_del(hp);
-                hlist_del(&wp->i_hash);
-
-                XS_watch_path_release(&wp);
-
-                return XS_TRUE;
-            } else {
-                LOGGER_ERROR("xpath=%p, inotify_rm_watch error(%d: %s). (%s)", wp, errno, strerror(errno), wp->fullpath);
-                return XS_FALSE;
-            }
-        }
-    }
-    */
 
     return XS_FALSE;
 }

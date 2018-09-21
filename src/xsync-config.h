@@ -78,7 +78,7 @@ extern "C"
  * define max size of path file
  */
 #ifndef XSYNC_PATH_MAXSIZE
-#  define XSYNC_PATH_MAXSIZE            (PATHFILE_MAXLEN + 1)
+#  define XSYNC_PATH_MAXSIZE            (PATH_MAX + 1)
 #endif
 
 
@@ -124,6 +124,14 @@ extern "C"
 #endif
 
 /**
+ * sweep interval for xclient in seconds
+ */
+#ifndef XSYNC_SWEEP_INTERVAL_SECONDS
+#  define XSYNC_SWEEP_INTERVAL_SECONDS  10
+#endif
+
+
+/**
  * default threads and queues for client and server
  */
 #ifndef XSYNC_CLIENT_THREADS
@@ -164,7 +172,7 @@ extern "C"
  *   系统支持的最大长度路径文件名
  */
 #ifndef XSYNC_PATHFILE_MAXLEN
-#  define XSYNC_PATHFILE_MAXLEN         PATHFILE_MAXLEN
+#  define XSYNC_PATHFILE_MAXLEN         PATH_MAX
 #endif
 
 
@@ -204,8 +212,8 @@ extern "C"
 /**
  * for xsync client: 监控路径 hashmap 最大条目
  */
-#ifndef XSYNC_WATCH_PATH_HASHMAX
-#  define XSYNC_WATCH_PATH_HASHMAX      255
+#ifndef XSYNC_HASHMAP_MAX_LEN
+#  define XSYNC_HASHMAP_MAX_LEN      255
 #endif
 
 

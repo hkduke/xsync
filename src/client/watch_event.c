@@ -45,16 +45,13 @@
 #include "../common/common_util.h"
 
 
+// DONOT release XS_server_conn since it not a RefObject !
 __no_warning_unused(static)
 void xs_watch_event_delete (void *pv)
 {
     XS_watch_event event = (XS_watch_event) pv;
 
-    LOGGER_TRACE0();
-
-    // TODO: 本对象(event)即将被删除
-
-    // 从 event_map_hlist 清除自身
+    // 从 event_hmap 清除自身
     hlist_del(&event->i_hash);
 
     // 释放引用计数
@@ -62,19 +59,21 @@ void xs_watch_event_delete (void *pv)
 
     event->client = 0;
 
-    // DONOT release XS_server_conn since it not a RefObject !
+    LOGGER_TRACE("~event=%p", event);
 
     free(pv);
 }
 
 
-extern XS_VOID XS_watch_event_create (struct inotify_event * inevent, XS_client client, int hash, int sid, XS_watch_event *outEvent)
+XS_VOID XS_watch_event_create (struct inotify_event * inevent, XS_client client, int sid, XS_watch_event *outEvent)
 {
     XS_watch_event event;
 
     *outEvent = 0;
 
-    event = (XS_watch_event) mem_alloc(1, sizeof(struct xs_watch_event_t) + inevent->len + 1);
+    int cb = ((inevent->len + sizeof(XS_watch_event)) / sizeof(XS_watch_event)) * sizeof(XS_watch_event);
+
+    event = (XS_watch_event) mem_alloc(1, sizeof(struct xs_watch_event_t) + cb);
 
     // 增加 client 计数
     event->client = XS_client_retain(&client);
@@ -86,23 +85,17 @@ extern XS_VOID XS_watch_event_create (struct inotify_event * inevent, XS_client 
     // 复制文件名
     event->namelen = inevent->len;
     memcpy(event->pathname, inevent->name, inevent->len);
-    event->pathname[event->namelen] = 0;
-
-    if (hash == -1) {
-        event->hash = BKDRHash2(event->pathname, XSYNC_WATCH_PATH_HASHMAX);
-    } else {
-        event->hash = hash;
-    }
+    event->pathname[inevent->len] = 0;
 
     event->taskid = __interlock_add(&client->task_counter);
 
-    *outEvent = (XS_watch_event) RefObjectInit(event);
+    LOGGER_TRACE("event(%p): task=%lld name=%s", event, (long long) event->taskid, (char*) event->pathname);
 
-    LOGGER_DEBUG("new event=%p (task=%lld name=%s)", event, (long long) event->taskid, (char*) event->pathname);
+    *outEvent = (XS_watch_event) RefObjectInit(event);
 }
 
 
-extern XS_VOID XS_watch_event_release (XS_watch_event *inEvent)
+XS_VOID XS_watch_event_release (XS_watch_event *inEvent)
 {
     LOGGER_TRACE0();
 
@@ -110,8 +103,14 @@ extern XS_VOID XS_watch_event_release (XS_watch_event *inEvent)
 }
 
 
+XS_watch_event XS_watch_event_retain (XS_watch_event *pEvent)
+{
+    return (XS_watch_event) RefObjectRetain((void**) pEvent);
+}
+
+
 /* called in do_event_task() */
-extern ssize_t XS_watch_event_sync_file (XS_watch_event event, perthread_data *perdata)
+ssize_t XS_watch_event_sync_file (XS_watch_event event, perthread_data *perdata)
 {
     off_t pos;
     ssize_t cbread;

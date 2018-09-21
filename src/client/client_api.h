@@ -77,6 +77,8 @@ typedef struct xs_appopts_t
     int threads;
     int queues;
 
+    int sweep_interval;
+
     int from_watch;
 
     char clientid[XSYNC_CLIENTID_MAXLEN + 1];
@@ -122,16 +124,13 @@ extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_
 /**
  * XS_client internal api
  */
-extern XS_VOID XS_client_list_watch_paths (XS_client client, list_watch_path_cb_t list_wp_cb, void *data);
+extern XS_VOID XS_client_clear_wpath_map (XS_client client);
 
-extern XS_VOID XS_client_clear_watch_paths (XS_client client);
+extern XS_VOID XS_client_clear_event_map (XS_client client);
 
 extern XS_BOOL XS_client_add_watch_path (XS_client client, XS_watch_path wp);
 
-extern XS_BOOL XS_client_find_watch_path (XS_client client, char *fullpath, XS_watch_path *outwp);
-
-extern XS_BOOL XS_client_remove_watch_path (XS_client client, char *fullpath);
-
+extern XS_BOOL XS_client_find_watch_path (XS_client client, char *pathid, int *outhash, XS_watch_path *outwp);
 
 #if defined(__cplusplus)
 }

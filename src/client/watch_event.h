@@ -59,7 +59,7 @@ typedef struct perthread_data
 } perthread_data;
 
 
-struct xs_watch_event_t
+typedef struct xs_watch_event_t
 {
     EXTENDS_REFOBJECT_TYPE();
 
@@ -78,19 +78,23 @@ struct xs_watch_event_t
     /* const reference of server opts for read only */
     xs_server_opts *server;
 
-    /* see event_map_hlist of XS_client */
+    /**
+     * see event_hmap of XS_client
+     */
     int hash;
     struct hlist_node i_hash;
 
     /* 文件的全路径名长度和全路径名 */
     int namelen;
     char pathname[0];
-} __attribute((packed));
+} xs_watch_event_t;
 
 
-extern XS_VOID XS_watch_event_create (struct inotify_event * inevent, XS_client client, int hash, int sid, XS_watch_event *outEvent);
+extern XS_VOID XS_watch_event_create (struct inotify_event * inevent, XS_client client, int sid, XS_watch_event *outEvent);
 
 extern XS_VOID XS_watch_event_release (XS_watch_event *inEvent);
+
+extern XS_watch_event XS_watch_event_retain (XS_watch_event *pEvent);
 
 /* called in do_event_task() */
 extern ssize_t XS_watch_event_sync_file (XS_watch_event event, perthread_data *perdata);

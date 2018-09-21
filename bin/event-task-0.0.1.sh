@@ -3,7 +3,7 @@
 # @file: event-task.h
 #   事件任务回调脚本.
 #
-#      event-task.h $pathfile $serventry
+#      event-task.h $event $pathfile $serventry
 #
 #   返回值:
 #      1: 继续处理  (OK)
@@ -35,34 +35,46 @@ IGN="0"
 ERR="-1"
 
 ###########################################################
+# event:     事件名称
 # pathfile: 本地文件全路径名
 #
 function on_event_task() {
-    local pathfile="$1"
+    local event="$1"
+    local pathfile="$2"
 
+    # 模拟执行时间 5s
+    #sleep 5
 
     echo "$OK"
 }
 
+
 ###########################################################
+# event:     事件名称
 # pathfile:  本地文件全路径名
-# serventry: 服务器本地全路径
+# entry:     服务器文件全路径
 #
 function on_event_task2() {
-    local pathfile="$1"
-    local serventry="$2"
+    local event="$1"
+    local pathfile="$2"
+    local entry="$3"
+
+    # 模拟执行时间 5s
+    sleep 5
 
     echo "$OK"
 }
 
+
 ###########################################################
-# 参数 1: 本地文件全路径(必选)
-# 参数 2: 服务器文件全路径(可选)
+# 参数 1: 事件名称(必选)
+# 参数 2: 本地文件全路径(必选)
+# 参数 3: 服务器文件全路径(可选)
 #
-if [ $# == 1 ]; then
-    echoinfo "on_event_task: '"$1"'"
-    on_event_task "$1"
-elif [ $# == 2 ]; then
-    echoinfo "on_event_task2: '"$1""$2"'"
-    on_event_task2 "$1" "$2"
+if [ $# == 2 ]; then
+    echoinfo "on_event_task: event=($1) pathfile=($2)"
+    on_event_task "$1" "$2"
+elif [ $# == 3 ]; then
+    echoinfo "on_event_task2: event=($1) pathfile=($2) entry=($3)"
+    on_event_task2 "$1" "$2" "$3"
 fi

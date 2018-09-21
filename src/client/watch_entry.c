@@ -47,6 +47,7 @@
 
 extern XS_VOID XS_watch_entry_create (const XS_watch_path wp, int sid, const char *filename, XS_watch_entry *outEntry)
 {
+    /*
     XS_watch_entry entry;
 
     char nameid[20];
@@ -89,6 +90,8 @@ extern XS_VOID XS_watch_entry_create (const XS_watch_path wp, int sid, const cha
     *outEntry = (XS_watch_entry) RefObjectInit(entry);
 
     LOGGER_TRACE("%p ('%s' hash=%d fullpath='%s')", entry, xs_entry_nameid(entry), entry->hash, xs_entry_fullpath(entry));
+
+    */
 }
 
 

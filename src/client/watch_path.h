@@ -64,7 +64,6 @@ typedef struct xs_watch_path_t
 
     /* inotify watch mask */
     uint32_t  events_mask;
-    int watch_wd;
 
     /**
      * 指定该目录下的文件需要同步到那些服务器
@@ -74,29 +73,14 @@ typedef struct xs_watch_path_t
     int sid_masks[XSYNC_SERVER_MAXID + 1];
 
     /**
-     * 包含的文件的正则表达式
-     */
-    XS_path_filter included_filters[XSYNC_SERVER_MAXID + 1];
-
-    /**
-     * 排除文件的正则表达式
-     */
-    XS_path_filter excluded_filters[XSYNC_SERVER_MAXID + 1];
-
-    /**
-     * hlist node
+     * see wpath_hmap of XS_client
      */
     struct hlist_node i_hash;
 
-    /**
-     * hash map for watch_wd
-     */
-    struct xs_watch_path_t * next;
-
     /** absolute path for watch */
-    int pathsize;
+    int pathlen;
     char fullpath[0];
-} xs_watch_path_t;
+} __attribute((packed)) xs_watch_path_t;
 
 
 __no_warning_unused(static)
@@ -110,15 +94,7 @@ extern XS_RESULT XS_watch_path_create (const char * pathid, const char * fullpat
 
 extern XS_VOID XS_watch_path_release (XS_watch_path * wp);
 
-extern XS_path_filter XS_watch_path_get_included_filter (XS_watch_path wp, int sid);
-
-extern XS_path_filter XS_watch_path_get_excluded_filter (XS_watch_path wp, int sid);
-
 extern XS_RESULT XS_watch_path_sweep (XS_watch_path wp, void *client);
-
-extern XS_watch_path XS_watch_path_get_parent (XS_watch_path wp);
-
-extern int XS_watch_path_get_pathid_route (XS_watch_path wp, char route[XSYNC_PATH_MAXSIZE]);
 
 #if defined(__cplusplus)
 }

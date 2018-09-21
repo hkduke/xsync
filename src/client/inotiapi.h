@@ -53,7 +53,7 @@ struct inotify_event_equivalent {
 	uint32_t		mask;		/* watch mask */
 	uint32_t		cookie;		/* cookie to synchronize two events */
 	uint32_t		len;		/* length (including nulls) of name */
-	char		name[PATHFILE_MAXLEN + 1];
+	char		    name[PATH_MAX + 1];
 };
 
 
@@ -64,11 +64,11 @@ struct inotify_event * makeup_inotify_event (struct inotify_event_equivalent *ev
 {
     event->wd = wd;
     event->mask = mask;
-    event->cookie =cookie;
+    event->cookie = cookie;
     event->name[0] = 0;
     event->len = 0;
 
-    if (namelen <= PATHFILE_MAXLEN) {
+    if (namelen < sizeof(event->name)) {
         memcpy(event->name, name, namelen);
         event->name[namelen] = 0;
         event->len = namelen;
@@ -76,6 +76,42 @@ struct inotify_event * makeup_inotify_event (struct inotify_event_equivalent *ev
 
     return (struct inotify_event *) event;
 }
+
+
+static const char *inoti_event_names[] = {
+    "MODIFY",
+    "CLOSE_WRITE",
+    "CREATE",
+    "DELETE",
+    "DELETE_SELF",
+    "MOVE",
+    "ONLYDIR",
+    "UNKNOWN"
+};
+
+
+__no_warning_unused(static)
+const char * inotify_event_name(int inevent_mask)
+{
+    if (inevent_mask & IN_MODIFY) {
+        return inoti_event_names[0];
+    } else if (inevent_mask & IN_CLOSE_WRITE) {
+        return inoti_event_names[1];
+    } else if (inevent_mask & IN_CREATE) {
+        return inoti_event_names[2];
+    } else if (inevent_mask & IN_DELETE) {
+        return inoti_event_names[3];
+    } else if (inevent_mask & IN_DELETE_SELF) {
+        return inoti_event_names[4];
+    } else if (inevent_mask & IN_MOVE) {
+        return inoti_event_names[5];
+    } else if (inevent_mask & IN_ONLYDIR) {
+        return inoti_event_names[6];
+    } else {
+        return inoti_event_names[7];
+    }
+}
+
 
 
 __no_warning_unused(static)

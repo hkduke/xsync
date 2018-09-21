@@ -106,6 +106,9 @@ void print_usage(void)
         "\t                                    \033[35m 'stderr' - using appender stderr\033[0m\n"
         "\t                                    \033[35m 'syslog' - using appender syslog\033[0m\n"
         "\n"
+        "\t-s, --sweep-interval=<SECONDS>  \033[35m specify sweep interval in seconds. %d (default)\033[0m\n"
+        "\n"
+        "\n"
         "\t-t, --threads=<THREADS>      \033[35m specify number of threads. %d (default)\033[0m\n"
         "\n"
         "\t-q, --queues=<QUEUES>        \033[35m specify total queues for all threads. %d (default)\033[0m\n"
@@ -122,7 +125,8 @@ void print_usage(void)
         "\t-r, --regexp=PATTERN         \033[35m use pattern for matching on <express>.\033[0m\n"
         "\n"
         "\033[47;35m* COPYRIGHT (c) 2014-2020 PEPSTACK.COM, ALL RIGHTS RESERVED.\033[0m\n",
-        APP_NAME, APP_NAME, APP_VERSION, APP_NAME, XSYNC_CLIENT_THREADS, XSYNC_CLIENT_QUEUES);
+        APP_NAME, APP_NAME, APP_VERSION, APP_NAME,
+        XSYNC_SWEEP_INTERVAL_SECONDS, XSYNC_CLIENT_THREADS, XSYNC_CLIENT_QUEUES);
 
 #ifdef DEBUG
     printf("\033[31m**** Caution: DEBUG compiling mode only used in develop stage ! ****\033[0m\n");
@@ -147,6 +151,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     char appender[60] = { "stdout" };
 
     int from_watch = 0;
+    int sweep_interval = 0;
 
     int interactive = 0;
     int isdaemon = 0;
@@ -159,6 +164,8 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     opts->threads = XSYNC_CLIENT_THREADS;
     opts->queues = XSYNC_CLIENT_QUEUES;
 
+    opts->sweep_interval = XSYNC_SWEEP_INTERVAL_SECONDS;
+
     *save_config = 0;
 
     /* command arguments */
@@ -170,6 +177,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
         {"log4c-rcpath", required_argument, 0, 'O'},
         {"priority", required_argument, 0, 'P'},
         {"appender", required_argument, 0, 'A'},
+        {"sweep-interval", required_argument, 0, 's'},
         {"threads", required_argument, 0, 't'},
         {"queues", required_argument, 0, 'q'},
         {"clientid", required_argument, 0, 'N'},
@@ -213,7 +221,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     }
 
     /* parse command arguments */
-    while ((ret = getopt_long(argc, argv, "hVC:WO:P:A:t:q:N:DKLS::Im:r:", lopts, 0)) != EOF) {
+    while ((ret = getopt_long(argc, argv, "hVC:WO:P:A:t:q:s:N:DKLS::Im:r:", lopts, 0)) != EOF) {
         switch (ret) {
         case 'D':
             isdaemon = 1;
@@ -317,6 +325,10 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
             queues = atoi(optarg);
             break;
 
+        case 's':
+            sweep_interval = atoi(optarg);
+            break;
+
         case 'N':
             /* TODO */
             exit(0);
@@ -382,6 +394,10 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
             fprintf(stdout, "\033[1;31m* appender ('%s') redesignated to 'stdout' due to specify '-T,--test'.\033[0m\n", appender);
             strcpy(appender, "stdout");
         }
+    }
+
+    if (sweep_interval != 0) {
+        opts->sweep_interval = sweep_interval;
     }
 
     if (threads != 0) {

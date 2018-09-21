@@ -93,7 +93,7 @@
 
 
 #ifndef PATHFILE_MAXLEN
-#  define PATHFILE_MAXLEN  255
+#  define PATHFILE_MAXLEN  PATH_MAX
 #endif
 
 #ifndef HOSTNAME_MAXLEN

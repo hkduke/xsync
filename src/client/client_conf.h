@@ -49,12 +49,6 @@ extern "C" {
 #include "../xsync-config.h"
 
 
-#define XS_watch_path_hash_get(path)  \
-    ((int)(BKDRHash(path) & XSYNC_WATCH_PATH_HASHMAX))
-
-#define XS_watch_id_hash_get(wd)      \
-    ((int)((wd) & XSYNC_WATCH_PATH_HASHMAX))
-
 #define XS_client_threadpool_unused_queues(client)    \
     threadpool_unused_queues(client->pool)
 
@@ -112,28 +106,32 @@ typedef struct xs_client_t
     char path_filter_buf[XSYNC_BUFSIZE];
 
     /**
-     * event_map_hlist: a hash map for XS_watch_event
-     * event_map_lock: 访问 event_map_hlist 的锁
+     * event_hmap: a hash map for XS_watch_event
+     * event_lock: 访问 event_hmap 的锁
      */
-    struct hlist_head event_map_hlist[XSYNC_WATCH_PATH_HASHMAX + 1];
-    thread_lock_t event_map_lock;
+    struct hlist_head event_hmap[XSYNC_HASHMAP_MAX_LEN + 1];
+    thread_lock_t event_lock;
+
+    /**
+     * wpath_hmap: a hash map for XS_watch_path
+     * wpath_lock: 访问 wpath_hmap 的锁
+     */
+    struct hlist_head wpath_hmap[XSYNC_HASHMAP_MAX_LEN + 1];
+    thread_lock_t wpath_lock;
 
 
-
-
-
-
-
+    
+    
+    
     /** DEL??
      * hash map for watch_entry -> watch_entry
      */
     XS_watch_entry entry_map[XSYNC_WATCH_ENTRY_HASHMAX + 1];
 
     /** hash table for wd (watch descriptor) -> watch_path */
-    XS_watch_path wd_table[XSYNC_WATCH_PATH_HASHMAX + 1];
+    XS_watch_path wd_table[XSYNC_HASHMAP_MAX_LEN + 1];
 
-    //DEL
-    struct hlist_head wp_hlist[XSYNC_WATCH_PATH_HASHMAX + 1];
+    
 
     /* buffer must be in lock */
     char inlock_buffer[XSYNC_BUFSIZE];
@@ -184,15 +182,11 @@ inline void client_set_inotify_reload (struct xs_client_t *client, int reload)
 extern void xs_client_delete (void *pv);
 
 
-extern int watch_path_set_sid_masks_cb (XS_watch_path wp, void * data);
-
 /**
  * level = 0 : 必须是目录符号链接
  * level = 1, 2, ... : 可以是目录符号链接, 也可以是物理目录
  */
-extern int lscb_add_watch_path (const char * path, int pathlen, struct dirent *ent, void *arg1, void *arg2);
-
-extern int lscb_init_watch_path (const char * path, int pathlen, struct dirent *ent, XS_client client, XS_watch_path parent);
+extern int lscb_init_watch_path (const char * path, int pathlen, struct mydirent *myent, void *arg1, void *arg2);
 
 
 __no_warning_unused(static)
@@ -216,80 +210,6 @@ XS_VOID client_clear_entry_map (XS_client client)
             first = next;
         }
     }
-}
-
-
-/**
- * insert wd into wd_table of client
- */
-__no_warning_unused(static)
-inline void client_wd_table_insert (XS_client client, XS_watch_path wp)
-{
-    int hash = XS_watch_id_hash_get(wp->watch_wd);
-    assert(wp->watch_wd != -1 && hash >= 0 && hash <= XSYNC_WATCH_PATH_HASHMAX);
-
-    LOGGER_TRACE0();
-
-    wp->next = client->wd_table[hash];
-    client->wd_table[hash] = wp;
-}
-
-
-
-__no_warning_unused(static)
-inline xs_watch_path_t * client_wd_table_lookup (XS_client client, int wd)
-{
-    xs_watch_path_t * wp;
-
-    int hash = XS_watch_id_hash_get(wd);
-    assert(wd != -1 && hash >= 0 && hash <= XSYNC_WATCH_PATH_HASHMAX);
-
-    wp = client->wd_table[hash];
-    while (wp) {
-        if (wp->watch_wd == wd) {
-            return wp;
-        }
-        wp = wp->next;
-    }
-    return wp;
-}
-
-
-__no_warning_unused(static)
-inline XS_watch_path client_wd_table_remove (XS_client client, XS_watch_path wp)
-{
-    xs_watch_path_t * lead;
-    xs_watch_path_t * node;
-
-    int hash = XS_watch_id_hash_get(wp->watch_wd);
-    assert(wp->watch_wd != -1 && hash >= 0 && hash <= XSYNC_WATCH_PATH_HASHMAX);
-
-    LOGGER_TRACE0();
-
-    // 特殊处理头节点
-    lead = client->wd_table[hash];
-    if (! lead || lead == wp) {
-        if (lead) {
-            client->wd_table[hash] = lead->next;
-            lead->next = 0;
-        }
-        return lead;
-    }
-
-    // lead->node->...
-    node = lead->next;
-    while (node && node != wp) {
-        lead = node;
-        node = node->next;
-    }
-
-    if (node == wp) {
-        // found wd
-        lead->next = node->next;
-        node->next = 0;
-    }
-
-    return node;
 }
 
 

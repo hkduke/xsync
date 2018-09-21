@@ -77,7 +77,14 @@ int  getrusage (int, struct rusage *);
 #define int_cast_to_pv(ival)    ((void*) (uintptr_t) (int) (ival))
 
 
-typedef int (*listdir_callback_t)(const char * path, int pathlen, struct dirent *ent, void * arg1, void *arg2);
+struct mydirent {
+    struct dirent ent;
+
+    unsigned char isdir;
+    unsigned char islnk;
+}  __attribute((packed));
+
+typedef int (*listdir_callback_t)(const char * path, int pathlen, struct mydirent *myent, void * arg1, void *arg2);
 
 
 __no_warning_unused(static)
@@ -398,7 +405,7 @@ int fileislink (const char * pathfile, char * inbuf, ssize_t inbufsize)
 
 
 __no_warning_unused(static)
-int listdir(const char * path, char * inbuf, ssize_t inbufsize, listdir_callback_t lscb, void *arg1, void *arg2)
+int listdir(const char * path, char * inbuf, ssize_t bufsize, listdir_callback_t lscb, void *arg1, void *arg2)
 {
     DIR *dir;
     struct dirent *ent;
@@ -408,14 +415,23 @@ int listdir(const char * path, char * inbuf, ssize_t inbufsize, listdir_callback
 
     if ((dir = opendir(path)) != 0) {
         /* print all the files and directories within directory */
+        errno = 0;
 
         while ((ent = readdir(dir)) != 0) {
+            errno = 0;
+
             if (strcmp(ent->d_name, ".") && strcmp(ent->d_name, "..")) {
+                struct mydirent myent = {0};
+
+                memcpy(&myent.ent, ent, sizeof(*ent));
+
+                myent.islnk = 0;
+                myent.isdir = 0;
 
                 if (path[ strlen(path) - 1 ] == '/') {
-                    pathlen = snprintf(inbuf, inbufsize, "%s%s", path, ent->d_name);
+                    pathlen = snprintf(inbuf, bufsize, "%s%s", path, ent->d_name);
                 } else {
-                    pathlen = snprintf(inbuf, inbufsize, "%s/%s", path, ent->d_name);
+                    pathlen = snprintf(inbuf, bufsize, "%s/%s", path, ent->d_name);
                 }
 
                 if (pathlen < 0) {
@@ -424,7 +440,7 @@ int listdir(const char * path, char * inbuf, ssize_t inbufsize, listdir_callback
                     break;
                 }
 
-                if (pathlen >= inbufsize) {
+                if (pathlen >= bufsize) {
                     // buff is too small
                     err = (-2);
                     break;
@@ -434,28 +450,41 @@ int listdir(const char * path, char * inbuf, ssize_t inbufsize, listdir_callback
 
                 if (ent->d_type == DT_DIR) {
                     inbuf[pathlen++] = '/';
+
+                    myent.isdir = 1;
                 } else if (ent->d_type == DT_UNKNOWN) {
                     if (isdir(inbuf)) {
-                        ent->d_type = DT_DIR;
                         inbuf[pathlen++] = '/';
+
+                        myent.ent.d_type = DT_DIR;
+                        myent.isdir = 1;
                     }
 
                     if (fileislink(inbuf, 0, 0)) {
-                        ent->d_type = DT_LNK;
+                        myent.ent.d_type = DT_LNK;
+                        myent.islnk = 1;
                     }
                 } else if (ent->d_type == DT_LNK) {
+                    myent.islnk = 1;
+
                     if (isdir(inbuf)) {
                         inbuf[pathlen++] = '/';
+
+                        myent.isdir = 1;
                     }
                 }
 
                 inbuf[pathlen] = 0;
 
-                if (lscb(inbuf, pathlen, ent, arg1, arg2) != 1) {
+                if (lscb(inbuf, pathlen, &myent, arg1, arg2) != 1) {
                     err = (-3);
                     break;
                 }
             }
+        }
+
+        if (errno) {
+            printf("readdir error(%d): %s\n", errno, strerror(errno));
         }
 
         closedir(dir);

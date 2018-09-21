@@ -45,35 +45,32 @@
 #include "../common/common_util.h"
 
 
-static inline void free_watch_path (void *pv)
+static inline void xs_watch_path_delete (void *pv)
 {
     XS_watch_path wp = (XS_watch_path) pv;
 
-    // TODO: free included_filters, excluded_filters
+    // 从 event_hmap 清除自身
+    hlist_del(&wp->i_hash);
 
     LOGGER_TRACE("~xpath=%p", wp);
-
     free(pv);
 }
 
 
 XS_RESULT XS_watch_path_create (const char *pathid, const char * fullpath, uint32_t events_mask, XS_watch_path parent, XS_watch_path * outwp)
 {
-    int sid, cb;
+    int sid, pathlen, cbsize;
 
     XS_watch_path wpath;
 
     *outwp = 0;
 
-    cb = (int) strlen(fullpath) + 1;
+    pathlen = (int) strlen(fullpath);
 
-    wpath = (XS_watch_path) mem_alloc(1, sizeof(xs_watch_path_t)+sizeof(char)*cb);
+    // 8 字节对齐
+    cbsize = ((pathlen + sizeof(XS_watch_path)) / sizeof(XS_watch_path)) * sizeof(XS_watch_path);
 
-    // size of fullpath including '\0'
-    wpath->pathsize = cb;
-
-    // 必须初始化=-1
-    wpath->watch_wd = -1;
+    wpath = (XS_watch_path) mem_alloc(1, sizeof(xs_watch_path_t) + sizeof(char) * cbsize);
 
     // inotify 监视掩码: mask of events
     wpath->events_mask = events_mask;
@@ -83,7 +80,9 @@ XS_RESULT XS_watch_path_create (const char *pathid, const char * fullpath, uint3
     wpath->pathid[XSYNC_CLIENTID_MAXLEN] = 0;
 
     // 全路径
-    memcpy(wpath->fullpath, fullpath, cb);
+    memcpy(wpath->fullpath, fullpath, pathlen);
+    wpath->fullpath[pathlen] = '\0';
+    wpath->pathlen = pathlen;
 
     // 初始化 sid_masks: sid_masks[0] => sid_max
     for (sid = 0; sid <= XSYNC_SERVER_MAXID; sid++) {
@@ -91,9 +90,12 @@ XS_RESULT XS_watch_path_create (const char *pathid, const char * fullpath, uint3
     }
 
     wpath->parent_wp = parent;
+
+    LOGGER_DEBUG("wpath(%p): %s => %s", wpath, wpath->pathid, wpath->fullpath);
+
+    // 增加引用计数
     *outwp = (XS_watch_path) RefObjectInit(wpath);
 
-    LOGGER_DEBUG("path=%p (%s => %s)", wpath, wpath->pathid, wpath->fullpath);
     return XS_SUCCESS;
 }
 
@@ -102,61 +104,5 @@ XS_VOID XS_watch_path_release (xs_watch_path_t ** wp)
 {
     LOGGER_TRACE0();
 
-    RefObjectRelease((void**) wp, free_watch_path);
+    RefObjectRelease((void**) wp, xs_watch_path_delete);
 }
-
-
-XS_path_filter XS_watch_path_get_included_filter (XS_watch_path wp, int sid)
-{
-    LOGGER_TRACE0();
-
-    assert(sid > 0 && sid <= XSYNC_SERVER_MAXID);
-
-    if (! wp->included_filters[sid]) {
-        wp->included_filters[sid] = XS_path_filter_create(sid, XS_path_filter_patterns_block);
-    }
-
-    XS_path_filter filt = wp->included_filters[sid];
-    assert(filt->sid == sid);
-
-    return filt;
-}
-
-
-XS_path_filter XS_watch_path_get_excluded_filter (XS_watch_path wp, int sid)
-{
-    assert(sid > 0 && sid <= XSYNC_SERVER_MAXID);
-
-    if (! wp->excluded_filters[sid]) {
-        wp->excluded_filters[sid] = XS_path_filter_create(sid, XS_path_filter_patterns_block);
-    }
-
-    XS_path_filter filt = wp->excluded_filters[sid];
-    assert(filt->sid == sid);
-
-    return filt;
-}
-
-
-extern XS_watch_path XS_watch_path_get_parent (XS_watch_path wp)
-{
-    if (! wp) {
-        return 0;
-    }
-
-    return wp->parent_wp;
-}
-
-
-extern int XS_watch_path_get_pathid_route (XS_watch_path wp, char route[XSYNC_PATH_MAXSIZE])
-{
-    XS_watch_path parent = XS_watch_path_get_parent(wp);
-
-    if (parent) {
-        int len = XS_watch_path_get_pathid_route(parent, route);
-        return len + snprintf(route + len, XSYNC_PATH_MAXSIZE, "/%s", wp->pathid);
-    } else {
-        return snprintf(route, XSYNC_PATH_MAXSIZE, "/%s", wp->pathid);
-    }
-}
-
