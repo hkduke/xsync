@@ -483,7 +483,7 @@ int listdir(const char * path, char * inbuf, ssize_t bufsize, listdir_callback_t
             }
         }
 
-        if (errno) {
+        if (errno && errno != 10) {
             printf("readdir error(%d): %s\n", errno, strerror(errno));
         }
 

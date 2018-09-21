@@ -79,6 +79,7 @@ struct inotify_event * makeup_inotify_event (struct inotify_event_equivalent *ev
 
 
 static const char *inoti_event_names[] = {
+    "CLOSE_NOWRITE",
     "MODIFY",
     "CLOSE_WRITE",
     "CREATE",
@@ -93,22 +94,24 @@ static const char *inoti_event_names[] = {
 __no_warning_unused(static)
 const char * inotify_event_name(int inevent_mask)
 {
-    if (inevent_mask & IN_MODIFY) {
+    if (inevent_mask & IN_CLOSE_NOWRITE) {
         return inoti_event_names[0];
-    } else if (inevent_mask & IN_CLOSE_WRITE) {
+    } else if (inevent_mask & IN_MODIFY) {
         return inoti_event_names[1];
-    } else if (inevent_mask & IN_CREATE) {
+    } else if (inevent_mask & IN_CLOSE_WRITE) {
         return inoti_event_names[2];
-    } else if (inevent_mask & IN_DELETE) {
+    } else if (inevent_mask & IN_CREATE) {
         return inoti_event_names[3];
-    } else if (inevent_mask & IN_DELETE_SELF) {
+    } else if (inevent_mask & IN_DELETE) {
         return inoti_event_names[4];
-    } else if (inevent_mask & IN_MOVE) {
+    } else if (inevent_mask & IN_DELETE_SELF) {
         return inoti_event_names[5];
-    } else if (inevent_mask & IN_ONLYDIR) {
+    } else if (inevent_mask & IN_MOVE) {
         return inoti_event_names[6];
-    } else {
+    } else if (inevent_mask & IN_ONLYDIR) {
         return inoti_event_names[7];
+    } else {
+        return inoti_event_names[8];
     }
 }
 
