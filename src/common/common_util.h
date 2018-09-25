@@ -437,12 +437,10 @@ int listdir(const char * path, char * inbuf, ssize_t bufsize, listdir_callback_t
             errno = 0;
 
             if (strcmp(ent->d_name, ".") && strcmp(ent->d_name, "..")) {
-                struct mydirent myent = {0};
+                struct mydirent myent;
+                bzero(&myent, sizeof(myent));
 
                 memcpy(&myent.ent, ent, sizeof(*ent));
-
-                myent.islnk = 0;
-                myent.isdir = 0;
 
                 if (path[ strlen(path) - 1 ] == '/') {
                     pathlen = snprintf(inbuf, bufsize, "%s%s", path, ent->d_name);

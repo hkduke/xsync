@@ -12,10 +12,10 @@
 #   https://bitbucket.org/tildeslash/libzdb/
 #
 # NOTE:
-#   1) 在 ubuntu 上编译需要安装 libmysqlclient:
-#      sudo apt-get install libmysqlclient-dev
+#   1) ubuntu: 在 ubuntu 上编译需要安装 libmysqlclient:
+#      $ sudo apt-get install libmysqlclient-dev
 #
-#   2) 在 rhel6 上编译需要安装 libmysqlclient:
+#   2) el6: 在 rhel6 上编译需要安装 libmysqlclient:
 #
 #     先删除已经安装的MySQL包 (?):
 #      # rpm -qa|grep -i 'mysql'
@@ -30,13 +30,27 @@
 #      # rpm -e MySQL-shared-5.6.39-1.el6.x86_64 --nodeps
 #
 #     然后安装:
-#      # rpm -ivh MySQL-client-5.6.39-1.el6.x86_64.rpm MySQL-devel-5.6.39-1.el6.x86_64.rpm MySQL-shared-compat-5.6.39-1.el6.x86_64.rpm MySQL-shared-5.6.39-1.el6.x86_64.rpm
+#      #  rpm -ivh MySQL-client-5.6.39-1.el6.x86_64.rpm MySQL-devel-5.6.39-1.el6.x86_64.rpm MySQL-shared-compat-5.6.39-1.el6.x86_64.rpm MySQL-shared-5.6.39-1.el6.x86_64.rpm
 #
 #     最后的libmysqlclient.so 在:
 #       /usr/lib64/
 #
-# init created: 2018-02-27
-# last updated: 2018-02-27
+#   2) el7: 在 rhel7 上编译需要安装 libmysqlclient:
+#
+#     先删除已经安装的 MySQL 包 (mariadb):
+#      # rpm -qa|grep -i 'mariadb'
+#      mariadb-libs-5.5.56-2.el7.x86_64
+#
+#      # rpm -e mariadb-libs-5.5.56-2.el7.x86_64 --nodeps
+#
+#     然后安装:
+#      #  rpm -ivh mysql-community-common-5.7.20-1.el7.x86_64.rpm mysql-community-libs-5.7.20-1.el7.x86_64.rpm mysql-community-devel-5.7.20-1.el7.x86_64.rpm mysql-community-client-5.7.20-1.el7.x86_64.rpm
+#
+#     最后的libmysqlclient.so 在:
+#       /usr/lib64/mysql/
+#
+# @create: 2018-02-27
+# @update: 2018-02-27
 #
 ########################################################################
 # NOTE: readlink -f not support by MaxOS-X
