@@ -802,7 +802,7 @@ XS_VOID XS_client_bootstrap (XS_client client)
      * http://inotify-tools.sourceforge.net/api/inotifytools_8h.html
      */
     for (;;) {
-        event = inotifytools_next_events(1, 256);
+        event = inotifytools_next_event(1);
 
         if (! event || ! event->len) {
 

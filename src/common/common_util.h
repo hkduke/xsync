@@ -526,8 +526,6 @@ int listdir_deprected(const char * path, char * inbuf, ssize_t bufsize, listdir_
         errno = 0;
 
         while ((ent = readdir(dir)) != 0) {
-            errno = 0;
-
             if (strcmp(ent->d_name, ".") && strcmp(ent->d_name, "..")) {
                 struct mydirent myent;
                 bzero(&myent, sizeof(myent));
@@ -587,6 +585,8 @@ int listdir_deprected(const char * path, char * inbuf, ssize_t bufsize, listdir_
                     break;
                 }
             }
+
+            errno = 0;
         }
 
         if (errno && errno != 10) {
