@@ -81,6 +81,7 @@ struct mydirent {
     struct dirent ent;
 
     unsigned char isdir;
+    unsigned char isreg;
     unsigned char islnk;
 }  __attribute((packed));
 
@@ -421,7 +422,98 @@ int fileislink (const char * pathfile, char * inbuf, ssize_t inbufsize)
 
 
 __no_warning_unused(static)
-int listdir(const char * path, char * inbuf, ssize_t bufsize, listdir_callback_t lscb, void *arg1, void *arg2)
+int listdir(const char * path, char *inbuf, ssize_t bufsize, listdir_callback_t lscb, void *arg1, void *arg2)
+{
+    DIR *dirp;
+
+    struct dirent *ent;
+    struct stat sbuf;
+
+    int pathlen;
+
+    int err = 0;
+
+    dirp = opendir(path);
+    if (! dirp) {
+        perror("opendir\n");
+        return (-1);
+    }
+
+    errno = 0;
+
+    while ((ent = readdir(dirp)) != 0) {
+        // 必须忽略的子目录或文件
+        if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) {
+            errno = 0;
+            continue;
+        }
+
+        // 组合成全路径名: inbuf
+        if (path[ strlen(path) - 1 ] == '/') {
+            pathlen = snprintf(inbuf, bufsize, "%s%s", path, ent->d_name);
+        } else {
+            pathlen = snprintf(inbuf, bufsize, "%s/%s", path, ent->d_name);
+        }
+        if (pathlen < 0) {
+            printf("snprintf error\n");
+            err = (-1);
+            break;
+        }
+        if (pathlen >= bufsize) {
+            printf("inbuf is too small\n");
+            err = (-2);
+            break;
+        }
+        inbuf[pathlen] = 0;
+
+        err = lstat(inbuf, &sbuf);
+        if (err) {
+            perror("lstat\n");
+        } else {
+            struct mydirent myent;
+            bzero(&myent, sizeof(myent));
+
+            if (isdir(inbuf)) {
+                myent.isdir = 1;
+
+                inbuf[pathlen++] = '/';
+                inbuf[pathlen] = 0;
+
+                //printf("is dir: %s\n", inbuf);
+            }
+
+            if (S_ISREG(sbuf.st_mode)) {
+                myent.isreg = 1;
+                //printf("is a regular file: %s\n", inbuf);
+            } else if (S_ISLNK(sbuf.st_mode)) {
+                myent.islnk = 1;
+                //printf("is link: %s\n", inbuf);
+            }
+
+            memcpy(&myent.ent, ent, sizeof(*ent));
+
+            if (lscb(inbuf, pathlen, &myent, arg1, arg2) != 1) {
+                err = (-4);
+                break;
+            }
+        }
+
+        errno = 0;
+    }
+
+    if (errno) {
+        perror("readdir\n");
+    }
+
+    closedir(dirp);
+
+    // 0: all is ok, others: error
+    return err;
+}
+
+
+__no_warning_unused(static)
+int listdir_deprected(const char * path, char * inbuf, ssize_t bufsize, listdir_callback_t lscb, void *arg1, void *arg2)
 {
     DIR *dir;
     struct dirent *ent;

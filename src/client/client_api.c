@@ -450,7 +450,7 @@ int lscb_sweep_watch_path (const char * path, int pathlen, struct mydirent *myen
                 return 0;
             }
         }
-    } else if (myent->ent.d_type == DT_REG) {
+    } else if (myent->isreg) {
         wd = pv_cast_to_int(arg2);
 
         ret = 0;
