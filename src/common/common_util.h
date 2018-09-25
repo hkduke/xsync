@@ -30,7 +30,7 @@
  *
  * @create: 2018-01-09
  *
- * @update: 2018-09-12 16:36:09
+ * @update: 2018-09-21 20:15:39
  */
 
 #ifndef COMMON_UTIL_H_INCLUDED
@@ -197,6 +197,22 @@ inline void timespec_reset_timeout (struct timespec *timo, struct timeval *now, 
     timo->tv_sec = now->tv_sec + nsec / 1000000000 + timeout_ms / 1000;
 
     timo->tv_nsec = nsec % 1000000000;
+}
+
+
+__no_warning_unused(static)
+int select_sleep (int sec, int ms)
+{
+    if (sec || ms) {
+        struct timeval tv = {0};
+
+        tv.tv_sec = sec;
+        tv.tv_usec = ms * 1000;
+
+        return select (0, NULL, NULL, NULL, &tv);
+    } else {
+        return 0;
+    }
 }
 
 

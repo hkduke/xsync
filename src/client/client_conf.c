@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.5
+ * @version: 0.0.7
  *
  * @create: 2018-01-26
  *
- * @update: 2018-09-10 11:48:26
+ * @update: 2018-09-21 20:10:18
  */
 
 #include "client_api.h"
@@ -87,11 +87,11 @@ void xs_client_delete (void *pv)
         __interlock_set(&client->size_paths, 0);
 
         free(client->paths);
-        client->paths = 0;      
+        client->paths = 0;
     }
 
     LOGGER_TRACE("destroy wpath_hmap");
-    threadlock_destroy(&client->wpath_lock);    
+    threadlock_destroy(&client->wpath_lock);
     XS_client_clear_wpath_map(client);
 
     LOGGER_TRACE("destroy event_hmap");
@@ -129,7 +129,7 @@ int lscb_init_watch_path (const char *path, int pathlen, struct mydirent *myent,
                     }
                 }
             } else {
-                LOGGER_WARN("realpath error(%d): %s - (%s)", errno, strerror(errno), path);    
+                LOGGER_WARN("realpath error(%d): %s - (%s)", errno, strerror(errno), path);
             }
         } else {
             LOGGER_WARN("dir in watch not a link: %s", path);
@@ -419,7 +419,7 @@ int XS_client_prepare_watch_events (XS_client client, struct inotify_event *inev
     // events[2] 是 sid=2 的事件
     // events[maxsid] 是 sid=maxsid 的事件
     //
-    events[num_events++] = XS_watch_event_retain(&event);
+    events[num_events++] = event;
 
     // 添加到 event_hmap
     hlist_add_head(&event->i_hash, &client->event_hmap[hash]);

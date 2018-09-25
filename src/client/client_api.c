@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.4
+ * @version: 0.0.7
  *
  * @create: 2018-01-25
  *
- * @update: 2018-08-13 15:53:46
+ * @update: 2018-09-21 20:05:44
  */
 
 /**
@@ -155,12 +155,10 @@ void do_event_task (thread_context_t *thread_ctx)
                 }
             }
 
-            // 执行完任务后必须释放 event
-            XS_watch_event_release(&event);
-
             // 从 event_hmap 中删除自身
             threadlock_lock(&client->event_lock);
             {
+                // 执行完任务后必须释放 event
                 XS_watch_event_release(&event);
             }
             threadlock_unlock(&client->event_lock);
@@ -205,6 +203,8 @@ XS_RESULT client_add_inotify_event (XS_client client, struct inotify_event *inev
                     // 增加到线程池成功
                     LOGGER_DEBUG("add task(=%lld) success", (long long) event->taskid);
                 }
+
+                events[sid] = 0;
             }
         }
 
@@ -371,9 +371,9 @@ int filter_watch_file (XS_client client, char *wpath, const char *pname, int pna
                 snprintf(client->file_filter_buf, bufcb, "%s '%s' '%s'", path_filter_path(client), pathbuf, name);
             }
 
-            LOGGER_DEBUG("cmd={%s}", client->file_filter_buf);
+            LOGGER_INFO("cmd={%s}", client->file_filter_buf);
 
-            const char *result = cmd_system(client->file_filter_buf, client->file_filter_buf + bufcb, 256);
+            const char *result = cmd_system(client->file_filter_buf, client->file_filter_buf + bufcb, ERRORMSG_MAXLEN + 1);
             if (result) {
                 ret = atoi(result);
             }
@@ -408,12 +408,18 @@ int filter_watch_file (XS_client client, char *wpath, const char *pname, int pna
     return 0;
 }
 
-
+/**
+ * 返回值:
+ *   1: 继续
+ *   0: 中止
+ */
 __no_warning_unused(static)
 int lscb_sweep_watch_path (const char * path, int pathlen, struct mydirent *myent, void *arg1, void *arg2)
 {
     int wd, ret;
     char pathbuf[PATH_MAX];
+
+    XS_client client = (XS_client) arg1;
 
     if (myent->isdir) {
         // path 是目录
@@ -429,18 +435,18 @@ int lscb_sweep_watch_path (const char * path, int pathlen, struct mydirent *myen
                     listdir(path, pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_sweep_watch_path, arg1, int_cast_to_pv(wd));
                 }
             } else if (wd == -1) {
-                client_set_inotify_reload((XS_client) arg1, 1);
+                client_set_inotify_reload(client, 1);
                 return 0;
             }
         } else {
             // path 是物理目录
-            wd = filter_watch_path( (XS_client) arg1, path, pathbuf );
+            wd = filter_watch_path( client, path, pathbuf );
 
             if (wd > 0) {
                 LOGGER_TRACE("sweep path(wd=%d): %s", wd, pathbuf);
                 listdir(path, pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_sweep_watch_path, arg1, int_cast_to_pv(wd));
             } else if (wd == -1) {
-                client_set_inotify_reload((XS_client) arg1, 1);
+                client_set_inotify_reload(client, 1);
                 return 0;
             }
         }
@@ -453,21 +459,21 @@ int lscb_sweep_watch_path (const char * path, int pathlen, struct mydirent *myen
             // 监控的目录文件
             char *name = strrchr(path, '/');
             if (name && *name++) {
-                ret = filter_watch_file((XS_client) arg1, inotifytools_filename_from_wd(wd), name, strlen(name), pathbuf);
+                ret = filter_watch_file(client, inotifytools_filename_from_wd(wd), name, strlen(name), pathbuf);
             }
         } else {
             // 根目录的文件不被监视
-            ret = filter_watch_file((XS_client) arg1, 0, path, pathlen, pathbuf);
+            ret = filter_watch_file(client, 0, path, pathlen, pathbuf);
         }
 
         if (ret > 0) {
             // 添加任务到线程池
             struct inotify_event_equivalent event = {0};
 
-            client_add_inotify_event((XS_client) arg1, makeup_inotify_event(&event, wd, IN_CLOSE_NOWRITE, 0, pathbuf, strlen(pathbuf)));
+            client_add_inotify_event(client, makeup_inotify_event(&event, wd, IN_CLOSE_NOWRITE, 0, pathbuf, strlen(pathbuf)));
         } else if (ret == -1) {
             // 要求重启服务
-            client_set_inotify_reload((XS_client) arg1, 1);
+            client_set_inotify_reload(client, 1);
             return 0;
         }
     } else if (myent->islnk) {
@@ -485,7 +491,7 @@ int lscb_sweep_watch_path (const char * path, int pathlen, struct mydirent *myen
         }
     }
 
-    return 1;
+    return (XS_client_threadpool_unused_queues(client) > 0 ? 1 : 0);
 }
 
 
@@ -495,36 +501,19 @@ int lscb_sweep_watch_path (const char * path, int pathlen, struct mydirent *myen
 __no_warning_unused(static)
 void sweep_worker (void *arg)
 {
-    int err;
-
-    struct timeval now;
-    struct timespec timo;
+    char pathbuf[PATH_MAX];
 
     XS_client client = (XS_client) arg;
 
-    long timeout_ms = 500;
-
-    char pathbuf[PATH_MAX];
-
     for (;;) {
-        err = XS_client_lock(client, 0);
+        select_sleep(client->interval_seconds, 0);
 
-        if (err == 0) {
-
-            timespec_reset_timeout(&timo, &now, timeout_ms);
-
-            /* Wait on condition variable, check for spurious wakeups.
-               When returning from pthread_cond_wait(), we own the lock. */
-            err = XS_client_wait_condition(client, &timo);
-
-            if (err == 0) {
-                // 在此刷新目录树
-                err = listdir(client->paths + client->offs_watch_root, pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_sweep_watch_path, (void*) client, 0);
-            }
-
-            /* unlock immediatedly so as to accept other events to be handled */
-            XS_client_unlock(client);
+        if (XS_client_threadpool_unused_queues(client) < 1) {
+            LOGGER_TRACE("threadpool is full");
+            continue;
         }
+
+        listdir(watch_root_path(client), pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_sweep_watch_path, (void*) client, 0);
     }
 
     LOGGER_FATAL("thread exit unexpected.");
@@ -730,7 +719,7 @@ int XS_client_wait_condition(XS_client client, struct timespec * timo)
 
     if (err != 0) {
         if (err == ETIMEDOUT) {
-            // LOGGER_TRACE("ETIMEDOUT");
+            LOGGER_TRACE("ETIMEDOUT");
         } else if (err == EINVAL) {
             LOGGER_ERROR("EINVAL: The specified value is invalid.");
         } else if (err == EPERM) {
@@ -812,10 +801,8 @@ XS_VOID XS_client_bootstrap (XS_client client)
     /**
      * http://inotify-tools.sourceforge.net/api/inotifytools_8h.html
      */
-    int timeout = client->interval_seconds;
-
     for (;;) {
-        event = inotifytools_next_event(timeout);
+        event = inotifytools_next_events(1, 256);
 
         if (! event || ! event->len) {
 
@@ -823,15 +810,6 @@ XS_VOID XS_client_bootstrap (XS_client client)
                 inotifytools_restart(client);
 
                 client_set_inotify_reload(client, 0);
-            }
-
-            if (XS_client_lock(client, 0) == 0) {
-                /**
-                 * https://bytefreaks.net/programming-2/c-full-example-of-pthread_cond_timedwait
-                 */
-                pthread_cond_signal(&client->condition);
-
-                XS_client_unlock(client);
             }
 
             continue;
@@ -906,15 +884,15 @@ XS_VOID XS_client_bootstrap (XS_client client)
 
             if (filter_watch_file(client, inotifytools_filename_from_wd(event->wd), event->name, strlen(event->name), pathbuf) > 0) {
                 if (event->mask & IN_MODIFY) {
-                    LOGGER_INFO("IN_MODIFY: %s", eqev->name);
+                    LOGGER_DEBUG("IN_MODIFY: %s", eqev->name);
 
                     client_add_inotify_event(client, eqev);
                 } else if (event->mask & IN_CLOSE) {
-                    LOGGER_INFO("IN_CLOSE: %s", eqev->name);
+                    LOGGER_DEBUG("IN_CLOSE: %s", eqev->name);
 
                     client_add_inotify_event(client, eqev);
                 } else if (event->mask & IN_MOVE) {
-                    LOGGER_INFO("IN_MOVE: %s", eqev->name);
+                    LOGGER_DEBUG("IN_MOVE: %s", eqev->name);
 
                     client_add_inotify_event(client, eqev);
                 }

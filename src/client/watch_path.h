@@ -30,7 +30,7 @@
  *
  * @create: 2018-01-06
  *
- * @update: 2018-09-07 12:15:40
+ * @update: 2018-09-21 16:14:22
  */
 
 #ifndef WATCH_PATH_H_INCLUDED
@@ -93,8 +93,6 @@ inline int watch_path_get_sid_max (XS_watch_path wp)
 extern XS_RESULT XS_watch_path_create (const char * pathid, const char * fullpath, uint32_t events_mask, XS_watch_path parent, XS_watch_path * outwp);
 
 extern XS_VOID XS_watch_path_release (XS_watch_path * wp);
-
-extern XS_RESULT XS_watch_path_sweep (XS_watch_path wp, void *client);
 
 #if defined(__cplusplus)
 }

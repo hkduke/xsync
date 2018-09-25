@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.5
+ * @version: 0.0.7
  *
  * @create: 2018-01-25
  *
- * @update: 2018-09-07 18:59:41
+ * @update: 2018-09-21 18:40:41
  */
 
 #ifndef CLIENT_CONF_H_INCLUDED
@@ -120,9 +120,9 @@ typedef struct xs_client_t
     thread_lock_t wpath_lock;
 
 
-    
-    
-    
+
+
+
     /** DEL??
      * hash map for watch_entry -> watch_entry
      */
@@ -131,7 +131,7 @@ typedef struct xs_client_t
     /** hash table for wd (watch descriptor) -> watch_path */
     XS_watch_path wd_table[XSYNC_HASHMAP_MAX_LEN + 1];
 
-    
+
 
     /* buffer must be in lock */
     char inlock_buffer[XSYNC_BUFSIZE];
@@ -150,7 +150,7 @@ typedef struct xs_client_t
 
 #define event_task_path(client)  (client->paths + client->offs_event_task)
 
-    
+
 __no_warning_unused(static)
 inline xs_server_opts* XS_client_get_server_opts (XS_client client, int sid)
 {
@@ -160,8 +160,8 @@ inline xs_server_opts* XS_client_get_server_opts (XS_client client, int sid)
         return 0;
     }
 }
-    
-    
+
+
 __no_warning_unused(static)
 inline int client_is_inotify_reload (struct xs_client_t *client)
 {
