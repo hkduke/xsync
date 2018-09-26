@@ -30,7 +30,7 @@
  *
  * @create: 2018-01-09
  *
- * @update: 2018-09-25 19:30:08
+ * @update: 2018-09-21 20:15:39
  */
 
 #ifndef COMMON_UTIL_H_INCLUDED
@@ -466,6 +466,7 @@ int listdir(const char * path, char *inbuf, ssize_t bufsize, listdir_callback_t 
         }
         inbuf[pathlen] = 0;
 
+        // lstat 返回符号链接的信息而不是返回其指向的文件信息(stat)
         err = lstat(inbuf, &sbuf);
         if (err) {
             perror("lstat\n");
