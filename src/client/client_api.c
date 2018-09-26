@@ -34,19 +34,25 @@
  */
 
 /**
- *
  * client_init_from_watch
+ *
  * 从 watch 目录初始化 client. watch 目录遵循下面的规则:
  *
- *  xsync-client-home/                           (客户端主目录)
+ *        xclient/                               (客户端主目录)
  *            |
  *            +---- CLIENTID  (客户端唯一标识 ID, 确保名称符合文件目录名规则, 长度不大于 36 字符)
  *            |
  *            +---- LICENCE                      (客户端版权文件)
  *            |
- *            +---- bin/
+ *            +---- bin/                         (常用脚本目录)
  *            |       |
- *            |       +---- xsync-client-$version (客户端程序)
+ *            |       +---- 常用脚本
+ *            |
+ *            +---- sbin/                        (客户端程序目录)
+ *            |       |
+ *            |       +---- xsync-client -> xsync-client-$verno (客户端程序链接)
+ *            |       |
+ *            |       +---- xsync-client-$verno  (客户端程序)
  *            |
  *            |
  *            +---- conf/                        (客户端配置文件目录)
@@ -58,17 +64,16 @@
  *            |
  *            +---- sid/                         (服务器配置目录)
  *            |       |
- *            |       +---- pepstack-server/           (服务器名称目录)
+ *            |       +---- pepstack-server/     (服务器 1 名称目录)
  *            |       |        |
  *            |       |        +---- SERVERID    (内容仅1行 = "host:port#magic")
  *            |       |          ...
  *            |       |
- *            |       +---- giant-logserver/           (服务器名称目录)
+ *            |       +---- giant-logserver/     (服务器 2 名称目录)
  *            |       |        |
  *            |       |        +---- SERVERID    (内容仅1行 = "host:port#magic")
  *            |       |
  *            |       +---- ...
- *            |
  *            |
  *            |
  *            +---- watch/             (可选, 客户端 watch 目录 - 符号链接)
@@ -82,18 +87,20 @@
  *                    +---- pathLinkN -> /path/to/N/
  *                    |
  *                    +---- 1   (服务器 sid=1, 内容仅1行 = "host:port#magic";
- *                    |          或者为链接文件 -> ../sid/nameserver/SERVERID)
+ *                    |          或者为链接文件: 1 -> ../sid/nameserver/SERVERID)
  *                    |
  *                    +---- 2   (服务器 sid=2, 内容仅1行 = "host:port#magic";
- *                    |          或者为链接文件 -> ../sid/?/SERVERID)
+ *                    |          或者为链接文件: 2 -> ../sid/?/SERVERID)
  *                    |    ...
  *                    |
- *                    +---- i   (服务器 sid=i. 服务器 sid顺序编制, 不可以跳跃.
- *                    |          最大服务号不可以超过255. 参考手册)
+ *                    +---- i   (服务器 sid=i. 服务器 sid顺序编制, 不可以跳跃 !!
+ *                    |          最大服务号不可以超过 XSYNC_SERVER_MAXID. 参考手册)
  *                    |
  *                    |     (以下文件为可选)
  *                    |
  *                    +---- path-filter.sh  (路径和文件名过滤脚本: 用户实现)
+ *                    |
+ *                    +---- event-task.sh   (事件任务执行脚本: 用户实现)
  *
  */
 #include "client_api.h"
