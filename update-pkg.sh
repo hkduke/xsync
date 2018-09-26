@@ -49,27 +49,44 @@ verno="$majorVer"."$minorVer"."$revisionVer"
 buildno="build$(date +%Y%m%d%H%M)"
 
 function update_dist() {
-    echoinfo "update xsync-client to dist: ${_cdir}/dist/xclient"
+    echoinfo "update xsync-client(xclient) to dist: ${_cdir}/dist/xclient"
     olddir=$(pwd)
+
+    echoinfo "build xclient package"
     cd ${_cdir}/src/
     make clean && make
     cd ${_cdir}
+
+    echoinfo "update xclient dist"
+    mkdir -p ${_cdir}/dist/xclient/{bin,conf,sbin,watch}
     cp ${_cdir}/conf/log4crc ${_cdir}/dist/xclient/conf/
     cp ${_cdir}/conf/xsync-client-conf.xml ${_cdir}/dist/xclient/conf/    
     cp ${_cdir}/bin/testlog.sh ${_cdir}/dist/xclient/bin/
     cp ${_cdir}/bin/common.sh ${_cdir}/dist/xclient/bin/
-    cp ${_cdir}/bin/path-filter-*.sh ${_cdir}/dist/xclient/bin/
-    cp ${_cdir}/bin/event-task-*.sh ${_cdir}/dist/xclient/bin/
+    cp ${_cdir}/bin/path-filter-0.0.1.sh ${_cdir}/dist/xclient/bin/
+    cp ${_cdir}/bin/event-task-0.0.1.sh ${_cdir}/dist/xclient/bin/
     cp ${_cdir}/bin/xclient-status.sh ${_cdir}/dist/xclient/bin/
     cp ${_cdir}/target/xsync-client-$verno ${_cdir}/dist/xclient/sbin/
+
+    echoinfo "update xclient links"
     cd ${_cdir}/dist/xclient/sbin/
     ln -sf ${_cdir}/dist/xclient/sbin/xsync-client-$verno xsync-client
+
+    cd ${_cdir}/dist/xclient/watch/
+    ln -sf /tmp/stash/ logstash
+    ln -sf ${_cdir}/dist/xclient/bin/path-filter-0.0.1.sh path-filter.sh
+    ln -sf ${_cdir}/dist/xclient/bin/event-task-0.0.1.sh event-task.sh
+
+    echoinfo "generate xclient dist pkg: ${_cdir}/dist/xclient-dist-$verno.tar.gz"
     cd ${_cdir}/dist/
     tar -zcf xclient-dist-$verno.tar.gz ./xclient/
+
+    echoinfo "clean all"
     cd ${_cdir}/src/
     make clean
     cd "$olddir"
-    echoinfo "generated package: ${_cdir}/dist/xclient-dist-$verno.tar.gz"
+
+    echoinfo "update xclient dist package ok."
 }
 
 

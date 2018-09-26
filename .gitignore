@@ -65,4 +65,5 @@ boilermake/
 build/
 target/
 redis/
+dist/
 redis-cluster/
