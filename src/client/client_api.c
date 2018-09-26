@@ -30,7 +30,7 @@
  *
  * @create: 2018-01-25
  *
- * @update: 2018-09-21 20:05:44
+ * @update: 2018-09-26 10:26:14
  */
 
 /**
@@ -740,6 +740,7 @@ XS_VOID XS_client_bootstrap (XS_client client)
     int pathlen;
     char pathbuf[XSYNC_PATH_MAXSIZE];
 
+    char *wpath;
     struct inotify_event *event;
 
     /**
@@ -802,20 +803,19 @@ XS_VOID XS_client_bootstrap (XS_client client)
      * http://inotify-tools.sourceforge.net/api/inotifytools_8h.html
      */
     for (;;) {
+        if (client_is_inotify_reload(client)) {
+            inotifytools_restart(client);
+            client_set_inotify_reload(client, 0);
+        }
+
         event = inotifytools_next_event(1);
 
         if (! event || ! event->len) {
-
-            if (client_is_inotify_reload(client)) {
-                inotifytools_restart(client);
-
-                client_set_inotify_reload(client, 0);
-            }
-
+            LOGGER_TRACE("waiting inotify event");
             continue;
         }
 
-        char *wpath = inotifytools_filename_from_wd(event->wd);
+        wpath = inotifytools_filename_from_wd(event->wd);
         if (! wpath) {
             LOGGER_FATAL("bad inotifytools_filename_from_wd(%d)", event->wd);
             continue;
