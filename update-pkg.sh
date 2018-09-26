@@ -51,6 +51,9 @@ buildno="build$(date +%Y%m%d%H%M)"
 function update_dist() {
     echoinfo "update xsync-client to dist: ${_cdir}/dist/xclient"
     olddir=$(pwd)
+    cd ${_cdir}/src/
+    make clean && make
+    cd ${_cdir}
     cp ${_cdir}/conf/log4crc ${_cdir}/dist/xclient/conf/
     cp ${_cdir}/conf/xsync-client-conf.xml ${_cdir}/dist/xclient/conf/    
     cp ${_cdir}/bin/testlog.sh ${_cdir}/dist/xclient/bin/
@@ -61,13 +64,20 @@ function update_dist() {
     cp ${_cdir}/target/xsync-client-$verno ${_cdir}/dist/xclient/sbin/
     cd ${_cdir}/dist/xclient/sbin/
     ln -sf ${_cdir}/dist/xclient/sbin/xsync-client-$verno xsync-client
+    cd ${_cdir}/dist/
+    tar -zcf xclient-dist-$verno.tar.gz ./xclient/
+    cd ${_cdir}/src/
+    make clean
     cd "$olddir"
+    echoinfo "generated package: ${_cdir}/dist/xclient-dist-$verno.tar.gz"
 }
 
 
-if [ "$1" == "-d" ]; then
-    update_dist
-    exit 0;
+if [ $# -eq 1 ]; then
+    if [ "$1" == "-d" ]; then
+        update_dist
+        exit 0;
+    fi
 fi
 
  
