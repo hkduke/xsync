@@ -141,7 +141,6 @@ if [ -z "$ports" ]; then
 fi
 
 REDIS_PKG_NAME="redis-5.0-RC3"
-RUBY_PKG_NAME="ruby-2.3.1"
 
 prepare_dir=$(dirname $_cdir)
 project_dir=$(dirname $prepare_dir)
@@ -159,7 +158,6 @@ HIREDIS_LIBS=$prefix/libs
 
 echoinfo "$REDIS_PKG_NAME will be installed at: $REDIS_PREFIX"
 echoinfo "redis-cluster will be deployed at: $CLUSTER_ROOT"
-echoinfo "$RUBY_PKG_NAME will be installed at: $RUBY_PREFIX"
 
 OLD_IFS="$IFS"
 IFS=","
@@ -255,9 +253,6 @@ fi
 # 开始安装 redis-5.0
 #   redis-5.0-RC3 不需要安装 ruby
 $_cdir/install_redis.sh --prefix=$REDIS_PREFIX --package=$_cdir/"$REDIS_PKG_NAME".tar.gz
-
-# redis-4.0.10 创建集群不支持密码. 需要安装 ruby!
-## $_cdir/install_ruby.sh --prefix=$RUBY_PREFIX --package=$_cdir/"$RUBY_PKG_NAME".tar.gz --install-gem=$_cdir/redis-4.0.1.gem
 
 start_sh="$CLUSTER_ROOT/start.sh"
 echo "#!/bin/bash" > "$start_sh"

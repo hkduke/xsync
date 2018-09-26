@@ -11,11 +11,12 @@
 #
 #   http://makaidong.com/bcphp/3943_9044049.html
 #   https://github.com/antirez/redis/tree/5.0
+#
 # @author: $author$
 #
-# @create: $create$
+# @create: 2018-07-30
 #
-# @update: 2018-07-30
+# @update: 2018-09-26
 #
 #######################################################################
 # will cause error on macosx
@@ -105,8 +106,8 @@ fi
 
 # 检查是否支持的操作系统版本
 if [[ "$osid" = "centos" || "$osid" = "rhel" ]]; then
-    if [ "$major_ver" -lt 7 ]; then
-        echoerror "os verno(<7) not supported: $osname"
+    if [ "$major_ver" -lt 6 ]; then
+        echoerror "os verno(<6) not supported: $osname"
         exit -1
     fi
 
@@ -178,7 +179,7 @@ function install_redis() {
 
     mkdir -p $redishome/conf
 
-	cp $redfile/redis.conf $redishome/conf/
+    cp $redfile/redis.conf $redishome/conf/
     cp $redfile/sentinel.conf $redishome/conf/
     cp $redfile/src/redis-trib.rb $redishome/bin/
 
@@ -203,7 +204,6 @@ function install_redis() {
     echoinfo "更新配置：$profile"
     source $profile
 
-    ln -sf $redishome/bin/redis-trib.rb /usr/local/bin/redis-trib.rb
     ln -sf $redishome/bin/redis-server /usr/local/bin/redis-server
     ln -sf $redishome/bin/redis-cli /usr/local/bin/redis-cli
 
@@ -217,7 +217,7 @@ function install_redis() {
 #
 function config_redis_perf() {
     echoinfo "[1] 更改监听队列大小(默认 128 太小了)"
-   	sysctl -w net.core.somaxconn=2048
+    sysctl -w net.core.somaxconn=2048
 
     # 永久设置 (重启后保持), 执行命令
     echo "net.core.somaxconn=2048" > /etc/sysctl.d/net_core_somaxconn.conf
@@ -242,22 +242,22 @@ function config_redis_perf() {
 
     echoinfo "禁用透明巨页内存配置以提高性能"
     # 查看当前 transparent_hugepage 状态:
-	cat /sys/kernel/mm/transparent_hugepage/enabled
+    cat /sys/kernel/mm/transparent_hugepage/enabled
 
     #[always] madvise never
     #
-	#参数说明:
+    #参数说明:
     #
-    #	never 关闭，不使用透明内存
-    #	alway 尽量使用透明内存，扫描内存，有512个 4k页面可以整合，就整合成一个2M的页面
-    #	madvise 避免改变内存占用
+    #   never 关闭，不使用透明内存
+    #   alway 尽量使用透明内存，扫描内存，有512个 4k页面可以整合，就整合成一个2M的页面
+    #   madvise 避免改变内存占用
 
     # 禁用透明巨页内存和大页面:
     echo never > /sys/kernel/mm/transparent_hugepage/enabled
     echo never > /sys/kernel/mm/transparent_hugepage/defrag
 
-	# 永久禁用, 将命令加入到 rc.local 中:
-   	ret=$(cat /etc/rc.local | grep "echo never > /sys/kernel/mm/transparent_hugepage/enabled")
+    # 永久禁用, 将命令加入到 rc.local 中:
+    ret=$(cat /etc/rc.local | grep "echo never > /sys/kernel/mm/transparent_hugepage/enabled")
     if [ -z "$ret" ]; then
         echo "echo never > /sys/kernel/mm/transparent_hugepage/enabled" >> /etc/rc.local
     fi
@@ -352,8 +352,24 @@ if [ ! -z "$abs_package" ]; then
     rm -rf $deltmpdir
 fi
 
-# TODO: 验证安装是否成功
-config_redis_perf
+# 配置系统: 仅仅对 el7+, ubuntu16+
+if [[ "$osid" = "centos" || "$osid" = "rhel" ]]; then
+    if [ "$major_ver" -ge 7 ]; then
+        echoinfo "config_redis_perf for os: $osname"
+
+        config_redis_perf
+    else
+        echowarn "config_redis_perf ignored for os: $osname"
+    fi
+elif [ "$osid" = "ubuntu" ]; then
+    if [ "$major_ver" -ge 16 ]; then
+        echowarn "config_redis_perf for os: $osname"
+
+        config_redis_perf
+    else
+        echowarn "config_redis_perf ignored for os: $osname"
+    fi
+fi
 
 redis-server --version
 redis-cli --version

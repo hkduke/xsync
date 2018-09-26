@@ -73,7 +73,6 @@ function update_dist() {
     ln -sf ${_cdir}/dist/xclient/sbin/xsync-client-$verno xsync-client
 
     cd ${_cdir}/dist/xclient/watch/
-    ln -sf /tmp/stash/ logstash
     ln -sf ${_cdir}/dist/xclient/bin/path-filter-0.0.1.sh path-filter.sh
     ln -sf ${_cdir}/dist/xclient/bin/event-task-0.0.1.sh event-task.sh
 

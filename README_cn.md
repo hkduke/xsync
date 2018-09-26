@@ -26,7 +26,7 @@
 ### 1.1 xsync-client
 
 - x86_64 Linux
-    - ubuntu
+    - ubuntu14
     - el 6.x (rhel6.x, centos6.x)
     - el 7.x (rhel7.x, centos7.x)
 - MacOSX (TODO)
@@ -34,12 +34,18 @@
 - Android (TODO)
 - iOS (TODO)
 
+xsync-client 当前在 el6, el7, ubuntu18.04 上测试通过。
+
+不同的平台应该首先采用源码编译 libs, 然后编译 xsync-client。
+
 ### 1.2 xsync-server
 
 - x86_64 Linux
-    - ubuntu
+    - ubuntu18.04
     - el 6.x (rhel6.x, centos6.x)
     - el 7.x (rhel7.x, centos7.x)
+
+xsync-server 基于 redis-cluster, redis-cluster 最好安装在 el7 集群上。
 
 ## 2. 构建 xsync
 
