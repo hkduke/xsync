@@ -49,18 +49,26 @@ extern "C"
 
 
 struct inotify_event_equivalent {
-	int		wd;		/* watch descriptor */
-	uint32_t		mask;		/* watch mask */
-	uint32_t		cookie;		/* cookie to synchronize two events */
-	uint32_t		len;		/* length (including nulls) of name */
-	char		    name[PATH_MAX + 1];
+    int             wd;         /* watch descriptor */
+    uint32_t        mask;       /* watch mask */
+    uint32_t        cookie;     /* cookie to synchronize two events */
+    uint32_t        len;        /* length (including nulls) of name */
+    char            name[PATH_MAX + 1];
+};
+
+
+struct inotify_event_equivalent2 {
+    int             wd;         /* watch descriptor */
+    uint32_t        mask;       /* watch mask */
+    uint32_t        cookie;     /* cookie to synchronize two events */
+    uint32_t        len;        /* length (including nulls) of name */
+    char            name[0];
 };
 
 
 __no_warning_unused(static)
 struct inotify_event * makeup_inotify_event (struct inotify_event_equivalent *event,
-    int wd, int mask, int cookie,
-    const char *name, ssize_t namelen)
+    int wd, int mask, int cookie, const char *fullname, ssize_t namelen)
 {
     event->wd = wd;
     event->mask = mask;
@@ -69,12 +77,56 @@ struct inotify_event * makeup_inotify_event (struct inotify_event_equivalent *ev
     event->len = 0;
 
     if (namelen < sizeof(event->name)) {
-        memcpy(event->name, name, namelen);
+        memcpy(event->name, fullname, namelen);
         event->name[namelen] = 0;
         event->len = namelen;
     }
 
     return (struct inotify_event *) event;
+}
+
+
+__no_warning_unused(static)
+inline int inotify_event_compare(const struct inotify_event *inNew, const struct inotify_event *inNode)
+{
+    if (inNew->wd > inNode->wd) {
+        return 1;
+    } else if (inNew->wd < inNode->wd) {
+        return -1;
+    } else {
+        if (inNew->mask > inNode->mask) {
+            return 1;
+        } else if (inNew->mask < inNode->mask) {
+            return -1;
+        } else {
+            return strcmp(inNew->name, inNode->name);
+        }
+    }
+}
+
+
+__no_warning_unused(static)
+struct inotify_event_equivalent * inotify_event_equivalent_create(const struct inotify_event *inevent)
+{
+    struct inotify_event_equivalent *event;
+
+    event = (struct inotify_event_equivalent *) malloc(sizeof(*event) + inevent->len + 1);
+
+    if (! event) {
+        // out of memory
+        exit(-4);
+    }
+
+    event->wd = inevent->wd;
+    event->mask = inevent->mask;
+    event->cookie = inevent->cookie;
+    event->len = inevent->len;
+
+    memcpy(event->name, inevent->name, event->len);
+
+    event->name[event->len] = '\0';
+
+    return event;    
 }
 
 

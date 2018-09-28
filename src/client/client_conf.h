@@ -45,6 +45,8 @@ extern "C" {
 #include "watch_entry.h"
 #include "watch_event.h"
 
+#include "../common/red_black_tree.h"
+
 #include "../xsync-error.h"
 #include "../xsync-config.h"
 
@@ -120,7 +122,11 @@ typedef struct xs_client_t
     thread_lock_t wpath_lock;
 
 
-
+    /**
+     * tree for caching all inotify events
+     */
+    red_black_tree_t  inevent_rbtree;
+    thread_lock_t rbtree_lock;
 
 
     /** DEL??
@@ -173,6 +179,51 @@ __no_warning_unused(static)
 inline void client_set_inotify_reload (struct xs_client_t *client, int reload)
 {
     __interlock_set(&client->inotify_reload, reload);
+}
+
+
+__no_warning_unused(static)
+int inevent_rbtree_cmp(void *newObject, void *nodeObject)
+{
+    return inotify_event_compare((const struct inotify_event *) newObject, (const struct inotify_event *) nodeObject);
+}
+
+
+/*! Callback function prototype for traverse objects */
+typedef void (fn_oper_func)(void *object, void *param);
+
+
+__no_warning_unused(static)
+red_black_node_t * client_inevent_rbtree_insert (struct xs_client_t *client, struct inotify_event *inevent)
+{
+    red_black_node_t *node = 0;
+
+    if (pthread_mutex_lock(&client->rbtree_lock) == 0) {
+        node = rbtree_find(&client->inevent_rbtree, (void *) inevent);
+
+        if (! node) {
+            struct inotify_event_equivalent * newevent = inotify_event_equivalent_create(inevent);
+
+            node = rbtree_insert_unique(&client->inevent_rbtree, (void *) newevent);
+
+            if (node) {
+                LOGGER_INFO("insert node");
+            } else {
+                LOGGER_ERROR("not insert node");
+            }
+        } else {
+            LOGGER_WARN("exsiting node");
+        }
+
+        if (node) {
+            pthread_cond_signal(&client->condition);
+        }
+
+        pthread_mutex_unlock(&client->rbtree_lock);
+    }
+
+    // Only for decision of return, do NOT use it in further!
+    return node;
 }
 
 

@@ -7,6 +7,6 @@ _name=$(basename $_file)
 
 while :
 do
-    echo "hello" >> /tmp/stash/test.log
+    echo "hello" > /tmp/stash/test.log
     sleep 0.01
 done

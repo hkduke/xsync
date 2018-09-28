@@ -8,13 +8,15 @@
 TARGET := libcommon.a
 
 SOURCES := \
+	log4c_logger.c \
 	threadpool.c \
 	getopt_longw.c \
 	getoptw.c \
 	base64.c \
 	readconf.c \
 	mul_timer.c \
-	randctx.c
+	randctx.c \
+	red_black_tree.c
 
 
 #   If the macro NDEBUG is defined at the moment <assert.h> was last

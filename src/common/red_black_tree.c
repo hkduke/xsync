@@ -76,25 +76,27 @@ void rbnode_replace(red_black_node_t * node, void * object)
 /* Get the next node in the tree (according to the tree order) */
 red_black_node_t * rbnode_successor(red_black_node_t * node)
 {
-    red_black_node_t * succ_node;
+    red_black_node_t * succ_node = 0;
 
-    if (node->right) {
-        /* If there is a right child, the successor is the minimal object in
-         * the sub-tree spanned by this child.
-         */
-        succ_node = node->right;
-        while (succ_node->left)
-            succ_node = succ_node->left;
-    }
-    else {
-        /* Otherwise, go up the tree until reaching the parent from the left
-         * direction.
-         */
-        red_black_node_t * prev_node = node;
-        succ_node = node->parent;
-        while (succ_node && prev_node == succ_node->right) {
-            prev_node = succ_node;
-            succ_node = succ_node->parent;
+    if (node) {
+        if (node->right) {
+            /* If there is a right child, the successor is the minimal object in
+             * the sub-tree spanned by this child.
+             */
+            succ_node = node->right;
+            while (succ_node->left)
+                succ_node = succ_node->left;
+        }
+        else {
+            /* Otherwise, go up the tree until reaching the parent from the left
+             * direction.
+             */
+            red_black_node_t * prev_node = node;
+            succ_node = node->parent;
+            while (succ_node && prev_node == succ_node->right) {
+                prev_node = succ_node;
+                succ_node = succ_node->parent;
+            }
         }
     }
 
@@ -104,24 +106,26 @@ red_black_node_t * rbnode_successor(red_black_node_t * node)
 /* Get the previous node in the tree (according to the tree order) */
 red_black_node_t * rbnode_predecessor(red_black_node_t * node)
 {
-    red_black_node_t * pred_node;
+    red_black_node_t * pred_node = 0;
 
-    if (node->left) {
-        /* If there is a left child, the predecessor is the maximal object in
-         * the sub-tree spanned by this child.
-         */
-        pred_node = node->left;
-        while (pred_node->right)
-            pred_node = pred_node->right;
-    } else {
-        /* Otherwise, go up the tree until reaching the parent from the right
-         * direction.
-         */
-        red_black_node_t * prev_node = node;
-        pred_node = node->parent;
-        while (pred_node && prev_node == pred_node->left) {
-            prev_node = pred_node;
-            pred_node = pred_node->parent;
+    if (node) {
+        if (node->left) {
+            /* If there is a left child, the predecessor is the maximal object in
+             * the sub-tree spanned by this child.
+             */
+            pred_node = node->left;
+            while (pred_node->right)
+                pred_node = pred_node->right;
+        } else {
+            /* Otherwise, go up the tree until reaching the parent from the right
+             * direction.
+             */
+            red_black_node_t * prev_node = node;
+            pred_node = node->parent;
+            while (pred_node && prev_node == pred_node->left) {
+                prev_node = pred_node;
+                pred_node = pred_node->parent;
+            }
         }
     }
 

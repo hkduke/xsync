@@ -124,9 +124,7 @@ extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_
 /**
  * XS_client internal api
  */
-extern XS_VOID XS_client_clear_wpath_map (XS_client client);
-
-extern XS_VOID XS_client_clear_event_map (XS_client client);
+extern XS_VOID XS_client_clean_all (XS_client client);
 
 extern XS_BOOL XS_client_add_watch_path (XS_client client, XS_watch_path wp);
 

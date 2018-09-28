@@ -90,13 +90,7 @@ void xs_client_delete (void *pv)
         client->paths = 0;
     }
 
-    LOGGER_TRACE("destroy wpath_hmap");
-    threadlock_destroy(&client->wpath_lock);
-    XS_client_clear_wpath_map(client);
-
-    LOGGER_TRACE("destroy event_hmap");
-    threadlock_destroy(&client->event_lock);
-    XS_client_clear_event_map(client);
+    XS_client_clean_all(client);
 
     LOGGER_TRACE("pthread_cond_destroy");
     pthread_cond_destroy(&client->condition);

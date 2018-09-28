@@ -220,24 +220,6 @@ extern red_black_node_t * rbtree_minimum(red_black_tree_t * tree);
  */
 extern red_black_node_t * rbtree_maximum(red_black_tree_t * tree);
 
-/*! Get the next node in the tree (according to the tree order)
- * [takes O(log n) operations at worst-case, but only O(1) amortized]
- *  param tree The tree
- *  param node The current object
- *  return The successor node, or a 0, if we are at the tree maximum
- */
-extern red_black_node_t * rbtree_successor(red_black_tree_t * tree,
-                                           red_black_node_t * node);
-
-/*! Get the previous node in the tree (according to the tree order)
- * [takes O(log n) operations at worst-case, but only O(1) amortized]
- *  param tree The tree
- *  param node The current object
- *  return The predecessor node, or a 0, if we are at the tree minimum
- */
-extern red_black_node_t * rbtree_predecessor(red_black_tree_t * tree,
-                                             red_black_node_t * node);
-
 /*! Find a node that contains the given object
  *  param tree The tree
  *  param object The desired object
