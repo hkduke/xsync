@@ -298,7 +298,7 @@ int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX
         wd = inotifytools_wd_from_filename(abspath);
         if (wd < 1) {
             // 接受的监视目录不存在, 重启监视
-            LOGGER_ERROR("path not in watch: %s", abspath);
+            LOGGER_ERROR("path not in watch: %s -> %s", watch_root_path(client), abspath);
             return (-1);
         }
         return wd;
@@ -416,15 +416,17 @@ int lscb_sweep_watch_path (const char * path, int pathlen, struct mydirent *myen
             }
         } else {
             // path 是物理目录
-            wd = filter_watch_path( client, path, pathbuf );
+            if (arg2) {
+                wd = filter_watch_path( client, path, pathbuf );
 
-            if (wd > 0) {
-                LOGGER_TRACE("sweep path(wd=%d): %s", wd, pathbuf);
-                listdir(path, pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_sweep_watch_path, arg1, int_cast_to_pv(wd));
-            } else if (wd == -1) {
-                client_set_inotify_reload(client, 1);
-                return 0;
-            }
+                if (wd > 0) {
+                    LOGGER_TRACE("sweep path(wd=%d): %s", wd, pathbuf);
+                    listdir(path, pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_sweep_watch_path, arg1, int_cast_to_pv(wd));
+                } else if (wd == -1) {
+                    client_set_inotify_reload(client, 1);
+                    return 0;
+                }
+	    }
         }
     } else if (myent->isreg) {
         char *name = strrchr(path, '/');
@@ -513,6 +515,8 @@ int lscb_sweep_watch_path (const char * path, int pathlen, struct mydirent *myen
             }
         }
     }
+
+    sleep_ms(10);
 
     return (XS_client_threadpool_unused_queues(client) > 0 ? 1 : 0);
 }
@@ -792,7 +796,7 @@ void sweep_worker (void *arg)
     XS_client client = (XS_client) arg;
 
     for (;;) {
-        select_sleep(client->interval_seconds, 0);
+        sleep_ms(client->interval_seconds * 1000);
 
         if (XS_client_threadpool_unused_queues(client) < 1) {
             LOGGER_TRACE("threadpool is full");

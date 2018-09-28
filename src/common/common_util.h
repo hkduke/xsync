@@ -201,19 +201,37 @@ inline void timespec_reset_timeout (struct timespec *timo, struct timeval *now, 
 }
 
 
+/**
+ * cross-platform sleep function
+ */
+__no_warning_unused(static)
+void sleep_ms (int milliseconds)
+{
+    #ifdef WIN32
+    #  include <windows.h>
+    Sleep(milliseconds);
+    #elif _POSIX_C_SOURCE >= 199309L
+    #  include <time.h>   // for nanosleep
+    struct timespec ts;
+    ts.tv_sec = milliseconds / 1000;
+    ts.tv_nsec = (milliseconds % 1000) * 1000000;
+    nanosleep(&ts, 0);
+    #else
+    #  include <unistd.h> // for usleep
+    usleep(milliseconds * 1000);
+    #endif
+}
+
+
 __no_warning_unused(static)
 int select_sleep (int sec, int ms)
 {
-    if (sec || ms) {
-        struct timeval tv = {0};
+    struct timeval tv = {0};
 
-        tv.tv_sec = sec;
-        tv.tv_usec = ms * 1000;
+    tv.tv_sec = sec;
+    tv.tv_usec = ms * 1000;
 
-        return select (0, NULL, NULL, NULL, &tv);
-    } else {
-        return 0;
-    }
+    return select (0, NULL, NULL, NULL, &tv);
 }
 
 
