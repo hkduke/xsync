@@ -48,6 +48,14 @@ extern "C" {
 
 #include "../common/common_util.h"
 
+/**
+ * https://sourceforge.net/projects/inotify-tools/
+ */
+#include <inotifytools/inotify.h>
+#include <inotifytools/inotifytools.h>
+
+#define INOTI_EVENTS_MASK  (IN_DELETE | IN_DELETE_SELF | IN_CREATE | IN_MODIFY | IN_CLOSE_WRITE | IN_MOVE | IN_ONLYDIR)
+
 
 typedef struct perthread_data
 {
@@ -79,6 +87,19 @@ typedef struct xs_watch_event_t
     int pathlen;
     char pathname[0];
 } xs_watch_event_t;
+
+
+__no_warning_unused(static)
+inline int inotify_event_compare(const struct inotify_event *inNew, const struct inotify_event *inNode)
+{
+    if (inNew->wd > inNode->wd) {
+        return 1;
+    } else if (inNew->wd < inNode->wd) {
+        return -1;
+    } else {
+        return strcmp(inNew->name, inNode->name);
+    }
+}
 
 
 extern XS_watch_event XS_watch_event_create (struct inotify_event *inevent, const char *path);

@@ -814,9 +814,6 @@ XS_VOID XS_client_bootstrap (XS_client client)
 
     char pathbuf[PATH_MAX + 1];
 
-    struct inotify_event *event;
-    struct inotify_event_equivalent eqevent;
-
     pthread_t sweep_thread_id;
 
     /**
@@ -876,6 +873,8 @@ XS_VOID XS_client_bootstrap (XS_client client)
      * http://inotify-tools.sourceforge.net/api/inotifytools_8h.html
      */
     for (;;) {
+        struct inotify_event *event;
+
         if (client_is_inotify_reload(client)) {
             inotifytools_restart(client);
             client_set_inotify_reload(client, 0);
