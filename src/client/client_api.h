@@ -103,8 +103,6 @@ extern int XS_client_lock (XS_client client, int try);
 
 extern void XS_client_unlock (XS_client client);
 
-extern int XS_client_wait_condition(XS_client client, struct timespec * timo);
-
 extern XS_VOID XS_client_bootstrap (XS_client client);
 
 

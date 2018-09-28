@@ -51,6 +51,8 @@ extern "C" {
 
 typedef struct perthread_data
 {
+    void * xclient;
+
     int    threadid;
 
     XS_server_conn server_conns[XSYNC_SERVER_MAXID + 1];;
@@ -61,43 +63,27 @@ typedef struct perthread_data
 
 typedef struct xs_watch_event_t
 {
-    EXTENDS_REFOBJECT_TYPE();
+    union {
+        struct {
+            int      wd;           /* Watch descriptor */
+            uint32_t mask;         /* Mask of events */
+            uint32_t cookie;       /* Unique cookie associating related events (for rename(2)) */
+            uint32_t len;          /* Size of name field */
+            char     name[256];    /* Optional null-terminated name */
+        };
 
-    /* inotify event mask */
-    int inevent_mask;
-
-    /* task serial id */
-    int64_t taskid;
-
-    /* reference of XS_client */
-    XS_client client;
-
-    /* reference of XS_watch_entry */
-    XS_watch_entry entry;
-
-    /* const reference of server opts for read only */
-    xs_server_opts *server;
-
-    /**
-     * see event_hmap of XS_client
-     */
-    int hash;
-    struct hlist_node i_hash;
+        struct inotify_event inevent;
+    };
 
     /* 文件的全路径名长度和全路径名 */
-    int namelen;
+    int pathlen;
     char pathname[0];
 } xs_watch_event_t;
 
 
-extern XS_VOID XS_watch_event_create (struct inotify_event * inevent, XS_client client, int sid, XS_watch_event *outEvent);
+extern XS_watch_event XS_watch_event_create (struct inotify_event *inevent, const char *path);
 
-extern XS_VOID XS_watch_event_release (XS_watch_event *inEvent);
-
-extern XS_watch_event XS_watch_event_retain (XS_watch_event *pEvent);
-
-/* called in do_event_task() */
-extern ssize_t XS_watch_event_sync_file (XS_watch_event event, perthread_data *perdata);
+extern XS_VOID XS_watch_event_free (XS_watch_event event);
 
 
 #if defined(__cplusplus)

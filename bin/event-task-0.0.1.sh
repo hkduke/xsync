@@ -43,7 +43,7 @@ function on_event_task() {
     local pathfile="$2"
 
     # 模拟执行时间 5s
-    sleep 1
+    sleep 5
 
     echo "$OK"
 }

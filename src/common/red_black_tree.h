@@ -183,7 +183,7 @@ extern int rbtree_contains(red_black_tree_t * tree, void * object);
 extern red_black_node_t * rbtree_insert(red_black_tree_t * tree, void * object);
 
 /*! Insert an unique object to the tree */
-extern red_black_node_t * rbtree_insert_unique(red_black_tree_t * tree, void * object);
+extern red_black_node_t * rbtree_insert_unique(red_black_tree_t * tree, void * object, int *is_new_node);
 
 /*! Insert a new object to the tree as the a successor of a given node
  *  param tree The tree

@@ -108,11 +108,10 @@ typedef struct xs_client_t
     char path_filter_buf[XSYNC_BUFSIZE];
 
     /**
-     * event_hmap: a hash map for XS_watch_event
-     * event_lock: 访问 event_hmap 的锁
+     * tree for caching all inotify events
      */
-    struct hlist_head event_hmap[XSYNC_HASHMAP_MAX_LEN + 1];
-    thread_lock_t event_lock;
+    red_black_tree_t  event_rbtree;
+    thread_lock_t rbtree_lock;
 
     /**
      * wpath_hmap: a hash map for XS_watch_path
@@ -122,11 +121,8 @@ typedef struct xs_client_t
     thread_lock_t wpath_lock;
 
 
-    /**
-     * tree for caching all inotify events
-     */
-    red_black_tree_t  inevent_rbtree;
-    thread_lock_t rbtree_lock;
+
+
 
 
     /** DEL??
@@ -183,47 +179,15 @@ inline void client_set_inotify_reload (struct xs_client_t *client, int reload)
 
 
 __no_warning_unused(static)
-int inevent_rbtree_cmp(void *newObject, void *nodeObject)
+int event_rbtree_cmp(void *newObject, void *nodeObject)
 {
     return inotify_event_compare((const struct inotify_event *) newObject, (const struct inotify_event *) nodeObject);
 }
 
 
-/*! Callback function prototype for traverse objects */
-typedef void (fn_oper_func)(void *object, void *param);
-
-
 __no_warning_unused(static)
-red_black_node_t * client_inevent_rbtree_insert (struct xs_client_t *client, struct inotify_event *inevent)
+void event_rbtree_op(void *object, void *param)
 {
-    red_black_node_t *node = 0;
-
-    if (pthread_mutex_lock(&client->rbtree_lock) == 0) {
-        node = rbtree_find(&client->inevent_rbtree, (void *) inevent);
-
-        if (! node) {
-            struct inotify_event_equivalent * newevent = inotify_event_equivalent_create(inevent);
-
-            node = rbtree_insert_unique(&client->inevent_rbtree, (void *) newevent);
-
-            if (node) {
-                LOGGER_INFO("insert node");
-            } else {
-                LOGGER_ERROR("not insert node");
-            }
-        } else {
-            LOGGER_WARN("exsiting node");
-        }
-
-        if (node) {
-            pthread_cond_signal(&client->condition);
-        }
-
-        pthread_mutex_unlock(&client->rbtree_lock);
-    }
-
-    // Only for decision of return, do NOT use it in further!
-    return node;
 }
 
 

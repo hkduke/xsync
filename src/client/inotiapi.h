@@ -94,13 +94,7 @@ inline int inotify_event_compare(const struct inotify_event *inNew, const struct
     } else if (inNew->wd < inNode->wd) {
         return -1;
     } else {
-        if (inNew->mask > inNode->mask) {
-            return 1;
-        } else if (inNew->mask < inNode->mask) {
-            return -1;
-        } else {
-            return strcmp(inNew->name, inNode->name);
-        }
+        return strcmp(inNew->name, inNode->name);
     }
 }
 

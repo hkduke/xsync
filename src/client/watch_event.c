@@ -45,112 +45,35 @@
 #include "../common/common_util.h"
 
 
-// DONOT release XS_server_conn since it not a RefObject !
-__no_warning_unused(static)
-void xs_watch_event_delete (void *pv)
+XS_watch_event XS_watch_event_create (struct inotify_event *inevent, const char *path)
 {
-    XS_watch_event event = (XS_watch_event) pv;
+    int len = (int) strlen(path);
 
-    // 从 event_hmap 清除自身
-    hlist_del(&event->i_hash);
+    if (!len || !inevent->len || inevent->len >= 256) {
+        LOGGER_FATAL("should never run to this!");
+        exit(-1);
+    } else {
+        XS_watch_event event;
 
-    // 释放引用计数
-    XS_client_release(&event->client);
+        event = (XS_watch_event) mem_alloc(1, sizeof(struct xs_watch_event_t) + len + 1);
 
-    event->client = 0;
+        event->wd = inevent->wd;
+        event->mask = inevent->mask;
+        event->cookie = inevent->cookie;
 
-    LOGGER_TRACE("~event=%p", event);
+        event->len = inevent->len;
+        memcpy(event->name, inevent->name, event->len);
 
-    free(pv);
-}
+        event->pathlen = len;
+        memcpy(event->pathname, path, event->pathlen);
 
-
-XS_VOID XS_watch_event_create (struct inotify_event * inevent, XS_client client, int sid, XS_watch_event *outEvent)
-{
-    XS_watch_event event;
-
-    *outEvent = 0;
-
-    int cb = ((inevent->len + sizeof(XS_watch_event)) / sizeof(XS_watch_event)) * sizeof(XS_watch_event);
-
-    event = (XS_watch_event) mem_alloc(1, sizeof(struct xs_watch_event_t) + cb);
-
-    // 增加 client 计数
-    event->client = XS_client_retain(&client);
-
-    event->server = XS_client_get_server_opts(client, sid);
-
-    event->inevent_mask = inevent->mask;
-
-    // 复制文件名
-    event->namelen = inevent->len;
-    memcpy(event->pathname, inevent->name, inevent->len);
-    event->pathname[inevent->len] = 0;
-
-    event->taskid = __interlock_add(&client->task_counter);
-
-    LOGGER_TRACE("event(%p): task=%lld name=%s", event, (long long) event->taskid, (char*) event->pathname);
-
-    *outEvent = (XS_watch_event) RefObjectInit(event);
-}
-
-
-XS_VOID XS_watch_event_release (XS_watch_event *inEvent)
-{
-    LOGGER_TRACE0();
-
-    RefObjectRelease((void**)inEvent, xs_watch_event_delete);
-}
-
-
-XS_watch_event XS_watch_event_retain (XS_watch_event *pEvent)
-{
-    return (XS_watch_event) RefObjectRetain((void**) pEvent);
-}
-
-
-/* called in do_event_task() */
-ssize_t XS_watch_event_sync_file (XS_watch_event event, perthread_data *perdata)
-{
-    off_t pos;
-    ssize_t cbread;
-
-    unsigned int sendbytes = 0;
-
-    XS_watch_entry entry = event->entry;
-    assert(entry);
-    assert(entry->in_use);
-
-    //int sid = entry->sid;
-    //TODO: int sockfd = perdata->sockfds[sid];
-
-    return sendbytes;
-
-    int rofd = watch_entry_open_file(entry);
-
-    if (rofd != -1) {
-        pos = (off_t) entry->offset;
-
-        while (sendbytes < XSYNC_BATCH_SEND_MAXSIZE &&
-            (cbread = pread_len(rofd, (ub1 *) perdata->buffer, sizeof(perdata->buffer), pos)) > 0) {
-
-            #if XSYNC_LINUX_SENDFILE == 1
-                //watch_entry_read_and_sendfile
-                LOGGER_WARN("TODO: sendfile: %lld bytes", (long long) cbread);
-            #else
-                //watch_entry_read_and_senddata
-                LOGGER_WARN("TODO: sendbytes: %lld bytes", (long long) cbread);
-            #endif
-
-            entry->offset += cbread;
-            sendbytes += cbread;
-
-            pos = (off_t) entry->offset;
-        }
-
-        watch_entry_close_file(event->entry);
+        return event;
     }
+}
 
-    return sendbytes;
+
+XS_VOID XS_watch_event_free (XS_watch_event event)
+{
+    free(event);
 }
 

@@ -292,11 +292,13 @@ red_black_node_t * rbtree_insert(red_black_tree_t * tree, void * object)
 
 
 /* Insert an unique object to the tree */
-red_black_node_t * rbtree_insert_unique(red_black_tree_t * tree, void * object)
+red_black_node_t * rbtree_insert_unique(red_black_tree_t * tree, void * object, int *is_new_node)
 {
     int cmp;
     red_black_node_t * cur_node;
     red_black_node_t * new_node = 0;
+
+    *is_new_node = 1;
 
     if (!(tree->root)) {
         /* Assign a new root node. Notice that the root is always black */
@@ -312,8 +314,9 @@ red_black_node_t * rbtree_insert_unique(red_black_tree_t * tree, void * object)
 
     while (cur_node) {
         cmp = tree->keycmp(object, cur_node->object);
-        if (cmp==0) {
+        if (cmp == 0) {
             /* there already has an object with the same id as object to be inserted */
+            *is_new_node = 0;
             return cur_node;
         }
 
