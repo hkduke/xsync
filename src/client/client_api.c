@@ -26,14 +26,14 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.7
+ * @version: 0.0.8
  *
  * @create: 2018-01-25
  *
- * @update: 2018-09-26 10:26:14
+ * @update: 2018-09-29 18:47:32
  */
 
-/**
+/******************************************************************************
  * client_init_from_watch
  *
  * 从 watch 目录初始化 client. watch 目录遵循下面的规则:
@@ -98,11 +98,13 @@
  *                    |
  *                    |     (以下文件为可选)
  *                    |
+ *                    +---- i.included
+ *                    |
  *                    +---- path-filter.sh  (路径和文件名过滤脚本: 用户实现)
  *                    |
  *                    +---- event-task.sh   (事件任务执行脚本: 用户实现)
  *
- */
+ *****************************************************************************/
 #include "client_api.h"
 
 #include "client_conf.h"
@@ -129,15 +131,20 @@ void do_event_task (thread_context_t *thread_ctx)
         XS_watch_event event = (XS_watch_event) node->object;
 
         if (client->offs_event_task) {
+            int ret = 0;
             const char *result = 0;
 
             int bufcb = sizeof(perdata->buffer) - ERRORMSG_MAXLEN - 1;
 
-            int ret = snprintf(perdata->buffer, bufcb, "%s '%s' '%s%s'",
+            __inotifytools_lock();
+            {
+                ret = snprintf(perdata->buffer, bufcb, "%s '%s' '%s%s'",
                         event_task_path(client),
                         inotifytools_event_to_str(event->mask),
                         event->pathname,
                         event->name);
+            }
+            __inotifytools_unlock();
 
             perdata->buffer[ret] = 0;
 
@@ -167,7 +174,8 @@ void do_event_task (thread_context_t *thread_ctx)
         if (pthread_mutex_lock(&client->rbtree_lock) == 0) {
 
             node->object = 0;
-            XS_watch_event_free(event);
+            watch_event_free(event);
+
             rbtree_remove_at(&client->event_rbtree, node);
 
             LOGGER_TRACE("rbtree_size=%d", rbtree_size(&client->event_rbtree));
@@ -179,17 +187,17 @@ void do_event_task (thread_context_t *thread_ctx)
     }
 
     task->argument = 0;
-    task->flags = 0;    
+    task->flags = 0;
 }
 
 
 __no_warning_unused(static)
-XS_RESULT client_add_inotify_event (XS_client client, struct inotify_event *inevent, const char *wpath)
+XS_RESULT client_add_inotify_event (XS_client client, watch_event_t *event)
 {
     int result = XS_ERROR;
 
     if (pthread_mutex_lock(&client->rbtree_lock) == 0) {
-        red_black_node_t *node = rbtree_find(&client->event_rbtree, inevent);
+        red_black_node_t *node = rbtree_find(&client->event_rbtree, event);
 
         if (node) {
             LOGGER_WARN("ignored existing node(=%p)", node);
@@ -197,7 +205,8 @@ XS_RESULT client_add_inotify_event (XS_client client, struct inotify_event *inev
             return XS_SUCCESS;
         } else {
             int is_new_node;
-            XS_watch_event newevent = XS_watch_event_create(inevent, wpath);
+
+            XS_watch_event newevent = watch_event_clone(event);
 
             node = rbtree_insert_unique(&client->event_rbtree, (void *) newevent, &is_new_node);
             if (node) {
@@ -207,7 +216,7 @@ XS_RESULT client_add_inotify_event (XS_client client, struct inotify_event *inev
                     if (err) {
                         LOGGER_ERROR("threadpool_add node(=%p) error(%d): %s", node, err, threadpool_error_messages[-err]);
                         node->object = 0;
-                        XS_watch_event_free(newevent);
+                        watch_event_free(newevent);
                         rbtree_remove_at(&client->event_rbtree, node);
                     } else {
                         LOGGER_DEBUG("threadpool_add node(=%p) success", node);
@@ -215,11 +224,11 @@ XS_RESULT client_add_inotify_event (XS_client client, struct inotify_event *inev
                     }
                 } else {
                     LOGGER_ERROR("should never run to this: rbtree_insert_unique existed");
-                    XS_watch_event_free(newevent);                    
+                    watch_event_free(newevent);
                 }
             } else {
                 LOGGER_ERROR("should never run to this: rbtree_insert_unique unexpected");
-                XS_watch_event_free(newevent);                
+                watch_event_free(newevent);
             }
         }
 
@@ -295,7 +304,7 @@ int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX
         // 接受目录
         LOGGER_DEBUG("ACCEPT(=%d): %s", ret, abspath);
 
-        wd = inotifytools_wd_from_filename(abspath);
+        wd = inotifytools_wd_from_filename_s(abspath);
         if (wd < 1) {
             // 接受的监视目录不存在, 重启监视
             LOGGER_ERROR("path not in watch: %s -> %s", watch_root_path(client), abspath);
@@ -308,10 +317,10 @@ int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX
         // 拒绝目录
         LOGGER_DEBUG("REJECT(=%d): %s", ret, abspath);
 
-        wd = inotifytools_wd_from_filename(abspath);
+        wd = inotifytools_wd_from_filename_s(abspath);
         if (wd > 0) {
             // 拒绝的监视目录存在, 删除监视
-            if (inotifytools_remove_watch_by_wd(wd)) {
+            if (inotifytools_remove_watch_by_wd_s(wd)) {
                 // 移除监视成功, 不再递归
                 LOGGER_INFO("remove watch path(wd=%d) ok: %s", wd, abspath);
                 return 0;
@@ -390,102 +399,113 @@ int filter_watch_file (XS_client client, char *path, const char *name, int namel
  *   0: 中止
  */
 __no_warning_unused(static)
-int lscb_sweep_watch_path (const char * path, int pathlen, struct mydirent *myent, void *arg1, void *arg2)
+int lscb_sweep_watch_path (const char *path, int pathlen, struct mydirent *myent, void *arg1, void *arg2)
 {
-    int wd, ret;
-    char pathbuf[PATH_MAX];
+    struct static_watch_event_t evbuf = {0};
 
     XS_client client = (XS_client) arg1;
+
+    if (!pathlen || pathlen >= PATH_MAX) {
+        LOGGER_FATAL("bad pathlen: %d", pathlen);
+        exit(-1);
+    }
 
     if (myent->isdir) {
         // path 是目录
         if (myent->islnk) {
             // path 是目录链接
-            wd = filter_watch_path( (XS_client) arg1, path, pathbuf);
+            evbuf.wd = filter_watch_path((XS_client) arg1, path, evbuf.pathname);
 
-            if (wd > 0) {
+            if (evbuf.wd > 0) {
                 if (arg2) {
                     // 当前子目录不支持符号链接
-                    LOGGER_ERROR("child dir link not supported: %s -> %s", path, pathbuf);
+                    LOGGER_ERROR("child dir link not supported: %s -> %s", path, evbuf.pathname);
                 } else {
-                    listdir(path, pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_sweep_watch_path, arg1, int_cast_to_pv(wd));
+                    listdir(path, evbuf.pathname, sizeof(evbuf.pathname), (listdir_callback_t) lscb_sweep_watch_path, arg1, int_cast_to_pv(evbuf.wd));
                 }
-            } else if (wd == -1) {
+            } else if (evbuf.wd == -1) {
                 client_set_inotify_reload(client, 1);
                 return 0;
             }
         } else {
             // path 是物理目录
             if (arg2) {
-                wd = filter_watch_path( client, path, pathbuf );
+                evbuf.wd = filter_watch_path(client, path, evbuf.pathname);
 
-                if (wd > 0) {
-                    LOGGER_TRACE("sweep path(wd=%d): %s", wd, pathbuf);
-                    listdir(path, pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_sweep_watch_path, arg1, int_cast_to_pv(wd));
-                } else if (wd == -1) {
+                if (evbuf.wd > 0) {
+                    char * wpath = evbuf.pathname;
+
+                    LOGGER_TRACE("sweep path(wd=%d): %s", evbuf.wd, wpath);
+
+                    listdir(path, evbuf.pathname, sizeof(evbuf.pathname), (listdir_callback_t) lscb_sweep_watch_path, arg1, int_cast_to_pv(evbuf.wd));
+
+                } else if (evbuf.wd == -1) {
                     client_set_inotify_reload(client, 1);
                     return 0;
                 }
-	    }
+            }
         }
     } else if (myent->isreg) {
         char *name = strrchr(path, '/');
 
         if (name && *name++) {
-            xs_watch_event_t event = {0};
+            int ret = 0;
 
-            ret = 0;
+            evbuf.wd = pv_cast_to_int(arg2);
+            evbuf.mask = IN_CLOSE_NOWRITE;
+            evbuf.cookie = 0;
+            evbuf.len = 0;
 
-            event.wd = pv_cast_to_int(arg2);
-            event.mask = IN_CLOSE_NOWRITE;
-            event.cookie = 0;
-            event.len = 0;
+            evbuf.pathlen = name - path - 1;
+            memcpy(evbuf.pathname, path, evbuf.pathlen);
+            evbuf.pathname[evbuf.pathlen] = 0;
 
-            memcpy(pathbuf, path, name - path - 1);
-            pathbuf[name - path - 1] = 0;
+            if (evbuf.wd > 0) {
+                __inotifytools_lock();
+                {
+                    char *wpath = inotifytools_filename_from_wd(evbuf.wd);
 
-            if (event.wd > 0) {
-                char *wp = inotifytools_filename_from_wd(event.wd);
+                    if (wpath && !strcmp(wpath, evbuf.pathname)) {
+                        evbuf.len = (int) strlen(name);
 
-                if (wp && ! strcmp(pathbuf, wp)) {
-                    event.len = (int) strlen(name);
-
-                    if (event.len < sizeof(event.name)) {
-                        memcpy(event.name, name, event.len);
-                        event.name[event.len] = '\0';
-                    } else {
-                        // error name buffer
-                        event.len = 0;
+                        if (evbuf.len < sizeof(evbuf.name)) {
+                            memcpy(evbuf.name, name, evbuf.len);
+                            evbuf.name[evbuf.len] = '\0';
+                        } else {
+                            // error name buffer
+                            evbuf.len = 0;
+                        }
                     }
                 }
+                __inotifytools_unlock();
             } else {
-                event.wd = 0;
-                event.len = (int) strlen(name);
+                evbuf.wd = 0;
+                evbuf.len = (int) strlen(name);
 
-                if (event.len < sizeof(event.name)) {
-                    memcpy(event.name, name, event.len);
-                    event.name[event.len] = '\0';
+                if (evbuf.len < sizeof(evbuf.name)) {
+                    memcpy(evbuf.name, name, evbuf.len);
+                    evbuf.name[evbuf.len] = '\0';
                 } else {
                     // error name buffer
-                    event.len = 0;
+                    evbuf.len = 0;
                 }
             }
 
-            if (event.len) {
+            if (evbuf.len) {
                 red_black_node_t *node = 0;
 
-                LOGGER_TRACE("sweep event(wd=%d)[%s]: %s", event.wd, inotifytools_event_to_str(event.mask), name);
+                LOGGER_TRACE("sweep event(wd=%d)[%s]: %s", evbuf.wd, inotifytools_event_to_str(evbuf.mask), name);
 
                 /**
                  * 判断当前文件是否正在任务队列中处理, 如果在, 则忽略之
                  */
                 if (pthread_mutex_lock(&client->rbtree_lock) == 0) {
-                    node = rbtree_find(&client->event_rbtree, &event);
+                    node = rbtree_find(&client->event_rbtree, &evbuf);
 
                     pthread_mutex_unlock(&client->rbtree_lock);
 
                     if (! node) {
-                        ret = filter_watch_file(client, pathbuf, name, strlen(name));
+                        ret = filter_watch_file(client, evbuf.pathname, evbuf.name, evbuf.len);
                     }
                 } else {
                     LOGGER_WARN("pthread_mutex_lock failed on rbtree_lock");
@@ -494,7 +514,7 @@ int lscb_sweep_watch_path (const char * path, int pathlen, struct mydirent *myen
 
             if (ret > 0) {
                 // 添加任务到线程池
-                client_add_inotify_event(client, (struct inotify_event *) &event, path);
+                client_add_inotify_event(client, (watch_event_t *) &evbuf);
             } else if (ret == -1) {
                 // 要求重启服务
                 client_set_inotify_reload(client, 1);
@@ -506,7 +526,7 @@ int lscb_sweep_watch_path (const char * path, int pathlen, struct mydirent *myen
             // 忽略根目录的文件链接
         } else {
             // 忽略子目录的文件链接
-            char *abspath = realpath(path, pathbuf);
+            char *abspath = realpath(path, evbuf.pathname);
 
             if (abspath) {
                 LOGGER_WARN("ignored file link: %s -> %s", path, abspath);
@@ -518,20 +538,20 @@ int lscb_sweep_watch_path (const char * path, int pathlen, struct mydirent *myen
 
     sleep_ms(10);
 
-    return (XS_client_threadpool_unused_queues(client) > 0 ? 1 : 0);
+    return 1;
 }
 
 
 __no_warning_unused(static)
-void inotifytools_restart(XS_client client)
+void xs_inotifytools_restart(XS_client client)
 {
     int err = (-1);
 
     LOGGER_DEBUG("inotifytools_cleanup()");
 
-    inotifytools_cleanup();
+    inotifytools_cleanup_s();
 
-	if ( ! inotifytools_initialize()) {
+    if ( ! inotifytools_initialize_s()) {
         LOGGER_ERROR("inotifytools_initialize(): %s", strerror(inotifytools_error()));
         exit(XS_ERROR);
     }
@@ -547,7 +567,7 @@ void inotifytools_restart(XS_client client)
     }
 
     if (err != XS_SUCCESS) {
-        inotifytools_cleanup();
+        inotifytools_cleanup_s();
 
         LOGGER_ERROR("failed");
 
@@ -591,11 +611,11 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
 
     /**
      * initialize and watch the entire directory tree from the current working
-	 * directory downwards for all events
+     * directory downwards for all events
      */
     LOGGER_DEBUG("inotifytools_initialize");
 
-	if ( ! inotifytools_initialize()) {
+    if ( ! inotifytools_initialize()) {
         LOGGER_ERROR("inotifytools_initialize(): %s", strerror(inotifytools_error()));
 
         xs_client_delete((void*) client);
@@ -660,7 +680,7 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
 
     // 初始化 event_rbtree
     LOGGER_TRACE("event_rbtree");
-    rbtree_init(&client->event_rbtree, (fn_comp_func*) event_rbtree_cmp);  
+    rbtree_init(&client->event_rbtree, (fn_comp_func*) event_rbtree_cmp);
     threadlock_init(&client->rbtree_lock);
 
     /**
@@ -741,7 +761,7 @@ XS_VOID XS_client_clean_all (XS_client client)
 
 XS_BOOL XS_client_add_watch_path (XS_client client, XS_watch_path wp)
 {
-    if (! inotifytools_watch_recursively(wp->fullpath, wp->events_mask) ) {
+    if (! inotifytools_watch_recursively_s(wp->fullpath, wp->events_mask) ) {
         LOGGER_ERROR("inotifytools_watch_recursively(): %s", strerror(inotifytools_error()));
         return XS_FALSE;
     } else {
@@ -815,8 +835,10 @@ void sweep_worker (void *arg)
 XS_VOID XS_client_bootstrap (XS_client client)
 {
     int len;
-
     char pathbuf[PATH_MAX + 1];
+
+    struct inotify_event *inevent;
+    struct static_watch_event_t  evbuf = {0};
 
     pthread_t sweep_thread_id;
 
@@ -877,69 +899,75 @@ XS_VOID XS_client_bootstrap (XS_client client)
      * http://inotify-tools.sourceforge.net/api/inotifytools_8h.html
      */
     for (;;) {
-        struct inotify_event *event;
-
         if (client_is_inotify_reload(client)) {
-            inotifytools_restart(client);
+            xs_inotifytools_restart(client);
             client_set_inotify_reload(client, 0);
         }
 
-        event = inotifytools_next_event(1);
+        __inotifytools_lock();
+        {
+            inevent = inotifytools_next_event(0);  // 必须是立即返回
 
-        if (! event || ! event->len) {
-            LOGGER_TRACE("no inotify event");
-            continue;
+            if (! inevent) {
+                __inotifytools_unlock();
+
+                LOGGER_TRACE("null inotify event");
+                sleep_ms(1000);
+                continue;
+            }
+
+            if (! inotify_event_dump((watch_event_t *)&evbuf, PATH_MAX, inevent, inotifytools_filename_from_wd(inevent->wd))) {
+                __inotifytools_unlock();
+
+                LOGGER_FATAL("name or path error");
+                sleep_ms(1000);
+                continue;
+            }
         }
+        __inotifytools_unlock();
 
-        char *wpath = inotifytools_filename_from_wd(event->wd);
-        if (! wpath) {
-            LOGGER_FATAL("bad inotifytools_filename_from_wd(%d)", event->wd);
-            continue;
-        }
+        LOGGER_TRACE("inotify event(wd=%d)[%s]: %s", evbuf.wd, inotifytools_event_to_str(evbuf.mask), evbuf.name);
 
-        LOGGER_TRACE("inotify event(wd=%d)[%s]: %s", event->wd, inotifytools_event_to_str(event->mask), event->name);
-
-        if (event->mask & IN_ISDIR) {
-            len = snprintf(pathbuf, sizeof(pathbuf), "%s%s/", wpath, event->name);
+        if (evbuf.mask & IN_ISDIR) {
+            len = snprintf(pathbuf, sizeof(pathbuf), "%s%s/", evbuf.pathname, evbuf.name);
             if (len < 0 || len >= sizeof(pathbuf)) {
-                LOGGER_FATAL("pathbuf was truncated for: '%s%s/'", wpath, event->name);
+                LOGGER_FATAL("pathbuf was truncated for: '%s%s/'", evbuf.pathname, evbuf.name);
                 continue;
             }
             pathbuf[len] = 0;
 
-            int wd = inotifytools_wd_from_filename(pathbuf);
+            int wd = inotifytools_wd_from_filename_s(pathbuf);
 
-            if (event->mask & (IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM)) {
+            if (evbuf.mask & (IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM)) {
                 if (wd > 0) {
                     // 删除监视
-                    if (inotifytools_remove_watch_by_wd(wd)) {
+                    if (inotifytools_remove_watch_by_wd_s(wd)) {
                         LOGGER_INFO("success removed watch dir(wd=%d): %s", wd, pathbuf);
                     } else {
                         LOGGER_ERROR("failed to remove watch dir(wd=%d): %s", wd, pathbuf);
                         client_set_inotify_reload(client, 1);
                     }
                 }
-            } else if (event->mask & (IN_CREATE | IN_MOVED_TO)) {
+            } else if (evbuf.mask & (IN_CREATE | IN_MOVED_TO)) {
                 if (wd > 0) {
-                    inotifytools_remove_watch_by_wd(wd);
-
-                    wd = inotifytools_wd_from_filename(pathbuf);
+                    inotifytools_remove_watch_by_wd_s(wd);
+                    wd = inotifytools_wd_from_filename_s(pathbuf);
                 }
 
                 if (wd == -1) {
                     // 添加监视: IN_ALL_EVENTS
-                    if (inotifytools_watch_recursively(pathbuf, INOTI_EVENTS_MASK)) {
-                        LOGGER_INFO("success add watch dir(wd=%d): %s", inotifytools_wd_from_filename(pathbuf), pathbuf);
+                    if (inotifytools_watch_recursively_s(pathbuf, INOTI_EVENTS_MASK)) {
+                        LOGGER_INFO("success add watch dir(wd=%d): %s", inotifytools_wd_from_filename_s(pathbuf), pathbuf);
                     } else {
                         LOGGER_ERROR("failed to add watch dir: %s", pathbuf);
                         client_set_inotify_reload(client, 1);
                     }
                 }
-            } else if (event->mask & IN_CLOSE) {
+            } else if (evbuf.mask & IN_CLOSE) {
                 if (wd == -1) {
                     // 添加监视: IN_ALL_EVENTS
-                    if (inotifytools_watch_recursively(pathbuf, INOTI_EVENTS_MASK)) {
-                        LOGGER_INFO("success add watch dir(wd=%d): %s", inotifytools_wd_from_filename(pathbuf), pathbuf);
+                    if (inotifytools_watch_recursively_s(pathbuf, INOTI_EVENTS_MASK)) {
+                        LOGGER_INFO("success add watch dir(wd=%d): %s", inotifytools_wd_from_filename_s(pathbuf), pathbuf);
                     } else {
                         LOGGER_ERROR("failed to add watch dir: %s", pathbuf);
                         client_set_inotify_reload(client, 1);
@@ -948,14 +976,14 @@ XS_VOID XS_client_bootstrap (XS_client client)
             }
 
             continue;
-        } else if (event->mask & INOTI_EVENTS_MASK) {
+        } else if (evbuf.mask & INOTI_EVENTS_MASK) {
             red_black_node_t *node = 0;
 
             /**
              * 判断当前文件是否正在任务队列中处理, 如果在, 则忽略之
              */
             if (pthread_mutex_lock(&client->rbtree_lock) == 0) {
-                node = rbtree_find(&client->event_rbtree, event);
+                node = rbtree_find(&client->event_rbtree, (watch_event_t *)&evbuf);
                 pthread_mutex_unlock(&client->rbtree_lock);
             } else {
                 LOGGER_ERROR("pthread_mutex_lock failed");
@@ -964,20 +992,20 @@ XS_VOID XS_client_bootstrap (XS_client client)
 
             if (! node) {
                 /**
-                 * event->len 不总是等于 strlen(event->name)
+                 * evbuf.len 总是等于 strlen(evbuf.name)
                  */
-                if (filter_watch_file(client, wpath, event->name, strlen(event->name)) > 0) {
-                    client_add_inotify_event(client, event, wpath);
+                if (filter_watch_file(client, evbuf.pathname, evbuf.name, evbuf.len) > 0) {
+                    client_add_inotify_event(client, (watch_event_t *)&evbuf);
                 } else {
-                    LOGGER_TRACE("reject file: %s%s", wpath, event->name);
+                    LOGGER_TRACE("reject file: %s%s", evbuf.pathname, evbuf.name);
                 }
             }
 
             continue;
         }
 
-        LOGGER_WARN("unhandled inotify event(wd=%d)", event->wd);
+        LOGGER_WARN("unhandled inotify event(wd=%d)", evbuf.wd);
     }
 
-    LOGGER_FATAL("unexpected stopped");
+    LOGGER_FATAL("unexpected end.");
 }

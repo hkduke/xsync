@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.7
+ * @version: 0.0.8
  *
  * @create: 2018-01-25
  *
- * @update: 2018-09-21 18:40:41
+ * @update: 2018-09-29 16:56:29
  */
 
 #ifndef CLIENT_CONF_H_INCLUDED
@@ -181,7 +181,7 @@ inline void client_set_inotify_reload (struct xs_client_t *client, int reload)
 __no_warning_unused(static)
 int event_rbtree_cmp(void *newObject, void *nodeObject)
 {
-    return inotify_event_compare((const struct inotify_event *) newObject, (const struct inotify_event *) nodeObject);
+    return watch_event_compare((XS_watch_event) newObject, (XS_watch_event) nodeObject);
 }
 
 

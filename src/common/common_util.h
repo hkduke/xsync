@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.7
+ * @version: 0.0.8
  *
  * @create: 2018-01-09
  *
- * @update: 2018-09-26 11:35:34
+ * @update: 2018-09-29 11:47:35
  */
 
 #ifndef COMMON_UTIL_H_INCLUDED
@@ -204,23 +204,22 @@ inline void timespec_reset_timeout (struct timespec *timo, struct timeval *now, 
 /**
  * cross-platform sleep function
  */
-__no_warning_unused(static)
-void sleep_ms (int milliseconds)
+#ifdef WIN32
+#  include <windows.h>
+#  define sleep_ms(ms)  Sleep(ms)
+#elif _POSIX_C_SOURCE >= 199309L
+#  include <time.h>   // for nanosleep
+__no_warning_unused(static) inline void sleep_ms (int milliseconds)
 {
-    #ifdef WIN32
-    #  include <windows.h>
-    Sleep(milliseconds);
-    #elif _POSIX_C_SOURCE >= 199309L
-    #  include <time.h>   // for nanosleep
     struct timespec ts;
     ts.tv_sec = milliseconds / 1000;
     ts.tv_nsec = (milliseconds % 1000) * 1000000;
     nanosleep(&ts, 0);
-    #else
-    #  include <unistd.h> // for usleep
-    usleep(milliseconds * 1000);
-    #endif
 }
+#else
+#  include <unistd.h> // for usleep
+#  define sleep_ms(ms)  usleep((ms) * 1000)
+#endif
 
 
 __no_warning_unused(static)

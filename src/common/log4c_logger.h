@@ -58,7 +58,7 @@
 #include <log4c.h>
 
 #ifndef LOGGER_BUF_LEN
-    #define LOGGER_BUF_LEN  1200
+    #define LOGGER_BUF_LEN  4410
 #endif
 
 

@@ -20,13 +20,12 @@
 ***********************************************************************/
 
 /**
- * @file: log4c_logger.c
+ * @file: inotifyapi.c
  *
- * @create: 2018-09-28
- * @update: 2018-09-28 12:01:50
+ * @create: 2018-09-29
+ * @update: 2018-09-29 14:36:36
  */
 
-#include "log4c_logger.h"
+#include "inotifyapi.h"
 
-log4c_category_t * __logger_cat_global = 0;
-
+pthread_mutex_t  __inotifyapi_mutex_lock = PTHREAD_MUTEX_INITIALIZER;

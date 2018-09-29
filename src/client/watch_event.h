@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.7
+ * @version: 0.0.8
  *
  * @create: 2018-01-24
  *
- * @update: 2018-09-21 19:11:00
+ * @update: 2018-09-29 18:01:55
  */
 
 #ifndef WATCH_EVENT_H_INCLUDED
@@ -48,20 +48,14 @@ extern "C" {
 
 #include "../common/common_util.h"
 
-/**
- * https://sourceforge.net/projects/inotify-tools/
- */
-#include <inotifytools/inotify.h>
-#include <inotifytools/inotifytools.h>
-
-#define INOTI_EVENTS_MASK  (IN_DELETE | IN_DELETE_SELF | IN_CREATE | IN_MODIFY | IN_CLOSE_WRITE | IN_MOVE | IN_ONLYDIR)
+#include "inotifyapi.h"
 
 
 typedef struct perthread_data
 {
-    void * xclient;
-
     int    threadid;
+
+    void  *xclient;
 
     XS_server_conn server_conns[XSYNC_SERVER_MAXID + 1];;
 
@@ -69,7 +63,7 @@ typedef struct perthread_data
 } perthread_data;
 
 
-typedef struct xs_watch_event_t
+typedef struct watch_event_t
 {
     union {
         struct {
@@ -86,11 +80,31 @@ typedef struct xs_watch_event_t
     /* 文件的全路径名长度和全路径名 */
     int pathlen;
     char pathname[0];
-} xs_watch_event_t;
+} watch_event_t;
+
+
+struct static_watch_event_t
+{
+    union {
+        struct {
+            int      wd;           /* Watch descriptor */
+            uint32_t mask;         /* Mask of events */
+            uint32_t cookie;       /* Unique cookie associating related events (for rename(2)) */
+            uint32_t len;          /* Size of name field */
+            char     name[256];    /* Optional null-terminated name */
+        };
+
+        struct inotify_event inevent;
+    };
+
+    /* 文件的全路径名长度和全路径名 */
+    int pathlen;
+    char pathname[PATH_MAX + 1];
+} static_watch_event_t;
 
 
 __no_warning_unused(static)
-inline int inotify_event_compare(const struct inotify_event *inNew, const struct inotify_event *inNode)
+inline int watch_event_compare(const watch_event_t *inNew, const watch_event_t *inNode)
 {
     if (inNew->wd > inNode->wd) {
         return 1;
@@ -102,9 +116,59 @@ inline int inotify_event_compare(const struct inotify_event *inNew, const struct
 }
 
 
-extern XS_watch_event XS_watch_event_create (struct inotify_event *inevent, const char *path);
+__no_warning_unused(static)
+int inotify_event_dump(watch_event_t *outevent, int pathlenmax, struct inotify_event *inevent, char *wpath)
+{
+    if (! wpath) {
+        return 0;
+    }
+    outevent->pathlen = strlen(wpath);
 
-extern XS_VOID XS_watch_event_free (XS_watch_event event);
+    if (! outevent->pathlen || outevent->pathlen > pathlenmax) {
+        return 0;
+    }
+    if (! inevent->len || inevent->len >= sizeof(outevent->name)) {
+        return 0;
+    }
+
+    outevent->wd = inevent->wd;
+    outevent->mask = inevent->mask;
+    outevent->cookie = inevent->cookie;
+    outevent->len = inevent->len;
+
+    memcpy(outevent->name, inevent->name, outevent->len);
+    outevent->name[outevent->len] = 0;
+
+    memcpy(outevent->pathname, wpath, outevent->pathlen);
+    outevent->pathname[outevent->pathlen] = 0;
+
+    // ok
+    return 1;
+}
+
+
+__no_warning_unused(static)
+watch_event_t * watch_event_clone(const watch_event_t *inevent)
+{
+    ssize_t cb = sizeof(watch_event_t) + sizeof(char)*(inevent->pathlen + 1);
+
+    watch_event_t *outevent = (watch_event_t *) malloc(cb);
+    if (! outevent) {
+        // outof memory
+        exit(-4);
+    }
+
+    memcpy(outevent, inevent, cb);
+
+    return outevent;
+}
+
+
+__no_warning_unused(static)
+void watch_event_free(watch_event_t *event)
+{
+    free(event);
+}
 
 
 #if defined(__cplusplus)

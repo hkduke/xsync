@@ -35,7 +35,7 @@
  * 异步:
  *    https://blog.csdn.net/l1902090/article/details/38583663
  *
- * @version: 0.0.7
+ * @version: 0.0.8
  *
  * @create: 2018-02-10
  *

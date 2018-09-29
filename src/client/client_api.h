@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.7
+ * @version: 0.0.8
  *
  * @create: 2018-01-24
  *
- * @update: 2018-09-21 16:00:13
+ * @update: 2018-09-29 18:03:53
  */
 
 #ifndef CLIENT_API_H_INCLUDED
@@ -56,7 +56,7 @@ typedef struct xs_client_t              * XS_client;
 typedef struct xs_server_conn_t         * XS_server_conn;
 typedef struct xs_watch_path_t          * XS_watch_path;
 typedef struct xs_watch_entry_t         * XS_watch_entry;
-typedef struct xs_watch_event_t         * XS_watch_event;
+typedef struct watch_event_t            * XS_watch_event;
 typedef struct xs_path_filter_t         * XS_path_filter;
 
 

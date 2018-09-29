@@ -2,14 +2,14 @@
 # @file: client.mk
 #   see: "client.mk.another" for another style of client.mk
 #
-# @version: 0.0.7
+# @version: 0.0.8
 # @create: 2018-05-18 14:00:00
-# @update: 2018-09-26 10:55:32
+# @update: 2018-09-29 16:58:28
 #######################################################################
 
 # !!! DO NOT change APPNAME and VERSION only when you make sure do that !
 APPNAME := xsync-client
-VERSION := 0.0.7
+VERSION := 0.0.8
 
 TARGET := ${APPNAME}-${VERSION}
 
@@ -34,13 +34,13 @@ TGT_LDLIBS  := \
 	-lpthread
 
 SOURCES := \
-    client.c \
-    client_api.c \
-    client_conf.c \
-    watch_path.c \
-    watch_event.c \
-    watch_entry.c \
-    path_filter.c \
+	inotifyapi.c \
+	client.c \
+	client_api.c \
+	client_conf.c \
+	watch_path.c \
+	watch_entry.c \
+	path_filter.c \
 	server_conn.c
 
 

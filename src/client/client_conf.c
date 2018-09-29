@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.7
+ * @version: 0.0.8
  *
  * @create: 2018-01-26
  *
- * @update: 2018-09-25 10:44:09
+ * @update: 2018-09-29 15:28:48
  */
 
 #include "client_api.h"
@@ -50,7 +50,7 @@ void xs_client_delete (void *pv)
     XS_client client = (XS_client) pv;
 
     LOGGER_TRACE("inotifytools_cleanup()");
-    inotifytools_cleanup();
+    inotifytools_cleanup_s();
 
     if (client->pool) {
         LOGGER_DEBUG("threadpool_destroy");
@@ -300,7 +300,7 @@ error_exit:
 
 // 只能初始化一次
 //
-extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_root)
+XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_root)
 {
     int err, len;
     char pathbuf[XSYNC_PATH_MAXSIZE];
