@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.8
+ * @version: 0.0.9
  *
  * @create: 2018-01-09
  *
- * @update: 2018-09-29 11:47:35
+ * @update: 2018-09-30 16:35:21
  */
 
 #ifndef COMMON_UTIL_H_INCLUDED
@@ -729,26 +729,6 @@ int getfullpath (const char * path, char * outpath, size_t size_outpath)
 }
 
 
-__no_warning_unused(static)
-const char* cmd_system(const char * cmd, char *outbuf, ssize_t outsize)
-{
-    char * result = 0;
-
-    FILE * fp = popen(cmd, "r");
-    if (fp) {
-        bzero(outbuf, outsize);
-
-        while (fgets(outbuf, outsize, fp) != 0) {
-            result = outbuf;
-        }
-
-        pclose(fp);
-    }
-
-    return result;
-}
-
-
 typedef void (*sighandler_t)(int);
 
 __no_warning_unused(static)
@@ -764,6 +744,91 @@ int pox_system (const char * cmd)
     }
     signal(SIGCHLD, old_handler);
     return ret;
+}
+
+
+/**
+ * pipe_command
+ *   Execute a shell command and get return from command
+ *
+ * reference:
+ *   https://linux.die.net/man/3/pclose
+ *   https://blog.csdn.net/duyiwuer2009/article/details/50688493?utm_source=copy
+ *
+ * returns:
+ *   0 - succeed in command while:
+ *          outcode (optional) is set to exit status of child process;
+ *          outmsg (optional) is set point to the last message output by child process.
+ *  -1 - failed to execute command if any error occurred when:
+ *          both outcode or outmsg is unassigned.
+ *
+ */
+__no_warning_unused(static)
+int pipe_command(const char *command, char *linebuf, ssize_t bufsize, char **outmsg, int *outcode)
+{
+    int rc;
+
+    FILE *pipe;
+
+    char *last = 0;
+
+    //signal(SIGCHLD, SIG_IGN);
+
+    sighandler_t old_sig = signal(SIGCHLD, SIG_DFL);
+    if (old_sig == SIG_ERR) {
+        printf("signal error: %s\n", strerror(errno));
+        return (-1);
+    }
+
+    errno = ENOMEM;
+    pipe = popen(command, "r");
+    if (! pipe) {
+        printf("popen error: %s\n", strerror(errno));
+        signal(SIGCHLD, old_sig);
+        return (-1);
+    }
+
+    while (fgets(linebuf, bufsize, pipe) != 0) {
+        // printf("%s", linebuf);
+        last = linebuf;
+    }
+
+    // pclose() 函数关闭由 popen() 打开的管道, 函数返回运行的子进程的终止状态
+    errno = 0;
+
+    rc = pclose(pipe);
+
+    signal(SIGCHLD, old_sig);
+
+    if (rc == -1) {
+        printf("pclose() error: %s\n", strerror(errno));
+        return (-1);
+    }
+
+    if (WIFEXITED(rc)) {
+        // 0: command success
+        int scode = WEXITSTATUS(rc);
+
+        if (outmsg) {
+            *outmsg = last;
+        }
+
+        if (outcode) {
+            *outcode = scode;
+        }
+
+        if (scode == 127) {
+            printf("child process exit code(%d): command not found. (%s)\n", scode, command);
+        } else if (scode) {
+            printf("child process exit code(%d): command failed. (%s)\n", scode, command);
+        }
+
+        return 0;
+    } else {
+        printf("child process exit error.\n");
+
+        return (-1);
+    }
 }
 
 
@@ -978,7 +1043,7 @@ void config_log4crc (const char * catname, char * log4crc, char * priority, char
         exit(-1);
     }
 
-    if (cmd_system(buff, result, sizeof(result))) {
+    if (pipe_command(buff, result, sizeof(result), 0, 0) == 0) {
         ret = snprintf(old_priority, sizeof(old_priority), "%s", trims(result, " \n"));
         if (ret < 0 || ret >= sizeof(old_priority)) {
             fprintf(stderr, "\033[31m[error]\033[0m insufficent buffer for priority");
@@ -995,7 +1060,7 @@ void config_log4crc (const char * catname, char * log4crc, char * priority, char
         exit(-1);
     }
 
-    if (cmd_system(buff, result, sizeof(result))) {
+    if (pipe_command(buff, result, sizeof(result), 0, 0) == 0) {
         ret = snprintf(old_appender, sizeof(old_appender), "%s", trims(result, " \n"));
         if (ret < 0 || ret >= sizeof(old_appender)) {
             fprintf(stderr, "\033[31m[error]\033[0m insufficent buffer for appender\n");
@@ -1123,7 +1188,7 @@ void config_log4crc (const char * catname, char * log4crc, char * priority, char
             exit(-1);
         }
 
-        if (cmd_system(buff, result, sizeof(result))) {
+        if (pipe_command(buff, result, sizeof(result), 0, 0) == 0) {
             ret = snprintf(buff, sizebuf, "%s", trims(result, " \n"));
             if (ret <= 0 || ret >= sizebuf) {
                 perror("\033[31m[error]\033[0m insufficent buff");

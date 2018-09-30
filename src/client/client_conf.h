@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.8
+ * @version: 0.0.9
  *
  * @create: 2018-01-25
  *
- * @update: 2018-09-29 16:56:29
+ * @update: 2018-09-30 11:12:42
  */
 
 #ifndef CLIENT_CONF_H_INCLUDED
@@ -113,16 +113,16 @@ typedef struct xs_client_t
     red_black_tree_t  event_rbtree;
     pthread_mutex_t rbtree_lock;
 
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
+
+
+
+
     /** DEL??
      * wpath_hmap: a hash map for XS_watch_path
      * wpath_lock: 访问 wpath_hmap 的锁

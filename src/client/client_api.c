@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.0.8
+ * @version: 0.0.9
  *
  * @create: 2018-01-25
  *
- * @update: 2018-09-29 18:47:32
+ * @update: 2018-09-30 15:40:06
  */
 
 /******************************************************************************
@@ -132,10 +132,10 @@ void do_event_task (thread_context_t *thread_ctx)
         XS_watch_event event = (XS_watch_event) node->object;
 
         if (client->offs_event_task) {
-            const char *result = 0;
+            char *result;
+            int rcode;
 
             int bufcb = sizeof(perdata->buffer) - ERRORMSG_MAXLEN - 1;
-
             __inotifytools_lock();
             {
                 ret = snprintf(perdata->buffer, bufcb, "%s '%s' '%s%s'",
@@ -152,9 +152,10 @@ void do_event_task (thread_context_t *thread_ctx)
 
             ret = 0;
 
-            result = cmd_system(perdata->buffer, perdata->buffer + bufcb, ERRORMSG_MAXLEN + 1);
-            if (result) {
-                ret = atoi(result);
+            if (pipe_command(perdata->buffer, perdata->buffer+bufcb, ERRORMSG_MAXLEN+1, &result, &rcode) == 0) {
+                if (result) {
+                    ret = atoi(result);
+                }
             }
 
             LOGGER_INFO("event_task result(=%d): {%s}", ret, perdata->buffer);
@@ -211,7 +212,7 @@ XS_RESULT client_add_inotify_event (XS_client client, struct watch_event_buf_t *
 
     if (node) {
         event_rbtree_unlock();
-        
+
         LOGGER_WARN("existing node(=%p)", node);
         return XS_SUCCESS;
     } else {
@@ -293,18 +294,20 @@ int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX
 
     if (client->offs_path_filter) {
         if (access(path_filter_path(client), F_OK|R_OK|X_OK) == 0) {
+            char *result;
+            int rcode;
+
             int bufcb = sizeof(client->path_filter_buf) - ERRORMSG_MAXLEN - 1;
-
             int len = snprintf(client->path_filter_buf, bufcb, "%s '%s'", path_filter_path(client), abspath);
-
             client->path_filter_buf[len] = 0;
 
             LOGGER_INFO("cmd={%s}", client->path_filter_buf);
 
-            const char *result = cmd_system(client->path_filter_buf, client->path_filter_buf + bufcb, ERRORMSG_MAXLEN + 1);
-
-            if (result) {
-                ret = atoi(result);
+            if (pipe_command(client->path_filter_buf, client->path_filter_buf+bufcb, ERRORMSG_MAXLEN+1, &result, &rcode) == 0) {
+                //const char *result = cmd_system(client->path_filter_buf, client->path_filter_buf + bufcb, ERRORMSG_MAXLEN + 1);
+                if (result) {
+                    ret = atoi(result);
+                }
             }
         } else {
             LOGGER_ERROR("access failed(%d): %s (%s)", errno, strerror(errno), path_filter_path(client));
@@ -370,15 +373,18 @@ int filter_watch_file (XS_client client, char *path, const char *name, int namel
     if (client->offs_path_filter) {
 
         if (access(path_filter_path(client), F_OK|R_OK|X_OK) == 0) {
-            int bufcb = sizeof(client->file_filter_buf) - ERRORMSG_MAXLEN - 1;
+            char *result;
+            int rcode;
 
+            int bufcb = sizeof(client->file_filter_buf) - ERRORMSG_MAXLEN - 1;
             snprintf(client->file_filter_buf, bufcb, "%s '%s' '%s'", path_filter_path(client), path, name);
 
             LOGGER_DEBUG("cmd={%s}", client->file_filter_buf);
 
-            const char *result = cmd_system(client->file_filter_buf, client->file_filter_buf + bufcb, ERRORMSG_MAXLEN + 1);
-            if (result) {
-                retcode = atoi(result);
+            if (pipe_command(client->file_filter_buf, client->file_filter_buf+bufcb, ERRORMSG_MAXLEN+1, &result, &rcode) == 0) {
+                if (result) {
+                    retcode = atoi(result);
+                }
             }
         } else {
             LOGGER_ERROR("access failed(%d): %s (%s)", errno, strerror(errno), path_filter_path(client));
@@ -497,7 +503,7 @@ int lscb_sweep_watch_path (const char *path, int pathlen, struct mydirent *myent
                 evbuf.pathlen = name - path;
                 memcpy(evbuf.pathname, path, evbuf.pathlen);
                 evbuf.pathname[evbuf.pathlen] = 0;
-            
+
                 evbuf.wd = 0;
                 evbuf.len = (int) strlen(name);
 

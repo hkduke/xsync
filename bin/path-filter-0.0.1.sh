@@ -69,3 +69,6 @@ elif [ $# == 2 ]; then
     echoinfo "filter file: '"$1""$2"'"
     filter_file "$1" "$2"
 fi
+
+# success
+exit 0

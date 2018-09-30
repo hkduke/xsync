@@ -78,3 +78,6 @@ elif [ $# == 3 ]; then
     echoinfo "on_event_task2: event=($1) pathfile=($2) entry=($3)"
     on_event_task2 "$1" "$2" "$3"
 fi
+
+# success
+exit 0
