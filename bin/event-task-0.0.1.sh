@@ -42,8 +42,8 @@ function on_event_task() {
     local event="$1"
     local pathfile="$2"
 
-    # 模拟执行时间 5s
-    sleep 1
+    # 模拟执行时间 2s
+    sleep 2
 
     echo "$OK"
 }
@@ -59,8 +59,8 @@ function on_event_task2() {
     local pathfile="$2"
     local entry="$3"
 
-    # 模拟执行时间 5s
-    sleep 1
+    # 模拟执行时间 3s
+    sleep 3
 
     echo "$OK"
 }

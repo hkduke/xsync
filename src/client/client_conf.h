@@ -111,9 +111,19 @@ typedef struct xs_client_t
      * tree for caching all inotify events
      */
     red_black_tree_t  event_rbtree;
-    thread_lock_t rbtree_lock;
+    pthread_mutex_t rbtree_lock;
 
-    /**
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    /** DEL??
      * wpath_hmap: a hash map for XS_watch_path
      * wpath_lock: 访问 wpath_hmap 的锁
      */
@@ -138,6 +148,32 @@ typedef struct xs_client_t
     /* buffer must be in lock */
     char inlock_buffer[XSYNC_BUFSIZE];
 } xs_client_t;
+
+
+#define event_rbtree_lock()  \
+    do { \
+        int __ptlock_errno = pthread_mutex_lock(&client->rbtree_lock); \
+        if (__ptlock_errno != 0) { \
+            if (__ptlock_errno == EBUSY) { \
+                LOGGER_FATAL("pthread_mutex_lock fail: EBUSY"); \
+            } else if (__ptlock_errno == EINVAL) { \
+                LOGGER_FATAL("pthread_mutex_lock fail: EINVAL"); \
+            } else if (__ptlock_errno == EAGAIN) { \
+                LOGGER_FATAL("pthread_mutex_lock fail: EAGAIN"); \
+            } else if (__ptlock_errno == EDEADLK) { \
+                LOGGER_FATAL("pthread_mutex_lock fail: EDEADLK"); \
+            } else if (__ptlock_errno == EPERM) { \
+                LOGGER_FATAL("pthread_mutex_lock fail: EPERM"); \
+            } else { \
+                LOGGER_FATAL("pthread_mutex_lock fail(%d): unknown errno", __ptlock_errno); \
+            } \
+            exit(__ptlock_errno); \
+        } \
+    } while(0)
+
+
+#define event_rbtree_unlock()  \
+    pthread_mutex_unlock(&client->rbtree_lock)
 
 
 #define get_watch_root_len(client)  (client->offs_path_filter - client->offs_watch_root - 1)

@@ -119,6 +119,7 @@
 __no_warning_unused(static)
 void do_event_task (thread_context_t *thread_ctx)
 {
+    int ret = 0;
     threadpool_task_t *task = thread_ctx->task;
 
     if (task->flags == 100) {
@@ -131,7 +132,6 @@ void do_event_task (thread_context_t *thread_ctx)
         XS_watch_event event = (XS_watch_event) node->object;
 
         if (client->offs_event_task) {
-            int ret = 0;
             const char *result = 0;
 
             int bufcb = sizeof(perdata->buffer) - ERRORMSG_MAXLEN - 1;
@@ -170,18 +170,19 @@ void do_event_task (thread_context_t *thread_ctx)
             }
         }
 
-        // 使用完毕必须删除!
-        if (pthread_mutex_lock(&client->rbtree_lock) == 0) {
+        // 使用完毕必须删除 !!
+        event_rbtree_lock();
 
-            node->object = 0;
-            watch_event_free(event);
+        node->object = 0;
+        watch_event_free(event);
 
-            rbtree_remove_at(&client->event_rbtree, node);
+        rbtree_remove_at(&client->event_rbtree, node);
 
-            LOGGER_TRACE("rbtree_size=%d", rbtree_size(&client->event_rbtree));
+        ret = rbtree_size(&client->event_rbtree);
 
-            pthread_mutex_unlock(&client->rbtree_lock);
-        }
+        event_rbtree_unlock();
+
+        LOGGER_TRACE("rbtree_size=%d", ret);
     } else {
         LOGGER_ERROR("unknown event task flags(=%d)", task->flags);
     }
@@ -192,48 +193,58 @@ void do_event_task (thread_context_t *thread_ctx)
 
 
 __no_warning_unused(static)
-XS_RESULT client_add_inotify_event (XS_client client, watch_event_t *event)
+XS_RESULT client_add_inotify_event (XS_client client, struct watch_event_buf_t *evbuf)
 {
-    int result = XS_ERROR;
+    int result;
+    red_black_node_t *node;
 
-    if (pthread_mutex_lock(&client->rbtree_lock) == 0) {
-        red_black_node_t *node = rbtree_find(&client->event_rbtree, event);
+    if (XS_client_threadpool_unused_queues(client) < 1) {
+        LOGGER_TRACE("threadpool queues is full");
+        return XS_E_POOL;
+    }
 
+    result = XS_ERROR;
+
+    event_rbtree_lock();
+
+    node = rbtree_find(&client->event_rbtree, evbuf);
+
+    if (node) {
+        event_rbtree_unlock();
+        
+        LOGGER_WARN("existing node(=%p)", node);
+        return XS_SUCCESS;
+    } else {
+        int is_new_node;
+
+        XS_watch_event newevent = watch_event_clone((const watch_event_t *) evbuf);
+
+        node = rbtree_insert_unique(&client->event_rbtree, (void *)newevent, &is_new_node);
         if (node) {
-            LOGGER_WARN("ignored existing node(=%p)", node);
-            pthread_mutex_unlock(&client->rbtree_lock);
-            return XS_SUCCESS;
-        } else {
-            int is_new_node;
+            if (is_new_node) {
+                result = threadpool_add(client->pool, do_event_task, (void*)node, 100);
 
-            XS_watch_event newevent = watch_event_clone(event);
-
-            node = rbtree_insert_unique(&client->event_rbtree, (void *) newevent, &is_new_node);
-            if (node) {
-                if (is_new_node) {
-                    int err = threadpool_add(client->pool, do_event_task, (void*) node, 100);
-
-                    if (err) {
-                        LOGGER_ERROR("threadpool_add node(=%p) error(%d): %s", node, err, threadpool_error_messages[-err]);
-                        node->object = 0;
-                        watch_event_free(newevent);
-                        rbtree_remove_at(&client->event_rbtree, node);
-                    } else {
-                        LOGGER_DEBUG("threadpool_add node(=%p) success", node);
-                        result = XS_SUCCESS;
-                    }
-                } else {
-                    LOGGER_ERROR("should never run to this: rbtree_insert_unique existed");
+                if (result) {
+                    LOGGER_ERROR("threadpool_add node(=%p) fail: %s", node, threadpool_error_messages[-result]);
+                    node->object = 0;
                     watch_event_free(newevent);
+                    rbtree_remove_at(&client->event_rbtree, node);
+                    result = XS_E_POOL;
+                } else {
+                    LOGGER_DEBUG("threadpool_add node(=%p) success", node);
+                    result = XS_SUCCESS;
                 }
             } else {
-                LOGGER_ERROR("should never run to this: rbtree_insert_unique unexpected");
+                LOGGER_ERROR("should never run to this: rbtree_insert_unique existed");
                 watch_event_free(newevent);
             }
+        } else {
+            LOGGER_ERROR("should never run to this: rbtree_insert_unique unexpected");
+            watch_event_free(newevent);
         }
-
-        pthread_mutex_unlock(&client->rbtree_lock);
     }
+
+    event_rbtree_unlock();
 
     return result;
 }
@@ -349,7 +360,7 @@ int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX
 __no_warning_unused(static)
 int filter_watch_file (XS_client client, char *path, const char *name, int namelen)
 {
-    int ret = FILTER_WPATH_ACCEPT;
+    int retcode = FILTER_WPATH_ACCEPT;
 
     if (! path || ! name) {
         LOGGER_ERROR("application error: null name");
@@ -367,29 +378,29 @@ int filter_watch_file (XS_client client, char *path, const char *name, int namel
 
             const char *result = cmd_system(client->file_filter_buf, client->file_filter_buf + bufcb, ERRORMSG_MAXLEN + 1);
             if (result) {
-                ret = atoi(result);
+                retcode = atoi(result);
             }
         } else {
             LOGGER_ERROR("access failed(%d): %s (%s)", errno, strerror(errno), path_filter_path(client));
         }
     }
 
-    if (ret == FILTER_WPATH_ACCEPT) {
-        LOGGER_DEBUG("ACCEPT(=%d): {%s%s}", ret, path, name);
+    if (retcode == FILTER_WPATH_ACCEPT) {
+        LOGGER_DEBUG("ACCEPT(=%d): {%s%s}", retcode, path, name);
         return 1;
     }
 
-    if (ret == FILTER_WPATH_REJECT) {
-        LOGGER_DEBUG("REJECT(=%d): {%s%s}", ret, path, name);
+    if (retcode == FILTER_WPATH_REJECT) {
+        LOGGER_DEBUG("REJECT(=%d): {%s%s}", retcode, path, name);
         return 0;
     }
 
-    if (ret == FILTER_WPATH_RELOAD) {
-        LOGGER_WARN("RELOAD(=%d): {%s%s}", ret, path, name);
+    if (retcode == FILTER_WPATH_RELOAD) {
+        LOGGER_WARN("RELOAD(=%d): {%s%s}", retcode, path, name);
         return (-1);
     }
 
-    LOGGER_ERROR("UNEXPECTED(=%d): {%s%s}", ret, path, name);
+    LOGGER_ERROR("UNEXPECTED(=%d): {%s%s}", retcode, path, name);
     return 0;
 }
 
@@ -401,9 +412,11 @@ int filter_watch_file (XS_client client, char *path, const char *name, int namel
 __no_warning_unused(static)
 int lscb_sweep_watch_path (const char *path, int pathlen, struct mydirent *myent, void *arg1, void *arg2)
 {
-    struct static_watch_event_t evbuf = {0};
+    struct watch_event_buf_t evbuf = {0};
 
     XS_client client = (XS_client) arg1;
+
+    sleep_ms(10);
 
     if (!pathlen || pathlen >= PATH_MAX) {
         LOGGER_FATAL("bad pathlen: %d", pathlen);
@@ -449,23 +462,24 @@ int lscb_sweep_watch_path (const char *path, int pathlen, struct mydirent *myent
         char *name = strrchr(path, '/');
 
         if (name && *name++) {
-            int ret = 0;
+            int result = 0;
 
             evbuf.wd = pv_cast_to_int(arg2);
             evbuf.mask = IN_CLOSE_NOWRITE;
             evbuf.cookie = 0;
             evbuf.len = 0;
 
-            evbuf.pathlen = name - path - 1;
-            memcpy(evbuf.pathname, path, evbuf.pathlen);
-            evbuf.pathname[evbuf.pathlen] = 0;
-
             if (evbuf.wd > 0) {
                 __inotifytools_lock();
                 {
-                    char *wpath = inotifytools_filename_from_wd(evbuf.wd);
+                    // 监控的绝对目录: evbuf.pathname
+                    char *abspath = inotifytools_filename_from_wd(evbuf.wd);
 
-                    if (wpath && !strcmp(wpath, evbuf.pathname)) {
+                    if (abspath) {
+                        evbuf.pathlen = strlen(abspath);
+                        memcpy(evbuf.pathname, abspath, evbuf.pathlen);
+                        evbuf.pathname[evbuf.pathlen] = 0;
+
                         evbuf.len = (int) strlen(name);
 
                         if (evbuf.len < sizeof(evbuf.name)) {
@@ -479,6 +493,11 @@ int lscb_sweep_watch_path (const char *path, int pathlen, struct mydirent *myent
                 }
                 __inotifytools_unlock();
             } else {
+                // 监控的绝对目录: evbuf.pathname
+                evbuf.pathlen = name - path;
+                memcpy(evbuf.pathname, path, evbuf.pathlen);
+                evbuf.pathname[evbuf.pathlen] = 0;
+            
                 evbuf.wd = 0;
                 evbuf.len = (int) strlen(name);
 
@@ -505,17 +524,19 @@ int lscb_sweep_watch_path (const char *path, int pathlen, struct mydirent *myent
                     pthread_mutex_unlock(&client->rbtree_lock);
 
                     if (! node) {
-                        ret = filter_watch_file(client, evbuf.pathname, evbuf.name, evbuf.len);
+                        result = filter_watch_file(client, evbuf.pathname, evbuf.name, evbuf.len);
                     }
                 } else {
                     LOGGER_WARN("pthread_mutex_lock failed on rbtree_lock");
                 }
             }
 
-            if (ret > 0) {
-                // 添加任务到线程池
-                client_add_inotify_event(client, (watch_event_t *) &evbuf);
-            } else if (ret == -1) {
+            if (result > 0) {
+                // 添加任务到线程池, 如果任务队列忙, 则重试
+                while (client_add_inotify_event(client, &evbuf) == XS_E_POOL) {
+                    sleep_ms(10);
+                }
+            } else if (result == -1) {
                 // 要求重启服务
                 client_set_inotify_reload(client, 1);
                 return 0;
@@ -535,8 +556,6 @@ int lscb_sweep_watch_path (const char *path, int pathlen, struct mydirent *myent
             }
         }
     }
-
-    sleep_ms(10);
 
     return 1;
 }
@@ -818,11 +837,6 @@ void sweep_worker (void *arg)
     for (;;) {
         sleep_ms(client->interval_seconds * 1000);
 
-        if (XS_client_threadpool_unused_queues(client) < 1) {
-            LOGGER_TRACE("threadpool is full");
-            continue;
-        }
-
         listdir(watch_root_path(client), pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_sweep_watch_path, (void*) client, 0);
     }
 
@@ -834,11 +848,11 @@ void sweep_worker (void *arg)
 
 XS_VOID XS_client_bootstrap (XS_client client)
 {
-    int len;
     char pathbuf[PATH_MAX + 1];
 
     struct inotify_event *inevent;
-    struct static_watch_event_t  evbuf = {0};
+
+    struct watch_event_buf_t evbuf = {0};
 
     pthread_t sweep_thread_id;
 
@@ -912,7 +926,7 @@ XS_VOID XS_client_bootstrap (XS_client client)
                 __inotifytools_unlock();
 
                 LOGGER_TRACE("null inotify event");
-                sleep_ms(1000);
+                sleep_ms(100);
                 continue;
             }
 
@@ -920,7 +934,7 @@ XS_VOID XS_client_bootstrap (XS_client client)
                 __inotifytools_unlock();
 
                 LOGGER_FATAL("name or path error");
-                sleep_ms(1000);
+                sleep_ms(100);
                 continue;
             }
         }
@@ -929,7 +943,7 @@ XS_VOID XS_client_bootstrap (XS_client client)
         LOGGER_TRACE("inotify event(wd=%d)[%s]: %s", evbuf.wd, inotifytools_event_to_str(evbuf.mask), evbuf.name);
 
         if (evbuf.mask & IN_ISDIR) {
-            len = snprintf(pathbuf, sizeof(pathbuf), "%s%s/", evbuf.pathname, evbuf.name);
+            int len = snprintf(pathbuf, sizeof(pathbuf), "%s%s/", evbuf.pathname, evbuf.name);
             if (len < 0 || len >= sizeof(pathbuf)) {
                 LOGGER_FATAL("pathbuf was truncated for: '%s%s/'", evbuf.pathname, evbuf.name);
                 continue;
@@ -982,20 +996,19 @@ XS_VOID XS_client_bootstrap (XS_client client)
             /**
              * 判断当前文件是否正在任务队列中处理, 如果在, 则忽略之
              */
-            if (pthread_mutex_lock(&client->rbtree_lock) == 0) {
-                node = rbtree_find(&client->event_rbtree, (watch_event_t *)&evbuf);
-                pthread_mutex_unlock(&client->rbtree_lock);
-            } else {
-                LOGGER_ERROR("pthread_mutex_lock failed");
-                continue;
-            }
+            event_rbtree_lock();
+            node = rbtree_find(&client->event_rbtree, (watch_event_t *)&evbuf);
+            event_rbtree_unlock();
 
             if (! node) {
                 /**
                  * evbuf.len 总是等于 strlen(evbuf.name)
                  */
                 if (filter_watch_file(client, evbuf.pathname, evbuf.name, evbuf.len) > 0) {
-                    client_add_inotify_event(client, (watch_event_t *)&evbuf);
+                    // 循环直到添加成功
+                    while (client_add_inotify_event(client, &evbuf) == XS_E_POOL) {
+                        sleep_ms(1);
+                    }
                 } else {
                     LOGGER_TRACE("reject file: %s%s", evbuf.pathname, evbuf.name);
                 }

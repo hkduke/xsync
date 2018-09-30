@@ -83,7 +83,7 @@ typedef struct watch_event_t
 } watch_event_t;
 
 
-struct static_watch_event_t
+struct watch_event_buf_t
 {
     union {
         struct {
@@ -100,7 +100,7 @@ struct static_watch_event_t
     /* 文件的全路径名长度和全路径名 */
     int pathlen;
     char pathname[PATH_MAX + 1];
-} static_watch_event_t;
+} watch_event_buf_t;
 
 
 __no_warning_unused(static)
