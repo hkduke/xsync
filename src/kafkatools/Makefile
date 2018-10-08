@@ -31,9 +31,12 @@ all: $(bintarget)
 
 
 $(bintarget): kafkatools.o
-	$(CC) $(CFLAGS) -shared -Wl,-soname,${binname}.so.${major_verno} -o $@ \
-	*.o \
-	$(LDFLAGS)
+	$(CC) $(CFLAGS) -shared \
+		-Wl,--soname=${binname}.so.${major_verno} \
+		-Wl,--rpath='${prefix}:${prefix}/lib:${prefix}/../lib:${prefix}/../libs/lib' \
+		-o $@ \
+		*.o \
+		$(LDFLAGS)
 
 kafkatools.o: kafkatools.c
 	$(CC) $(CFLAGS) $(INC_DIRS) -c kafkatools.c -o $@
