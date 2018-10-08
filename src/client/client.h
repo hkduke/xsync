@@ -58,6 +58,8 @@ __no_warning_unused(static)
 void print_usage(void)
 {
     #ifdef NDEBUG
+        #undef DEBUG
+
         printf("\033[47;35m* %s, NDEBUG version: %s, build: %s %s\033[0m\n",
             APP_NAME, APP_VERSION, __DATE__, __TIME__);
 
@@ -129,8 +131,8 @@ void print_usage(void)
         XSYNC_SWEEP_INTERVAL_SECONDS, XSYNC_CLIENT_THREADS, XSYNC_CLIENT_QUEUES);
 
 #ifdef DEBUG
-    printf("\033[31m**** Caution: DEBUG compiling mode only used in develop stage ! ****\033[0m\n");
-    assert(0 && "DEBUG compiling mode enabled.");
+    printf("\033[31m**** CAUTION: DEBUG Compiling Mode Only Used in Development Stage ! ****\033[0m\n");
+    assert(0 && "DEBUG Compiling Mode Enabled.");
 #endif
 }
 

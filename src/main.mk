@@ -26,16 +26,11 @@
 #       -DLOGGER_LEVEL_ERROR
 
 # Build for DEBUG:
-CFLAGS := -g -O0 -Wall -std=gnu99 -pipe \
-	-DLOGGER_LEVEL_TRACE \
-	-DDEBUG
+CFLAGS := -g -O0 -Wall -std=gnu99 -pipe -DLOGGER_LEVEL_TRACE -DDEBUG
 
 
 # Build for RELEASE:
-#CFLAGS := -g -O0 -Wall -std=gnu99 -pipe \
-#	-DMULTIMER_PRINT=0 \
-#	-DLOGGER_LEVEL_INFO \
-#	-DNDEBUG
+#CFLAGS := -g -O0 -Wall -std=gnu99 -pipe -DMULTIMER_PRINT=0 -DLOGGER_LEVEL_INFO -DNDEBUG
 
 
 INCDIRS := \

@@ -18,6 +18,7 @@ INSTALLDIR=$(dirname $_cdir)/libs
 
 cd ${_cdir}
 
+
 echo "---- build and install <mxml-2.9> ..."
 tar -zxf ${_cdir}/mxml-2.9.tgz
 cd ${_cdir}/mxml-2.9/
@@ -89,5 +90,25 @@ cd ${_cdir}/inotify-tools-3.20.2/
 make && make install
 rm -rf ${_cdir}/inotify-tools-3.20.2
 cd ${_cdir}
+
+echo "---- build and install <librdkafka-master> https://github.com/edenhill/librdkafka ..."
+tar -zxf ${_cdir}/librdkafka-master.tar.gz
+cd ${_cdir}/librdkafka-master/
+./configure --prefix=${INSTALLDIR}
+make && make install
+rm -rf ${_cdir}/librdkafka-master
+cd ${_cdir}
+
+# default hiredis installation settings:
+hiredis_home="/opt/redis-cluster/redis/redis-5.0-RC3"
+
+echo "---- config hiredis_home: $hiredis_home"
+#if [ -f "$_cdir/redis-ruby/REDIS_HOME_DIR" ]; then
+#
+#fi
+
+ln -s "$hiredis_home"/include/hiredis "$INSTALLDIR"/include/hiredis
+ln -s "$hiredis_home"/lib/libhiredis.a "$INSTALLDIR"/lib/libhiredis.a
+ln -s "$hiredis_home"/lib/libhiredis.so "$INSTALLDIR"/lib/libhiredis.so
 
 echo "[success] all packages installed at: ${INSTALLDIR}"

@@ -207,6 +207,8 @@ function install_redis() {
     ln -sf $redishome/bin/redis-server /usr/local/bin/redis-server
     ln -sf $redishome/bin/redis-cli /usr/local/bin/redis-cli
 
+    echo "$redishome" > "$_cdir/REDIS_HOME_DIR"
+
     local ret=`redis-server --version`
 
     echo $ret
