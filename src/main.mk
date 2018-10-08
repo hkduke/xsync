@@ -1,5 +1,6 @@
 #######################################################################
 # @file: main.mk
+#   refer: https://github.com/dmoulding/boilermake
 #
 # @version: 0.1.0
 # @create: 2018-05-18 14:00:00
@@ -43,8 +44,8 @@ BUILD_DIR  := ../build
 TARGET_DIR := ../target
 
 SUBMAKEFILES := common/common.mk \
-    redisapi/redisapi.mk \
-    mysqldbi/mysqldbi.mk \
-    server/server.mk \
-    client/client.mk
+	redisapi/redisapi.mk \
+	mysqldbi/mysqldbi.mk \
+	server/server.mk \
+	client/client.mk
 

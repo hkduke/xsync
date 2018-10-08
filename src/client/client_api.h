@@ -51,6 +51,8 @@ extern "C" {
 
 #include "server_opts.h"
 
+#include <dlfcn.h>
+
 
 typedef struct xs_client_t              * XS_client;
 typedef struct xs_server_conn_t         * XS_server_conn;

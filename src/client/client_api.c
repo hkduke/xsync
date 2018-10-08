@@ -116,6 +116,39 @@
 #include "../common/common_util.h"
 
 
+static int test_dl()
+{
+    void *handle;
+
+    double (*fn_test)(double);
+
+    char *error;
+
+    handle = dlopen("/home/root1/Workspace/github.com/pepstack/xsync/target/libkafkatools.so", RTLD_LAZY);
+
+    if (! handle) {
+        fprintf(stderr, "%s\n", dlerror());
+        return (-1);
+    }
+
+    dlerror();    /* Clear any existing error */
+
+    fn_test = dlsym(handle, "ctest");
+
+    if ((error = dlerror()) != NULL) {
+        fprintf(stderr, "%s\n", error);
+        dlclose(handle);
+        return (-1);
+    }
+
+    printf("**********************test=%f\n", (*fn_test)(2.0));
+
+    dlclose(handle);
+
+    return 0;
+}
+
+
 __no_warning_unused(static)
 void do_event_task (thread_context_t *thread_ctx)
 {
@@ -170,6 +203,8 @@ void do_event_task (thread_context_t *thread_ctx)
                 // TODO:
             }
         }
+
+        test_dl();
 
         // 使用完毕必须删除 !!
         event_rbtree_lock();

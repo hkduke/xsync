@@ -25,8 +25,8 @@ SOURCES := \
 SRC_DEFS := NDEBUG
 
 
-SRC_INCDIRS := .
-
+SRC_INCDIRS := . \
+	../../libs/include
 
 # common has its own submakefile because it has a specific SRC_DEFS that we
 # want to apply only to it
@@ -34,7 +34,7 @@ SRC_INCDIRS := .
 
 
 define INSTALL_LIBCOMMON_A
-	 mv ${TARGET_DIR}/${TARGET} ${TARGET_DIR}/../libs/lib/
+	mv ${TARGET_DIR}/${TARGET} ${TARGET_DIR}/../libs/lib/
 endef
 
 TGT_POSTMAKE := ${INSTALL_LIBCOMMON_A}
