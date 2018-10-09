@@ -62,19 +62,25 @@ typedef struct kafkatools_producer_t * kt_producer;
 typedef struct rd_kafka_topic_t * kt_topic;
 
 
-typedef struct kafkatools_msgline_t
+typedef struct kafkatools_produce_msg_t
 {
-    char *msgfile;
-
+    /* Topic object */
     kt_topic topic;
 
-    int partition;
+    /* Use builtin partitioner (RD_KAFKA_PARTITION_UA) to select partition */
+    int32_t partition;
 
-    off_t position;
-    ssize_t cbsize;
+    /* Message payload (msg) and length(msglen) */
+    ssize_t msglen;
+    char *msgbuf;
 
-    char *msgline;
-} kafkatools_msgline_t;
+    /* Optional key and its length */
+    ssize_t keylen;
+    char *key;
+
+    /* Message opaque, provided in delivery report callback as msg_opaque */
+    void *opaque;
+} kafkatools_produce_msg_t;
 
 
 extern const char * kafkatools_get_rdkafka_version (void);
@@ -89,15 +95,7 @@ extern kt_topic kafkatools_get_topic (kt_producer producer, const char *topic_na
 
 extern const char * kafkatools_topic_name (const kt_topic topic);
 
-/*
-extern int kafkatools_producer_process_msgfile (const char *msgfile, const char *linebreak, ssize_t off_t position);
-*/
-
-////////////////////////////del
-int kafkatools_rdkafka_init(const char *brokers, void *msg_opaque, char *errmsg, ssize_t sizemsg);
-
-// kafkatools_produce_from_file ();
-//const char * kafkatools_on_line_string(char *linestr, int chlen, int cbsize, const char *colsep, const char *linebreak);
+extern int kafkatools_producer_process_msgfile (kt_producer producer, const char *msgfile, const char *linebreak, off_t position);
 
 
 #if defined(__cplusplus)

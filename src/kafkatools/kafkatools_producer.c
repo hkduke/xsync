@@ -18,8 +18,27 @@
 *
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
+
+/**
+ * @file: kafkatools_producer.c
+ *
+ *  refer:
+ *    https://github.com/edenhill/librdkafka/blob/master/src/rdkafka.h
+ *
+ *    https://github.com/edenhill/librdkafka/blob/master/examples/rdkafka_simple_producer.c
+ *
+ * @author: master@pepstack.com
+ *
+ * @version: 0.1.0
+ *
+ * @create: 2018-10-08
+ *
+ * @update:
+ */
+
 #include "kafkatools.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -57,6 +76,29 @@ static void rktopic_object_release(void *object, void *param)
 }
 
 
+static ssize_t pread_len (int fd, unsigned char *buf, size_t len, off_t pos)
+{
+    ssize_t rc;
+    unsigned char *pb = buf;
+
+    while (len != 0 && (rc = pread (fd, (void*) pb, len, pos)) != 0) {
+        if (rc == -1) {
+            if (errno == EINTR || errno == EAGAIN) {
+                continue;
+            } else {
+                /* pread error */
+                return (-1);
+            }
+        }
+
+        len -= rc;
+        pos += rc;
+        pb += rc;
+    }
+
+    return (ssize_t) (pb - buf);
+}
+
 
 /**
  * Message delivery report callback.
@@ -76,6 +118,16 @@ static void kt_msg_cb_default (rd_kafka_t *rk, const rd_kafka_message_t *rkmessa
     } else {
         printf("success: Message delivered (%zd bytes, partition %"PRId32")\n", rkmessage->len, rkmessage->partition);
     }
+}
+
+
+/**
+ * !! 要求调用者实现此函数 !!
+ *
+ */
+static int on_process_msgline (char *msgline, ssize_t msglen, kafkatools_produce_msg_t *outmsg)
+{
+    return 0;
 }
 
 
@@ -225,143 +277,46 @@ const char * kafkatools_topic_name (const kt_topic topic)
 }
 
 
-
-/*
-int kafkatools_open_readonly_file (const char *pathfile, off_t start_position)
+int kafkatools_producer_process_msgfile (kt_producer producer, const char *msgfile, const char *linebreak, off_t position)
 {
     int fd;
+    int ret;
+    char buf[4096];
+    ssize_t cb;
 
-    fd = open(pathfile, O_RDONLY | O_NOATIME);
+    kafkatools_produce_msg_t msg;
+    
+    // TODO: 初始化 msg
+
+    fd = open(msgfile, O_RDONLY | O_NOATIME);
     if (fd == -1) {
         perror("open\n");
-        return (-1);
+        return KAFKATOOLS_ERROR;
     }
 
     if (lseek(fd, position, SEEK_SET) != position) {
         perror("lseek\n");
         close(fd);
-        return (-1);
+        return KAFKATOOLS_ERROR;
     }
 
-    return fd;
-    
-    off_t offset = start_position;
+    while ((cb = pread_len(fd, (unsigned char *) buf, sizeof buf, position)) > 0) {
+        ret = on_process_msgline(buf, cb, &msg);
 
-    ssize_t cbread = pread(fd, (void *) buf, size_t nbyte, offset);
+        // TODO: ret
 
-}
-*/
-
-/**
- * Message delivery report callback.
- *
- * This callback is called exactly once per message, indicating if the message
- *  was succesfully delivered (rkmessage->err == RD_KAFKA_RESP_ERR_NO_ERROR) or
- *  permanently failed delivery (rkmessage->err != RD_KAFKA_RESP_ERR_NO_ERROR).
- *
- * The callback is triggered from rd_kafka_poll() and executes on the
- *  application's thread.
- *
- * The rkmessage is destroyed automatically by librdkafka.
- */
-static void dr_msg_cb (rd_kafka_t *rk, const rd_kafka_message_t *rkmessage, void *opaque) {
-    if (rkmessage->err != RD_KAFKA_RESP_ERR_NO_ERROR) {
-        printf("error: Message delivery failed: %s\n", rd_kafka_err2str(rkmessage->err));
-    } else {
-        printf("success: Message delivered (%zd bytes, partition %"PRId32")\n", rkmessage->len, rkmessage->partition);
-    }
-}
-
-
-int kafkatools_rdkafka_init(const char *brokers, void *msg_opaque, char *errstr, ssize_t errsize)
-{
-    int result;
-
-    /* Temporary configuration object */
-    rd_kafka_conf_t *conf;
-
-    /* Producer instance handle */
-    rd_kafka_t *rkProducer;
-
-    /* Topic object */
-    rd_kafka_topic_t *rkTopic;
-
-    /*
-     * Create Kafka client configuration place-holder
-     */
-    conf = rd_kafka_conf_new();
-
-    /* Set bootstrap broker(s) as a comma-separated list of
-     *  host or host:port (default port 9092).
-     *  librdkafka will use the bootstrap brokers to acquire the full
-     *  set of brokers from the cluster.
-     */
-    if (rd_kafka_conf_set(conf, "bootstrap.servers", brokers, errstr, errsize) != RD_KAFKA_CONF_OK) {
-        printf("rd_kafka_conf_set error: %s\n", errstr);
-        return (-1);
-    }
-
-    /* Set the delivery report callback.
-     * This callback will be called once per message to inform the application
-     *  if delivery succeeded or failed. See dr_msg_cb() above.
-     */
-    rd_kafka_conf_set_dr_msg_cb(conf, dr_msg_cb);
-
-    /*
-     * Create producer instance.
-     *
-     * NOTE: rd_kafka_new() takes ownership of the conf object
-     *       and the application must not reference it again after
-     *       this call.
-     */
-    rkProducer = rd_kafka_new(RD_KAFKA_PRODUCER, conf, errstr, errsize);
-    if (! rkProducer) {
-        printf("rd_kafka_new error: %s\n", errstr);
-        return (-1);
-    }
-
-    /* Create topic object that will be reused for each message produced.
-     *
-     * Both the producer instance (rd_kafka_t) and topic objects (topic_t)
-     * are long-lived objects that should be reused as much as possible.
-     */
-    rkTopic = rd_kafka_topic_new(rkProducer, "test_topic", NULL);
-    if (! rkTopic) {
-        snprintf(errstr, errsize, "rd_kafka_topic_new(topic=%s) error: %s", "test_topic", rd_kafka_err2str(rd_kafka_last_error()));
-        errstr[errsize - 1] = 0;
-
-        printf("%s\n", errstr);
-
-        rd_kafka_destroy(rkProducer);
-        return (-1);
-    }
-
-    while (1) {
-        char msgbuf[] = "hello world";
-        int msglen = 10;
-
-        /*
-         * Send/Produce message.
-         * This is an asynchronous call, on success it will only enqueue the message
-         *  on the internal producer queue.
-         * The actual delivery attempts to the broker are handled by background threads.
-         * The previously registered delivery report callback (dr_msg_cb) is used to
-         *  signal back to the application when the message has been delivered (or failed).
-         */
-
-retry:
-        result = rd_kafka_produce(rkTopic,     /* Topic object */
-                RD_KAFKA_PARTITION_UA,      /* Use builtin partitioner to select partition*/
+        ret = rd_kafka_produce((rd_kafka_topic_t *) msg.topic,   /* Topic object */
+                msg.partition,              /* Use builtin partitioner to select partition*/
                 RD_KAFKA_MSG_F_COPY,        /* Make a copy of the payload. */
-                msgbuf, msglen,             /* Message payload (value) and length */
-                NULL, 0,                    /* Optional key and its length for partition */
-                msg_opaque                  /* msg_opaque is an optional application-provided per-message opaque
+                msg.msgbuf, msg.msglen,     /* Message payload (value) and length */
+                msg.key, msg.keylen,        /* Optional key and its length for partition */
+                msg.opaque                  /* msg_opaque is an optional application-provided per-message opaque
                                              *  pointer that will provided in the delivery report callback (`dr_cb`) for
                                              *  referencing this message.
                                              */
             );
 
-        if (result == -1) {
+        if (ret == -1) {
             /* Poll to handle delivery reports */
             if (rd_kafka_last_error() == RD_KAFKA_RESP_ERR__QUEUE_FULL) {
                 /* If the internal queue is full, wait for messages to be delivered and then retry.
@@ -371,28 +326,18 @@ retry:
                  * The internal queue is limited by the configuration property:
                  *      queue.buffering.max.messages
                  */
-                rd_kafka_poll(rkProducer, 1000 /* block wait for max 1000ms */);
+                rd_kafka_poll(producer->rkProducer, 1000 /* block wait for max 1000ms */);
 
                 // goto retry;
                 break;
             } else {
-                snprintf(errstr, errsize, "rd_kafka_produce failed: %s (topic=%s)",
-                    rd_kafka_err2str(rd_kafka_last_error()), rd_kafka_topic_name(rkTopic));
+                snprintf(producer->errstr, KAFKATOOLS_ERRSTR_SIZE, "rd_kafka_produce failed: %s (topic=%s)",
+                    rd_kafka_err2str(rd_kafka_last_error()), kafkatools_topic_name(msg.topic));
 
-                errstr[errsize - 1] = 0;
-
-                printf("%s\n", errstr);
-                
-                /* Destroy topic object */
-                rd_kafka_topic_destroy(rkTopic);
-
-                /* Destroy the producer instance */
-                rd_kafka_destroy(rkProducer);
-
-                return (-1);
+                goto exit_onerror;
             }
         }
-
+        
         /* A producer application should continually serve the delivery report queue
          *  by calling rd_kafka_poll() at frequent intervals.
          * Either put the poll call in your main loop, or in a dedicated thread, or
@@ -401,20 +346,20 @@ retry:
          *  you are not producing any messages to make sure previously produced messages
          *  have their delivery report callback served (and any other callbacks you register).
          */
-        rd_kafka_poll(rkProducer, 0 /* non-blocking */);
+        rd_kafka_poll(producer->rkProducer, 0 /* non-blocking */);
     }
 
     /* Wait for final messages to be delivered or fail.
-     * rd_kafka_flush() is an abstraction over rd_kafka_poll() which
-     * waits for all messages to be delivered.
+     *  rd_kafka_flush() is an abstraction over rd_kafka_poll() which
+     *  waits for all messages to be delivered.
      */
-    rd_kafka_flush(rkProducer, -1);
+    rd_kafka_flush(producer->rkProducer, -1);
 
-    /* Destroy topic object */
-    rd_kafka_topic_destroy(rkTopic);
+    close(fd);
+    return KAFKATOOLS_SUCCESS;
 
-    /* Destroy the producer instance */
-    rd_kafka_destroy(rkProducer);
+exit_onerror:
 
-    return 0;
+    close(fd);
+    return KAFKATOOLS_ERROR;
 }
