@@ -8,15 +8,18 @@ revision_no = 0
 #
 prefix  = .
 binname = libkafkatools
-version = ${major_verno}.${minor_verno}.${revision_no}
-bintarget = ${binname}.so.${version}
+version = $(major_verno).$(minor_verno).$(revision_no)
+bintarget = $(binname).so.$(version)
+binsoname = $(binname).so.$(major_verno)
 
-CFLAGS ?= -std=gnu99 -g -O0 -Wall -pipe -fPIC
+LIB_DIR = $(prefix)/../../libs/lib
 
-LDFLAGS ?= -L${prefix}/../../libs/lib -lrdkafka -lz -lpthread -lrt
+CFLAGS ?= -std=gnu99 -D_GNU_SOURCE -O0 -Wall -pipe -fPIC
+
+LDFLAGS ?= -L$(LIB_DIR) -lrdkafka -lz -lpthread -lrt
 
 INC_DIRS ?= -I. \
-	-I${prefix}/../../libs/include
+	-I$(prefix)/../../libs/include
 
 
 ifdef DEBUG
@@ -26,25 +29,32 @@ endif
 
 
 all: $(bintarget)
-	-cp ${bintarget} ../../target/
-	-ln -sf ${bintarget} ../../target/${binname}.so
+	-cp $(bintarget) ../../target/
+	-ln -sf $(bintarget) ../../target/$(binsoname)
 
 
-$(bintarget): kafkatools.o
+$(bintarget): kafkatools_consumer.o kafkatools_producer.o red_black_tree.o
 	$(CC) $(CFLAGS) -shared \
-		-Wl,--soname=${binname}.so.${major_verno} \
-		-Wl,--rpath='${prefix}:${prefix}/lib:${prefix}/../lib:${prefix}/../libs/lib' \
+		-Wl,--soname=$(binsoname) \
+		-Wl,--rpath='$(prefix):$(prefix)/lib:$(prefix)/../lib:$(prefix)/../libs/lib' \
 		-o $@ \
 		*.o \
 		$(LDFLAGS)
 
-kafkatools.o: kafkatools.c
-	$(CC) $(CFLAGS) $(INC_DIRS) -c kafkatools.c -o $@
+kafkatools_consumer.o: kafkatools_consumer.c
+	$(CC) $(CFLAGS) $(INC_DIRS) -c kafkatools_consumer.c -o $@
+
+kafkatools_producer.o: kafkatools_producer.c
+	$(CC) $(CFLAGS) $(INC_DIRS) -c kafkatools_producer.c -o $@
+
+red_black_tree.o: red_black_tree.c
+	$(CC) $(CFLAGS) $(INC_DIRS) -c red_black_tree.c -o $@
+
 
 clean:
-	-rm -f $(bintarget)
-	-rm -f kafkatools.o
-	-rm -f ../../target/${binname}.so
-	-rm -f ../../target/${bintarget}
+	-rm -f $(prefix)/*.o
+	-rm -f $(prefix)/$(bintarget)
+	-rm -f $(prefix)/../../target/$(binsoname)
+	-rm -f $(prefix)/../../target/$(bintarget)
 
 .PHONY: all

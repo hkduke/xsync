@@ -24,9 +24,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-double ctest(double a)
-{
-    rd_kafka_last_error();
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
-    return a * 100.0;
-}

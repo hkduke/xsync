@@ -115,25 +115,31 @@
 
 #include "../common/common_util.h"
 
+#include "../kafkatools/kafkatools.h"
 
 static int test_dl()
 {
     void *handle;
 
-    double (*fn_test)(double);
-
     char *error;
 
-    handle = dlopen("/home/root1/Workspace/github.com/pepstack/xsync/target/libkafkatools.so", RTLD_LAZY);
-
+    const char * (* kt_get_rdkafka_version) (void);
+    const char * (* kt_producer_get_errstr) (kt_producer);
+    int (* kt_producer_create) (const char *, kafkatools_msg_cb, void *, kt_producer *);
+    void (* kt_producer_destroy) (kt_producer);
+    kt_topic (* kt_get_topic) (kt_producer, const char *);
+    const char * (* kt_topic_name) (const kt_topic);
+    
+    handle = dlopen("/home/root1/Workspace/github.com/pepstack/xsync/target/libkafkatools.so.1", RTLD_LAZY);
     if (! handle) {
         fprintf(stderr, "%s\n", dlerror());
         return (-1);
     }
 
-    dlerror();    /* Clear any existing error */
+    /* Clear any existing error */
+    dlerror();
 
-    fn_test = dlsym(handle, "ctest");
+    kt_get_rdkafka_version = dlsym(handle, "kafkatools_get_rdkafka_version");
 
     if ((error = dlerror()) != NULL) {
         fprintf(stderr, "%s\n", error);
@@ -141,10 +147,45 @@ static int test_dl()
         return (-1);
     }
 
-    printf("**********************test=%f\n", (*fn_test)(2.0));
+    printf("rdkafka_version=%s\n", kt_get_rdkafka_version());
+
+    kt_producer_get_errstr = dlsym(handle, "kafkatools_producer_get_errstr");
+    kt_producer_create = dlsym(handle, "kafkatools_producer_create");
+    kt_producer_destroy = dlsym(handle, "kafkatools_producer_destroy");
+    kt_get_topic = dlsym(handle, "kafkatools_get_topic");
+    kt_topic_name = dlsym(handle, "kafkatools_topic_name");
+
+    do {
+        kt_producer producer;
+        kt_topic topic;
+
+        if (kt_producer_create("localhost:9092,localhost2:9092", KAFKATOOLS_MSG_CB_DEFAULT, 0, &producer) != KAFKATOOLS_SUCCESS) {
+            printf("kafkatools_producer_create failed\n");
+
+            dlclose(handle);
+            return (-1);
+        }
+
+        printf("kafkatools_producer_create success\n");
+
+        topic = kt_get_topic(producer, "test");
+        if (! topic) {
+            printf("fail to get topic: %s\n", kt_producer_get_errstr(producer));
+        } else {
+            printf("success to get topic(%p): %s\n", topic, kt_topic_name(topic));
+        }
+
+        topic = kt_get_topic(producer, "test");
+        if (! topic) {
+            printf("fail to get topic: test\n");
+        } else {
+            printf("success to get topic(%p): %s\n", topic, kt_topic_name(topic));
+        }
+
+        kt_producer_destroy(producer);        
+    } while(0);
 
     dlclose(handle);
-
     return 0;
 }
 
