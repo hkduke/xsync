@@ -29,11 +29,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.0
+ * @version: 0.1.1
  *
  * @create: 2018-10-08
  *
- * @update:
+ * @update: 2018-10-10 12:35:04
  */
 
 #include "kafkatools.h"
@@ -146,8 +146,12 @@ const char * kafkatools_producer_get_errstr (kt_producer producer)
 }
 
 
-int kafkatools_producer_create (const char *brokers, kafkatools_msg_cb msg_cb, void *msg_opaque, kt_producer *outproducer)
+int kafkatools_producer_create (const char **prop_names, const char **prop_values, kafkatools_msg_cb msg_cb, void *msg_opaque, kt_producer *outproducer)
 {
+    int i;
+
+    rd_kafka_conf_res_t res;
+
     kafkatools_producer_t *producer = (kt_producer) malloc(sizeof(*producer));
 
     bzero(producer, sizeof(*producer));
@@ -165,10 +169,28 @@ int kafkatools_producer_create (const char *brokers, kafkatools_msg_cb msg_cb, v
      *  host or host:port (default port 9092).
      *  librdkafka will use the bootstrap brokers to acquire the full
      *  set of brokers from the cluster.
+     *
+     *  char *names[] = {
+     *      "bootstrap.servers",
+     *      "socket.timeout.ms",
+     *      0
+     *  };
+     *
+     *  char *values[] = {
+     *     "localhost:9092,localhost2:9092",
+     *     "1000"
+     *  };
      */
-    if (rd_kafka_conf_set(producer->conf, "bootstrap.servers", brokers, producer->errstr, KAFKATOOLS_ERRSTR_SIZE) != RD_KAFKA_CONF_OK) {
-        free(producer);
-        return KAFKATOOLS_ERROR;
+    i = 0;
+    while (i < 256 && prop_names[i]) {
+        res = rd_kafka_conf_set(producer->conf, prop_names[i], prop_values[i], producer->errstr, KAFKATOOLS_ERRSTR_SIZE);
+        if (res != RD_KAFKA_CONF_OK) {
+            rd_kafka_conf_destroy(producer->conf);
+            free(producer);
+            return KAFKATOOLS_ERROR;
+        }
+
+        ++i;
     }
 
     /* Set the delivery report callback.
@@ -196,6 +218,7 @@ int kafkatools_producer_create (const char *brokers, kafkatools_msg_cb msg_cb, v
      */
     producer->rkProducer = rd_kafka_new(RD_KAFKA_PRODUCER, producer->conf, producer->errstr, KAFKATOOLS_ERRSTR_SIZE);
     if (! producer->rkProducer) {
+        rd_kafka_conf_destroy(producer->conf);
         free(producer);
         return KAFKATOOLS_ERROR;
     }
@@ -217,11 +240,11 @@ void kafkatools_producer_destroy (kt_producer producer)
 
         rbtree_traverse(&producer->rktopic_tree, rktopic_object_release, 0);
 
+        rbtree_clean(&producer->rktopic_tree);
+
         /* Destroy the producer instance */
         rd_kafka_destroy(rkProducer);
     }
-
-    rbtree_clean(&producer->rktopic_tree);
 
     free(producer);
 }
@@ -277,6 +300,54 @@ const char * kafkatools_topic_name (const kt_topic topic)
 }
 
 
+int kafkatools_produce_message_sync (kt_producer producer, const char *message, int chlen, kt_topic topic, int partition, int timout_ms)
+{
+    int ret;
+
+    ret = rd_kafka_produce( (rd_kafka_topic_t *) topic,   /* Topic object */
+            partition,                   /* Use builtin partitioner to select partition*/
+            RD_KAFKA_MSG_F_COPY,         /* Make a copy of the payload. */
+            (void* ) message, chlen,     /* Message payload (value) and length */
+            NULL, 0,                     /* Optional key and its length for partition */
+            NULL                         /* msg_opaque is an optional application-provided per-message opaque
+                                          *  pointer that will provided in the delivery report callback (`dr_cb`) for
+                                          *  referencing this message.
+                                          */
+        );
+
+    if (ret == -1) {
+        /* Poll to handle delivery reports */
+        if (rd_kafka_last_error() == RD_KAFKA_RESP_ERR__QUEUE_FULL) {
+            /* If the internal queue is full, wait for messages to be delivered and then retry.
+             * The internal queue represents both messages to be sent and messages that have
+             *  been sent or failed, awaiting their delivery report callback to be called.
+             *
+             * The internal queue is limited by the configuration property:
+             *      queue.buffering.max.messages
+             */
+            rd_kafka_poll(producer->rkProducer, timout_ms);
+
+            return KAFKATOOLS_SUCCESS;
+        } else {
+            snprintf(producer->errstr, KAFKATOOLS_ERRSTR_SIZE, "rd_kafka_produce (topic=%s, partition=%d) failed: %s",
+                    kafkatools_topic_name(topic),
+                    partition,
+                    rd_kafka_err2str(rd_kafka_last_error())
+                );
+            return KAFKATOOLS_ERROR;
+        }
+    }
+
+    /* Wait for final messages to be delivered or fail.
+     *  rd_kafka_flush() is an abstraction over rd_kafka_poll() which
+     *  waits for all messages to be delivered.
+     */
+    rd_kafka_flush(producer->rkProducer, timout_ms);
+
+    return KAFKATOOLS_SUCCESS;
+}
+
+
 int kafkatools_producer_process_msgfile (kt_producer producer, const char *msgfile, const char *linebreak, off_t position)
 {
     int fd;
@@ -285,7 +356,7 @@ int kafkatools_producer_process_msgfile (kt_producer producer, const char *msgfi
     ssize_t cb;
 
     kafkatools_produce_msg_t msg;
-    
+
     // TODO: 初始化 msg
 
     fd = open(msgfile, O_RDONLY | O_NOATIME);
@@ -337,7 +408,7 @@ int kafkatools_producer_process_msgfile (kt_producer producer, const char *msgfi
                 goto exit_onerror;
             }
         }
-        
+
         /* A producer application should continually serve the delivery report queue
          *  by calling rd_kafka_poll() at frequent intervals.
          * Either put the poll call in your main loop, or in a dedicated thread, or

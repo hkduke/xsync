@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.0
+ * @version: 0.1.1
  *
  * @create: 2018-01-25
  *
- * @update: 2018-09-30 15:40:06
+ * @update: 2018-10-10 15:44:15
  */
 
 /******************************************************************************
@@ -117,7 +117,7 @@
 
 #include "../kafkatools/kafkatools.h"
 
-static int test_dl()
+static int test_dl(const char * message, int chlen)
 {
     void *handle;
 
@@ -125,11 +125,12 @@ static int test_dl()
 
     const char * (* kt_get_rdkafka_version) (void);
     const char * (* kt_producer_get_errstr) (kt_producer);
-    int (* kt_producer_create) (const char *, kafkatools_msg_cb, void *, kt_producer *);
+    int (* kt_producer_create) (const char **, const char **, kafkatools_msg_cb, void *, kt_producer *);
     void (* kt_producer_destroy) (kt_producer);
     kt_topic (* kt_get_topic) (kt_producer, const char *);
     const char * (* kt_topic_name) (const kt_topic);
-    
+    int (*kt_produce_message_sync) (kt_producer, const char *, int, kt_topic, int, int);
+
     handle = dlopen("/home/root1/Workspace/github.com/pepstack/xsync/target/libkafkatools.so.1", RTLD_LAZY);
     if (! handle) {
         fprintf(stderr, "%s\n", dlerror());
@@ -154,12 +155,27 @@ static int test_dl()
     kt_producer_destroy = dlsym(handle, "kafkatools_producer_destroy");
     kt_get_topic = dlsym(handle, "kafkatools_get_topic");
     kt_topic_name = dlsym(handle, "kafkatools_topic_name");
+    kt_produce_message_sync = dlsym(handle, "kafkatools_produce_message_sync");
 
     do {
+        int ret;
+
         kt_producer producer;
         kt_topic topic;
 
-        if (kt_producer_create("localhost:9092,localhost2:9092", KAFKATOOLS_MSG_CB_DEFAULT, 0, &producer) != KAFKATOOLS_SUCCESS) {
+        const char *prop_names[] = {
+            "bootstrap.servers",
+            "socket.timeout.ms",
+            0
+        };
+
+        const char *prop_values[] = {
+            "localhost:9092",
+            "1000",
+            0
+        };
+
+        if (kt_producer_create(prop_names, prop_values, KAFKATOOLS_MSG_CB_DEFAULT, 0, &producer) != KAFKATOOLS_SUCCESS) {
             printf("kafkatools_producer_create failed\n");
 
             dlclose(handle);
@@ -175,14 +191,14 @@ static int test_dl()
             printf("success to get topic(%p): %s\n", topic, kt_topic_name(topic));
         }
 
-        topic = kt_get_topic(producer, "test");
-        if (! topic) {
-            printf("fail to get topic: test\n");
+        ret = kt_produce_message_sync(producer, message, chlen, topic, 0, -1);
+        if (ret == KAFKATOOLS_SUCCESS) {
+            printf("kafkatools_produce_message_sync success: {%s}\n", message);
         } else {
-            printf("success to get topic(%p): %s\n", topic, kt_topic_name(topic));
+            printf("kafkatools_produce_message_sync fail: %s\n", kt_producer_get_errstr(producer));
         }
 
-        kt_producer_destroy(producer);        
+        kt_producer_destroy(producer);
     } while(0);
 
     dlclose(handle);
@@ -208,11 +224,12 @@ void do_event_task (thread_context_t *thread_ctx)
         if (client->offs_event_task) {
             char *result;
             int rcode;
+            int chlen = 0;
 
             int bufcb = sizeof(perdata->buffer) - ERRORMSG_MAXLEN - 1;
             __inotifytools_lock();
             {
-                ret = snprintf(perdata->buffer, bufcb, "%s '%s' '%s%s'",
+                chlen = snprintf(perdata->buffer, bufcb, "%s '%s' '%s%s'",
                         event_task_path(client),
                         inotifytools_event_to_str(event->mask),
                         event->pathname,
@@ -220,7 +237,7 @@ void do_event_task (thread_context_t *thread_ctx)
             }
             __inotifytools_unlock();
 
-            perdata->buffer[ret] = 0;
+            perdata->buffer[chlen] = 0;
 
             LOGGER_DEBUG("event_task command: {%s}", perdata->buffer);
 
@@ -236,6 +253,8 @@ void do_event_task (thread_context_t *thread_ctx)
 
             if (ret == 1) {
                 // TODO: 传输文件
+                test_dl("hello world", 11);
+
             } else if (ret == 0) {
                 // TODO:
             } else if (ret == -1) {
@@ -244,8 +263,6 @@ void do_event_task (thread_context_t *thread_ctx)
                 // TODO:
             }
         }
-
-        test_dl();
 
         // 使用完毕必须删除 !!
         event_rbtree_lock();

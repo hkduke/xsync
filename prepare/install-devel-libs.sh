@@ -83,6 +83,14 @@ function install_libs() {
     rm -rf ${_cdir}/libevent-2.1.8-stable
     cd ${_cdir}
 
+    echo "---- build and install <libiconv-1.15> ..."
+    tar -zxf ${_cdir}/libiconv-1.15.tar.gz
+    cd ${_cdir}/libiconv-1.15/
+    ./configure --prefix=${INSTALLDIR}
+    make && make install
+    rm -rf ${_cdir}/libiconv-1.15
+    cd ${_cdir}
+
     echo "---- build and install <inotify-tools-3.20.2> ..."
     tar -zxf ${_cdir}/inotify-tools-3.20.2.tar.gz
     cd ${_cdir}/inotify-tools-3.20.2/
@@ -97,7 +105,15 @@ function install_libs() {
     ./configure --prefix=${INSTALLDIR}
     make && make install
     rm -rf ${_cdir}/librdkafka-master
+    cd ${_cdir}
 
+    echo "---- build and install <json-c-20180305> https://github.com/json-c/json-c ..."
+    tar -zxf ${_cdir}/json-c-20180305.tar.gz
+    cd ${_cdir}/json-c-20180305/
+    sh autogen.sh
+    ./configure --prefix=${INSTALLDIR}
+    make && make install
+    rm -rf ${_cdir}/json-c-20180305
     cd ${_cdir}
 }
 

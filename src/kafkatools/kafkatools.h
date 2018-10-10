@@ -27,10 +27,10 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.0
+ * @version: 0.1.1
  *
  * @create: 2018-10-08 16:17:00
- * @update:
+ * @update: 2018-10-10 12:32:52
  *
  */
 
@@ -87,13 +87,15 @@ extern const char * kafkatools_get_rdkafka_version (void);
 
 extern const char * kafkatools_producer_get_errstr (kt_producer producer);
 
-extern int kafkatools_producer_create (const char *brokers, kafkatools_msg_cb msg_cb, void *msg_opaque, kt_producer *producer);
+extern int kafkatools_producer_create (const char **prop_names, const char **prop_values, kafkatools_msg_cb msg_cb, void *msg_opaque, kt_producer *producer);
 
 extern void kafkatools_producer_destroy (kt_producer producer);
 
 extern kt_topic kafkatools_get_topic (kt_producer producer, const char *topic_name);
 
 extern const char * kafkatools_topic_name (const kt_topic topic);
+
+extern int kafkatools_produce_message_sync (kt_producer producer, const char *message, int chlen, kt_topic topic, int partition, int timout_ms);
 
 extern int kafkatools_producer_process_msgfile (kt_producer producer, const char *msgfile, const char *linebreak, off_t position);
 
