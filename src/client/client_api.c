@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.2
+ * @version: 0.1.1
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-11 18:37:49
+ * @update: 2018-10-10 15:44:15
  */
 
 /******************************************************************************
@@ -145,6 +145,7 @@ __no_warning_unused(static)
 void do_event_task (thread_context_t *thread_ctx)
 {
     char *result;
+    char *timestr_ms;
 
     int ret, chlen, bufcb, rcode;
 
@@ -160,8 +161,12 @@ void do_event_task (thread_context_t *thread_ctx)
         XS_watch_event event = (XS_watch_event) node->object;
 
         // send kafka message
-        chlen = snprintf(perdata->buffer, XSYNC_BUFSIZE, "{%d|%d|%s|%s%s}",
-            task->flags, perdata->threadid, inotifytools_event_to_str(event->mask), event->pathname, event->name);
+        timestr_ms = perdata->buffer + sizeof(perdata->buffer) - 64;
+
+        now_time_str(timestr_ms, 60);
+
+        chlen = snprintf(perdata->buffer, XSYNC_BUFSIZE, "{%d|%s|%d|%s|%s%s}",
+            task->flags, timestr_ms, perdata->threadid, inotifytools_event_to_str(event->mask), event->pathname, event->name);
 
         if (chlen > 0 && chlen < XSYNC_BUFSIZE) {
             perdata->buffer[chlen] = 0;

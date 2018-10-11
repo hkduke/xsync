@@ -111,6 +111,25 @@ void print_cpu_time (void)
 }
 
 
+__no_warning_unused(static)
+const char * now_time_str (char *timebuf, ssize_t bufsize)
+{
+    struct timeval tv;
+
+    *timebuf = 0;
+
+    if (gettimeofday(&tv, 0) == 0) {
+        struct tm *p = localtime(&tv.tv_sec);
+
+        snprintf(timebuf, bufsize, "%04d-%02d-%02d %02d:%02d:%02d.%03ld", 1900 + p->tm_year, 1 + p->tm_mon, p->tm_mday, p->tm_hour, p->tm_min, p->tm_sec, tv.tv_usec/1000);
+    }
+
+    timebuf[bufsize - 1] = 0;
+
+    return timebuf;
+}
+
+
 #ifndef _SIGNAL_H
 typedef void sigfunc(int);
 
