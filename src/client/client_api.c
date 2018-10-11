@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.1
+ * @version: 0.1.2
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-10 15:44:15
+ * @update: 2018-10-11 18:37:49
  */
 
 /******************************************************************************
@@ -124,17 +124,17 @@ static int test_kafka(kafkatools_producer_api_t *api, const char *topic_name, co
     kt_topic topic = api->kt_get_topic(api->producer, topic_name);
 
     if (! topic) {
-        printf("fail to get topic: %s\n", api->kt_producer_get_errstr(api->producer));
+        LOGGER_ERROR("fail to get topic: %s", api->kt_producer_get_errstr(api->producer));
         return (-1);
     } else {
-        printf("success to get topic(%p): %s\n", topic, api->kt_topic_name(topic));
+        LOGGER_TRACE("success to get topic(%p): %s", topic, api->kt_topic_name(topic));
     }
 
     ret = api->kt_produce_message_sync(api->producer, message, chlen, topic, 0, -1);
     if (ret == KAFKATOOLS_SUCCESS) {
-        printf("kafkatools_produce_message_sync success: {%s}\n", message);
+        LOGGER_TRACE("kafkatools_produce_message_sync success: %s", message);
     } else {
-        printf("kafkatools_produce_message_sync fail: %s\n", api->kt_producer_get_errstr(api->producer));
+        LOGGER_ERROR("kafkatools_produce_message_sync fail: %s", api->kt_producer_get_errstr(api->producer));
     }
 
     return ret;
@@ -160,8 +160,8 @@ void do_event_task (thread_context_t *thread_ctx)
         XS_watch_event event = (XS_watch_event) node->object;
 
         // send kafka message
-        chlen = snprintf(perdata->buffer, XSYNC_BUFSIZE, "{%d|%s|%s%s}",
-            task->flags, inotifytools_event_to_str(event->mask), event->pathname, event->name);
+        chlen = snprintf(perdata->buffer, XSYNC_BUFSIZE, "{%d|%d|%s|%s%s}",
+            task->flags, perdata->threadid, inotifytools_event_to_str(event->mask), event->pathname, event->name);
 
         if (chlen > 0 && chlen < XSYNC_BUFSIZE) {
             perdata->buffer[chlen] = 0;
@@ -960,21 +960,22 @@ XS_VOID XS_client_bootstrap (XS_client client)
 
         __inotifytools_lock();
         {
-            inevent = inotifytools_next_event(0);  // 必须是立即返回
+            // 必须是立即返回
+            inevent = inotifytools_next_event(0);
 
             if (! inevent) {
                 __inotifytools_unlock();
 
                 LOGGER_TRACE("null inotify event");
-                sleep_ms(100);
+
+                sleep_ms(10);
                 continue;
             }
 
-            if (! inotify_event_dump((watch_event_t *)&evbuf, PATH_MAX, inevent, inotifytools_filename_from_wd(inevent->wd))) {
+            if (! inotify_event_dump((watch_event_t *)&evbuf, PATH_MAX, inevent)) {
                 __inotifytools_unlock();
 
-                LOGGER_FATAL("name or path error");
-                sleep_ms(100);
+                LOGGER_FATAL("unexpected error");
                 continue;
             }
         }

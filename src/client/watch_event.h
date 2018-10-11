@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.1
+ * @version: 0.1.2
  *
  * @create: 2018-01-24
  *
- * @update: 2018-09-30 10:43:37
+ * @update: 2018-10-11 18:35:23
  */
 
 #ifndef WATCH_EVENT_H_INCLUDED
@@ -120,32 +120,60 @@ inline int watch_event_compare(const watch_event_t *inNew, const watch_event_t *
 
 
 __no_warning_unused(static)
-int inotify_event_dump(watch_event_t *outevent, int pathlenmax, struct inotify_event *inevent, char *wpath)
+int inotify_event_dump(watch_event_t *outevent, int pathlenmax, struct inotify_event *inevent)
 {
-    if (! wpath) {
-        return 0;
-    }
-    outevent->pathlen = strlen(wpath);
+    int namelen;
+    char *wpath;
 
-    if (! outevent->pathlen || outevent->pathlen > pathlenmax) {
+    if (inevent->wd < 1) {
+        LOGGER_WARN("bad inevent wd: %d", inevent->wd);
         return 0;
     }
-    if (! inevent->len || inevent->len >= sizeof(outevent->name)) {
+
+    if (inevent->len < 1) {
+        LOGGER_WARN("bad inevent len: %d", inevent->len);
+        return 0;
+    }
+
+    if (inevent->len >= sizeof(outevent->name)) {
+        LOGGER_WARN("too long inevent len: %d", inevent->len);
+    }
+
+    namelen = strlen(inevent->name);
+    if (! namelen) {
+        LOGGER_WARN("empty inevent name");
+        return 0;
+    }
+
+    if (namelen >= sizeof(outevent->name)) {
+        LOGGER_WARN("too long inevent name: %s", inevent->name);
+        return 0;
+    }
+
+    wpath = inotifytools_filename_from_wd(inevent->wd);
+    if (! wpath) {
+        LOGGER_WARN("null inevent path");
+        return 0;
+    }
+
+    outevent->pathlen = strlen(wpath);
+    if (! outevent->pathlen || outevent->pathlen >= pathlenmax) {
+        LOGGER_WARN("bad inevent path: %s", wpath);
         return 0;
     }
 
     outevent->wd = inevent->wd;
     outevent->mask = inevent->mask;
     outevent->cookie = inevent->cookie;
-    outevent->len = inevent->len;
+    outevent->len = namelen;
 
-    memcpy(outevent->name, inevent->name, outevent->len);
-    outevent->name[outevent->len] = 0;
+    memcpy(outevent->name, inevent->name, namelen);
+    outevent->name[namelen] = 0;
 
     memcpy(outevent->pathname, wpath, outevent->pathlen);
     outevent->pathname[outevent->pathlen] = 0;
 
-    // ok
+    // all is ok
     return 1;
 }
 

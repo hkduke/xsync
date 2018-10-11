@@ -29,11 +29,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.1
+ * @version: 0.1.2
  *
  * @create: 2018-10-08
  *
- * @update: 2018-10-10 12:35:04
+ * @update: 2018-10-11 18:41:43
  */
 
 #include "kafkatools.h"
@@ -116,7 +116,7 @@ static void kt_msg_cb_default (rd_kafka_t *rk, const rd_kafka_message_t *rkmessa
     if (rkmessage->err != RD_KAFKA_RESP_ERR_NO_ERROR) {
         printf("error: Message delivery failed: %s\n", rd_kafka_err2str(rkmessage->err));
     } else {
-        printf("success: Message delivered (%zd bytes, partition %"PRId32")\n", rkmessage->len, rkmessage->partition);
+        // printf("success: Message delivered (%zd bytes, partition %"PRId32")\n", rkmessage->len, rkmessage->partition);
     }
 }
 
