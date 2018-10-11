@@ -83,6 +83,22 @@ typedef struct kafkatools_produce_msg_t
 } kafkatools_produce_msg_t;
 
 
+typedef struct kafkatools_producer_api_t
+{
+    void *handle;
+
+    kt_producer producer;
+
+    const char * (* kt_get_rdkafka_version) (void);
+    const char * (* kt_producer_get_errstr) (kt_producer);
+    int (* kt_producer_create) (const char **, const char **, kafkatools_msg_cb, void *, kt_producer *);
+    void (* kt_producer_destroy) (kt_producer);
+    kt_topic (* kt_get_topic) (kt_producer, const char *);
+    const char * (* kt_topic_name) (const kt_topic);
+    int (*kt_produce_message_sync) (kt_producer, const char *, int, kt_topic, int, int);
+} kafkatools_producer_api_t;
+
+
 extern const char * kafkatools_get_rdkafka_version (void);
 
 extern const char * kafkatools_producer_get_errstr (kt_producer producer);

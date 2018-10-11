@@ -46,6 +46,7 @@ extern "C" {
 #include "watch_event.h"
 
 #include "../common/red_black_tree.h"
+#include "../kafkatools/kafkatools.h"
 
 #include "../xsync-error.h"
 #include "../xsync-config.h"
@@ -147,6 +148,10 @@ typedef struct xs_client_t
 
     /* buffer must be in lock */
     char inlock_buffer[XSYNC_BUFSIZE];
+
+    /* application home dir, for instance: '/opt/xclient/sbin/' */
+    int apphome_len;
+    char apphome[0];
 } xs_client_t;
 
 
@@ -238,6 +243,132 @@ extern void xs_client_delete (void *pv);
  * level = 1, 2, ... : 可以是目录符号链接, 也可以是物理目录
  */
 extern int lscb_init_watch_path (const char * path, int pathlen, struct mydirent *myent, void *arg1, void *arg2);
+
+
+__no_warning_unused(static)
+int kafka_producer_api_create(kafkatools_producer_api_t *api, const char *libktsofile)
+{
+    void *handle;
+    char *error;
+
+    const char *prop_names[] = {
+        "bootstrap.servers",
+        "socket.timeout.ms",
+        0
+    };
+
+    const char *prop_values[] = {
+        "localhost:9092",
+        "1000",
+        0
+    };
+
+    handle = dlopen(libktsofile, RTLD_LAZY);
+    if (! handle) {
+        LOGGER_ERROR("dlopen fail: %s (%s)", dlerror(), libktsofile);
+
+        return (-1);
+    }
+
+    /* Clear any existing error */
+    dlerror();
+
+    api->kt_get_rdkafka_version = dlsym(handle, "kafkatools_get_rdkafka_version");
+
+    if ((error = dlerror()) != NULL) {
+        LOGGER_ERROR("dlsym fail: %s", error);
+
+        dlclose(handle);
+        return (-1);
+    }
+
+    // TODO: 判断 rdkafka 版本
+    LOGGER_INFO("kafkatools_get_rdkafka_version: %s", api->kt_get_rdkafka_version());
+
+    api->kt_producer_get_errstr = dlsym(handle, "kafkatools_producer_get_errstr");
+    api->kt_producer_create = dlsym(handle, "kafkatools_producer_create");
+    api->kt_producer_destroy = dlsym(handle, "kafkatools_producer_destroy");
+    api->kt_get_topic = dlsym(handle, "kafkatools_get_topic");
+    api->kt_topic_name = dlsym(handle, "kafkatools_topic_name");
+    api->kt_produce_message_sync = dlsym(handle, "kafkatools_produce_message_sync");
+
+    if (api->kt_producer_create(prop_names, prop_values, KAFKATOOLS_MSG_CB_DEFAULT, 0, &api->producer) != KAFKATOOLS_SUCCESS) {
+        LOGGER_ERROR("kafkatools_producer_create fail");
+        dlclose(handle);
+        return (-1);
+    }
+
+    api->handle = handle;
+    return 0;
+}
+
+
+__no_warning_unused(static)
+void kafka_producer_api_free(kafkatools_producer_api_t *api)
+{
+    if (api->handle) {
+        void *handle = api->handle;
+        api->handle = 0;
+
+        api->kt_producer_destroy(api->producer);
+
+        dlclose(handle);
+
+        bzero(api, sizeof(kafkatools_producer_api_t));
+    }
+}
+
+
+__no_warning_unused(static)
+void * perthread_data_create (XS_client client, int servers, int threadid)
+{
+    perthread_data *perdata = (perthread_data *) mem_alloc(1, sizeof(perthread_data));
+
+    // 没有引用计数
+    perdata->xclient = (void *) client;
+
+    // 服务器数量
+    perdata->server_conns[0] = (XS_server_conn) int_cast_to_pv(servers);
+
+    // 线程 id
+    perdata->threadid = threadid;
+
+    // '/home/root1/Workspace/github.com/pepstack/xsync/target/libkafkatools.so.1'
+    client->apphome[client->apphome_len] = 0;
+    strcat(client->apphome, "libkafkatools.so.1");
+
+    LOGGER_DEBUG("loading: %s", client->apphome);
+
+    if (kafka_producer_api_create(&perdata->kt_producer_api, client->apphome)) {
+        free(perdata);
+        exit(-1);
+    }
+
+    return (void *) perdata;
+}
+
+
+__no_warning_unused(static)
+void perthread_data_free (perthread_data *perdata)
+{
+    int sid;
+
+    int sid_max = pv_cast_to_int(perdata->server_conns[0]);
+
+    for (sid = 1; sid <= sid_max; sid++) {
+        XS_server_conn conn = perdata->server_conns[sid];
+
+        if (conn) {
+            perdata->server_conns[sid] = 0;
+
+            XS_server_conn_release(&conn);
+        }
+    }
+
+    kafka_producer_api_free(&perdata->kt_producer_api);
+
+    free(perdata);
+}
 
 
 __no_warning_unused(static)

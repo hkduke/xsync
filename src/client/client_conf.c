@@ -45,7 +45,7 @@
 
 void xs_client_delete (void *pv)
 {
-    int i, sid;
+    int i;
 
     XS_client client = (XS_client) pv;
 
@@ -58,28 +58,11 @@ void xs_client_delete (void *pv)
     }
 
     if (client->thread_args) {
-        perthread_data * perdata;
-        int sid_max;
-
         for (i = 0; i < client->threads; ++i) {
-            perdata = client->thread_args[i];
+            perthread_data * perdata = client->thread_args[i];
             client->thread_args[i] = 0;
-
-            sid_max = (int)(long)(void *)perdata->server_conns[0];
-
-            for (sid = 1; sid <= sid_max; sid++) {
-                XS_server_conn conn = perdata->server_conns[sid];
-
-                if (conn) {
-                    perdata->server_conns[sid] = 0;
-
-                    XS_server_conn_release(&conn);
-                }
-            }
-
-            free(perdata);
+            perthread_data_free(perdata);
         }
-
         free(client->thread_args);
     }
 

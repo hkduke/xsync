@@ -207,6 +207,10 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
         exit(-1);
     }
 
+    opts->apphome_len = ret;
+    memcpy(opts->apphome, buff, ret);
+    opts->apphome[opts->apphome_len] = 0;
+
     *strrchr(buff, '/') = 0;
     *(strrchr(buff, '/') + 1) = 0;
 
@@ -421,11 +425,12 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
 
     if (from_watch) {
         // 强迫从 watch 目录自动配置
-        snprintf(buff, sizeof(buff), "%s", config);
+        memcpy(buff, opts->apphome, opts->apphome_len + 1);
 
         *strrchr(buff, '/') = 0;
-        *strrchr(buff, '/') = 0;
-        strcat(buff, "/watch");
+        *(strrchr(buff, '/') + 1) = 0;
+
+        strcat(buff, "watch");
 
         if (! isdir(buff)) {
             fprintf(stderr, "\033[1;31m[error] NOT a directory:\033[0m %s\n\n", buff);

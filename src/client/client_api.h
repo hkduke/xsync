@@ -83,6 +83,9 @@ typedef struct xs_appopts_t
 
     char clientid[XSYNC_CLIENTID_MAXLEN + 1];
 
+    int apphome_len;
+    char apphome[XSYNC_PATHFILE_MAXLEN + 1];
+
     char diagnose_server[XSYNC_PATHFILE_MAXLEN + 1];
 
     char config[XSYNC_PATHFILE_MAXLEN + 1];

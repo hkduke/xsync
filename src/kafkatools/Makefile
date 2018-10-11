@@ -29,6 +29,7 @@ endif
 
 
 all: $(bintarget)
+	-mkdir -p ../../target
 	-cp $(bintarget) ../../target/
 	-ln -sf $(bintarget) ../../target/$(binsoname)
 

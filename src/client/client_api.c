@@ -117,99 +117,37 @@
 
 #include "../kafkatools/kafkatools.h"
 
-static int test_dl(const char * message, int chlen)
+static int test_kafka(kafkatools_producer_api_t *api, const char *topic_name, const char * message, int chlen)
 {
-    void *handle;
+    int ret;
 
-    char *error;
+    kt_topic topic = api->kt_get_topic(api->producer, topic_name);
 
-    const char * (* kt_get_rdkafka_version) (void);
-    const char * (* kt_producer_get_errstr) (kt_producer);
-    int (* kt_producer_create) (const char **, const char **, kafkatools_msg_cb, void *, kt_producer *);
-    void (* kt_producer_destroy) (kt_producer);
-    kt_topic (* kt_get_topic) (kt_producer, const char *);
-    const char * (* kt_topic_name) (const kt_topic);
-    int (*kt_produce_message_sync) (kt_producer, const char *, int, kt_topic, int, int);
-
-    handle = dlopen("/home/root1/Workspace/github.com/pepstack/xsync/target/libkafkatools.so.1", RTLD_LAZY);
-    if (! handle) {
-        fprintf(stderr, "%s\n", dlerror());
+    if (! topic) {
+        printf("fail to get topic: %s\n", api->kt_producer_get_errstr(api->producer));
         return (-1);
+    } else {
+        printf("success to get topic(%p): %s\n", topic, api->kt_topic_name(topic));
     }
 
-    /* Clear any existing error */
-    dlerror();
-
-    kt_get_rdkafka_version = dlsym(handle, "kafkatools_get_rdkafka_version");
-
-    if ((error = dlerror()) != NULL) {
-        fprintf(stderr, "%s\n", error);
-        dlclose(handle);
-        return (-1);
+    ret = api->kt_produce_message_sync(api->producer, message, chlen, topic, 0, -1);
+    if (ret == KAFKATOOLS_SUCCESS) {
+        printf("kafkatools_produce_message_sync success: {%s}\n", message);
+    } else {
+        printf("kafkatools_produce_message_sync fail: %s\n", api->kt_producer_get_errstr(api->producer));
     }
 
-    printf("rdkafka_version=%s\n", kt_get_rdkafka_version());
-
-    kt_producer_get_errstr = dlsym(handle, "kafkatools_producer_get_errstr");
-    kt_producer_create = dlsym(handle, "kafkatools_producer_create");
-    kt_producer_destroy = dlsym(handle, "kafkatools_producer_destroy");
-    kt_get_topic = dlsym(handle, "kafkatools_get_topic");
-    kt_topic_name = dlsym(handle, "kafkatools_topic_name");
-    kt_produce_message_sync = dlsym(handle, "kafkatools_produce_message_sync");
-
-    do {
-        int ret;
-
-        kt_producer producer;
-        kt_topic topic;
-
-        const char *prop_names[] = {
-            "bootstrap.servers",
-            "socket.timeout.ms",
-            0
-        };
-
-        const char *prop_values[] = {
-            "localhost:9092",
-            "1000",
-            0
-        };
-
-        if (kt_producer_create(prop_names, prop_values, KAFKATOOLS_MSG_CB_DEFAULT, 0, &producer) != KAFKATOOLS_SUCCESS) {
-            printf("kafkatools_producer_create failed\n");
-
-            dlclose(handle);
-            return (-1);
-        }
-
-        printf("kafkatools_producer_create success\n");
-
-        topic = kt_get_topic(producer, "test");
-        if (! topic) {
-            printf("fail to get topic: %s\n", kt_producer_get_errstr(producer));
-        } else {
-            printf("success to get topic(%p): %s\n", topic, kt_topic_name(topic));
-        }
-
-        ret = kt_produce_message_sync(producer, message, chlen, topic, 0, -1);
-        if (ret == KAFKATOOLS_SUCCESS) {
-            printf("kafkatools_produce_message_sync success: {%s}\n", message);
-        } else {
-            printf("kafkatools_produce_message_sync fail: %s\n", kt_producer_get_errstr(producer));
-        }
-
-        kt_producer_destroy(producer);
-    } while(0);
-
-    dlclose(handle);
-    return 0;
+    return ret;
 }
 
 
 __no_warning_unused(static)
 void do_event_task (thread_context_t *thread_ctx)
 {
-    int ret = 0;
+    char *result;
+
+    int ret, chlen, bufcb, rcode;
+
     threadpool_task_t *task = thread_ctx->task;
 
     if (task->flags == 100) {
@@ -221,12 +159,22 @@ void do_event_task (thread_context_t *thread_ctx)
 
         XS_watch_event event = (XS_watch_event) node->object;
 
-        if (client->offs_event_task) {
-            char *result;
-            int rcode;
-            int chlen = 0;
+        // send kafka message
+        chlen = snprintf(perdata->buffer, XSYNC_BUFSIZE, "{%d|%s|%s%s}",
+            task->flags, inotifytools_event_to_str(event->mask), event->pathname, event->name);
 
-            int bufcb = sizeof(perdata->buffer) - ERRORMSG_MAXLEN - 1;
+        if (chlen > 0 && chlen < XSYNC_BUFSIZE) {
+            perdata->buffer[chlen] = 0;
+
+            test_kafka(&perdata->kt_producer_api, "test", perdata->buffer, chlen);
+        }
+
+        chlen = 0;
+
+        // call event task shell
+        if (client->offs_event_task) {
+            bufcb = sizeof(perdata->buffer) - ERRORMSG_MAXLEN - 1;
+
             __inotifytools_lock();
             {
                 chlen = snprintf(perdata->buffer, bufcb, "%s '%s' '%s%s'",
@@ -252,9 +200,7 @@ void do_event_task (thread_context_t *thread_ctx)
             LOGGER_INFO("event_task result(=%d): {%s}", ret, perdata->buffer);
 
             if (ret == 1) {
-                // TODO: 传输文件
-                test_dl("hello world", 11);
-
+                // TODO:
             } else if (ret == 0) {
                 // TODO:
             } else if (ret == -1) {
@@ -266,14 +212,14 @@ void do_event_task (thread_context_t *thread_ctx)
 
         // 使用完毕必须删除 !!
         event_rbtree_lock();
+        {
+            node->object = 0;
+            watch_event_free(event);
 
-        node->object = 0;
-        watch_event_free(event);
+            rbtree_remove_at(&client->event_rbtree, node);
 
-        rbtree_remove_at(&client->event_rbtree, node);
-
-        ret = rbtree_size(&client->event_rbtree);
-
+            ret = rbtree_size(&client->event_rbtree);
+        }
         event_rbtree_unlock();
 
         LOGGER_TRACE("rbtree_size=%d", ret);
@@ -284,6 +230,8 @@ void do_event_task (thread_context_t *thread_ctx)
     task->argument = 0;
     task->flags = 0;
 }
+
+
 
 
 __no_warning_unused(static)
@@ -711,8 +659,12 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
 
     *outClient = 0;
 
-    client = (XS_client) mem_alloc(1, sizeof(xs_client_t));
+    client = (XS_client) mem_alloc(1, sizeof(xs_client_t) + opts->apphome_len + 32);
     assert(client->thread_args == 0);
+
+    /* xsync-client app home dir */
+    memcpy(client->apphome, opts->apphome, opts->apphome_len);
+    client->apphome_len = opts->apphome_len;
 
     __interlock_release(&client->task_counter);
 
@@ -761,21 +713,10 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
 
     LOGGER_INFO("threads=%d queues=%d servers=%d interval=%d sec", THREADS, QUEUES, SERVERS, client->interval_seconds);
 
-    /* create per thread data */
+    /* create per thread data and initialize */
     client->thread_args = (void **) mem_alloc(THREADS, sizeof(void*));
-
     for (i = 0; i < THREADS; ++i) {
-        perthread_data *perdata = (perthread_data *) mem_alloc(1, sizeof(perthread_data));
-
-        // 没有引用计数
-        perdata->xclient = (void *) client;
-
-        // 服务器数量
-        perdata->server_conns[0] = (XS_server_conn) (long) SERVERS;
-
-        perdata->threadid = i + 1;
-
-        client->thread_args[i] = (void*) perdata;
+        client->thread_args[i] = perthread_data_create(client, SERVERS, i+1);
     }
 
     LOGGER_DEBUG("threadpool_create: (threads=%d, queues=%d)", THREADS, QUEUES);

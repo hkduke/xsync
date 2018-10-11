@@ -47,6 +47,7 @@ extern "C" {
 #include "server_conn.h"
 
 #include "../common/common_util.h"
+#include "../kafkatools/kafkatools.h"
 
 #include "inotifyapi.h"
 
@@ -58,6 +59,8 @@ typedef struct perthread_data
     void  *xclient;
 
     XS_server_conn server_conns[XSYNC_SERVER_MAXID + 1];;
+
+    kafkatools_producer_api_t kt_producer_api;
 
     char buffer[XSYNC_BUFSIZE];
 } perthread_data;
