@@ -91,12 +91,12 @@ function install_libs() {
     rm -rf ${_cdir}/libiconv-1.15
     cd ${_cdir}
 
-    echo "---- build and install <inotify-tools-3.20.2> ..."
-    tar -zxf ${_cdir}/inotify-tools-3.20.2.tar.gz
-    cd ${_cdir}/inotify-tools-3.20.2/
+    echo "---- build and install <inotify-tools-3.20.4> ..."
+    tar -zxf ${_cdir}/inotify-tools-3.20.4.tar.gz
+    cd ${_cdir}/inotify-tools-3.20.4/
     ./configure --prefix=${INSTALLDIR}
     make && make install
-    rm -rf ${_cdir}/inotify-tools-3.20.2
+    rm -rf ${_cdir}/inotify-tools-3.20.4
     cd ${_cdir}
 
     echo "---- build and install <librdkafka-master> https://github.com/edenhill/librdkafka ..."
@@ -128,9 +128,9 @@ function post_install() {
 
     echo "---- redis_home: $redis_home"
 
-    ln -s "$redis_home"/include/hiredis "$INSTALLDIR"/include/hiredis
-    ln -s "$redis_home"/lib/libhiredis.a "$INSTALLDIR"/lib/libhiredis.a
-    ln -s "$redis_home"/lib/libhiredis.so "$INSTALLDIR"/lib/libhiredis.so
+    ln -sf "$redis_home"/include/hiredis "$INSTALLDIR"/include/hiredis
+    ln -sf "$redis_home"/lib/libhiredis.a "$INSTALLDIR"/lib/libhiredis.a
+    ln -sf "$redis_home"/lib/libhiredis.so "$INSTALLDIR"/lib/libhiredis.so
 }
 
 

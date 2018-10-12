@@ -52,8 +52,11 @@ function filter_file() {
     local path="$1"
     local name="$2"
 
-
-    echo "$ACCEPT"
+    if [ "${name:0:8}" = ".entrydb" ]; then
+        echo "$REJECT"
+    else
+        echo "$ACCEPT"
+    fi
 }
 
 

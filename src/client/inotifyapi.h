@@ -375,7 +375,7 @@ static inline int inotifytools_watch_file_s (char const *filename, int events)
 {
     int ret;
     __inotifytools_lock();
-    ret = inotifytools_watch_file(filename, events);
+    ret = inotifytools_watch_file(filename, events, 0, 0);
     __inotifytools_unlock();
     return ret;
 }
@@ -386,7 +386,7 @@ static inline int inotifytools_watch_files_s (char const *filenames[], int event
 {
     int ret;
     __inotifytools_lock();
-    ret = inotifytools_watch_files(filenames, events);
+    ret = inotifytools_watch_files(filenames, events, 0, 0);
     __inotifytools_unlock();
     return ret;
 }
@@ -397,7 +397,7 @@ static inline int inotifytools_watch_recursively_s (char const *path, int events
 {
     int ret;
     __inotifytools_lock();
-    ret = inotifytools_watch_recursively(path, events);
+    ret = inotifytools_watch_recursively(path, events, 0, 0);
     __inotifytools_unlock();
     return ret;
 }
@@ -408,7 +408,7 @@ static inline int inotifytools_watch_recursively_with_exclude_s (char const *pat
 {
     int ret;
     __inotifytools_lock();
-    ret = inotifytools_watch_recursively_with_exclude(path, events, exclude_list);
+    ret = inotifytools_watch_recursively_with_exclude(path, events, exclude_list, 0, 0);
     __inotifytools_unlock();
     return ret;
 }
