@@ -1,6 +1,21 @@
 # xsync
 extremely synchronize files among servers.
 
+
+## install lua
+
+for both client and server
+
+1) install dependencies of lua
+
+    centos: yum install readline-devel
+    debian: apt-get install libreadline-dev
+
+2) build and install lua
+ 
+   # cd lua-5.3.5/
+   # make linux test && sudo make install
+
 ## before build
 
 ```
