@@ -124,10 +124,10 @@ extern "C"
 #endif
 
 /**
- * sweep interval for xclient in seconds
+ * default sweep interval for xclient in seconds ( 0 - never )
  */
 #ifndef XSYNC_SWEEP_INTERVAL_SECONDS
-#  define XSYNC_SWEEP_INTERVAL_SECONDS  10
+#  define XSYNC_SWEEP_INTERVAL_SECONDS  0
 #endif
 
 

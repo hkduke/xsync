@@ -940,7 +940,7 @@ XS_VOID XS_client_bootstrap (XS_client client)
 
 
     /*initialize Lua*/
-     lua_State * L = luaL_newstate();
+    lua_State * L = luaL_newstate();
 
     /*load Lua base libraries*/
     luaL_openlibs(L);
@@ -995,20 +995,24 @@ XS_VOID XS_client_bootstrap (XS_client client)
     /**
      * create a sweep thread for readdir
      */
-    LOGGER_INFO("create sweep worker thread");
-    do {
-        pthread_attr_t pattr;
-        pthread_attr_init(&pattr);
-        pthread_attr_setscope(&pattr, PTHREAD_SCOPE_PROCESS);
-        pthread_attr_setdetachstate(&pattr, PTHREAD_CREATE_JOINABLE);
+    if (client->interval_seconds > 0 && client->interval_seconds < 864000) { 
+        LOGGER_INFO("create sweep worker with interval seconds=%d", client->interval_seconds);
+        do {
+            pthread_attr_t pattr;
+            pthread_attr_init(&pattr);
+            pthread_attr_setscope(&pattr, PTHREAD_SCOPE_PROCESS);
+            pthread_attr_setdetachstate(&pattr, PTHREAD_CREATE_JOINABLE);
 
-        if (pthread_create(&sweep_thread_id, &pattr, (void *) sweep_worker, (void*) client)) {
-            LOGGER_FATAL("pthread_create() error: %s", strerror(errno));
+            if (pthread_create(&sweep_thread_id, &pattr, (void *) sweep_worker, (void*) client)) {
+                LOGGER_FATAL("pthread_create() error: %s", strerror(errno));
+                pthread_attr_destroy(&pattr);
+                exit(-1);
+            }
             pthread_attr_destroy(&pattr);
-            exit(-1);
-        }
-        pthread_attr_destroy(&pattr);
-    } while(0);
+        } while(0);
+    } else {
+        LOGGER_WARN("no sweep worker needed: wrong interval seconds(=%d)", client->interval_seconds);
+    }
 
     /**
      * http://inotify-tools.sourceforge.net/api/inotifytools_8h.html
