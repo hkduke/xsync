@@ -371,44 +371,44 @@ static inline int inotifytools_str_to_event_sep_s (char const *event, char sep)
 
 
 __attribute__((unused))
-static inline int inotifytools_watch_file_s (char const *filename, int events)
+static inline int inotifytools_watch_file_s (char const *filename, int events, ino_callback_t cbfunc, void *cbarg)
 {
     int ret;
     __inotifytools_lock();
-    ret = inotifytools_watch_file(filename, events, 0, 0);
+    ret = inotifytools_watch_file(filename, events, cbfunc, cbarg);
     __inotifytools_unlock();
     return ret;
 }
 
 
 __attribute__((unused))
-static inline int inotifytools_watch_files_s (char const *filenames[], int events)
+static inline int inotifytools_watch_files_s (char const *filenames[], int events, ino_callback_t cbfunc, void *cbarg)
 {
     int ret;
     __inotifytools_lock();
-    ret = inotifytools_watch_files(filenames, events, 0, 0);
+    ret = inotifytools_watch_files(filenames, events, cbfunc, cbarg);
     __inotifytools_unlock();
     return ret;
 }
 
 
 __attribute__((unused))
-static inline int inotifytools_watch_recursively_s (char const *path, int events)
+static inline int inotifytools_watch_recursively_s (char const *path, int events, ino_callback_t cbfunc, void *cbarg)
 {
     int ret;
     __inotifytools_lock();
-    ret = inotifytools_watch_recursively(path, events, 0, 0);
+    ret = inotifytools_watch_recursively(path, events, cbfunc, cbarg);
     __inotifytools_unlock();
     return ret;
 }
 
 
 __attribute__((unused))
-static inline int inotifytools_watch_recursively_with_exclude_s (char const *path, int events, char const **exclude_list)
+static inline int inotifytools_watch_recursively_with_exclude_s (char const *path, int events, char const **exclude_list, ino_callback_t cbfunc, void *cbarg)
 {
     int ret;
     __inotifytools_lock();
-    ret = inotifytools_watch_recursively_with_exclude(path, events, exclude_list, 0, 0);
+    ret = inotifytools_watch_recursively_with_exclude(path, events, exclude_list, cbfunc, cbarg);
     __inotifytools_unlock();
     return ret;
 }

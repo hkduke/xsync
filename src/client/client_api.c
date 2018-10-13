@@ -823,9 +823,27 @@ XS_VOID XS_client_clean_all (XS_client client)
 }
 
 
+/**
+ * callback when inotify add watch 
+ */
+__no_warning_unused(static)
+int on_inotify_add_wpath (int flag, const char *wpath, void *arg)
+{
+    if (flag == INO_WATCH_ON_QUERY) {
+        LOGGER_INFO("INO_WATCH_ON_QUERY: %s", wpath);
+    } else if (flag == INO_WATCH_ON_READY) {
+        LOGGER_INFO("INO_WATCH_ON_READY: %s", wpath);
+    } else if (flag == INO_WATCH_ON_ERROR) {
+        LOGGER_ERROR("INO_WATCH_ON_ERROR: %s", wpath);
+    }
+
+    return 1;
+}
+
+
 XS_BOOL XS_client_add_watch_path (XS_client client, XS_watch_path wp)
 {
-    if (! inotifytools_watch_recursively_s(wp->fullpath, wp->events_mask) ) {
+    if (! inotifytools_watch_recursively_s(wp->fullpath, wp->events_mask, on_inotify_add_wpath, client) ) {
         LOGGER_ERROR("inotifytools_watch_recursively(): %s", strerror(inotifytools_error()));
         return XS_FALSE;
     } else {
@@ -1016,7 +1034,7 @@ XS_VOID XS_client_bootstrap (XS_client client)
 
                 if (wd == -1) {
                     // 添加监视: IN_ALL_EVENTS
-                    if (inotifytools_watch_recursively_s(pathbuf, INOTI_EVENTS_MASK)) {
+                    if (inotifytools_watch_recursively_s(pathbuf, INOTI_EVENTS_MASK, on_inotify_add_wpath, client)) {
                         LOGGER_INFO("success add watch dir(wd=%d): %s", inotifytools_wd_from_filename_s(pathbuf), pathbuf);
                     } else {
                         LOGGER_ERROR("failed to add watch dir: %s", pathbuf);
@@ -1026,7 +1044,7 @@ XS_VOID XS_client_bootstrap (XS_client client)
             } else if (evbuf.mask & IN_CLOSE) {
                 if (wd == -1) {
                     // 添加监视: IN_ALL_EVENTS
-                    if (inotifytools_watch_recursively_s(pathbuf, INOTI_EVENTS_MASK)) {
+                    if (inotifytools_watch_recursively_s(pathbuf, INOTI_EVENTS_MASK, on_inotify_add_wpath, client)) {
                         LOGGER_INFO("success add watch dir(wd=%d): %s", inotifytools_wd_from_filename_s(pathbuf), pathbuf);
                     } else {
                         LOGGER_ERROR("failed to add watch dir: %s", pathbuf);
