@@ -908,6 +908,25 @@ void sweep_worker (void *arg)
     pthread_exit (0);
 }
 
+__no_warning_unused(static)
+int lua_add(lua_State *L, int x, int y)
+{
+        int sum;
+/*the function name*/
+        lua_getglobal(L,"add");
+/*the first argument*/
+        lua_pushnumber(L, x);
+/*the second argument*/
+        lua_pushnumber(L, y);
+/*call the function with 2 arguments, return 1 result.*/
+        lua_call(L, 2, 1);
+/*get the result.*/
+        sum = (int)lua_tonumber(L, -1);
+/*cleanup the return*/
+        lua_pop(L,1);
+        return sum;
+}
+
 
 XS_VOID XS_client_bootstrap (XS_client client)
 {
@@ -918,6 +937,25 @@ XS_VOID XS_client_bootstrap (XS_client client)
     struct watch_event_buf_t evbuf = {0};
 
     pthread_t sweep_thread_id;
+
+
+    /*initialize Lua*/
+     lua_State * L = luaL_newstate();
+
+    /*load Lua base libraries*/
+    luaL_openlibs(L);
+
+    /*load the script*/
+    luaL_dofile(L, "add.lua");
+
+    /*call the add function*/
+    int sum = lua_add(L, 10, 15);
+
+    /*print the result*/
+    printf("The sum is %d \n",sum);
+
+    /*cleanup Lua*/
+    lua_close(L);
 
     /**
      * connect to servers for each threads

@@ -51,6 +51,12 @@ extern "C" {
 #include "../xsync-error.h"
 #include "../xsync-config.h"
 
+/**
+ * lua
+ */
+#include "lua.h"
+#include "lualib.h"
+#include "lauxlib.h"
 
 #define XS_client_threadpool_unused_queues(client)    \
     threadpool_unused_queues(client->pool)
