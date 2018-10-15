@@ -40,7 +40,72 @@
 #include "../xsync-xmlconf.h"
 #include "../common/readconf.h"
 
-#include "../common/common_util.h"
+
+void * perthread_data_create (XS_client client, int servers, int threadid)
+{
+    perthread_data *perdata = (perthread_data *) mem_alloc(1, sizeof(perthread_data));
+
+    client->apphome[client->apphome_len] = 0;
+    strcat(client->apphome, "add.lua");
+
+    LOGGER_DEBUG("[thread-%d] initialize lua. (%s)", threadid, client->apphome);
+    if (LuaInitialize(&perdata->lua, client->apphome) != 0) {
+        LOGGER_FATAL("LuaInitialize (%s)", LuaGetError(&perdata->lua));
+
+        free(perdata);
+        exit(-1);
+    }
+
+    // '/home/root1/Workspace/github.com/pepstack/xsync/target/libkafkatools.so.1'
+    client->apphome[client->apphome_len] = 0;
+    strcat(client->apphome, "libkafkatools.so.1");
+
+    LOGGER_DEBUG("[thread-%d] create kafka producer. (%s)", threadid, client->apphome);
+    if (kafka_producer_api_create(&perdata->kt_producer_api, client->apphome)) {
+        LOGGER_FATAL("kafka_producer_api_create fail");
+
+        LuaFinalize(&perdata->lua);
+
+        free(perdata);
+        exit(-1);
+    }
+
+    /* 没有引用计数 */
+    perdata->xclient = (void *) client;
+
+    /* 服务器数量 */
+    perdata->server_conns[0] = (XS_server_conn) int_cast_to_pv(servers);
+
+    /* 线程 id: 1 based */
+    perdata->threadid = threadid;
+
+    return (void *) perdata;
+}
+
+
+void perthread_data_free (perthread_data *perdata)
+{
+    int sid;
+
+    int sid_max = pv_cast_to_int(perdata->server_conns[0]);
+
+    for (sid = 1; sid <= sid_max; sid++) {
+        XS_server_conn conn = perdata->server_conns[sid];
+
+        if (conn) {
+            perdata->server_conns[sid] = 0;
+
+            XS_server_conn_release(&conn);
+        }
+    }
+
+    kafka_producer_api_free(&perdata->kt_producer_api);
+
+    LuaFinalize(&perdata->lua);
+
+    free(perdata);
+}
+
 
 
 void xs_client_delete (void *pv)

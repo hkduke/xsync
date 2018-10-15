@@ -30,6 +30,7 @@ TGT_LDLIBS  := \
 	${LIB_PREFIX}/libz.a \
 	${LIB_PREFIX}/libinotifytools.a \
 	${LIB_PREFIX}/liblua.a \
+	${LIB_PREFIX}/libluakit.a \
 	-lm \
 	-lrt \
 	-ldl \
