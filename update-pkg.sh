@@ -146,7 +146,7 @@ workdir=$(pwd)
 outdir=$(dirname $_cdir)
 cd $outdir
 rm -rf "$pkgname"
-tar -zvcf "$pkgname" --exclude="$_proj/.git" --exclude="$_proj/build" --exclude="$_proj/libs" --exclude="$_proj/target" "$_proj/"
+tar -zvcf "$pkgname" --exclude="$_proj/.git" --exclude="$_proj/build" --exclude="$_proj/dist" --exclude="$_proj/libs" --exclude="$_proj/target" "$_proj/"
 cd $workdir
 
 if [ -f "$outdir/$pkgname" ]; then

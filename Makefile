@@ -16,4 +16,21 @@ all:
 	cd $(XSYNC_PREFIX)/target/ && ln -sf ../bin/watch-filters.lua watch-filters.lua
 	cd $(XSYNC_PREFIX)/ && ln -sf watch-local watch
 
-.PHONY: all
+
+clean:
+	cd $(XSYNC_SRC) && $(MAKE) $@
+	cd $(XSYNC_SRC)/kafkatools/ && $(MAKE) $@
+	rm -rf $(XSYNC_PREFIX)/target
+	rm -rf $(XSYNC_PREFIX)/build
+	rm -rf $(XSYNC_PREFIX)/watch
+
+
+updpkg: clean
+	$(XSYNC_PREFIX)/update-pkg.sh
+
+
+dist:
+	$(XSYNC_PREFIX)/update-pkg.sh -d
+
+
+.PHONY: all clean updpkg dist
