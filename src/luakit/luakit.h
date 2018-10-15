@@ -65,10 +65,9 @@ extern int LuaInitialize (struct luakit_t * lk, const char *luafile);
 
 extern void LuaFinalize (struct luakit_t * lk);
 
-extern int LuaCallFunc (struct luakit_t * lk, const char *funcname, const char *argnames[], const char *argvalues[]);
-
 extern const char * LuaGetError (struct luakit_t * lk);
 
+extern int LuaCall (struct luakit_t * lk, const char *fnname);
 
 #if defined(__cplusplus)
 }

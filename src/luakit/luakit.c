@@ -57,6 +57,48 @@
 #include "luakit.h"
 
 
+int LuaCall (struct luakit_t * lk, const char *fnname)
+{
+    lua_State * L = lk->L;
+
+    lua_settop(L, 0);
+
+    lua_getglobal(L, fnname);                   /* Tell it to run callfuncscript.lua->tweaktable() */
+    lua_newtable(L);                            /* Push empty table onto stack table now at -1 */
+    lua_pushliteral(L, "fname");                /* Push a key onto the stack, table now at -2 */
+    lua_pushliteral(L, "Margie");               /* Push a value onto the stack, table now at -3 */
+    lua_settable(L, -3);                        /* Take key and value, put into table at -3, */
+                                                /*  then pop key and value so table again at -1 */
+
+    lua_pushliteral(L, "lname");                /* Push a key onto the stack, table now at -2 */    
+    lua_pushliteral(L, "Martinez");             /* Push a value onto the stack, table now at -3 */
+    lua_settable(L, -3);                        /* Take key and value, put into table at -3, */
+                                                /*  then pop key and value so table again at -1 */
+
+    /* Run function, !!! NRETURN=1 !!! */
+    if (lua_pcall(L, 1, 1, 0)) {
+        snprintf(lk->error, sizeof(lk->error), "lua_pcall fail: %s", lua_tostring(L, -1));
+        return (-1);
+    }
+
+    /* table is in the stack at index 't' */
+    lua_pushnil(L);  /* Make sure lua_next starts at beginning */
+
+    const char *k, *v;
+
+    while (lua_next(L, -2)) {                    /* TABLE LOCATED AT -2 IN STACK */
+        v = lua_tostring(L, -1);                 /* Value at stacktop */
+        lua_pop(L,1);                            /* Remove value */
+        k = lua_tostring(L, -1);                 /* Read key at stacktop, */
+                                                 /* leave in place to guide next lua_next() */
+        printf("*******************************Fromc k=>%s<, v=>%s<\n", k, v);
+    }
+
+    /* success */
+    return 0;
+}
+
+
 int LuaInitialize (struct luakit_t * lk, const char *luafile)
 {
     int err;
@@ -77,9 +119,16 @@ int LuaInitialize (struct luakit_t * lk, const char *luafile)
     /* luaL_loadfile
      *   PANIC: unprotected error in call to Lua API (attempt to call a nil value)
      */
-    err = luaL_dofile(L, luafile);
+    err = luaL_loadfile(L, luafile);
     if (err) {
-        snprintf(lk->error, sizeof(lk->error), "luaL_dofile fail: %s", lua_tostring(L, -1));
+        snprintf(lk->error, sizeof(lk->error), "luaL_loadfile fail: %s", lua_tostring(L, -1));
+        lua_close(L);
+        return (-1);
+    }
+
+    /* PRIMING RUN. FORGET THIS AND YOU'RE TOAST */
+    if (lua_pcall(L, 0, 0, 0)) {
+        snprintf(lk->error, sizeof(lk->error), "lua_pcall fail: %s", lua_tostring(L, -1));
         lua_close(L);
         return (-1);
     }

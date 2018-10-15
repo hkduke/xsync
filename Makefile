@@ -14,7 +14,6 @@ all:
 	cd $(XSYNC_SRC) && $(MAKE) $@
 	cd $(XSYNC_SRC)/kafkatools/ && $(MAKE) $@
 	cd $(XSYNC_PREFIX)/target/ && ln -sf ../bin/xclient-script.lua xclient-script.lua
-	cd $(XSYNC_PREFIX)/ && ln -sf watch-local watch
 
 
 clean:

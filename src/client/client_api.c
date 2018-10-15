@@ -824,6 +824,7 @@ int on_inotify_add_wpath (int flag, const char *wpath, void *arg)
     if (flag == INO_WATCH_ON_QUERY) {
 
         //watch_on_query
+        LuaCall(&client->lua, "tweaktable");
 
         LOGGER_INFO("INO_WATCH_ON_QUERY: %s", wpath);
 
