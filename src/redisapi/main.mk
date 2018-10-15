@@ -19,8 +19,4 @@ TARGET_DIR := ../../target
 
 CFLAGS := -std=gnu99 -g -O0 -Wall -pipe
 
-# LDFLAGS := -lpthread -levent
-
-LDFLAGS := -lpthread
-
 SUBMAKEFILES := redisapi.mk

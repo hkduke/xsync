@@ -40,6 +40,24 @@
 #include "../xsync-xmlconf.h"
 #include "../common/readconf.h"
 
+__no_warning_unused(static)
+int lua_add(lua_State *L, int x, int y)
+{
+        int sum;
+/*the function name*/
+        lua_getglobal(L,"add");
+/*the first argument*/
+        lua_pushnumber(L, x);
+/*the second argument*/
+        lua_pushnumber(L, y);
+/*call the function with 2 arguments, return 1 result.*/
+        lua_call(L, 2, 1);
+/*get the result.*/
+        sum = (int)lua_tonumber(L, -1);
+/*cleanup the return*/
+        lua_pop(L,1);
+        return sum;
+}
 
 void * perthread_data_create (XS_client client, int servers, int threadid)
 {
@@ -56,6 +74,8 @@ void * perthread_data_create (XS_client client, int servers, int threadid)
         exit(-1);
     }
 
+    printf("***********%d\n\n\n", lua_add(perdata->lua.L, 102, 91));
+    
     // '/home/root1/Workspace/github.com/pepstack/xsync/target/libkafkatools.so.1'
     client->apphome[client->apphome_len] = 0;
     strcat(client->apphome, "libkafkatools.so.1");

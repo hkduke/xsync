@@ -66,6 +66,7 @@ extern void LuaFinalize (struct luakit_t * lk);
 
 extern const char * LuaGetError (struct luakit_t * lk);
 
+
 #if defined(__cplusplus)
 }
 #endif

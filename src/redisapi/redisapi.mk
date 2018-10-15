@@ -8,6 +8,15 @@
 
 TARGET := libredisapi.a
 
+LIB_PREFIX := ${TARGET_DIR}/../libs/lib
+
+TGT_LDFLAGS := -L${TARGET_DIR}
+
+TGT_LDLIBS  := \
+	${LIB_PREFIX}/libhiredis.a \
+	-lpthread
+
+
 SOURCES := \
 	redis_api.c
 

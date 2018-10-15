@@ -37,8 +37,8 @@ TGT_LDLIBS  := \
 	${LIB_PREFIX}/libmxml.a \
 	${LIB_PREFIX}/libcrypto.a \
 	${LIB_PREFIX}/libssl.a \
-	${LIB_PREFIX}/libhiredis.a \
 	${LIB_PREFIX}/libredisapi.a \
+	${LIB_PREFIX}/libhiredis.a \
     ${LIB_PREFIX}/libevent.a \
 	${LIB_PREFIX}/libz.a \
 	-lzdb \

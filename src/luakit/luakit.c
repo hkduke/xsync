@@ -21,7 +21,7 @@
 
 /**
  * luakit.c
- *   lua C kit
+ *   lua with C interop helper
  *
  * @author: master@pepstack.com
  *
@@ -32,12 +32,10 @@
  * @update:
  *
  */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <ctype.h>
 
 #include "luakit.h"
 
@@ -60,9 +58,9 @@ int LuaInitialize (struct luakit_t * lk, const char *luafile)
     luaL_openlibs(L);
 
     /* load the script */
-    err = luaL_loadfile(L, luafile);
+    err = luaL_dofile(L, luafile);
     if (err) {
-        snprintf(lk->error, sizeof(lk->error), "luaL_loadfile fail: %s", luafile);
+        snprintf(lk->error, sizeof(lk->error), "luaL_dofile fail: %s", luafile);
         lua_close(L);
         return (-1);
     }
