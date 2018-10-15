@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.2
+ * @version: 0.1.4
  *
  * @create: 2018-01-24
  *
- * @update: 2018-10-11 18:35:23
+ * @update: 2018-10-15 12:16:43
  */
 
 #ifndef WATCH_EVENT_H_INCLUDED

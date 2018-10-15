@@ -1,9 +1,9 @@
 #######################################################################
 # @file: main.mk
 #
-# @version: 0.1.2
+# @version: 0.1.4
 # @create: 2018-05-18 14:00:00
-# @update: 2018-08-29 13:33:58
+# @update: 2018-10-15 13:10:51
 #######################################################################
 # The libredisapi.a library can normally be built by itself (without also
 #   building the "xsync" program) by running "make libredisapi.a" from

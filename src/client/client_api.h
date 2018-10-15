@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.2
+ * @version: 0.1.4
  *
  * @create: 2018-01-24
  *
- * @update: 2018-10-11 14:55:55
+ * @update: 2018-10-15 14:19:21
  */
 
 #ifndef CLIENT_API_H_INCLUDED
@@ -125,8 +125,6 @@ extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_
 /**
  * XS_client internal api
  */
-extern XS_VOID XS_client_clean_all (XS_client client);
-
 extern XS_BOOL XS_client_add_watch_path (XS_client client, XS_watch_path wp);
 
 extern XS_BOOL XS_client_find_watch_path (XS_client client, char *pathid, int *outhash, XS_watch_path *outwp);

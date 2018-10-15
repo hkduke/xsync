@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.1
+ * @version: 0.1.4
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-10 15:44:15
+ * @update: 2018-10-15 15:37:16
  */
 
 /******************************************************************************
@@ -673,12 +673,26 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
 
     __interlock_release(&client->task_counter);
 
+    /* initialize lua context */
+    strcat(client->apphome, "watch-filters.lua");
+    LOGGER_DEBUG("initialize lua. (%s)", client->apphome);
+    if (LuaInitialize(&client->lua, client->apphome) != 0) {
+        LOGGER_FATAL("LuaInitialize (%s)", LuaGetError(&client->lua));
+
+        free((void *)client);
+
+        exit(XS_ERROR);
+    }
+    client->apphome[client->apphome_len] = 0;
+
     /* PTHREAD_PROCESS_PRIVATE = 0 */
     LOGGER_TRACE("pthread_cond_init(%d)", PTHREAD_PROCESS_PRIVATE);
     if (0 != pthread_cond_init(&client->condition, PTHREAD_PROCESS_PRIVATE)) {
         LOGGER_FATAL("pthread_cond_init() error(%d): %s", errno, strerror(errno));
-        free((void*) client);
-        return XS_ERROR;
+
+        free((void *)client);
+
+        exit(XS_ERROR);
     }
 
     client->servers_opts->sidmax = 0;
@@ -692,9 +706,9 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
 
     if ( ! inotifytools_initialize()) {
         LOGGER_ERROR("inotifytools_initialize(): %s", strerror(inotifytools_error()));
-
         xs_client_delete((void*) client);
-        return XS_ERROR;
+
+        exit(XS_ERROR);
     }
 
     if (opts->from_watch) {
@@ -706,8 +720,9 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
     }
 
     if (err) {
-        xs_client_delete((void*) client);
-        return XS_ERROR;
+        xs_client_delete((void*)client);
+
+        exit(XS_ERROR);
     }
 
     SERVERS = XS_client_get_server_maxid(client);
@@ -798,43 +813,31 @@ XS_VOID XS_client_unlock (XS_client client)
 }
 
 
-XS_VOID XS_client_clean_all (XS_client client)
-{
-    LOGGER_TRACE("clean event_rbtree");
-    threadlock_destroy(&client->rbtree_lock);
-    do {
-        // TODO:
-        rbtree_clean(&client->event_rbtree);
-    } while (0);
-
-    LOGGER_TRACE("clean wpath_hmap");
-    threadlock_destroy(&client->wpath_lock);
-    do {
-        struct hlist_node *hp, *hn;
-        int hash;
-
-        for (hash = 0; hash <= XSYNC_HASHMAP_MAX_LEN; hash++) {
-            hlist_for_each_safe(hp, hn, &client->wpath_hmap[hash]) {
-                XS_watch_path wp = hlist_entry(hp, struct xs_watch_path_t, i_hash);
-                XS_watch_path_release(&wp);
-            }
-        }
-    } while (0);
-}
-
-
 /**
- * callback when inotify add watch 
+ * callback when inotify add watch
  */
 __no_warning_unused(static)
 int on_inotify_add_wpath (int flag, const char *wpath, void *arg)
 {
+    XS_client client = (XS_client) arg;
+
     if (flag == INO_WATCH_ON_QUERY) {
+
+        //watch_on_query
+
         LOGGER_INFO("INO_WATCH_ON_QUERY: %s", wpath);
+
     } else if (flag == INO_WATCH_ON_READY) {
+
+        //watch_on_ready
+
         LOGGER_INFO("INO_WATCH_ON_READY: %s", wpath);
+
     } else if (flag == INO_WATCH_ON_ERROR) {
+
+        //watch_on_error
         LOGGER_ERROR("INO_WATCH_ON_ERROR: %s", wpath);
+
     }
 
     return 1;
@@ -957,7 +960,7 @@ XS_VOID XS_client_bootstrap (XS_client client)
     /**
      * create a sweep thread for readdir
      */
-    if (client->interval_seconds > 0 && client->interval_seconds < 864000) { 
+    if (client->interval_seconds > 0 && client->interval_seconds < 864000) {
         LOGGER_INFO("create sweep worker with interval seconds=%d", client->interval_seconds);
         do {
             pthread_attr_t pattr;

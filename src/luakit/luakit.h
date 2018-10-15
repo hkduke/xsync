@@ -18,18 +18,17 @@
 *
 * 3. This notice may not be removed or altered from any source distribution.
 ***********************************************************************/
-
 /**
  * luakit.h
  *   lua with C interop helper
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.2
+ * @version: 0.1.4
  *
  * @create: 2018-10-15
  *
- * @update:
+ * @update: 2018-10-15 15:17:10
  *
  */
 #ifndef LUAKIT_H_INCLUDED
@@ -63,6 +62,8 @@ struct luakit_t
 extern int LuaInitialize (struct luakit_t * lk, const char *luafile);
 
 extern void LuaFinalize (struct luakit_t * lk);
+
+extern int LuaCallFunc (struct luakit_t * lk, const char *funcname, const char *argnames[], const char *argvalues[]);
 
 extern const char * LuaGetError (struct luakit_t * lk);
 

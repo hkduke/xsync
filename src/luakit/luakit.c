@@ -25,11 +25,28 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.2
+ * @version: 0.1.4
  *
  * @create: 2018-10-15
  *
- * @update:
+ * @update: 2018-10-15 15:21:40
+ *
+ */
+
+/* lua stack:
+ *   https://blog.csdn.net/qweewqpkn/article/details/46806731
+ *   https://www.ibm.com/developerworks/cn/linux/l-lua.html
+ *
+ * top     +-----------------+
+ *      4  |                 |  -1
+ *         +-----------------+
+ *      3  |                 |  -2
+ *         +-----------------+
+ *      2  |                 |  -3
+ *         +-----------------+
+ *      1  |                 |  -4
+ * bottom  +-----------------+
+ *
  *
  */
 #include <stdio.h>
@@ -60,10 +77,13 @@ int LuaInitialize (struct luakit_t * lk, const char *luafile)
     /* load the script */
     err = luaL_dofile(L, luafile);
     if (err) {
-        snprintf(lk->error, sizeof(lk->error), "luaL_dofile fail: %s", luafile);
+        snprintf(lk->error, sizeof(lk->error), "luaL_dofile fail: %s", lua_tostring(L, -1));
         lua_close(L);
         return (-1);
     }
+
+    /* cleanup stack */
+    lua_settop(L, 0);
 
     /* success */
     lk->L = L;

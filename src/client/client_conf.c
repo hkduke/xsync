@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.2
+ * @version: 0.1.4
  *
  * @create: 2018-01-26
  *
- * @update: 2018-10-11 11:37:36
+ * @update: 2018-10-15 15:37:17
  */
 
 #include "client_api.h"
@@ -64,7 +64,7 @@ void * perthread_data_create (XS_client client, int servers, int threadid)
     perthread_data *perdata = (perthread_data *) mem_alloc(1, sizeof(perthread_data));
 
     client->apphome[client->apphome_len] = 0;
-    strcat(client->apphome, "add.lua");
+    strcat(client->apphome, "watch-filters.lua");
 
     LOGGER_DEBUG("[thread-%d] initialize lua. (%s)", threadid, client->apphome);
     if (LuaInitialize(&perdata->lua, client->apphome) != 0) {
@@ -75,7 +75,7 @@ void * perthread_data_create (XS_client client, int servers, int threadid)
     }
 
     printf("***********%d\n\n\n", lua_add(perdata->lua.L, 102, 91));
-    
+
     // '/home/root1/Workspace/github.com/pepstack/xsync/target/libkafkatools.so.1'
     client->apphome[client->apphome_len] = 0;
     strcat(client->apphome, "libkafkatools.so.1");
@@ -158,10 +158,31 @@ void xs_client_delete (void *pv)
         client->paths = 0;
     }
 
-    XS_client_clean_all(client);
+    LOGGER_TRACE("clean event_rbtree");
+    threadlock_destroy(&client->rbtree_lock);
+    do {
+        // TODO:
+        rbtree_clean(&client->event_rbtree);
+    } while (0);
+
+    LOGGER_TRACE("clean wpath_hmap");
+    threadlock_destroy(&client->wpath_lock);
+    do {
+        struct hlist_node *hp, *hn;
+        int hash;
+
+        for (hash = 0; hash <= XSYNC_HASHMAP_MAX_LEN; hash++) {
+            hlist_for_each_safe(hp, hn, &client->wpath_hmap[hash]) {
+                XS_watch_path wp = hlist_entry(hp, struct xs_watch_path_t, i_hash);
+                XS_watch_path_release(&wp);
+            }
+        }
+    } while (0);
 
     LOGGER_TRACE("pthread_cond_destroy");
     pthread_cond_destroy(&client->condition);
+
+    LuaFinalize(&client->lua);
 
     LOGGER_TRACE("~XS_client(%p)", client);
     free(client);

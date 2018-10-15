@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.2
+ * @version: 0.1.4
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-11 15:15:15
+ * @update: 2018-10-15 14:19:48
  */
 
 #ifndef CLIENT_CONF_H_INCLUDED
@@ -95,6 +95,9 @@ typedef struct xs_client_t
 
     /* 是(1)否(0)重启监控(当配置更改时有必要重启监控) */
     volatile int inotify_reload;
+
+    /* lua api */
+    struct luakit_t lua;
 
     /* 路径组合配置 */
     int offs_watch_root;

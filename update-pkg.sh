@@ -48,37 +48,59 @@ revisionVer="${versegs[2]}"
 verno="$majorVer"."$minorVer"."$revisionVer"
 buildno="build$(date +%Y%m%d%H%M)"
 
+XCHOME=${_cdir}/dist/xclient-$verno
+
 function update_dist() {
-    echoinfo "update xsync-client(xclient) to dist: ${_cdir}/dist/xclient"
+    echoinfo "update xsync-client(xclient) to dist: ${_cdir}/dist/xclient-$verno"
     olddir=$(pwd)
 
     echoinfo "build xclient package"
+
+    cd ${_cdir}/src/kafkatools/
+    make clean && make
+
     cd ${_cdir}/src/
     make clean && make
+
     cd ${_cdir}
 
-    echoinfo "update xclient dist"
-    mkdir -p ${_cdir}/dist/xclient/{bin,conf,sbin,watch}
-    cp ${_cdir}/conf/log4crc ${_cdir}/dist/xclient/conf/
-    cp ${_cdir}/conf/xsync-client-conf.xml ${_cdir}/dist/xclient/conf/    
-    cp ${_cdir}/bin/testlog.sh ${_cdir}/dist/xclient/bin/
-    cp ${_cdir}/bin/common.sh ${_cdir}/dist/xclient/bin/
-    cp ${_cdir}/bin/path-filter-0.0.1.sh ${_cdir}/dist/xclient/bin/
-    cp ${_cdir}/bin/event-task-0.0.1.sh ${_cdir}/dist/xclient/bin/
-    cp ${_cdir}/bin/xclient-status.sh ${_cdir}/dist/xclient/bin/
-    cp ${_cdir}/target/xsync-client-$verno ${_cdir}/dist/xclient/sbin/
+    echoinfo "update all xclient packages dist"
+    mkdir -p $XCHOME/{bin,conf,lib,sbin,watch-local}
+
+    cd $XCHOME
+    ln -sf watch-local watch
+
+    mkdir -p /tmp/xclient-watch-test-stash
+    cd $XCHOME/watch/
+    ln -sf /tmp/xclient-watch-test-stash test-stash
+
+    cp ${_cdir}/conf/log4crc $XCHOME/conf/
+    cp ${_cdir}/conf/xsync-client-conf.xml $XCHOME/conf/    
+    cp ${_cdir}/bin/test-stash.sh $XCHOME/bin/
+    cp ${_cdir}/bin/common.sh $XCHOME/bin/
+    cp ${_cdir}/bin/watch-filters.lua $XCHOME/bin/
+    cp ${_cdir}/bin/xclient-status.sh $XCHOME/bin/
+    cp ${_cdir}/target/xsync-client-$verno $XCHOME/sbin/
+    cp ${_cdir}/target/libkafkatools.so.1.0.0 $XCHOME/sbin/
+    cp ${_cdir}/libs/lib/librdkafka.so.1 $XCHOME/lib/
 
     echoinfo "update xclient links"
-    cd ${_cdir}/dist/xclient/sbin/
-    ln -sf ${_cdir}/dist/xclient/sbin/xsync-client-$verno xsync-client
 
-    cd ${_cdir}/dist/xclient/watch/
-    ln -sf ${_cdir}/dist/xclient/bin/path-filter-0.0.1.sh path-filter.sh
-    ln -sf ${_cdir}/dist/xclient/bin/event-task-0.0.1.sh event-task.sh
+    cd $XCHOME/lib/
+    ln -sf librdkafka.so.1 librdkafka.so
+
+    cd $XCHOME/sbin/
+    ln -sf xsync-client-$verno xsync-client
+    ln -sf libkafkatools.so.1.0.0 libkafkatools.so.1
+
+    cd $XCHOME/sbin/
+    ln -sf ../bin/watch-filters.lua watch-filters.lua
 
     echoinfo "generate xclient dist pkg: ${_cdir}/dist/xclient-dist-$verno.tar.gz"
     cd ${_cdir}/dist/
-    tar -zcf xclient-dist-$verno.tar.gz ./xclient/
+    tar -zcf xclient-dist-$verno.tar.gz ./xclient-$verno/
+
+    ln -s xclient-$verno xclient-current
 
     echoinfo "clean all"
     cd ${_cdir}/src/
