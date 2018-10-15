@@ -57,41 +57,90 @@
 #include "luakit.h"
 
 
-int LuaCall (struct luakit_t * lk, const char *fnname)
+int LuaCall (struct luakit_t * lk, const char *funcname, const char *key, const char *value)
 {
     lua_State * L = lk->L;
 
     lua_settop(L, 0);
 
-    lua_getglobal(L, fnname);                   /* Tell it to run callfuncscript.lua->tweaktable() */
-    lua_newtable(L);                            /* Push empty table onto stack table now at -1 */
-    lua_pushliteral(L, "fname");                /* Push a key onto the stack, table now at -2 */
-    lua_pushliteral(L, "Margie");               /* Push a value onto the stack, table now at -3 */
-    lua_settable(L, -3);                        /* Take key and value, put into table at -3, */
-                                                /*  then pop key and value so table again at -1 */
+    lua_getglobal(L, funcname);                 /* Tell it to run callfuncscript.lua->tweaktable() */
 
-    lua_pushliteral(L, "lname");                /* Push a key onto the stack, table now at -2 */    
-    lua_pushliteral(L, "Martinez");             /* Push a value onto the stack, table now at -3 */
-    lua_settable(L, -3);                        /* Take key and value, put into table at -3, */
+    lua_newtable(L);                            /* Push empty table onto stack table now at -1 */
+
+    lua_pushstring(L, key);          /* Push a key onto the stack, table now at -2 */
+    lua_pushstring(L, value);        /* Push a value onto the stack, table now at -3 */
+
+    lua_settable(L, -3);                    /* Take key and value, put into table at -3, */
                                                 /*  then pop key and value so table again at -1 */
 
     /* Run function, !!! NRETURN=1 !!! */
-    if (lua_pcall(L, 1, 1, 0)) {
+    if ( lua_pcall(L, 1, 1, 0) ) {
         snprintf(lk->error, sizeof(lk->error), "lua_pcall fail: %s", lua_tostring(L, -1));
         return (-1);
     }
 
     /* table is in the stack at index 't' */
-    lua_pushnil(L);  /* Make sure lua_next starts at beginning */
+    /* Make sure lua_next starts at beginning */
+    lua_pushnil(L);
 
     const char *k, *v;
 
     while (lua_next(L, -2)) {                    /* TABLE LOCATED AT -2 IN STACK */
         v = lua_tostring(L, -1);                 /* Value at stacktop */
-        lua_pop(L,1);                            /* Remove value */
+        lua_pop(L, 1);                            /* Remove value */
+
         k = lua_tostring(L, -1);                 /* Read key at stacktop, */
                                                  /* leave in place to guide next lua_next() */
-        printf("*******************************Fromc k=>%s<, v=>%s<\n", k, v);
+
+        printf("*******************************out from lua: [%s=%s]\n", k, v);
+    }
+
+    /* success */
+    return 0;
+}
+
+
+int LuaCallMulti (struct luakit_t * lk, const char *funcname, const char *argkeys[], const char *argvalues[], int inargs)
+{
+    int i = 0;
+
+    lua_State * L = lk->L;
+
+    lua_settop(L, 0);
+
+    lua_getglobal(L, funcname);                 /* Tell it to run callfuncscript.lua->tweaktable() */
+
+    lua_newtable(L);                            /* Push empty table onto stack table now at -1 */
+
+    while (i < inargs) {
+        lua_pushstring(L, argkeys[i]);          /* Push a key onto the stack, table now at -2 */
+        lua_pushstring(L, argvalues[i]);        /* Push a value onto the stack, table now at -3 */
+
+        lua_settable(L, -3);                    /* Take key and value, put into table at -3, */
+                                                /*  then pop key and value so table again at -1 */
+        ++i;
+    }
+
+    /* Run function, !!! NRETURN=1 !!! */
+    if ( lua_pcall(L, 1, 1, 0) ) {
+        snprintf(lk->error, sizeof(lk->error), "lua_pcall fail: %s", lua_tostring(L, -1));
+        return (-1);
+    }
+
+    /* table is in the stack at index 't' */
+    /* Make sure lua_next starts at beginning */
+    lua_pushnil(L);
+
+    const char *k, *v;
+
+    while (lua_next(L, -2)) {                    /* TABLE LOCATED AT -2 IN STACK */
+        v = lua_tostring(L, -1);                 /* Value at stacktop */
+        lua_pop(L, 1);                            /* Remove value */
+
+        k = lua_tostring(L, -1);                 /* Read key at stacktop, */
+                                                 /* leave in place to guide next lua_next() */
+
+        printf("*******************************out from lua: [%s=%s]\n", k, v);
     }
 
     /* success */

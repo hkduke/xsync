@@ -822,23 +822,17 @@ int on_inotify_add_wpath (int flag, const char *wpath, void *arg)
     XS_client client = (XS_client) arg;
 
     if (flag == INO_WATCH_ON_QUERY) {
-
-        //watch_on_query
-        LuaCall(&client->lua, "tweaktable");
+        LuaCall(&client->lua, "watch_on_query", "path", wpath);
 
         LOGGER_INFO("INO_WATCH_ON_QUERY: %s", wpath);
-
     } else if (flag == INO_WATCH_ON_READY) {
-
-        //watch_on_ready
+        LuaCall(&client->lua, "watch_on_ready", "path", wpath);
 
         LOGGER_INFO("INO_WATCH_ON_READY: %s", wpath);
-
     } else if (flag == INO_WATCH_ON_ERROR) {
+        LuaCall(&client->lua, "watch_on_error", "path", wpath);
 
-        //watch_on_error
-        LOGGER_ERROR("INO_WATCH_ON_ERROR: %s", wpath);
-
+        LOGGER_ERROR("INO_WATCH_ON_ERROR: %s", wpath);        
     }
 
     return 1;
