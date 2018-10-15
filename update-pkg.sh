@@ -54,12 +54,20 @@ XSHOME=${_cdir}/dist/xserver-$verno
 
 function update_xserver_dist() {
     echoinfo "update xsync-server to dist: ${_cdir}/dist/xserver-$verno"
+    olddir=$(pwd)
 
     echowarn "TODO: build xserver dist packages"
 
     echoinfo "TODO: update all xserver dist packages"
     mkdir -p $XSHOME/{bin,conf,lib,sbin,stash-local}
 
+    echoinfo "TODO: package all xserver dist packages: ${_cdir}/dist/xserver-dist-$verno.tar.gz"
+    cd ${_cdir}/dist/
+    #tar -zcf xserver-dist-$verno.tar.gz ./xserver-$verno/
+
+    ln -sf xserver-$verno xserver-current
+
+    cd "$olddir"
 }
 
 
@@ -109,11 +117,11 @@ function update_xclient_dist() {
     cd $XCHOME/sbin/
     ln -sf ../bin/xclient-script.lua xclient-script.lua
 
-    echoinfo "generate xclient dist pkg: ${_cdir}/dist/xclient-dist-$verno.tar.gz"
+    echoinfo "package all xclient dist packages: ${_cdir}/dist/xclient-dist-$verno.tar.gz"
     cd ${_cdir}/dist/
     tar -zcf xclient-dist-$verno.tar.gz ./xclient-$verno/
 
-    ln -s xclient-$verno xclient-current
+    ln -sf xclient-$verno xclient-current
 
     echoinfo "clean all"
     cd ${_cdir}/src/

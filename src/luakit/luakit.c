@@ -74,7 +74,9 @@ int LuaInitialize (struct luakit_t * lk, const char *luafile)
     /*load Lua base libraries*/
     luaL_openlibs(L);
 
-    /* load the script */
+    /* luaL_loadfile
+     *   PANIC: unprotected error in call to Lua API (attempt to call a nil value)
+     */
     err = luaL_dofile(L, luafile);
     if (err) {
         snprintf(lk->error, sizeof(lk->error), "luaL_dofile fail: %s", lua_tostring(L, -1));

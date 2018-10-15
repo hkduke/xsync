@@ -4,7 +4,7 @@
 #
 # @version: 0.1.5
 # @create: 2018-05-18 14:00:00
-# @update: 2018-10-15 17:42:11
+# @update: 2018-10-15 17:44:06
 #######################################################################
 
 # !!! DO NOT change APPNAME and VERSION only when you make sure do that !
