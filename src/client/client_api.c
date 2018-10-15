@@ -674,7 +674,7 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
     __interlock_release(&client->task_counter);
 
     /* initialize lua context */
-    strcat(client->apphome, "watch-filters.lua");
+    strcat(client->apphome, "xclient-script.lua");
     LOGGER_DEBUG("initialize lua. (%s)", client->apphome);
     if (LuaInitialize(&client->lua, client->apphome) != 0) {
         LOGGER_FATAL("LuaInitialize (%s)", LuaGetError(&client->lua));

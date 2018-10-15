@@ -49,12 +49,25 @@ verno="$majorVer"."$minorVer"."$revisionVer"
 buildno="build$(date +%Y%m%d%H%M)"
 
 XCHOME=${_cdir}/dist/xclient-$verno
+XSHOME=${_cdir}/dist/xserver-$verno
 
-function update_dist() {
-    echoinfo "update xsync-client(xclient) to dist: ${_cdir}/dist/xclient-$verno"
+
+function update_xserver_dist() {
+    echoinfo "update xsync-server to dist: ${_cdir}/dist/xserver-$verno"
+
+    echowarn "TODO: build xserver dist packages"
+
+    echoinfo "TODO: update all xserver dist packages"
+    mkdir -p $XSHOME/{bin,conf,lib,sbin,stash-local}
+
+}
+
+
+function update_xclient_dist() {
+    echoinfo "update xsync-client to dist: ${_cdir}/dist/xclient-$verno"
     olddir=$(pwd)
 
-    echoinfo "build xclient package"
+    echoinfo "build xclient dist packages"
 
     cd ${_cdir}/src/kafkatools/
     make clean && make
@@ -64,7 +77,7 @@ function update_dist() {
 
     cd ${_cdir}
 
-    echoinfo "update all xclient packages dist"
+    echoinfo "update all xclient dist packages"
     mkdir -p $XCHOME/{bin,conf,lib,sbin,watch-local}
 
     cd $XCHOME
@@ -78,7 +91,7 @@ function update_dist() {
     cp ${_cdir}/conf/xsync-client-conf.xml $XCHOME/conf/    
     cp ${_cdir}/bin/test-stash.sh $XCHOME/bin/
     cp ${_cdir}/bin/common.sh $XCHOME/bin/
-    cp ${_cdir}/bin/watch-filters.lua $XCHOME/bin/
+    cp ${_cdir}/bin/xclient-script.lua $XCHOME/bin/
     cp ${_cdir}/bin/xclient-status.sh $XCHOME/bin/
     cp ${_cdir}/target/xsync-client-$verno $XCHOME/sbin/
     cp ${_cdir}/target/libkafkatools.so.1.0.0 $XCHOME/sbin/
@@ -94,7 +107,7 @@ function update_dist() {
     ln -sf libkafkatools.so.1.0.0 libkafkatools.so.1
 
     cd $XCHOME/sbin/
-    ln -sf ../bin/watch-filters.lua watch-filters.lua
+    ln -sf ../bin/xclient-script.lua xclient-script.lua
 
     echoinfo "generate xclient dist pkg: ${_cdir}/dist/xclient-dist-$verno.tar.gz"
     cd ${_cdir}/dist/
@@ -113,7 +126,8 @@ function update_dist() {
 
 if [ $# -eq 1 ]; then
     if [ "$1" == "-d" ]; then
-        update_dist
+        update_xclient_dist
+        update_xserver_dist
         exit 0;
     fi
 fi

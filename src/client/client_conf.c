@@ -64,7 +64,7 @@ void * perthread_data_create (XS_client client, int servers, int threadid)
     perthread_data *perdata = (perthread_data *) mem_alloc(1, sizeof(perthread_data));
 
     client->apphome[client->apphome_len] = 0;
-    strcat(client->apphome, "watch-filters.lua");
+    strcat(client->apphome, "xclient-script.lua");
 
     LOGGER_DEBUG("[thread-%d] initialize lua. (%s)", threadid, client->apphome);
     if (LuaInitialize(&perdata->lua, client->apphome) != 0) {

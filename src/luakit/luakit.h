@@ -22,6 +22,8 @@
  * luakit.h
  *   lua with C interop helper
  *
+ *   http://troubleshooters.com/codecorn/lua/lua_c_calls_lua.htm
+ *
  * @author: master@pepstack.com
  *
  * @version: 0.1.5

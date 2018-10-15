@@ -49,4 +49,3 @@ SUBMAKEFILES := common/common.mk \
 	mysqldbi/mysqldbi.mk \
 	server/server.mk \
 	client/client.mk
-
