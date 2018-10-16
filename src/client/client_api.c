@@ -146,6 +146,8 @@ void do_event_task (thread_context_t *thread_ctx)
 {
     char *timems_str;
     char *evmask_str;
+    char *thread_str;
+
     char *message;
 
     int ret, chlen;
@@ -161,38 +163,45 @@ void do_event_task (thread_context_t *thread_ctx)
 
         XS_watch_event event = (XS_watch_event) node->object;
 
-        timems_str = perdata->buffer;
+        /**
+         * TIME+0 | MASK+40 | THREAD+90 | MESSAGE+100
+         */
+        timems_str = perdata->buffer + 0;
         evmask_str = perdata->buffer + 40;
+        thread_str = perdata->buffer + 90;
+
         message = perdata->buffer + 100;
 
         __inotifytools_lock();
         {
-            now_time_str(timems_str, 40);
-
-            snprintf(evmask_str, 60, "%s", inotifytools_event_to_str(event->mask));
-            evmask_str[59] = 0;
+            snprintf(evmask_str, 50, "%s", inotifytools_event_to_str(event->mask));
+            evmask_str[49] = 0;
         }
         __inotifytools_unlock();
 
+        snprintf(thread_str, 8, "%d", perdata->threadid);
+        thread_str[7] = 0;
+
+        now_time_str(timems_str, 40);
+
+        if (LuaCtxLockState(perdata->luactx)) {
+            const char *keys[] = {"thread", "event", "path", "file"};
+            const char *values[] = {thread_str, evmask_str, event->pathname, event->name};
+
+            LuaCtxCallMany(perdata->luactx, "on_event_task", keys, values, 4);
+
+            // TODO: get topic, partition
+
+            LuaCtxUnlockState(perdata->luactx);
+        }
+
         /* 发送消息到 kafka */
-        chlen = snprintf(message, XSYNC_BUFSIZE - 100, "{%d|%s|%d|%s|%s%s}", task->flags, timems_str, perdata->threadid, evmask_str, event->pathname, event->name);
+        chlen = snprintf(message, XSYNC_BUFSIZE - 100, "{%d|%s|%s|%s|%s%s}", task->flags, timems_str, thread_str, evmask_str, event->pathname, event->name);
 
         if (chlen > 0 && chlen < XSYNC_BUFSIZE - 100) {
             message[chlen] = 0;
 
             test_kafka(&perdata->kt_producer_api, "test", message, chlen);
-        }
-
-        if (LuaCtxLockState(perdata->luactx)) {
-            const char *keys[] = {"event", "path", "file"};
-            const char *values[] = {evmask_str, event->pathname, event->name};
-
-            LuaCtxCallMany(perdata->luactx, "on_event_task", keys, values, 3);
-
-            // TODO:
-
-
-            LuaCtxUnlockState(perdata->luactx);
         }
 
         // 使用完毕必须删除 !!

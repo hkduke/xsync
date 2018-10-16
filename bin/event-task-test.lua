@@ -5,6 +5,7 @@
 -- update: 2018-10-16
 
 
+-- thread: 线程 ID
 -- event: 事件名称
 -- path: 文件路径
 -- file: 文件名称
@@ -15,7 +16,9 @@ function on_event_task(intab)
 
     -- TODO:
 
-	io.write("on_event_task: {event=")
+	io.write("on_event_task: {thread=")
+    io.write(intab.thread);
+    io.write(",event=");
     io.write(intab.event);
     io.write(",path=");
     io.write(intab.path);

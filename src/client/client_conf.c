@@ -284,11 +284,6 @@ XS_RESULT XS_client_conf_from_xml (XS_client client, const char *config_xml)
 
         int offs_config_xml;
 
-        /* TODO:
-        int offs_path_filter;
-        int offs_event_task;
-        */
-
         if (strcmp(strrchr(config_xml, '.'), ".xml")) {
             LOGGER_ERROR("config file end with not '.xml': %s", config_xml);
             return XS_E_PARAM;
@@ -308,11 +303,6 @@ XS_RESULT XS_client_conf_from_xml (XS_client client, const char *config_xml)
         paths[0] = 'C';
 
         offs_config_xml = 1;
-
-        /* TODO:
-        offs_path_filter = offs_config_xml + (len + 1);
-        offs_event_task = offs_path_filter + (len + 15);
-        */
 
         memcpy(paths + offs_config_xml, config_xml, len);
 
@@ -382,8 +372,6 @@ XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_root)
         char *paths;
 
         int offs_watch_root;
-        int offs_path_filter;
-        int offs_event_task;
 
         err = getfullpath(watch_root, pathbuf, sizeof(pathbuf));
         if (err != 0) {
@@ -397,15 +385,13 @@ XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_root)
             pathbuf[len] = '\0';
         }
 
-        /* paths =  'w'+watch_root+'\0'+path_filter+'\0'+event_task+'\0'*/
-        size_paths = 1 + (len + 1) +   (len + 15) +      (len + 14);
+        /* paths =  'w' + watch_root + '\0' */
+        size_paths = 1 + (len + 1);
 
         paths = mem_alloc(1, sizeof(char) * size_paths);
         paths[0] = 'W';
 
         offs_watch_root = 1;
-        offs_path_filter = offs_watch_root + (len + 1);
-        offs_event_task = offs_path_filter + (len + 15);
 
         memcpy(paths + offs_watch_root, pathbuf, len);
 
@@ -433,34 +419,6 @@ XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_root)
         } else {
             LOGGER_WARN("access path-filter.lua error(%d): %s (%s)", errno, strerror(errno), pathbuf);
         }
-
-        /*
-        // path-filter.sh
-        len = snprintf(pathbuf, sizeof(pathbuf), "%spath-filter.sh", paths + client->offs_watch_root);
-
-        if (access(pathbuf, F_OK|R_OK|X_OK) == 0) {
-            client->offs_path_filter = offs_path_filter;
-
-            memcpy(paths + client->offs_path_filter, pathbuf, len);
-
-            LOGGER_INFO("access path-filter.sh ok. (%s)", paths + client->offs_path_filter);
-        } else {
-            LOGGER_ERROR("access path-filter.sh failed(%d): %s (%s)", errno, strerror(errno), pathbuf);
-        }
-
-        // event-task.sh
-        len = snprintf(pathbuf, sizeof(pathbuf), "%sevent-task.sh", paths + client->offs_watch_root);
-
-        if (access(pathbuf, F_OK|R_OK|X_OK) == 0) {
-            client->offs_event_task = offs_event_task;
-
-            memcpy(paths + client->offs_event_task, pathbuf, len);
-
-            LOGGER_INFO("access event-task.sh ok. (%s)", paths + client->offs_event_task);
-        } else {
-            LOGGER_ERROR("access event-task.sh failed(%d): %s (%s)", errno, strerror(errno), pathbuf);
-        }
-        */
 
         client->paths = paths;
         __interlock_set(&client->size_paths, size_paths);
