@@ -96,8 +96,8 @@ typedef struct xs_client_t
     /* 是(1)否(0)重启监控(当配置更改时有必要重启监控) */
     volatile int inotify_reload;
 
-    /* lua api */
-    struct luakit_t lua;
+    /* lua context */
+    lua_context luactx;
 
     /* 路径组合配置 */
     int offs_watch_root;
@@ -148,7 +148,7 @@ typedef struct xs_client_t
 
 
     /* buffer must be in lock */
-    char inlock_buffer[XSYNC_BUFSIZE];
+    char buffer[XSYNC_BUFSIZE];
 
     /* application home dir, for instance: '/opt/xclient/sbin/' */
     int apphome_len;

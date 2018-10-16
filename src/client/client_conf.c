@@ -40,42 +40,25 @@
 #include "../xsync-xmlconf.h"
 #include "../common/readconf.h"
 
-__no_warning_unused(static)
-int lua_add(lua_State *L, int x, int y)
-{
-        int sum;
-/*the function name*/
-        lua_getglobal(L,"add");
-/*the first argument*/
-        lua_pushnumber(L, x);
-/*the second argument*/
-        lua_pushnumber(L, y);
-/*call the function with 2 arguments, return 1 result.*/
-        lua_call(L, 2, 1);
-/*get the result.*/
-        sum = (int)lua_tonumber(L, -1);
-/*cleanup the return*/
-        lua_pop(L,1);
-        return sum;
-}
 
-void * perthread_data_create (XS_client client, int servers, int threadid)
+void * perthread_data_create (XS_client client, int servers, int threadid, const char *taskscriptfile)
 {
     perthread_data *perdata = (perthread_data *) mem_alloc(1, sizeof(perthread_data));
 
-    client->apphome[client->apphome_len] = 0;
-    strcat(client->apphome, "xclient-script.lua");
+    if (taskscriptfile) {
+        LOGGER_INFO("[thread-%d] loading lua script: %s", threadid, taskscriptfile);
 
-    LOGGER_DEBUG("[thread-%d] initialize lua. (%s)", threadid, client->apphome);
-    if (LuaInitialize(&perdata->lua, client->apphome) != 0) {
-        LOGGER_FATAL("LuaInitialize (%s)", LuaGetError(&perdata->lua));
+        if (LuaCtxNew(taskscriptfile, LUACTX_THREAD_MODE_SINGLE, &perdata->luactx) != LUACTX_SUCCESS) {
+            LOGGER_FATAL("LuaCtxNew fail");
 
-        free(perdata);
-        exit(-1);
+            free(perdata);
+
+            exit(-1);
+        }
     }
 
-    printf("***********%d\n\n\n", lua_add(perdata->lua.L, 102, 91));
-
+    // TODO: kafka config from lua
+    
     // '/home/root1/Workspace/github.com/pepstack/xsync/target/libkafkatools.so.1'
     client->apphome[client->apphome_len] = 0;
     strcat(client->apphome, "libkafkatools.so.1");
@@ -84,7 +67,7 @@ void * perthread_data_create (XS_client client, int servers, int threadid)
     if (kafka_producer_api_create(&perdata->kt_producer_api, client->apphome)) {
         LOGGER_FATAL("kafka_producer_api_create fail");
 
-        LuaFinalize(&perdata->lua);
+        LuaCtxFree(&perdata->luactx);
 
         free(perdata);
         exit(-1);
@@ -121,7 +104,7 @@ void perthread_data_free (perthread_data *perdata)
 
     kafka_producer_api_free(&perdata->kt_producer_api);
 
-    LuaFinalize(&perdata->lua);
+    LuaCtxFree(&perdata->luactx);
 
     free(perdata);
 }
@@ -182,7 +165,7 @@ void xs_client_delete (void *pv)
     LOGGER_TRACE("pthread_cond_destroy");
     pthread_cond_destroy(&client->condition);
 
-    LuaFinalize(&client->lua);
+    LuaCtxFree(&client->luactx);
 
     LOGGER_TRACE("~XS_client(%p)", client);
     free(client);
@@ -436,6 +419,22 @@ XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_root)
 
         client->offs_watch_root = offs_watch_root;
 
+        /* initialize lua context */
+        len = snprintf(pathbuf, sizeof(pathbuf), "%spath-filter.lua", paths + client->offs_watch_root);
+
+        if (access(pathbuf, F_OK|R_OK|X_OK) == 0) {
+            LOGGER_INFO("loading lua script: %s", pathbuf);
+
+            if (LuaCtxNew(pathbuf, LUACTX_THREAD_MODE_MULTI, &client->luactx) != LUACTX_SUCCESS) {
+                LOGGER_FATAL("LuaCtxNew fail");
+                return XS_ERROR;
+            }
+
+        } else {
+            LOGGER_WARN("access path-filter.lua error(%d): %s (%s)", errno, strerror(errno), pathbuf);
+        }
+
+        /*
         // path-filter.sh
         len = snprintf(pathbuf, sizeof(pathbuf), "%spath-filter.sh", paths + client->offs_watch_root);
 
@@ -461,6 +460,7 @@ XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_root)
         } else {
             LOGGER_ERROR("access event-task.sh failed(%d): %s (%s)", errno, strerror(errno), pathbuf);
         }
+        */
 
         client->paths = paths;
         __interlock_set(&client->size_paths, size_paths);

@@ -1,12 +1,12 @@
 #######################################################################
-# @file: luakit.mk
+# @file: luacontext.mk
 #
 # @version: 0.1.5
 # @create: 2018-10-10 10:00:00
 # @update: 2018-10-15 13:09:04
 #######################################################################
 
-TARGET := libluakit.a
+TARGET := libluacontext.a
 
 LIB_PREFIX := ${TARGET_DIR}/../libs/lib
 
@@ -18,7 +18,7 @@ TGT_LDLIBS  := \
 
 
 SOURCES := \
-	luakit.c
+	luacontext.c
 
 
 #   If the macro NDEBUG is defined at the moment <assert.h> was last
@@ -37,9 +37,9 @@ SRC_INCDIRS := . \
 # SUBMAKEFILES := path/to/sub.mk
 
 
-define INSTALL_LIBLUAKIT_A
+define INSTALL_LIBLUACONTEXT_A
 	mv ${TARGET_DIR}/${TARGET} ${TARGET_DIR}/../libs/lib/
 endef
 
-TGT_POSTMAKE := ${INSTALL_LIBLUAKIT_A}
+TGT_POSTMAKE := ${INSTALL_LIBLUACONTEXT_A}
 

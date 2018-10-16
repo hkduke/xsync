@@ -29,7 +29,7 @@ TGT_LDLIBS  := \
 	${LIB_PREFIX}/libssl.a \
 	${LIB_PREFIX}/libz.a \
 	${LIB_PREFIX}/libinotifytools.a \
-	${LIB_PREFIX}/libluakit.a \
+	${LIB_PREFIX}/libluacontext.a \
 	${LIB_PREFIX}/liblua.a \
 	-lm \
 	-lrt \

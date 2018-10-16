@@ -10,8 +10,8 @@
 #   within the "src" directory.
 #
 # This main.mk exists solely for the purpose of also allowing users to
-#   build the libredisapi.a library by itself by running "make" from
-#   within the "redisapi" subdirectory.
+#   build the libluacontext.a library by itself by running "make" from
+#   within the "luacontext" subdirectory.
 
 BUILD_DIR  := ../../build
 
@@ -19,4 +19,4 @@ TARGET_DIR := ../../target
 
 CFLAGS := -std=gnu99 -g -O0 -Wall -pipe
 
-SUBMAKEFILES := luakit.mk
+SUBMAKEFILES := luacontext.mk

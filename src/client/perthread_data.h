@@ -43,7 +43,7 @@ extern "C" {
 #include "../common/common_util.h"
 
 #include "../kafkatools/kafkatools.h"
-#include "../luakit/luakit.h"
+#include "../luacontext/luacontext.h"
 
 #include "server_conn.h"
 
@@ -60,7 +60,7 @@ typedef struct perthread_data
 
     struct  kafkatools_producer_api_t kt_producer_api;
 
-    struct luakit_t lua;
+    lua_context luactx;
 
     char buffer[XSYNC_BUFSIZE];
 } perthread_data;
@@ -143,7 +143,7 @@ void kafka_producer_api_free(kafkatools_producer_api_t *api)
 /**
  * client_conf.c
  */
-extern void * perthread_data_create (XS_client client, int servers, int threadid);
+extern void * perthread_data_create (XS_client client, int servers, int threadid, const char *taskscriptfile);
 
 extern void perthread_data_free (perthread_data *perdata);
 

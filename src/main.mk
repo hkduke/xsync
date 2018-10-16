@@ -44,7 +44,7 @@ BUILD_DIR  := ../build
 TARGET_DIR := ../target
 
 SUBMAKEFILES := common/common.mk \
-	luakit/luakit.mk \
+	luacontext/luacontext.mk \
 	redisapi/redisapi.mk \
 	mysqldbi/mysqldbi.mk \
 	server/server.mk \

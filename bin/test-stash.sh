@@ -3,7 +3,7 @@
 ########################################################################
 maxfileno=1000
 
-interval_second=1
+interval_second=0.01
 
 testlog_prefix="/tmp/xclient-watch-test-stash/test-log"
 

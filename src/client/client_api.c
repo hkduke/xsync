@@ -144,10 +144,11 @@ static int test_kafka(kafkatools_producer_api_t *api, const char *topic_name, co
 __no_warning_unused(static)
 void do_event_task (thread_context_t *thread_ctx)
 {
-    char *result;
-    char *timestr_ms;
+    char *timems_str;
+    char *evmask_str;
+    char *message;
 
-    int ret, chlen, bufcb, rcode;
+    int ret, chlen;
 
     threadpool_task_t *task = thread_ctx->task;
 
@@ -160,59 +161,38 @@ void do_event_task (thread_context_t *thread_ctx)
 
         XS_watch_event event = (XS_watch_event) node->object;
 
-        // send kafka message
-        timestr_ms = perdata->buffer + sizeof(perdata->buffer) - 64;
+        timems_str = perdata->buffer;
+        evmask_str = perdata->buffer + 40;
+        message = perdata->buffer + 100;
 
-        now_time_str(timestr_ms, 60);
+        __inotifytools_lock();
+        {
+            now_time_str(timems_str, 40);
 
-        chlen = snprintf(perdata->buffer, XSYNC_BUFSIZE, "{%d|%s|%d|%s|%s%s}",
-            task->flags, timestr_ms, perdata->threadid, inotifytools_event_to_str(event->mask), event->pathname, event->name);
+            snprintf(evmask_str, 60, "%s", inotifytools_event_to_str(event->mask));
+            evmask_str[59] = 0;
+        }
+        __inotifytools_unlock();
 
-        if (chlen > 0 && chlen < XSYNC_BUFSIZE) {
-            perdata->buffer[chlen] = 0;
+        /* 发送消息到 kafka */
+        chlen = snprintf(message, XSYNC_BUFSIZE - 100, "{%d|%s|%d|%s|%s%s}", task->flags, timems_str, perdata->threadid, evmask_str, event->pathname, event->name);
 
-            test_kafka(&perdata->kt_producer_api, "test", perdata->buffer, chlen);
+        if (chlen > 0 && chlen < XSYNC_BUFSIZE - 100) {
+            message[chlen] = 0;
+
+            test_kafka(&perdata->kt_producer_api, "test", message, chlen);
         }
 
-        chlen = 0;
+        if (LuaCtxLockState(perdata->luactx)) {
+            const char *keys[] = {"event", "path", "file"};
+            const char *values[] = {evmask_str, event->pathname, event->name};
 
-        // call event task shell
-        if (client->offs_event_task) {
-            bufcb = sizeof(perdata->buffer) - ERRORMSG_MAXLEN - 1;
+            LuaCtxCallMany(perdata->luactx, "on_event_task", keys, values, 3);
 
-            __inotifytools_lock();
-            {
-                chlen = snprintf(perdata->buffer, bufcb, "%s '%s' '%s%s'",
-                        event_task_path(client),
-                        inotifytools_event_to_str(event->mask),
-                        event->pathname,
-                        event->name);
-            }
-            __inotifytools_unlock();
+            // TODO:
 
-            perdata->buffer[chlen] = 0;
 
-            LOGGER_DEBUG("event_task command: {%s}", perdata->buffer);
-
-            ret = 0;
-
-            if (pipe_command(perdata->buffer, perdata->buffer+bufcb, ERRORMSG_MAXLEN+1, &result, &rcode) == 0) {
-                if (result) {
-                    ret = atoi(result);
-                }
-            }
-
-            LOGGER_INFO("event_task result(=%d): {%s}", ret, perdata->buffer);
-
-            if (ret == 1) {
-                // TODO:
-            } else if (ret == 0) {
-                // TODO:
-            } else if (ret == -1) {
-                // TODO:
-            } else {
-                // TODO:
-            }
+            LuaCtxUnlockState(perdata->luactx);
         }
 
         // 使用完毕必须删除 !!
@@ -338,26 +318,12 @@ int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX
     // 调用外部脚本, 过滤监控路径
     ret = FILTER_WPATH_ACCEPT;
 
-    if (client->offs_path_filter) {
-        if (access(path_filter_path(client), F_OK|R_OK|X_OK) == 0) {
-            char *result;
-            int rcode;
+    if (LuaCtxLockState(client->luactx)) {
+        LuaCtxCall(client->luactx, "filter_path", "path", abspath);
 
-            int bufcb = sizeof(client->path_filter_buf) - ERRORMSG_MAXLEN - 1;
-            int len = snprintf(client->path_filter_buf, bufcb, "%s '%s'", path_filter_path(client), abspath);
-            client->path_filter_buf[len] = 0;
-
-            LOGGER_INFO("cmd={%s}", client->path_filter_buf);
-
-            if (pipe_command(client->path_filter_buf, client->path_filter_buf+bufcb, ERRORMSG_MAXLEN+1, &result, &rcode) == 0) {
-                //const char *result = cmd_system(client->path_filter_buf, client->path_filter_buf + bufcb, ERRORMSG_MAXLEN + 1);
-                if (result) {
-                    ret = atoi(result);
-                }
-            }
-        } else {
-            LOGGER_ERROR("access failed(%d): %s (%s)", errno, strerror(errno), path_filter_path(client));
-        }
+        // TODO: ret
+        
+        LuaCtxUnlockState(client->luactx);
     }
 
     if (ret == FILTER_WPATH_ACCEPT) {
@@ -416,25 +382,15 @@ int filter_watch_file (XS_client client, char *path, const char *name, int namel
         return 0;
     }
 
-    if (client->offs_path_filter) {
+    if (LuaCtxLockState(client->luactx)) {
+        const char *keys[] = {"path", "file"};
+        const char *values[] = {path, name};
 
-        if (access(path_filter_path(client), F_OK|R_OK|X_OK) == 0) {
-            char *result;
-            int rcode;
+        LuaCtxCallMany(client->luactx, "filter_file", keys, values, 2);
 
-            int bufcb = sizeof(client->file_filter_buf) - ERRORMSG_MAXLEN - 1;
-            snprintf(client->file_filter_buf, bufcb, "%s '%s' '%s'", path_filter_path(client), path, name);
-
-            LOGGER_DEBUG("cmd={%s}", client->file_filter_buf);
-
-            if (pipe_command(client->file_filter_buf, client->file_filter_buf+bufcb, ERRORMSG_MAXLEN+1, &result, &rcode) == 0) {
-                if (result) {
-                    retcode = atoi(result);
-                }
-            }
-        } else {
-            LOGGER_ERROR("access failed(%d): %s (%s)", errno, strerror(errno), path_filter_path(client));
-        }
+        // TODO: retcode
+        
+        LuaCtxUnlockState(client->luactx);
     }
 
     if (retcode == FILTER_WPATH_ACCEPT) {
@@ -673,18 +629,6 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
 
     __interlock_release(&client->task_counter);
 
-    /* initialize lua context */
-    strcat(client->apphome, "xclient-script.lua");
-    LOGGER_DEBUG("initialize lua. (%s)", client->apphome);
-    if (LuaInitialize(&client->lua, client->apphome) != 0) {
-        LOGGER_FATAL("LuaInitialize (%s)", LuaGetError(&client->lua));
-
-        free((void *)client);
-
-        exit(XS_ERROR);
-    }
-    client->apphome[client->apphome_len] = 0;
-
     /* PTHREAD_PROCESS_PRIVATE = 0 */
     LOGGER_TRACE("pthread_cond_init(%d)", PTHREAD_PROCESS_PRIVATE);
     if (0 != pthread_cond_init(&client->condition, PTHREAD_PROCESS_PRIVATE)) {
@@ -734,9 +678,17 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
     LOGGER_INFO("threads=%d queues=%d servers=%d interval=%d sec", THREADS, QUEUES, SERVERS, client->interval_seconds);
 
     /* create per thread data and initialize */
+    snprintf(client->buffer, sizeof(client->buffer), "%sevent-task.lua", watch_root_path(client));
+    if (access(client->buffer, F_OK|R_OK|X_OK)) {
+        LOGGER_WARN("event-task.lua cannot access (%d): %s (%s)", errno, strerror(errno), client->buffer);
+        *client->buffer = 0;
+    }
+
     client->thread_args = (void **) mem_alloc(THREADS, sizeof(void*));
     for (i = 0; i < THREADS; ++i) {
-        client->thread_args[i] = perthread_data_create(client, SERVERS, i+1);
+        const char *luascriptfile = (client->buffer[0]? client->buffer : 0);
+
+        client->thread_args[i] = perthread_data_create(client, SERVERS, i+1, luascriptfile);
     }
 
     LOGGER_DEBUG("threadpool_create: (threads=%d, queues=%d)", THREADS, QUEUES);
@@ -826,56 +778,68 @@ int on_inotify_add_wpath (int flag, const char *wpath, void *arg)
     if (flag == INO_WATCH_ON_QUERY) {
         LOGGER_INFO("INO_WATCH_ON_QUERY: %s", wpath);
 
-        err = LuaCall(&client->lua, "watch_on_query", "path", wpath);
+        if (LuaCtxLockState(client->luactx)) {
+            err = LuaCtxCall(client->luactx, "inotify_watch_on_query", "path", wpath);
 
-        if (! err) {
-            num = LuaNumPairs(&client->lua);
+            if (! err) {
+                num = LuaCtxNumPairs(client->luactx);
 
-            for (i = 0; i < num; i++) {
-                char *key, *value;
+                for (i = 0; i < num; i++) {
+                    char *key, *value;
 
-                LuaGetKey(&client->lua, i, &key);
+                    LuaCtxGetKey(client->luactx, i, &key);
 
-                LuaGetValue(&client->lua, i, &value);
+                    LuaCtxGetValue(client->luactx, i, &value);
 
-                printf("watch_on_query output table[%d] = {%s => %s}\n", i, key, value);
+                    printf("inotify_watch_on_query output table[%d] = {%s => %s}\n", i, key, value);
+                }
             }
+            
+            LuaCtxUnlockState(client->luactx);
         }
     } else if (flag == INO_WATCH_ON_READY) {
         LOGGER_INFO("INO_WATCH_ON_READY: %s", wpath);
 
-        err = LuaCall(&client->lua, "watch_on_ready", "path", wpath);
+        if (LuaCtxLockState(client->luactx)) {
+            err = LuaCtxCall(client->luactx, "inotify_watch_on_ready", "path", wpath);
 
-        if (! err) {
-            num = LuaNumPairs(&client->lua);
+            if (! err) {
+                num = LuaCtxNumPairs(client->luactx);
 
-            for (i = 0; i < num; i++) {
-                char *key, *value;
+                for (i = 0; i < num; i++) {
+                    char *key, *value;
 
-                LuaGetKey(&client->lua, i, &key);
+                    LuaCtxGetKey(client->luactx, i, &key);
 
-                LuaGetValue(&client->lua, i, &value);
+                    LuaCtxGetValue(client->luactx, i, &value);
 
-                printf("watch_on_ready output table[%d] = {%s => %s}\n", i, key, value);
+                    printf("inotify_watch_on_ready output table[%d] = {%s => %s}\n", i, key, value);
+                }
             }
+
+            LuaCtxUnlockState(client->luactx);
         }
     } else if (flag == INO_WATCH_ON_ERROR) {
         LOGGER_ERROR("INO_WATCH_ON_ERROR: %s", wpath);
 
-        err = LuaCall(&client->lua, "watch_on_error", "path", wpath);
+        if (LuaCtxLockState(client->luactx)) {
+            err = LuaCtxCall(client->luactx, "inotify_watch_on_error", "path", wpath);
 
-        if (! err) {
-            num = LuaNumPairs(&client->lua);
+            if (! err) {
+                num = LuaCtxNumPairs(client->luactx);
 
-            for (i = 0; i < num; i++) {
-                char *key, *value;
+                for (i = 0; i < num; i++) {
+                    char *key, *value;
 
-                LuaGetKey(&client->lua, i, &key);
+                    LuaCtxGetKey(client->luactx, i, &key);
 
-                LuaGetValue(&client->lua, i, &value);
+                    LuaCtxGetValue(client->luactx, i, &value);
 
-                printf("watch_on_error output table[%d] = {%s => %s}\n", i, key, value);
+                    printf("inotify_watch_on_error output table[%d] = {%s => %s}\n", i, key, value);
+                }
             }
+
+            LuaCtxUnlockState(client->luactx);
         }
     }
 
