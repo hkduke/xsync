@@ -18,11 +18,11 @@ function on_event_task(intab)
 
 	io.write("on_event_task: {thread=")
     io.write(intab.thread);
-    io.write(",event=");
+    io.write(";event=");
     io.write(intab.event);
-    io.write(",path=");
+    io.write(";path=");
     io.write(intab.path);
-    io.write(",file=");
+    io.write(";file=");
     io.write(intab.file);
     io.write("}");
 	print()
@@ -30,3 +30,27 @@ function on_event_task(intab)
     outab.result = "SUCCESS"
 	return outab
 end
+
+
+function on_event_task(intab)
+    local outab = {
+        result = "ERROR"
+    }
+
+    -- TODO:
+
+	io.write("on_event_task: {thread=")
+    io.write(intab.thread);
+    io.write(";event=");
+    io.write(intab.event);
+    io.write(";path=");
+    io.write(intab.path);
+    io.write(";file=");
+    io.write(intab.file);
+    io.write("}");
+	print()
+
+    outab.result = "SUCCESS"
+	return outab
+end
+

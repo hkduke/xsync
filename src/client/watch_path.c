@@ -57,7 +57,7 @@ static inline void xs_watch_path_delete (void *pv)
 }
 
 
-XS_RESULT XS_watch_path_create (const char *pathid, const char * fullpath, uint32_t events_mask, XS_watch_path parent, XS_watch_path * outwp)
+XS_RESULT XS_watch_path_create (const char *pathid, const char * fullpath, uint32_t events_mask, XS_watch_path * outwp)
 {
     int sid, pathlen, cbsize;
 
@@ -88,8 +88,6 @@ XS_RESULT XS_watch_path_create (const char *pathid, const char * fullpath, uint3
     for (sid = 0; sid <= XSYNC_SERVER_MAXID; sid++) {
         wpath->sid_masks[sid] = 0;
     }
-
-    wpath->parent_wp = parent;
 
     LOGGER_DEBUG("wpath(%p): %s => %s", wpath, wpath->pathid, wpath->fullpath);
 

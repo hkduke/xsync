@@ -180,14 +180,14 @@ int lscb_init_watch_path (const char *path, int pathlen, struct mydirent *myent,
 
     if (myent->isdir) {
         if (myent->islnk) {
-            char *abspath = realpath(path, client->file_filter_buf);
+            char *abspath = realpath(path, client->buffer);
 
             if (abspath) {
                 XS_watch_path  wp;
 
                 LOGGER_INFO("pathid:%s => (%s)", myent->ent.d_name, abspath);
 
-                if (XS_watch_path_create(myent->ent.d_name, abspath, INOTI_EVENTS_MASK, 0, &wp) == XS_SUCCESS) {
+                if (XS_watch_path_create(myent->ent.d_name, abspath, INOTI_EVENTS_MASK, &wp) == XS_SUCCESS) {
                     // 添加到监视目录
                     if (! XS_client_add_watch_path(client, wp)) {
                         XS_watch_path_release(&wp);
@@ -198,7 +198,7 @@ int lscb_init_watch_path (const char *path, int pathlen, struct mydirent *myent,
                 LOGGER_WARN("realpath error(%d): %s - (%s)", errno, strerror(errno), path);
             }
         } else {
-            LOGGER_WARN("dir in watch not a link: %s", path);
+            LOGGER_WARN("watch path not a link: %s", path);
         }
     }
 
@@ -360,8 +360,10 @@ error_exit:
 }
 
 
-// 只能初始化一次
-//
+/**
+ * 根据 watch 目录初始化
+ *
+ */
 XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_root)
 {
     int err, len;
@@ -385,7 +387,7 @@ XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_root)
             pathbuf[len] = '\0';
         }
 
-        /* paths =  'w' + watch_root + '\0' */
+        /* paths =  'W' + watch_root + '\0' */
         size_paths = 1 + (len + 1);
 
         paths = mem_alloc(1, sizeof(char) * size_paths);
@@ -415,9 +417,8 @@ XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_root)
                 LOGGER_FATAL("LuaCtxNew fail");
                 return XS_ERROR;
             }
-
         } else {
-            LOGGER_WARN("access path-filter.lua error(%d): %s (%s)", errno, strerror(errno), pathbuf);
+            LOGGER_WARN("file access error(%d): %s (%s)", errno, strerror(errno), pathbuf);
         }
 
         client->paths = paths;

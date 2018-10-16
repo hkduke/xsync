@@ -867,6 +867,7 @@ XS_BOOL XS_client_add_watch_path (XS_client client, XS_watch_path wp)
         if (! XS_client_find_watch_path(client, wp->pathid, &hash, 0)) {
             // 添加到 wpath_hmap
             hlist_add_head(&wp->i_hash, &client->wpath_hmap[hash]);
+
             return XS_TRUE;
         }
 

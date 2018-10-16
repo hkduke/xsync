@@ -96,34 +96,19 @@ typedef struct xs_client_t
     /* 是(1)否(0)重启监控(当配置更改时有必要重启监控) */
     volatile int inotify_reload;
 
-    /* lua context */
-    lua_context luactx;
-
     /* 路径组合配置 */
     int offs_watch_root;
-    int offs_path_filter;
-    int offs_event_task;
     volatile int size_paths;
     char *paths;
 
-    char file_filter_buf[XSYNC_BUFSIZE];
-    char path_filter_buf[XSYNC_BUFSIZE];
+    /* lua context */
+    lua_context luactx;
 
     /**
      * tree for caching all inotify events
      */
     red_black_tree_t  event_rbtree;
     pthread_mutex_t rbtree_lock;
-
-
-
-
-
-
-
-
-
-
 
     /** DEL??
      * wpath_hmap: a hash map for XS_watch_path
@@ -132,22 +117,9 @@ typedef struct xs_client_t
     struct hlist_head wpath_hmap[XSYNC_HASHMAP_MAX_LEN + 1];
     thread_lock_t wpath_lock;
 
+    
 
-
-
-
-
-    /** DEL??
-     * hash map for watch_entry -> watch_entry
-     */
-    XS_watch_entry entry_map[XSYNC_WATCH_ENTRY_HASHMAX + 1];
-
-    /** hash table for wd (watch descriptor) -> watch_path */
-    XS_watch_path wd_table[XSYNC_HASHMAP_MAX_LEN + 1];
-
-
-
-    /* buffer must be in lock */
+    /* buffer */
     char buffer[XSYNC_BUFSIZE];
 
     /* application home dir, for instance: '/opt/xclient/sbin/' */
@@ -178,21 +150,11 @@ typedef struct xs_client_t
     } while(0)
 
 
-#define event_rbtree_unlock()  \
-    pthread_mutex_unlock(&client->rbtree_lock)
-
+#define event_rbtree_unlock()  pthread_mutex_unlock(&client->rbtree_lock)
 
 #define get_watch_root_len(client)  (client->offs_path_filter - client->offs_watch_root - 1)
 
-#define get_path_filter_len(client)  (client->offs_event_task - client->offs_path_filter - 1)
-
-#define get_event_task_len(client)  (client->size_paths - client->offs_event_task - 1)
-
 #define watch_root_path(client)  (client->paths + client->offs_watch_root)
-
-#define path_filter_path(client)  (client->paths + client->offs_path_filter)
-
-#define event_task_path(client)  (client->paths + client->offs_event_task)
 
 
 __no_warning_unused(static)
@@ -244,117 +206,6 @@ extern void xs_client_delete (void *pv);
  * level = 1, 2, ... : 可以是目录符号链接, 也可以是物理目录
  */
 extern int lscb_init_watch_path (const char * path, int pathlen, struct mydirent *myent, void *arg1, void *arg2);
-
-
-__no_warning_unused(static)
-XS_VOID client_clear_entry_map (XS_client client)
-{
-    int i;
-    XS_watch_entry first, next;
-
-    LOGGER_TRACE0();
-
-    for (i = 0; i < sizeof(client->entry_map)/sizeof(client->entry_map[0]); i++) {
-        first = client->entry_map[i];
-        client->entry_map[i] = 0;
-
-        while (first) {
-            next = first->next;
-            first->next = 0;
-
-            XS_watch_entry_release(&first);
-
-            first = next;
-        }
-    }
-}
-
-
-__no_warning_unused(static)
-XS_BOOL client_find_watch_entry_inlock (XS_client client, int sid, int wd, const char *filename, XS_watch_entry *outEntry)
-{
-    XS_watch_entry entry;
-
-    char nameid[XSYNC_BUFSIZE];
-    snprintf(nameid, XSYNC_BUFSIZE, "%d:%d/%s", sid, wd, filename);
-    nameid[XSYNC_BUFSIZE - 1] = 0;
-
-    int hash = xs_watch_entry_hash(nameid);
-
-    entry = client->entry_map[hash];
-    while (entry) {
-        if (! strcmp(entry->namebuf, nameid)) {
-            *outEntry = entry;
-            return XS_TRUE;
-        }
-
-        entry = entry->next;
-    }
-
-    return XS_FALSE;
-}
-
-
-__no_warning_unused(static)
-XS_BOOL client_add_watch_entry_inlock (XS_client client, XS_watch_entry entry)
-{
-    XS_watch_entry first;
-
-    assert(entry->next == 0);
-
-    first = client->entry_map[entry->hash];
-    while (first) {
-        if ( first == entry || ! strcmp(xs_entry_nameid(entry), xs_entry_nameid(first)) ) {
-            LOGGER_TRACE("entry(%s) exists in map", xs_entry_nameid(entry));
-            return XS_FALSE;
-        }
-
-        first = first->next;
-    }
-
-    first = client->entry_map[entry->hash];
-    entry->next = first;
-    client->entry_map[entry->hash] = entry;
-
-    return XS_TRUE;
-}
-
-
-__no_warning_unused(static)
-XS_BOOL client_remove_watch_entry_inlock (XS_client client, XS_watch_entry entry)
-{
-    XS_watch_entry first;
-
-    first = client->entry_map[entry->hash];
-    if (! first) {
-        LOGGER_ERROR("application error: entry not found. (%s)", xs_entry_nameid(entry));
-        return XS_TRUE;
-    }
-
-    if (first == entry) {
-        client->entry_map[entry->hash] = first->next;
-        first->next = 0;
-
-        XS_watch_entry_release(&entry);
-        return XS_TRUE;
-    }
-
-    while (first->next && first->next != entry) {
-        first = first->next;
-    }
-
-    if (first->next == entry) {
-        first->next = entry->next;
-        entry->next = 0;
-
-        XS_watch_entry_release(&entry);
-        return XS_TRUE;
-    }
-
-    LOGGER_ERROR("application error: entry not found. (%s)", xs_entry_nameid(entry));
-    return XS_TRUE;
-}
-
 
 extern int XS_client_prepare_watch_events (XS_client client, struct inotify_event *inevent, XS_watch_event events[XSYNC_SERVER_MAXID + 1]);
 

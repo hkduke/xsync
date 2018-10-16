@@ -36,7 +36,7 @@ function filter_file(intab)
 
 	io.write("filter_file: {path=")
     io.write(intab.path);
-    io.write(", file=");
+    io.write(";file=");
     io.write(intab.file);
     io.write("}");
 	print()

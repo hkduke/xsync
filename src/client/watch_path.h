@@ -59,9 +59,6 @@ typedef struct xs_watch_path_t
     /* 路径 ID */
     char pathid[XSYNC_CLIENTID_MAXLEN + 1];
 
-    /* parent path */
-    struct xs_watch_path_t *parent_wp;
-
     /* inotify watch mask */
     uint32_t  events_mask;
 
@@ -90,7 +87,7 @@ inline int watch_path_get_sid_max (XS_watch_path wp)
 }
 
 
-extern XS_RESULT XS_watch_path_create (const char * pathid, const char * fullpath, uint32_t events_mask, XS_watch_path parent, XS_watch_path * outwp);
+extern XS_RESULT XS_watch_path_create (const char * pathid, const char * fullpath, uint32_t events_mask, XS_watch_path * outwp);
 
 extern XS_VOID XS_watch_path_release (XS_watch_path * wp);
 
