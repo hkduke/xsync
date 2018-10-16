@@ -148,20 +148,6 @@ void xs_client_delete (void *pv)
         rbtree_clean(&client->event_rbtree);
     } while (0);
 
-    LOGGER_TRACE("clean wpath_hmap");
-    threadlock_destroy(&client->wpath_lock);
-    do {
-        struct hlist_node *hp, *hn;
-        int hash;
-
-        for (hash = 0; hash <= XSYNC_HASHMAP_MAX_LEN; hash++) {
-            hlist_for_each_safe(hp, hn, &client->wpath_hmap[hash]) {
-                XS_watch_path wp = hlist_entry(hp, struct xs_watch_path_t, i_hash);
-                XS_watch_path_release(&wp);
-            }
-        }
-    } while (0);
-
     LOGGER_TRACE("pthread_cond_destroy");
     pthread_cond_destroy(&client->condition);
 
@@ -183,16 +169,12 @@ int lscb_init_watch_path (const char *path, int pathlen, struct mydirent *myent,
             char *abspath = realpath(path, client->buffer);
 
             if (abspath) {
-                XS_watch_path  wp;
+                // 添加目录监视
+                LOGGER_INFO("add pathid: %s => (%s)", myent->ent.d_name, abspath);
 
-                LOGGER_INFO("pathid:%s => (%s)", myent->ent.d_name, abspath);
-
-                if (XS_watch_path_create(myent->ent.d_name, abspath, INOTI_EVENTS_MASK, &wp) == XS_SUCCESS) {
-                    // 添加到监视目录
-                    if (! XS_client_add_watch_path(client, wp)) {
-                        XS_watch_path_release(&wp);
-                        return (-4);
-                    }
+                if (! inotifytools_watch_recursively_s(abspath, INOTI_EVENTS_MASK, on_inotify_add_wpath, client)) {
+                    LOGGER_ERROR("inotifytools_watch_recursively(): %s", strerror(inotifytools_error()));
+                    return (-4);
                 }
             } else {
                 LOGGER_WARN("realpath error(%d): %s - (%s)", errno, strerror(errno), path);
@@ -204,27 +186,6 @@ int lscb_init_watch_path (const char *path, int pathlen, struct mydirent *myent,
 
     // continue to next
     return 1;
-}
-
-
-__no_warning_unused(static)
-int watch_path_set_xmlnode_cb (XS_watch_path wp, void *data)
-{
-    int sid_max;
-
-    mxml_node_t *watchpathsNode = (mxml_node_t *) data;
-
-    mxml_node_t *watch_path_node;
-
-    watch_path_node = mxmlNewElement(watchpathsNode, "xs:watch-path");
-
-    mxmlElementSetAttrf(watch_path_node, "pathid", "%s", wp->pathid);
-
-    mxmlElementSetAttrf(watch_path_node, "fullpath", "%s", wp->fullpath);
-
-    sid_max = wp->sid_masks[0];
-
-    return sid_max;
 }
 
 

@@ -37,7 +37,6 @@
 
 #include "watch_entry.h"
 #include "server_conn.h"
-#include "watch_path.h"
 #include "watch_event.h"
 
 #include "client_conf.h"

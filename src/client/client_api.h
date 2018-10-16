@@ -121,13 +121,7 @@ extern XS_RESULT XS_client_conf_from_xml (XS_client client, const char *config_x
 
 extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_root);
 
-
-/**
- * XS_client internal api
- */
-extern XS_BOOL XS_client_add_watch_path (XS_client client, XS_watch_path wp);
-
-extern XS_BOOL XS_client_find_watch_path (XS_client client, char *pathid, int *outhash, XS_watch_path *outwp);
+extern int on_inotify_add_wpath (int flag, const char *wpath, void *arg);
 
 #if defined(__cplusplus)
 }

@@ -41,9 +41,7 @@ SOURCES := \
 	client.c \
 	client_api.c \
 	client_conf.c \
-	watch_path.c \
 	watch_entry.c \
-	path_filter.c \
 	server_conn.c
 
 

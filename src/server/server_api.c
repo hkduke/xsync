@@ -49,7 +49,7 @@ static void zdbPoolErrorHandler (const char *error)
 __attribute__((used))
 static void handleNewConnection (perthread_data *perdata)
 {
-    XS_server server = (XS_server) perdata->pollin.arg;
+    //TODO: XS_server server = (XS_server) perdata->pollin.arg;
 
     int epollfd = perdata->pollin.epollfd;
     int clientfd = perdata->pollin.epevent.data.fd;

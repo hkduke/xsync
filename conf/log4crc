@@ -33,7 +33,7 @@
     <!-- xsync-client category
     The following line would be updated by command. DO NOT REVISED IT BY HAND !
     -->
-    <category name="xsync-client" priority="debug" appender="stdout" />
+    <category name="xsync-client" priority="info" appender="stdout" />
 
     <!--
       MUST MAKE SURE:

@@ -106,10 +106,7 @@
  *
  *****************************************************************************/
 #include "client_api.h"
-
 #include "client_conf.h"
-
-#include "watch_path.h"
 #include "watch_entry.h"
 #include "watch_event.h"
 
@@ -226,8 +223,6 @@ void do_event_task (thread_context_t *thread_ctx)
 }
 
 
-
-
 __no_warning_unused(static)
 XS_RESULT client_add_inotify_event (XS_client client, struct watch_event_buf_t *evbuf)
 {
@@ -287,7 +282,7 @@ XS_RESULT client_add_inotify_event (XS_client client, struct watch_event_buf_t *
 
 
 /**
- * 调用外部脚本 path-filter.sh 过滤文件路径目录
+ * 调用外部脚本 path-filter.lua 过滤文件路径目录
  *
  *  (外部脚本返回值):
  *    100 - 接受
@@ -711,13 +706,6 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
         exit(XS_ERROR);
     }
 
-    // 初始化 wpath_hmap
-    LOGGER_TRACE("wpath_hmap");
-    for (i = 0; i <= XSYNC_HASHMAP_MAX_LEN; i++) {
-        INIT_HLIST_HEAD(&client->wpath_hmap[i]);
-    }
-    threadlock_init(&client->wpath_lock);
-
     // 初始化 event_rbtree
     LOGGER_TRACE("event_rbtree");
     rbtree_init(&client->event_rbtree, (fn_comp_func*) event_rbtree_cmp);
@@ -777,7 +765,6 @@ XS_VOID XS_client_unlock (XS_client client)
 /**
  * callback when inotify add watch
  */
-__no_warning_unused(static)
 int on_inotify_add_wpath (int flag, const char *wpath, void *arg)
 {
     int err, i, num;
@@ -788,7 +775,7 @@ int on_inotify_add_wpath (int flag, const char *wpath, void *arg)
         LOGGER_INFO("INO_WATCH_ON_QUERY: %s", wpath);
 
         if (LuaCtxLockState(client->luactx)) {
-            err = LuaCtxCall(client->luactx, "inotify_watch_on_query", "path", wpath);
+            err = LuaCtxCall(client->luactx, "inotify_watch_on_query", "wpath", wpath);
 
             if (! err) {
                 num = LuaCtxNumPairs(client->luactx);
@@ -810,7 +797,7 @@ int on_inotify_add_wpath (int flag, const char *wpath, void *arg)
         LOGGER_INFO("INO_WATCH_ON_READY: %s", wpath);
 
         if (LuaCtxLockState(client->luactx)) {
-            err = LuaCtxCall(client->luactx, "inotify_watch_on_ready", "path", wpath);
+            err = LuaCtxCall(client->luactx, "inotify_watch_on_ready", "wpath", wpath);
 
             if (! err) {
                 num = LuaCtxNumPairs(client->luactx);
@@ -832,7 +819,7 @@ int on_inotify_add_wpath (int flag, const char *wpath, void *arg)
         LOGGER_ERROR("INO_WATCH_ON_ERROR: %s", wpath);
 
         if (LuaCtxLockState(client->luactx)) {
-            err = LuaCtxCall(client->luactx, "inotify_watch_on_error", "path", wpath);
+            err = LuaCtxCall(client->luactx, "inotify_watch_on_error", "wpath", wpath);
 
             if (! err) {
                 num = LuaCtxNumPairs(client->luactx);
@@ -853,53 +840,6 @@ int on_inotify_add_wpath (int flag, const char *wpath, void *arg)
     }
 
     return 1;
-}
-
-
-XS_BOOL XS_client_add_watch_path (XS_client client, XS_watch_path wp)
-{
-    if (! inotifytools_watch_recursively_s(wp->fullpath, wp->events_mask, on_inotify_add_wpath, client) ) {
-        LOGGER_ERROR("inotifytools_watch_recursively(): %s", strerror(inotifytools_error()));
-        return XS_FALSE;
-    } else {
-        int hash = 0;
-
-        if (! XS_client_find_watch_path(client, wp->pathid, &hash, 0)) {
-            // 添加到 wpath_hmap
-            hlist_add_head(&wp->i_hash, &client->wpath_hmap[hash]);
-
-            return XS_TRUE;
-        }
-
-        return XS_FALSE;
-    }
-}
-
-
-XS_BOOL XS_client_find_watch_path (XS_client client, char *pathid, int *outhash, XS_watch_path * outwp)
-{
-    struct hlist_node *hp;
-    int hash;
-
-    hash = BKDRHash2(pathid, XSYNC_HASHMAP_MAX_LEN);
-
-    if (*outhash) {
-        *outhash = hash;
-    }
-
-    hlist_for_each(hp, &client->wpath_hmap[hash]) {
-        XS_watch_path wp = hlist_entry(hp, struct xs_watch_path_t, i_hash);
-
-        if ( ! strncmp(wp->pathid, pathid, XSYNC_CLIENTID_MAXLEN) ) {
-            if (outwp) {
-                *outwp = (XS_watch_path) RefObjectRetain((void**) &wp);
-            }
-
-            return XS_TRUE;
-        }
-    }
-
-    return XS_FALSE;
 }
 
 
@@ -1053,7 +993,7 @@ XS_VOID XS_client_bootstrap (XS_client client)
                 }
 
                 if (wd == -1) {
-                    // 添加监视: IN_ALL_EVENTS
+                    // 添加监视:
                     if (inotifytools_watch_recursively_s(pathbuf, INOTI_EVENTS_MASK, on_inotify_add_wpath, client)) {
                         LOGGER_INFO("success add watch dir(wd=%d): %s", inotifytools_wd_from_filename_s(pathbuf), pathbuf);
                     } else {
@@ -1063,7 +1003,7 @@ XS_VOID XS_client_bootstrap (XS_client client)
                 }
             } else if (evbuf.mask & IN_CLOSE) {
                 if (wd == -1) {
-                    // 添加监视: IN_ALL_EVENTS
+                    // 添加监视:
                     if (inotifytools_watch_recursively_s(pathbuf, INOTI_EVENTS_MASK, on_inotify_add_wpath, client)) {
                         LOGGER_INFO("success add watch dir(wd=%d): %s", inotifytools_wd_from_filename_s(pathbuf), pathbuf);
                     } else {

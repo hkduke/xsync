@@ -41,7 +41,6 @@ extern "C" {
 #endif
 
 #include "server_conn.h"
-#include "watch_path.h"
 #include "watch_entry.h"
 #include "watch_event.h"
 
@@ -109,15 +108,6 @@ typedef struct xs_client_t
      */
     red_black_tree_t  event_rbtree;
     pthread_mutex_t rbtree_lock;
-
-    /** DEL??
-     * wpath_hmap: a hash map for XS_watch_path
-     * wpath_lock: 访问 wpath_hmap 的锁
-     */
-    struct hlist_head wpath_hmap[XSYNC_HASHMAP_MAX_LEN + 1];
-    thread_lock_t wpath_lock;
-
-    
 
     /* buffer */
     char buffer[XSYNC_BUFSIZE];

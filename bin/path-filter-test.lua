@@ -54,8 +54,8 @@ function inotify_watch_on_query(intab)
         result = "REJECT"
     }
 
-    io.write("inotify_watch_on_query: {path=")
-    io.write(intab.path);
+    io.write("inotify_watch_on_query: {wpath=")
+    io.write(intab.wpath);
     io.write("}");
 	print()
 
@@ -72,8 +72,8 @@ function inotify_watch_on_ready(intab)
         result = "ERROR"
     }
 
-    io.write("inotify_watch_on_ready: {path=")
-    io.write(intab.path);
+    io.write("inotify_watch_on_ready: {wpath=")
+    io.write(intab.wpath);
     io.write("}");
 	print()
 
@@ -90,8 +90,8 @@ function inotify_watch_on_error(intab)
         result = "ERROR"
     }
 
-    io.write("inotify_watch_on_query: {path=")
-    io.write(intab.path);
+    io.write("inotify_watch_on_query: {wpath=")
+    io.write(intab.wpath);
     io.write("}");
 	print()
 

@@ -379,17 +379,15 @@ void run_interactive (int threads)
     do {
         pthread_t * pthreads = (pthread_t *) calloc(threads, sizeof(pthread_t));
 
-        int i, err;
         void *ret;
+        int i;
 
         for (i = 0; i < threads; i++) {
-            err = pthread_create (&pthreads[i], 0, thread_func, (void*) &srvopts);
-            assert(err == 0);
+            pthread_create (&pthreads[i], 0, thread_func, (void*) &srvopts);
         }
 
         for (i = 0; i < threads; i++) {
-            err = pthread_join (pthreads[i], (void**) &ret);
-            assert(err == 0);
+            pthread_join (pthreads[i], (void**) &ret);
         }
 
         free(pthreads);
