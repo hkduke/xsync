@@ -47,6 +47,13 @@ extern "C" {
 #include "lualib.h"
 #include "lauxlib.h"
 
+#define LUAKIT_SUCCESS   0
+#define LUAKIT_ERROR   (-1)
+
+#define LUAKIT_OUT_PAIRS_MAXNUM      254
+#define LUAKIT_OUT_KEYS_BUFSIZE     4096
+#define LUAKIT_OUT_VALUES_BUFSIZE  16384
+
 
 /**
  * Creating a single lua_State per thread is a good solution
@@ -57,7 +64,27 @@ struct luakit_t
     /* initialize Lua */
     lua_State * L;
 
+    /* 保存错误信息 */
     char error[256];
+
+    /**
+     * static outputs table
+     */
+
+    /* 输出的 key-value 对数目: 默认为 0 */
+    int out_kv_pairs;
+
+    /* 输出的 key 名称偏移: out_keys_buffer */
+    int out_keys_offset[LUAKIT_OUT_PAIRS_MAXNUM + 2];
+
+    /* 输出的 value 偏移: out_values_buffer */
+    int out_values_offset[LUAKIT_OUT_PAIRS_MAXNUM + 2];
+
+    /* 存储所有输出的 key 名称 */
+    char out_keys_buffer[LUAKIT_OUT_KEYS_BUFSIZE];
+
+    /* 存储所有输出的 value 值 */
+    char out_values_buffer[LUAKIT_OUT_VALUES_BUFSIZE];
 };
 
 
@@ -69,7 +96,15 @@ extern const char * LuaGetError (struct luakit_t * lk);
 
 extern int LuaCall (struct luakit_t * lk, const char *funcname, const char *key, const char *value);
 
-extern int LuaCallMulti (struct luakit_t * lk, const char *funcname, const char *argkeys[], const char *argvalues[], int inargs);
+extern int LuaCallMany (struct luakit_t * lk, const char *funcname, const char *keys[], const char *values[], int kv_pairs);
+
+extern int LuaNumPairs (struct luakit_t * lk);
+
+extern int LuaGetKey (struct luakit_t * lk, int index, char **outkey);
+
+extern int LuaGetValue (struct luakit_t * lk, int index, char **outvalue);
+
+extern int LuaFindKey (struct luakit_t * lk, const char *key, int keylen);
 
 #if defined(__cplusplus)
 }

@@ -61,6 +61,10 @@ int LuaCall (struct luakit_t * lk, const char *funcname, const char *key, const 
 {
     lua_State * L = lk->L;
 
+    lk->out_kv_pairs = 0;
+    lk->out_keys_offset[0] = 0;
+    lk->out_values_offset[0] = 0;
+
     lua_settop(L, 0);
 
     lua_getglobal(L, funcname);                 /* Tell it to run callfuncscript.lua->tweaktable() */
@@ -83,16 +87,49 @@ int LuaCall (struct luakit_t * lk, const char *funcname, const char *key, const 
     /* Make sure lua_next starts at beginning */
     lua_pushnil(L);
 
-    const char *k, *v;
-
     while (lua_next(L, -2)) {                    /* TABLE LOCATED AT -2 IN STACK */
+        const char *k, *v;
+        int kcb, vcb, kcb_next, vcb_next;
+
         v = lua_tostring(L, -1);                 /* Value at stacktop */
-        lua_pop(L, 1);                            /* Remove value */
+        lua_pop(L, 1);                           /* Remove value */
 
         k = lua_tostring(L, -1);                 /* Read key at stacktop, */
                                                  /* leave in place to guide next lua_next() */
 
-        printf("*******************************out from lua: [%s=%s]\n", k, v);
+        kcb = (int) (k ? strlen(k) + 1 : 0);
+        vcb = (int) (v ? strlen(v) + 1 : 0);
+
+        kcb_next = lk->out_keys_offset[lk->out_kv_pairs] + kcb;
+        vcb_next = lk->out_values_offset[lk->out_kv_pairs] + vcb;
+
+        lk->out_keys_offset[lk->out_kv_pairs + 1] = kcb_next;
+        lk->out_values_offset[lk->out_kv_pairs + 1] = vcb_next;
+
+        if (kcb) {
+            if (kcb_next < LUAKIT_OUT_KEYS_BUFSIZE) {
+                memcpy(lk->out_keys_buffer + lk->out_keys_offset[lk->out_kv_pairs], k, kcb);
+            } else {
+                snprintf(lk->error, sizeof(lk->error), "too large output keys: more than %d bytes.", LUAKIT_OUT_KEYS_BUFSIZE);
+                return (-1);
+            }
+        }
+
+        if (vcb) {
+            if (vcb_next < LUAKIT_OUT_VALUES_BUFSIZE) {
+                memcpy(lk->out_values_buffer + lk->out_values_offset[lk->out_kv_pairs], v, vcb);
+            } else {
+                snprintf(lk->error, sizeof(lk->error), "too large output values: more than %d bytes.", LUAKIT_OUT_VALUES_BUFSIZE);
+                return (-1);
+            }
+        }
+
+        lk->out_kv_pairs++;
+
+        if (lk->out_kv_pairs > LUAKIT_OUT_PAIRS_MAXNUM) {
+            snprintf(lk->error, sizeof(lk->error), "too many output pairs: more than %d.", LUAKIT_OUT_PAIRS_MAXNUM);
+            return (-1);
+        }
     }
 
     /* success */
@@ -100,11 +137,15 @@ int LuaCall (struct luakit_t * lk, const char *funcname, const char *key, const 
 }
 
 
-int LuaCallMulti (struct luakit_t * lk, const char *funcname, const char *argkeys[], const char *argvalues[], int inargs)
+int LuaCallMany (struct luakit_t * lk, const char *funcname, const char *keys[], const char *values[], int kv_pairs)
 {
     int i = 0;
 
     lua_State * L = lk->L;
+
+    lk->out_kv_pairs = 0;
+    lk->out_keys_offset[0] = 0;
+    lk->out_values_offset[0] = 0;
 
     lua_settop(L, 0);
 
@@ -112,9 +153,12 @@ int LuaCallMulti (struct luakit_t * lk, const char *funcname, const char *argkey
 
     lua_newtable(L);                            /* Push empty table onto stack table now at -1 */
 
-    while (i < inargs) {
-        lua_pushstring(L, argkeys[i]);          /* Push a key onto the stack, table now at -2 */
-        lua_pushstring(L, argvalues[i]);        /* Push a value onto the stack, table now at -3 */
+    while (i < kv_pairs) {
+        const char * ki = keys[i];
+        const char * vi = values[i];
+
+        lua_pushstring(L, ki);                  /* Push a key onto the stack, table now at -2 */
+        lua_pushstring(L, vi);                  /* Push a value onto the stack, table now at -3 */
 
         lua_settable(L, -3);                    /* Take key and value, put into table at -3, */
                                                 /*  then pop key and value so table again at -1 */
@@ -127,20 +171,54 @@ int LuaCallMulti (struct luakit_t * lk, const char *funcname, const char *argkey
         return (-1);
     }
 
-    /* table is in the stack at index 't' */
-    /* Make sure lua_next starts at beginning */
+    /**
+     * table is in the stack at index 't' Make sure lua_next starts at beginning
+     */
     lua_pushnil(L);
 
-    const char *k, *v;
-
     while (lua_next(L, -2)) {                    /* TABLE LOCATED AT -2 IN STACK */
+        const char *k, *v;
+        int kcb, vcb, kcb_next, vcb_next;
+
         v = lua_tostring(L, -1);                 /* Value at stacktop */
-        lua_pop(L, 1);                            /* Remove value */
+        lua_pop(L, 1);                           /* Remove value */
 
         k = lua_tostring(L, -1);                 /* Read key at stacktop, */
                                                  /* leave in place to guide next lua_next() */
 
-        printf("*******************************out from lua: [%s=%s]\n", k, v);
+        kcb = (int) (k ? strlen(k) + 1 : 0);
+        vcb = (int) (v ? strlen(v) + 1 : 0);
+
+        kcb_next = lk->out_keys_offset[lk->out_kv_pairs] + kcb;
+        vcb_next = lk->out_values_offset[lk->out_kv_pairs] + vcb;
+
+        lk->out_keys_offset[lk->out_kv_pairs + 1] = kcb_next;
+        lk->out_values_offset[lk->out_kv_pairs + 1] = vcb_next;
+
+        if (kcb) {
+            if (kcb_next < LUAKIT_OUT_KEYS_BUFSIZE) {
+                memcpy(lk->out_keys_buffer + lk->out_keys_offset[lk->out_kv_pairs], k, kcb);
+            } else {
+                snprintf(lk->error, sizeof(lk->error), "too large output keys: more than %d bytes.", LUAKIT_OUT_KEYS_BUFSIZE);
+                return (-1);
+            }
+        }
+
+        if (vcb) {
+            if (vcb_next < LUAKIT_OUT_VALUES_BUFSIZE) {
+                memcpy(lk->out_values_buffer + lk->out_values_offset[lk->out_kv_pairs], v, vcb);
+            } else {
+                snprintf(lk->error, sizeof(lk->error), "too large output values: more than %d bytes.", LUAKIT_OUT_VALUES_BUFSIZE);
+                return (-1);
+            }
+        }
+
+        lk->out_kv_pairs++;
+
+        if (lk->out_kv_pairs > LUAKIT_OUT_PAIRS_MAXNUM) {
+            snprintf(lk->error, sizeof(lk->error), "too many output pairs: more than %d.", LUAKIT_OUT_PAIRS_MAXNUM);
+            return (-1);
+        }
     }
 
     /* success */
@@ -209,4 +287,51 @@ const char * LuaGetError (struct luakit_t * lk)
 {
     lk->error[ sizeof(lk->error) - 1 ] = '\0';
     return lk->error;
+}
+
+
+int LuaNumPairs (struct luakit_t * lk)
+{
+    return lk->out_kv_pairs;
+}
+
+
+int LuaGetKey (struct luakit_t * lk, int index, char **outkey)
+{
+    int start = lk->out_keys_offset[index];
+    int end = lk->out_keys_offset[index + 1];
+
+    *outkey = lk->out_keys_buffer + start;
+
+    return (end - start);
+}
+
+
+int LuaGetValue (struct luakit_t * lk, int index, char **outvalue)
+{
+    int start = lk->out_values_offset[index];
+    int end = lk->out_values_offset[index + 1];
+
+    *outvalue = lk->out_values_buffer + start;
+
+    return (end - start);
+}
+
+
+int LuaFindKey (struct luakit_t * lk, const char *key, int keylen)
+{
+    int index;
+
+    for (index = 0; index < lk->out_kv_pairs; index++) {
+        char *k;
+        int kcb = LuaGetKey(lk, index, &k);
+
+        if (kcb == keylen + 1) {
+            if (! strncmp(key, k, keylen)) {
+                return index;
+            }
+        }
+    }
+
+    return (-1);
 }

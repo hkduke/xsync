@@ -819,20 +819,64 @@ XS_VOID XS_client_unlock (XS_client client)
 __no_warning_unused(static)
 int on_inotify_add_wpath (int flag, const char *wpath, void *arg)
 {
+    int err, i, num;
+
     XS_client client = (XS_client) arg;
 
     if (flag == INO_WATCH_ON_QUERY) {
-        LuaCall(&client->lua, "watch_on_query", "path", wpath);
-
         LOGGER_INFO("INO_WATCH_ON_QUERY: %s", wpath);
+
+        err = LuaCall(&client->lua, "watch_on_query", "path", wpath);
+
+        if (! err) {
+            num = LuaNumPairs(&client->lua);
+
+            for (i = 0; i < num; i++) {
+                char *key, *value;
+
+                LuaGetKey(&client->lua, i, &key);
+
+                LuaGetValue(&client->lua, i, &value);
+
+                printf("watch_on_query output table[%d] = {%s => %s}\n", i, key, value);
+            }
+        }
     } else if (flag == INO_WATCH_ON_READY) {
-        LuaCall(&client->lua, "watch_on_ready", "path", wpath);
-
         LOGGER_INFO("INO_WATCH_ON_READY: %s", wpath);
-    } else if (flag == INO_WATCH_ON_ERROR) {
-        LuaCall(&client->lua, "watch_on_error", "path", wpath);
 
-        LOGGER_ERROR("INO_WATCH_ON_ERROR: %s", wpath);        
+        err = LuaCall(&client->lua, "watch_on_ready", "path", wpath);
+
+        if (! err) {
+            num = LuaNumPairs(&client->lua);
+
+            for (i = 0; i < num; i++) {
+                char *key, *value;
+
+                LuaGetKey(&client->lua, i, &key);
+
+                LuaGetValue(&client->lua, i, &value);
+
+                printf("watch_on_ready output table[%d] = {%s => %s}\n", i, key, value);
+            }
+        }
+    } else if (flag == INO_WATCH_ON_ERROR) {
+        LOGGER_ERROR("INO_WATCH_ON_ERROR: %s", wpath);
+
+        err = LuaCall(&client->lua, "watch_on_error", "path", wpath);
+
+        if (! err) {
+            num = LuaNumPairs(&client->lua);
+
+            for (i = 0; i < num; i++) {
+                char *key, *value;
+
+                LuaGetKey(&client->lua, i, &key);
+
+                LuaGetValue(&client->lua, i, &value);
+
+                printf("watch_on_error output table[%d] = {%s => %s}\n", i, key, value);
+            }
+        }
     }
 
     return 1;
