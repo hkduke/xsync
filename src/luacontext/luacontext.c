@@ -395,15 +395,13 @@ int LuaCtxNumPairs (lua_context ctx)
 
 int LuaCtxGetKey (lua_context ctx, int index, char **outkey)
 {
-    *outkey = 0;
-
     if (index >= 0 && index < LUACTX_PAIRS_MAXNUM) {
         int start = ctx->keys_offset[index];
         int end = ctx->keys_offset[index + 1];
         *outkey = ctx->keys_buffer + start;
         return (end - start);
     } else {
-        /* bad */
+        /* bad key */
         return 0;
     }
 }
@@ -411,18 +409,25 @@ int LuaCtxGetKey (lua_context ctx, int index, char **outkey)
 
 int LuaCtxGetValue (lua_context ctx, int index, char **outvalue)
 {
-    int start = ctx->values_offset[index];
-    int end = ctx->values_offset[index + 1];
-
-    *outvalue = ctx->values_buffer + start;
-
-    return (end - start);
+    if (index >= 0 && index < LUACTX_PAIRS_MAXNUM) {
+        int start = ctx->values_offset[index];
+        int end = ctx->values_offset[index + 1];
+        *outvalue = ctx->values_buffer + start;
+        return (end - start);
+    } else {
+        /* bad value */
+        return 0;
+    }
 }
 
 
 int LuaCtxFindKey (lua_context ctx, const char *key, int keylen)
 {
     int index;
+
+    if (keylen == -1) {
+        keylen = (key? strlen(key) : 0);
+    }
 
     for (index = 0; index < ctx->kv_pairs; index++) {
         char *k;
@@ -436,4 +441,10 @@ int LuaCtxFindKey (lua_context ctx, const char *key, int keylen)
     }
 
     return LUACTX_BAD_INDEX;
+}
+
+
+int LuaCtxGetValueByKey (lua_context ctx, const char *key, int keylen, char **outvalue)
+{
+    return LuaCtxGetValue(ctx, LuaCtxFindKey(ctx, key, keylen), outvalue);
 }

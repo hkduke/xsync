@@ -10,8 +10,8 @@
 function on_event_task(intab)
     local outab = {
         result = "ERROR",
-        kafka_topic = intab.pathid,
-        kafka_partition = 0
+        kafka_topic = intab.clientid .. "_" .. intab.pathid,
+        kafka_partition = "0"
     }
 
     io.write("event-task.lua::on_event_task: {")

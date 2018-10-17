@@ -114,22 +114,23 @@
 
 #include "../kafkatools/kafkatools.h"
 
-static int test_kafka(kafkatools_producer_api_t *api, const char *topic_name, const char * message, int chlen)
+static int send_kafka_message(kafkatools_producer_api_t *api, const char *kafka_topic, int kafka_partition, const char *msg, int msglen)
 {
     int ret;
 
-    kt_topic topic = api->kt_get_topic(api->producer, topic_name);
+    kt_topic topic = api->kt_get_topic(api->producer, kafka_topic);
 
     if (! topic) {
-        LOGGER_ERROR("fail to get topic: %s", api->kt_producer_get_errstr(api->producer));
+        LOGGER_ERROR("no topic: %s", api->kt_producer_get_errstr(api->producer));
         return (-1);
     } else {
-        LOGGER_TRACE("success to get topic(%p): %s", topic, api->kt_topic_name(topic));
+        LOGGER_TRACE("topic(%p): %s", topic, api->kt_topic_name(topic));
     }
 
-    ret = api->kt_produce_message_sync(api->producer, message, chlen, topic, 0, -1);
+    ret = api->kt_produce_message_sync(api->producer, msg, msglen, topic, kafka_partition, -1);
+
     if (ret == KAFKATOOLS_SUCCESS) {
-        LOGGER_TRACE("kafkatools_produce_message_sync success: %s", message);
+        LOGGER_TRACE("kafkatools_produce_message_sync success: %s", msg);
     } else {
         LOGGER_ERROR("kafkatools_produce_message_sync fail: %s", api->kt_producer_get_errstr(api->producer));
     }
@@ -188,6 +189,12 @@ void do_event_task (thread_context_t *thread_ctx)
         __inotifytools_unlock();
 
         if (message) {
+            int event2kafka = 1;
+
+            char *kafka_topic = 0;
+
+            int partition = 0;
+
             if (LuaCtxLockState(perdata->luactx)) {
                 const char *keys[] = {
                     "type", "time", "thread", "event", "clientid", "pathid", "file", "route", "path"
@@ -200,33 +207,45 @@ void do_event_task (thread_context_t *thread_ctx)
                 if (LuaCtxCallMany(perdata->luactx, "on_event_task", keys, values, sizeof(keys)/sizeof(keys[0])) == LUACTX_SUCCESS) {
                     char *result;
 
-                    if (LuaCtxGetKey(perdata->luactx, LuaCtxFindKey(perdata->luactx, "result", strlen("result")), &result)) {
-                        char *kafka_topic;
-                        char *kafka_partition;
+                    if (LuaCtxGetValueByKey(perdata->luactx, "result", 6, &result) && !strcmp(result, "SUCCESS")) {
+                        if (event2kafka) {
+                            // 如果要求写入 kafka, 取得当前文件的 kafka 配置: topic, partition
+                            char *kafka_partition;
 
-                        LuaCtxGetKey(perdata->luactx, LuaCtxFindKey(perdata->luactx, "kafka_topic", strlen("kafka_topic")), &kafka_topic);
-                        LuaCtxGetKey(perdata->luactx, LuaCtxFindKey(perdata->luactx, "kafka_partition", strlen("kafka_partition")), &kafka_partition);
+                            if (LuaCtxGetValueByKey(perdata->luactx, "kafka_partition", 15, &kafka_partition)) {
+                                partition = atoi(kafka_partition);
+                            }
 
-                        int msglen = snprintf(message, perdata->buffer + sizeof(perdata->buffer) - message, "{%s|%s|%s|%s|%s|%s|%s|%s}",
-                            v_type, v_time, v_thread, v_event, v_clientid, v_pathid, event->pathname, event->name);
-
-                        if (msglen > 0 && msglen < perdata->buffer + sizeof(perdata->buffer) - message) {
-                            message[msglen] = 0;
-
-                            LOGGER_DEBUG("%s", message);
-
-                            /* TODO: 发送消息到 kafka */
-                            test_kafka(&perdata->kt_producer_api, v_pathid, message, msglen);
-                        } else {
-                            LOGGER_FATAL("application error: size of perdata buffer is too small");
-                            exit(-10);
+                            if (! LuaCtxGetValueByKey(perdata->luactx, "kafka_topic", 11, &kafka_topic)) {
+                                LOGGER_ERROR("LuaCtxGetValueByKey fail on key: kafka_topic");
+                            }
                         }
+                    } else {
+                        LOGGER_ERROR("LuaCtxGetValueByKey fail on key: result");
                     }
                 } else {
                     LOGGER_ERROR("LuaCtxCallMany fail: %s", LuaCtxGetError(perdata->luactx));
                 }
 
                 LuaCtxUnlockState(perdata->luactx);
+            }
+
+            if (kafka_topic) {
+                // here we got topic and partition for kafka
+                int msglen = snprintf(message, perdata->buffer + sizeof(perdata->buffer) - message, "{%s|%s|%s|%s|%s|%s|%s|%s}",
+                    v_type, v_time, v_thread, v_event, v_clientid, v_pathid, event->pathname, event->name);
+
+                if (msglen > 0 && msglen < perdata->buffer + sizeof(perdata->buffer) - message) {
+                    message[msglen] = 0;
+
+                    // 同步发送消息到 kafka
+                    LOGGER_DEBUG("send to kafka: topic=%s, partition=%d, msg=%s", kafka_topic, partition, message);
+
+                    send_kafka_message(&perdata->kt_producer_api, kafka_topic, partition, message, msglen);
+                } else {
+                    LOGGER_FATAL("application error: size of perdata buffer is too small");
+                    exit(-10);
+                }
             }
         }
 

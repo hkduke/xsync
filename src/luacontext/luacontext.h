@@ -124,6 +124,8 @@ extern int LuaCtxGetValue (lua_context ctx, int index, char **outvalue);
 
 extern int LuaCtxFindKey (lua_context ctx, const char *key, int keylen);
 
+extern int LuaCtxGetValueByKey (lua_context ctx, const char *key, int keylen, char **outvalue);
+
 #if defined(__cplusplus)
 }
 #endif
