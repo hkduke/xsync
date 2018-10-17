@@ -102,9 +102,9 @@ typedef struct xs_client_t
     /* lua context */
     lua_context luactx;
 
-    /* 存放所有监视目录的描述符(wd), 每个 wd 指明其路由: pathid/subpath/to/logfile */
+    /* 存放监视 wd 对应的 pathid. 最多监视 256 个 pathid 目录 */
+    char *wd_pathid_table[256];
 
-    
     /* 当前的监视事件树: 用于缓存正在处理的事件, 防止事件被重复处理 */
     red_black_tree_t  event_rbtree;
     pthread_mutex_t rbtree_lock;

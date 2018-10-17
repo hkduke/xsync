@@ -150,6 +150,101 @@ void xs_client_delete (void *pv)
     free(client);
 }
 
+/**
+ * 根据 wd 查找路径表. 这个函数总应该成功. 否则是编程问题 !!
+ */
+__no_warning_unused(static)
+int client_find_watch_path (XS_client client, int wpath_wd, char *pathroute, ssize_t pathsize)
+{
+    int wd, pathlen;
+
+    char *pathid;
+
+    if (wpath_wd < 0) {
+        LOGGER_FATAL("should never run to this! bad wpath wd");
+        return (-1);
+    } else {
+        wd = wpath_wd;
+        pathid = 0;
+    }
+
+    __inotifytools_lock();
+
+    while (! pathid) {
+        char *wdpath;
+
+        // 取得 wd 对应的全路径
+        wdpath = inotifytools_filename_from_wd(wd);
+        if (! wdpath) {
+            LOGGER_FATAL("should never run to this! inotifytools_filename_from_wd fail");
+            break;
+        }
+
+        pathlen = strlen(wdpath);
+        if (pathlen >= pathsize) {
+            LOGGER_FATAL("should never run to this! path is too long");
+            break;
+        }
+
+        if (wd < sizeof(client->wd_pathid_table)) {
+            // 取得 wd 对应的 pathid
+            pathid = client->wd_pathid_table[wd];
+        }
+
+        if (pathid) {
+            // pathid => wdpath
+            LOGGER_DEBUG("found pathid (%s => %s)", pathid, wdpath);
+
+            wdpath = inotifytools_filename_from_wd(wpath_wd);
+
+            // 组合路径并返回路径字符数
+            // pathroute = "服务端路径 | 本地路径"
+            // pathroute = "$clientid/$pathid/logs/|$wpath_localpath"
+            pathlen = snprintf(pathroute, pathsize, "%s/%s/%s|%s", client->clientid, pathid, wdpath + pathlen, wdpath);
+            if (pathlen <= 0 || pathlen >= pathsize) {
+                LOGGER_FATAL("should never run to this! pathroute is too short");
+                break;
+            }
+
+            // 唯一的成功返回位置
+            __inotifytools_unlock();
+            return pathlen;
+        }
+
+        // 复制路径并去掉路径结尾 '/' 字符
+        memcpy(pathroute, wdpath, pathlen);
+        pathroute[pathlen--] = '\0';
+
+        // 继续沿路径向上查找
+        wd = -1;
+        while (wd < 0 && pathlen-- > 0) {
+            char *p = pathroute + pathlen;
+
+            if (pathlen == 0) {
+                break;
+            }
+
+            if (*p++ == '/') {
+                *p = '\0';
+                pathlen = p - pathroute;
+                
+                // 先得到当前路径的父目录: pathroute, 然后得到父目录的 wd
+                wd = inotifytools_wd_from_filename(pathroute);
+            }
+        }
+
+        if (pathlen == 0) {
+            // 到路径结束也没有发现 wd
+            LOGGER_FATAL("should never run to this! bad wpath: %s", wdpath);
+            break;
+        }
+    }
+
+    // 失败返回
+    __inotifytools_unlock();
+    return (-1);
+}
+
 
 __no_warning_unused(static)
 int client_init_watch_path (const char *path, int pathlen, struct mydirent *myent, void *arg1, void *arg2)
