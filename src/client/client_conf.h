@@ -55,6 +55,9 @@ extern "C" {
 #define XS_client_get_server_maxid(client)            \
     (client->servers_opts->sidmax)
 
+#define XS_client_pathid_max(client)  \
+    ((int)(sizeof(client->wd_pathid_table) / sizeof(client->wd_pathid_table[0])))
+
 
 /**
  * xs_client_t singleton
@@ -186,6 +189,7 @@ void event_rbtree_op(void *object, void *param)
  */
 extern void xs_client_delete (void *pv);
 
+extern int xs_client_find_wpath_inlock (XS_client client, int wpath_wd, char *pathroute, ssize_t pathsize);
 
 #if defined(__cplusplus)
 }

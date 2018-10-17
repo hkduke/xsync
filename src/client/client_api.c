@@ -152,6 +152,8 @@ void do_event_task (thread_context_t *thread_ctx)
     threadpool_task_t *task = thread_ctx->task;
 
     if (task->flags == 100) {
+        int wpath_wd;
+
         perthread_data *perdata = (perthread_data *) thread_ctx->thread_arg;
 
         XS_client client = (XS_client) perdata->xclient;
@@ -171,8 +173,14 @@ void do_event_task (thread_context_t *thread_ctx)
 
         __inotifytools_lock();
         {
+            wpath_wd = inotifytools_wd_from_filename(event->pathname);
+
+            if (xs_client_find_wpath_inlock(client, wpath_wd, message, sizeof(perdata->buffer) - 100) > 0) {
+                printf("****{%s}****\n", message);
+            }         
+
             snprintf(evmask_str, 50, "%s", inotifytools_event_to_str(event->mask));
-            evmask_str[49] = 0;
+            evmask_str[49] = 0;            
         }
         __inotifytools_unlock();
 
@@ -629,6 +637,15 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
     memcpy(client->apphome, opts->apphome, opts->apphome_len);
     client->apphome_len = opts->apphome_len;
 
+    if (opts->clientid[0]) {
+        // 通过命令行参数设置 clientid
+        memcpy(client->clientid, opts->clientid, sizeof(client->clientid));
+    } else {
+        // TODO: 从本地磁盘得到 clientid
+        LOGGER_WARN("TODO: no CLIENTID specified");
+    }
+    client->clientid[sizeof(client->clientid) - 1] = '\0';
+
     __interlock_release(&client->task_counter);
 
     /* PTHREAD_PROCESS_PRIVATE = 0 */
@@ -680,7 +697,7 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
     client->queues = QUEUES;
     client->interval_seconds = opts->sweep_interval;
 
-    LOGGER_INFO("threads=%d queues=%d servers=%d interval=%d sec", THREADS, QUEUES, SERVERS, client->interval_seconds);
+    LOGGER_INFO("CLIENTID(=%s): threads=%d queues=%d servers=%d interval=%d", client->clientid, THREADS, QUEUES, SERVERS, client->interval_seconds);
 
     /* create per thread data and initialize */
     snprintf(client->buffer, sizeof(client->buffer), "%sevent-task.lua", client->watch_config);

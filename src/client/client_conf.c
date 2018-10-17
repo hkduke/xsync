@@ -146,15 +146,25 @@ void xs_client_delete (void *pv)
 
     LuaCtxFree(&client->luactx);
 
+    for (i = 0; i < XS_client_pathid_max(client); i++) {
+        char * pathid = client->wd_pathid_table[i];
+
+        if (pathid) {
+            client->wd_pathid_table[i] = 0;
+
+            free(pathid);
+        }
+    }
+
     LOGGER_TRACE("~XS_client(%p)", client);
     free(client);
 }
 
+
 /**
  * 根据 wd 查找路径表. 这个函数总应该成功. 否则是编程问题 !!
  */
-__no_warning_unused(static)
-int client_find_watch_path (XS_client client, int wpath_wd, char *pathroute, ssize_t pathsize)
+int xs_client_find_wpath_inlock (XS_client client, int wpath_wd, char *pathroute, ssize_t pathsize)
 {
     int wd, pathlen;
 
@@ -167,8 +177,6 @@ int client_find_watch_path (XS_client client, int wpath_wd, char *pathroute, ssi
         wd = wpath_wd;
         pathid = 0;
     }
-
-    __inotifytools_lock();
 
     while (! pathid) {
         char *wdpath;
@@ -186,7 +194,7 @@ int client_find_watch_path (XS_client client, int wpath_wd, char *pathroute, ssi
             break;
         }
 
-        if (wd < sizeof(client->wd_pathid_table)) {
+        if ( wd < XS_client_pathid_max(client) ) {
             // 取得 wd 对应的 pathid
             pathid = client->wd_pathid_table[wd];
         }
@@ -207,7 +215,6 @@ int client_find_watch_path (XS_client client, int wpath_wd, char *pathroute, ssi
             }
 
             // 唯一的成功返回位置
-            __inotifytools_unlock();
             return pathlen;
         }
 
@@ -241,7 +248,6 @@ int client_find_watch_path (XS_client client, int wpath_wd, char *pathroute, ssi
     }
 
     // 失败返回
-    __inotifytools_unlock();
     return (-1);
 }
 
@@ -261,13 +267,43 @@ int client_init_watch_path (const char *path, int pathlen, struct mydirent *myen
                 // 目录名必须以 '/' 结尾
                 slashpath(client->buffer, sizeof(client->buffer));
 
-                // 添加目录监视
-                if (! inotifytools_watch_recursively_s(abspath, INOTI_EVENTS_MASK, on_inotify_add_wpath, client)) {
-                    LOGGER_ERROR("inotify add wpath fail: (%s => %s)", myent->ent.d_name, abspath);
-                    return (-4);
-                }
-
                 LOGGER_INFO("inotify add wpath success: (%s => %s)", myent->ent.d_name, abspath);
+
+                __inotifytools_lock();
+                {
+                    if (! inotifytools_watch_recursively(abspath, INOTI_EVENTS_MASK, on_inotify_add_wpath, client)) {
+                        // 添加目录监视失败
+                        LOGGER_ERROR("inotify add wpath fail: (%s => %s)", myent->ent.d_name, abspath);
+
+                        __inotifytools_unlock();
+                        return (-4);
+                    } else {
+                        // 添加目录监视成功
+                        int wd_pathid = inotifytools_wd_from_filename(abspath);
+
+                        if (wd_pathid < 0 || wd_pathid >= XS_client_pathid_max(client)) {
+                            LOGGER_ERROR("too many watch pathid. pathid_max=%d", XS_client_pathid_max(client));
+
+                            __inotifytools_unlock();
+                            return (-4);
+                        } else {
+                            int len = strlen(myent->ent.d_name);
+
+                            char *pathid = client->wd_pathid_table[wd_pathid];
+                            if (pathid) {
+                                // 如果已经存在则先释放
+                                free(pathid);
+                            }
+
+                            pathid = malloc(len + 1);
+                            memcpy(pathid, myent->ent.d_name, len);
+                            pathid[len] = '\0';
+
+                            client->wd_pathid_table[wd_pathid] = pathid;
+                        }
+                    }
+                }
+                __inotifytools_unlock();
             } else {
                 LOGGER_WARN("realpath error(%d): %s - (%s)", errno, strerror(errno), path);
             }

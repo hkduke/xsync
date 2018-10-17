@@ -336,8 +336,8 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
             break;
 
         case 'N':
-            /* TODO */
-            exit(0);
+            strncpy(opts->clientid, optarg, XSYNC_CLIENTID_MAXLEN);
+            opts->clientid[XSYNC_CLIENTID_MAXLEN] = '\0';
             break;
 
         case 'm':
