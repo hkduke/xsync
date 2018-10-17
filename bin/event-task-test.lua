@@ -16,7 +16,7 @@ function on_event_task(intab)
 
     -- TODO:
 
-	io.write("on_event_task: {thread=")
+    io.write("on_event_task: {thread=")
     io.write(intab.thread);
     io.write(";event=");
     io.write(intab.event);
@@ -25,10 +25,10 @@ function on_event_task(intab)
     io.write(";file=");
     io.write(intab.file);
     io.write("}");
-	print()
+    print()
 
     outab.result = "SUCCESS"
-	return outab
+    return outab
 end
 
 
@@ -39,7 +39,7 @@ function on_event_task(intab)
 
     -- TODO:
 
-	io.write("on_event_task: {thread=")
+    io.write("on_event_task: {thread=")
     io.write(intab.thread);
     io.write(";event=");
     io.write(intab.event);
@@ -48,9 +48,9 @@ function on_event_task(intab)
     io.write(";file=");
     io.write(intab.file);
     io.write("}");
-	print()
+    print()
 
     outab.result = "SUCCESS"
-	return outab
+    return outab
 end
 

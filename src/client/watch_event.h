@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.5
+ * @version: 0.1.6
  *
  * @create: 2018-01-24
  *
- * @update: 2018-10-15 12:16:43
+ * @update: 2018-10-17 11:39:21
  */
 
 #ifndef WATCH_EVENT_H_INCLUDED
@@ -46,6 +46,17 @@ extern "C" {
 
 #include "inotifyapi.h"
 
+/**
+ * https://linux.die.net/man/7/inotify
+ *
+ * The name field is only present when an event is returned for a file inside a watched directory;
+ *  it identifies the file pathname relative to the watched directory.
+ * This pathname is null-terminated, and may include further null bytes to align subsequent reads
+ *  to a suitable address boundary.
+ *
+ * The len field counts all of the bytes in name, including the null bytes;
+ *  the length of each inotify_event structure is thus sizeof(struct inotify_event) + len.
+ */
 
 typedef struct watch_event_t
 {
@@ -54,8 +65,8 @@ typedef struct watch_event_t
             int      wd;           /* Watch descriptor */
             uint32_t mask;         /* Mask of events */
             uint32_t cookie;       /* Unique cookie associating related events (for rename(2)) */
-            uint32_t len;          /* Size of name field */
-            char     name[256];    /* Optional null-terminated name */
+            uint32_t len;          /* Size of name field including end null bytes. */
+            char     name[NAME_MAX + 1];    /* Optional null-terminated name */
         };
 
         struct inotify_event inevent;
@@ -74,8 +85,8 @@ struct watch_event_buf_t
             int      wd;           /* Watch descriptor */
             uint32_t mask;         /* Mask of events */
             uint32_t cookie;       /* Unique cookie associating related events (for rename(2)) */
-            uint32_t len;          /* Size of name field */
-            char     name[256];    /* Optional null-terminated name */
+            uint32_t len;          /* Length of name field not including end null byte: '\0' */
+            char     name[NAME_MAX + 1];    /* Optional null-terminated name */
         };
 
         struct inotify_event inevent;
@@ -106,28 +117,9 @@ int inotify_event_dump(watch_event_t *outevent, int pathlenmax, struct inotify_e
     int namelen;
     char *wpath;
 
-    if (inevent->wd < 1) {
-        LOGGER_WARN("bad inevent wd: %d", inevent->wd);
-        return 0;
-    }
-
-    if (inevent->len < 1) {
-        LOGGER_WARN("bad inevent len: %d", inevent->len);
-        return 0;
-    }
-
-    if (inevent->len >= sizeof(outevent->name)) {
-        LOGGER_WARN("too long inevent len: %d", inevent->len);
-    }
-
-    namelen = strlen(inevent->name);
+    namelen = (int) strnlen(inevent->name, NAME_MAX);
     if (! namelen) {
         LOGGER_WARN("empty inevent name");
-        return 0;
-    }
-
-    if (namelen >= sizeof(outevent->name)) {
-        LOGGER_WARN("too long inevent name: %s", inevent->name);
         return 0;
     }
 

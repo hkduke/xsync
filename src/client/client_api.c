@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.5
+ * @version: 0.1.6
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-15 18:04:34
+ * @update: 2018-10-17 11:22:57
  */
 
 /******************************************************************************
@@ -326,7 +326,7 @@ int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX
         LuaCtxCall(client->luactx, "filter_path", "path", abspath);
 
         // TODO: ret
-        
+
         LuaCtxUnlockState(client->luactx);
     }
 
@@ -393,7 +393,7 @@ int filter_watch_file (XS_client client, char *path, const char *name, int namel
         LuaCtxCallMany(client->luactx, "filter_file", keys, values, 2);
 
         // TODO: retcode
-        
+
         LuaCtxUnlockState(client->luactx);
     }
 
@@ -790,7 +790,7 @@ int on_inotify_add_wpath (int flag, const char *wpath, void *arg)
                     printf("inotify_watch_on_query output table[%d] = {%s => %s}\n", i, key, value);
                 }
             }
-            
+
             LuaCtxUnlockState(client->luactx);
         }
     } else if (flag == INO_WATCH_ON_READY) {
@@ -948,10 +948,14 @@ XS_VOID XS_client_bootstrap (XS_client client)
 
             if (! inevent) {
                 __inotifytools_unlock();
-
-                LOGGER_TRACE("null inotify event");
-
                 sleep_ms(10);
+                continue;
+            }
+
+            LOGGER_DEBUG("inotify event(wd=%d)[%s]: %s (len=%d)", inevent->wd, inotifytools_event_to_str(inevent->mask), inevent->name, inevent->len);
+
+            if (inevent->mask & (IN_DELETE_SELF | IN_IGNORED) && ! inevent->len) {
+                __inotifytools_unlock();
                 continue;
             }
 
@@ -980,14 +984,16 @@ XS_VOID XS_client_bootstrap (XS_client client)
                 if (wd > 0) {
                     // 删除监视
                     if (inotifytools_remove_watch_by_wd_s(wd)) {
-                        LOGGER_INFO("success removed watch dir(wd=%d): %s", wd, pathbuf);
+                        LOGGER_INFO("inotify remove wpath success: (%d: %s)", wd, pathbuf);
                     } else {
-                        LOGGER_ERROR("failed to remove watch dir(wd=%d): %s", wd, pathbuf);
+                        LOGGER_ERROR("inotify remove wpath fail: (%d: %s)", wd, pathbuf);
+
                         client_set_inotify_reload(client, 1);
                     }
                 }
             } else if (evbuf.mask & (IN_CREATE | IN_MOVED_TO)) {
                 if (wd > 0) {
+                    // 删除监视
                     inotifytools_remove_watch_by_wd_s(wd);
                     wd = inotifytools_wd_from_filename_s(pathbuf);
                 }
@@ -995,22 +1001,15 @@ XS_VOID XS_client_bootstrap (XS_client client)
                 if (wd == -1) {
                     // 添加监视:
                     if (inotifytools_watch_recursively_s(pathbuf, INOTI_EVENTS_MASK, on_inotify_add_wpath, client)) {
-                        LOGGER_INFO("success add watch dir(wd=%d): %s", inotifytools_wd_from_filename_s(pathbuf), pathbuf);
+                        LOGGER_INFO("inotify add wpath success: (%s)", pathbuf);
                     } else {
-                        LOGGER_ERROR("failed to add watch dir: %s", pathbuf);
+                        LOGGER_ERROR("inotify add wpath fail: (%s)", pathbuf);
+
                         client_set_inotify_reload(client, 1);
                     }
                 }
             } else if (evbuf.mask & IN_CLOSE) {
-                if (wd == -1) {
-                    // 添加监视:
-                    if (inotifytools_watch_recursively_s(pathbuf, INOTI_EVENTS_MASK, on_inotify_add_wpath, client)) {
-                        LOGGER_INFO("success add watch dir(wd=%d): %s", inotifytools_wd_from_filename_s(pathbuf), pathbuf);
-                    } else {
-                        LOGGER_ERROR("failed to add watch dir: %s", pathbuf);
-                        client_set_inotify_reload(client, 1);
-                    }
-                }
+                LOGGER_ERROR("should never run to this!");
             }
 
             continue;

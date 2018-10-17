@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.5
+ * @version: 0.1.6
  *
  * @create: 2018-09-29
  *
- * @update: 2018-10-13 14:15:49
+ * @update: 2018-10-17 10:20:32
  */
 
 #ifndef INOTIFYAPI_H_INCLUDED
@@ -395,9 +395,11 @@ static inline int inotifytools_watch_files_s (char const *filenames[], int event
 __attribute__((unused))
 static inline int inotifytools_watch_recursively_s (char const *path, int events, ino_callback_t cbfunc, void *cbarg)
 {
-    int ret;
+    int ret = 0;
     __inotifytools_lock();
-    ret = inotifytools_watch_recursively(path, events, cbfunc, cbarg);
+    if (inotifytools_wd_from_filename(path) == -1) {
+        ret = inotifytools_watch_recursively(path, events, cbfunc, cbarg);
+    }
     __inotifytools_unlock();
     return ret;
 }

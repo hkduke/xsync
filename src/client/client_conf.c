@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.5
+ * @version: 0.1.6
  *
  * @create: 2018-01-26
  *
- * @update: 2018-10-15 18:04:33
+ * @update: 2018-10-17 10:38:39
  */
 
 #include "client_api.h"
@@ -58,7 +58,7 @@ void * perthread_data_create (XS_client client, int servers, int threadid, const
     }
 
     // TODO: kafka config from lua
-    
+
     // '/home/root1/Workspace/github.com/pepstack/xsync/target/libkafkatools.so.1'
     client->apphome[client->apphome_len] = 0;
     strcat(client->apphome, "libkafkatools.so.1");
@@ -169,13 +169,16 @@ int lscb_init_watch_path (const char *path, int pathlen, struct mydirent *myent,
             char *abspath = realpath(path, client->buffer);
 
             if (abspath) {
-                // 添加目录监视
-                LOGGER_INFO("add pathid: %s => (%s)", myent->ent.d_name, abspath);
+                // 目录名必须以 '/' 结尾
+                slashpath(client->buffer, sizeof(client->buffer));
 
+                // 添加目录监视
                 if (! inotifytools_watch_recursively_s(abspath, INOTI_EVENTS_MASK, on_inotify_add_wpath, client)) {
-                    LOGGER_ERROR("inotifytools_watch_recursively(): %s", strerror(inotifytools_error()));
+                    LOGGER_ERROR("inotify add wpath fail: (%s => %s)", myent->ent.d_name, abspath);
                     return (-4);
                 }
+
+                LOGGER_INFO("inotify add wpath success: (%s => %s)", myent->ent.d_name, abspath);
             } else {
                 LOGGER_WARN("realpath error(%d): %s - (%s)", errno, strerror(errno), path);
             }

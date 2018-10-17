@@ -14,14 +14,14 @@ function filter_path(intab)
 
     -- TODO:
 
-	io.write("filter_path: {path=")
+    io.write("filter_path: {path=")
     io.write(intab.path);
     io.write("}");
-	print()
+    print()
 
     outab.result = "ACCEPT"
 
-	return outab
+    return outab
 end
 
 
@@ -34,16 +34,16 @@ function filter_file(intab)
 
     -- TODO:
 
-	io.write("filter_file: {path=")
+    io.write("filter_file: {path=")
     io.write(intab.path);
     io.write(";file=");
     io.write(intab.file);
     io.write("}");
-	print()
+    print()
 
     outab.result = "ACCEPT"
 
-	return outab
+    return outab
 end
 
 
@@ -57,11 +57,11 @@ function inotify_watch_on_query(intab)
     io.write("inotify_watch_on_query: {wpath=")
     io.write(intab.wpath);
     io.write("}");
-	print()
+    print()
 
     outab.result = "ACCEPT"
 
-	return outab
+    return outab
 end
 
 
@@ -75,11 +75,11 @@ function inotify_watch_on_ready(intab)
     io.write("inotify_watch_on_ready: {wpath=")
     io.write(intab.wpath);
     io.write("}");
-	print()
+    print()
 
     outab.result = "SUCCESS"
 
-	return outab
+    return outab
 end
 
 
@@ -93,9 +93,9 @@ function inotify_watch_on_error(intab)
     io.write("inotify_watch_on_query: {wpath=")
     io.write(intab.wpath);
     io.write("}");
-	print()
+    print()
 
     outab.result = "SUCCESS"
 
-	return outab
+    return outab
 end
