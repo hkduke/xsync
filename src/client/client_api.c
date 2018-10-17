@@ -141,73 +141,96 @@ static int test_kafka(kafkatools_producer_api_t *api, const char *topic_name, co
 __no_warning_unused(static)
 void do_event_task (thread_context_t *thread_ctx)
 {
-    char *timems_str;
-    char *evmask_str;
-    char *thread_str;
-
-    char *message;
-
-    int ret, chlen;
-
     threadpool_task_t *task = thread_ctx->task;
 
     if (task->flags == 100) {
-        int wpath_wd;
-
         perthread_data *perdata = (perthread_data *) thread_ctx->thread_arg;
-
         XS_client client = (XS_client) perdata->xclient;
 
         red_black_node_t *node = (red_black_node_t *) task->argument;
-
         XS_watch_event event = (XS_watch_event) node->object;
 
-        /**
-         * TIME+0 | MASK+40 | THREAD+90 | MESSAGE+100
-         */
-        timems_str = perdata->buffer + 0;
-        evmask_str = perdata->buffer + 40;
-        thread_str = perdata->buffer + 90;
+        // {type[0-9], time[10-39], thread[40-49], event[50-99], clientid[100-199], pathid[200-299], file[300-599], route[600-1999], path[2000-XSYNC_BUFSIZE)}
+        static int offsets[] = {0, 10, 40, 50, 100, 200, 300, 600, 2000, XSYNC_BUFSIZE};
 
-        message = perdata->buffer + 100;
+        char *message = 0;
+
+        char *v_type = perdata->buffer + offsets[0];
+        char *v_time = perdata->buffer + offsets[1];
+        char *v_thread = perdata->buffer + offsets[2];
+        char *v_event = perdata->buffer + offsets[3];
+        char *v_clientid = perdata->buffer + offsets[4];
+        char *v_pathid = perdata->buffer + offsets[5];
+        char *v_file = perdata->buffer + offsets[6];
+        char *v_route = perdata->buffer + offsets[7];
+        char *v_path = perdata->buffer + offsets[8];
+
+        bzero(perdata->buffer, sizeof(perdata->buffer));
 
         __inotifytools_lock();
         {
-            wpath_wd = inotifytools_wd_from_filename(event->pathname);
+            if (xs_client_find_wpath_inlock(client, event->pathname, perdata->buffer, sizeof(perdata->buffer),
+                v_clientid, offsets[5] - offsets[4],
+                v_pathid, offsets[6] - offsets[5],
+                v_route, offsets[8] - offsets[7]) != -1)
+            {
+                // 查找路由成功, 设置字段值
+                message = v_route;
 
-            if (xs_client_find_wpath_inlock(client, wpath_wd, message, sizeof(perdata->buffer) - 100) > 0) {
-                printf("****{%s}****\n", message);
-            }         
-
-            snprintf(evmask_str, 50, "%s", inotifytools_event_to_str(event->mask));
-            evmask_str[49] = 0;            
+                snprintf(v_type, offsets[1] - offsets[0], "%d", task->flags);
+                now_time_str(v_time, offsets[2] - offsets[1]);
+                snprintf(v_thread, offsets[3] - offsets[2], "%d", perdata->threadid);
+                snprintf(v_event, offsets[4] - offsets[3], "%s", inotifytools_event_to_str(event->mask));
+                snprintf(v_file, offsets[7] - offsets[6], "%s", event->name);
+                snprintf(v_path, offsets[9] - offsets[8], "%s", event->pathname);
+            }
         }
         __inotifytools_unlock();
 
-        snprintf(thread_str, 8, "%d", perdata->threadid);
-        thread_str[7] = 0;
+        if (message) {
+            if (LuaCtxLockState(perdata->luactx)) {
+                const char *keys[] = {
+                    "type", "time", "thread", "event", "clientid", "pathid", "file", "route", "path"
+                };
 
-        now_time_str(timems_str, 40);
+                const char *values[] = {
+                    v_type, v_time, v_thread, v_event, v_clientid, v_pathid, v_file, v_route, v_path
+                };
 
-        if (LuaCtxLockState(perdata->luactx)) {
-            const char *keys[] = {"thread", "event", "path", "file"};
-            const char *values[] = {thread_str, evmask_str, event->pathname, event->name};
+                if (LuaCtxCallMany(perdata->luactx, "on_event_task", keys, values, sizeof(keys)/sizeof(keys[0])) == LUACTX_SUCCESS) {
+                    char *result;
 
-            LuaCtxCallMany(perdata->luactx, "on_event_task", keys, values, 4);
+                    if (LuaCtxGetKey(perdata->luactx, LuaCtxFindKey(perdata->luactx, "result", strlen("result")), &result)) {
+                        char *kafka_topic;
+                        char *kafka_partition;
 
-            // TODO: get topic, partition
+                        LuaCtxGetKey(perdata->luactx, LuaCtxFindKey(perdata->luactx, "kafka_topic", strlen("kafka_topic")), &kafka_topic);
+                        LuaCtxGetKey(perdata->luactx, LuaCtxFindKey(perdata->luactx, "kafka_partition", strlen("kafka_partition")), &kafka_partition);
 
-            LuaCtxUnlockState(perdata->luactx);
+                        int msglen = snprintf(message, perdata->buffer + sizeof(perdata->buffer) - message, "{%s|%s|%s|%s|%s|%s|%s|%s}",
+                            v_type, v_time, v_thread, v_event, v_clientid, v_pathid, event->pathname, event->name);
+
+                        if (msglen > 0 && msglen < perdata->buffer + sizeof(perdata->buffer) - message) {
+                            message[msglen] = 0;
+
+                            LOGGER_DEBUG("%s", message);
+
+                            /* TODO: 发送消息到 kafka */
+                            test_kafka(&perdata->kt_producer_api, v_pathid, message, msglen);
+                        } else {
+                            LOGGER_FATAL("application error: size of perdata buffer is too small");
+                            exit(-10);
+                        }
+                    }
+                } else {
+                    LOGGER_ERROR("LuaCtxCallMany fail: %s", LuaCtxGetError(perdata->luactx));
+                }
+
+                LuaCtxUnlockState(perdata->luactx);
+            }
         }
 
-        /* 发送消息到 kafka */
-        chlen = snprintf(message, XSYNC_BUFSIZE - 100, "{%d|%s|%s|%s|%s%s}", task->flags, timems_str, thread_str, evmask_str, event->pathname, event->name);
-
-        if (chlen > 0 && chlen < XSYNC_BUFSIZE - 100) {
-            message[chlen] = 0;
-
-            test_kafka(&perdata->kt_producer_api, "test", message, chlen);
-        }
+        int rc = 0;
 
         // 使用完毕必须删除 !!
         event_rbtree_lock();
@@ -217,11 +240,11 @@ void do_event_task (thread_context_t *thread_ctx)
 
             rbtree_remove_at(&client->event_rbtree, node);
 
-            ret = rbtree_size(&client->event_rbtree);
+            rc = rbtree_size(&client->event_rbtree);
         }
         event_rbtree_unlock();
 
-        LOGGER_TRACE("rbtree_size=%d", ret);
+        LOGGER_DEBUG("rbtree_size=%d", rc);
     } else {
         LOGGER_ERROR("unknown event task flags(=%d)", task->flags);
     }

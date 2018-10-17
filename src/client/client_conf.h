@@ -189,7 +189,8 @@ void event_rbtree_op(void *object, void *param)
  */
 extern void xs_client_delete (void *pv);
 
-extern int xs_client_find_wpath_inlock (XS_client client, int wpath_wd, char *pathroute, ssize_t pathsize);
+extern int xs_client_find_wpath_inlock (XS_client client, const char *wpath, char *pathroute, ssize_t pathsize,
+    char *clientid_buf, int clientid_cb, char *pathid_buf, int pathid_cb, char *route_buf, int route_cb);
 
 #if defined(__cplusplus)
 }

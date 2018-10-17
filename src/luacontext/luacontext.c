@@ -395,12 +395,17 @@ int LuaCtxNumPairs (lua_context ctx)
 
 int LuaCtxGetKey (lua_context ctx, int index, char **outkey)
 {
-    int start = ctx->keys_offset[index];
-    int end = ctx->keys_offset[index + 1];
+    *outkey = 0;
 
-    *outkey = ctx->keys_buffer + start;
-
-    return (end - start);
+    if (index >= 0 && index < LUACTX_PAIRS_MAXNUM) {
+        int start = ctx->keys_offset[index];
+        int end = ctx->keys_offset[index + 1];
+        *outkey = ctx->keys_buffer + start;
+        return (end - start);
+    } else {
+        /* bad */
+        return 0;
+    }
 }
 
 

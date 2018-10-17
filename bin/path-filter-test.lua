@@ -14,7 +14,7 @@ function filter_path(intab)
 
     -- TODO:
 
-    io.write("filter_path: {path=")
+    io.write("path-filter.lua::filter_path: {path=")
     io.write(intab.path);
     io.write("}");
     print()
@@ -34,7 +34,7 @@ function filter_file(intab)
 
     -- TODO:
 
-    io.write("filter_file: {path=")
+    io.write("path-filter.lua::filter_file: {path=")
     io.write(intab.path);
     io.write(";file=");
     io.write(intab.file);
@@ -54,7 +54,7 @@ function inotify_watch_on_query(intab)
         result = "REJECT"
     }
 
-    io.write("inotify_watch_on_query: {wpath=")
+    io.write("path-filter.lua::inotify_watch_on_query: {wpath=")
     io.write(intab.wpath);
     io.write("}");
     print()
@@ -72,7 +72,7 @@ function inotify_watch_on_ready(intab)
         result = "ERROR"
     }
 
-    io.write("inotify_watch_on_ready: {wpath=")
+    io.write("path-filter.lua::inotify_watch_on_ready: {wpath=")
     io.write(intab.wpath);
     io.write("}");
     print()
@@ -90,7 +90,7 @@ function inotify_watch_on_error(intab)
         result = "ERROR"
     }
 
-    io.write("inotify_watch_on_query: {wpath=")
+    io.write("path-filter.lua::inotify_watch_on_query: {wpath=")
     io.write(intab.wpath);
     io.write("}");
     print()

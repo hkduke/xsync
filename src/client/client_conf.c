@@ -164,11 +164,12 @@ void xs_client_delete (void *pv)
 /**
  * 根据 wd 查找路径表. 这个函数总应该成功. 否则是编程问题 !!
  */
-int xs_client_find_wpath_inlock (XS_client client, int wpath_wd, char *pathroute, ssize_t pathsize)
+int xs_client_find_wpath_inlock (XS_client client, const char *wpath, char *pathroute, ssize_t pathsize,
+    char *clientid_buf, int clientid_cb, char *pathid_buf, int pathid_cb, char *route_buf, int route_cb)
 {
-    int wd, pathlen;
-
     char *pathid;
+    int wd, pathlen;
+    int wpath_wd = inotifytools_wd_from_filename(wpath);
 
     if (wpath_wd < 0) {
         LOGGER_FATAL("should never run to this! bad wpath wd");
@@ -179,10 +180,10 @@ int xs_client_find_wpath_inlock (XS_client client, int wpath_wd, char *pathroute
     }
 
     while (! pathid) {
-        char *wdpath;
+        const char *wdpath;
 
         // 取得 wd 对应的全路径
-        wdpath = inotifytools_filename_from_wd(wd);
+        wdpath = (wd == wpath_wd? wpath : inotifytools_filename_from_wd(wd));
         if (! wdpath) {
             LOGGER_FATAL("should never run to this! inotifytools_filename_from_wd fail");
             break;
@@ -203,18 +204,17 @@ int xs_client_find_wpath_inlock (XS_client client, int wpath_wd, char *pathroute
             // pathid => wdpath
             LOGGER_DEBUG("found pathid (%s => %s)", pathid, wdpath);
 
-            wdpath = inotifytools_filename_from_wd(wpath_wd);
+            snprintf(clientid_buf, clientid_cb, "%s", client->clientid);
+            snprintf(pathid_buf, pathid_cb, "%s", pathid);
 
-            // 组合路径并返回路径字符数
-            // pathroute = "服务端路径 | 本地路径"
-            // pathroute = "$clientid/$pathid/logs/|$wpath_localpath"
-            pathlen = snprintf(pathroute, pathsize, "%s/%s/%s|%s", client->clientid, pathid, wdpath + pathlen, wdpath);
-            if (pathlen <= 0 || pathlen >= pathsize) {
-                LOGGER_FATAL("should never run to this! pathroute is too short");
+            pathlen = snprintf(route_buf, route_cb, "%s", wpath + pathlen);
+
+            if (pathlen >= route_cb) {
+                LOGGER_FATAL("should never run to this! bad wpath: %s", wpath);
                 break;
             }
 
-            // 唯一的成功返回位置
+            // 成功返回: >= 0
             return pathlen;
         }
 
