@@ -151,7 +151,8 @@ void xs_client_delete (void *pv)
 }
 
 
-int lscb_init_watch_path (const char *path, int pathlen, struct mydirent *myent, void *arg1, void *arg2)
+__no_warning_unused(static)
+int client_init_watch_path (const char *path, int pathlen, struct mydirent *myent, void *arg1, void *arg2)
 {
     XS_client client = (XS_client) arg1;
 
@@ -182,6 +183,54 @@ int lscb_init_watch_path (const char *path, int pathlen, struct mydirent *myent,
 
     // continue to next
     return 1;
+}
+
+
+/**
+ * 根据 watch 目录初始化
+ *
+ */
+XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_root)
+{
+    int err, len;
+
+    char pathbuf[PATH_MAX];
+
+    if (watch_root) {
+        err = getfullpath(watch_root, client->watch_config, sizeof(client->watch_config) - 1);
+        if (err != 0) {
+            LOGGER_ERROR("bad watch root: %s", watch_root);
+            return XS_ERROR;
+        }
+
+        len = slashpath(client->watch_config, sizeof(client->watch_config));
+
+        if (! strncmp(watch_root, client->watch_config, len - 1)) {
+            // 绝对路径
+            LOGGER_INFO("init watch root: %s", watch_root);
+        } else {
+            // 符号链接路径
+            LOGGER_INFO("init watch root: %s -> %s", watch_root, client->watch_config);
+        }
+
+        /* initialize lua context */
+        snprintf(pathbuf, sizeof(pathbuf), "%spath-filter.lua", client->watch_config);
+
+        if (access(pathbuf, F_OK|R_OK|X_OK) == 0) {
+            LOGGER_INFO("loading lua script: %s", pathbuf);
+
+            if (LuaCtxNew(pathbuf, LUACTX_THREAD_MODE_MULTI, &client->luactx) != LUACTX_SUCCESS) {
+                LOGGER_FATAL("LuaCtxNew fail");
+                return XS_ERROR;
+            }
+        } else {
+            LOGGER_WARN("file access error(%d): %s (%s)", errno, strerror(errno), pathbuf);
+        }
+    }
+
+    err = listdir(client->watch_config, pathbuf, sizeof(pathbuf), (listdir_callback_t) client_init_watch_path, (void*) client, 0);
+
+    return (err == 0? XS_SUCCESS : XS_ERROR);
 }
 
 
@@ -300,52 +349,4 @@ error_exit:
     mxmlDelete(xml);
     fclose(fp);
     return XS_ERROR;
-}
-
-
-/**
- * 根据 watch 目录初始化
- *
- */
-XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_root)
-{
-    int err, len;
-
-    char pathbuf[PATH_MAX];
-
-    if (watch_root) {
-        err = getfullpath(watch_root, client->watch_config, sizeof(client->watch_config) - 1);
-        if (err != 0) {
-            LOGGER_ERROR("bad watch root: %s", watch_root);
-            return XS_ERROR;
-        }
-
-        len = slashpath(client->watch_config, sizeof(client->watch_config));
-
-        if (! strncmp(watch_root, client->watch_config, len - 1)) {
-            // 绝对路径
-            LOGGER_INFO("init watch root: %s", watch_root);
-        } else {
-            // 符号链接路径
-            LOGGER_INFO("init watch root: %s -> %s", watch_root, client->watch_config);
-        }
-
-        /* initialize lua context */
-        snprintf(pathbuf, sizeof(pathbuf), "%spath-filter.lua", client->watch_config);
-
-        if (access(pathbuf, F_OK|R_OK|X_OK) == 0) {
-            LOGGER_INFO("loading lua script: %s", pathbuf);
-
-            if (LuaCtxNew(pathbuf, LUACTX_THREAD_MODE_MULTI, &client->luactx) != LUACTX_SUCCESS) {
-                LOGGER_FATAL("LuaCtxNew fail");
-                return XS_ERROR;
-            }
-        } else {
-            LOGGER_WARN("file access error(%d): %s (%s)", errno, strerror(errno), pathbuf);
-        }
-    }
-
-    err = listdir(client->watch_config, pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_init_watch_path, (void*) client, 0);
-
-    return (err == 0? XS_SUCCESS : XS_ERROR);
 }

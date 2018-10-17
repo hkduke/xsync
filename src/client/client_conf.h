@@ -71,6 +71,10 @@ typedef struct xs_client_t
     /* 客户端唯一 ID */
     char clientid[XSYNC_CLIENTID_MAXLEN + 1];
 
+    /* watch 全路径或 config.xml 全路径: 最长 256 字符 */
+    int from_watch;
+    char watch_config[256];
+
     /**
      * servers_opts[0].servers
      * total connections in server_conns
@@ -95,16 +99,13 @@ typedef struct xs_client_t
     /* 是(1)否(0)重启监控(当配置更改时有必要重启监控) */
     volatile int inotify_reload;
 
-    /* watch 全路径或 config.xml 全路径: 最长 256 字符 */
-    int from_watch;
-    char watch_config[256];
-
     /* lua context */
     lua_context luactx;
 
-    /**
-     * tree for caching all inotify events
-     */
+    /* 存放所有监视目录的描述符(wd), 每个 wd 指明其路由: pathid/subpath/to/logfile */
+
+    
+    /* 当前的监视事件树: 用于缓存正在处理的事件, 防止事件被重复处理 */
     red_black_tree_t  event_rbtree;
     pthread_mutex_t rbtree_lock;
 
@@ -184,15 +185,6 @@ void event_rbtree_op(void *object, void *param)
  * private functions
  */
 extern void xs_client_delete (void *pv);
-
-
-/**
- * level = 0 : 必须是目录符号链接
- * level = 1, 2, ... : 可以是目录符号链接, 也可以是物理目录
- */
-extern int lscb_init_watch_path (const char * path, int pathlen, struct mydirent *myent, void *arg1, void *arg2);
-
-extern int XS_client_prepare_watch_events (XS_client client, struct inotify_event *inevent, XS_watch_event events[XSYNC_SERVER_MAXID + 1]);
 
 
 #if defined(__cplusplus)
