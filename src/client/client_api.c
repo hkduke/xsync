@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.6
+ * @version: 0.1.5
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-17 11:22:57
+ * @update: 2018-10-15 18:04:34
  */
 
 /******************************************************************************
@@ -326,7 +326,7 @@ int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX
         LuaCtxCall(client->luactx, "filter_path", "path", abspath);
 
         // TODO: ret
-
+        
         LuaCtxUnlockState(client->luactx);
     }
 
@@ -337,7 +337,7 @@ int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX
         wd = inotifytools_wd_from_filename_s(abspath);
         if (wd < 1) {
             // 接受的监视目录不存在, 重启监视
-            LOGGER_ERROR("path not in watch: %s -> %s", watch_root_path(client), abspath);
+            LOGGER_ERROR("path not in watch: %s -> %s", client->watch_config, abspath);
             return (-1);
         }
         return wd;
@@ -393,7 +393,7 @@ int filter_watch_file (XS_client client, char *path, const char *name, int namel
         LuaCtxCallMany(client->luactx, "filter_file", keys, values, 2);
 
         // TODO: retcode
-
+        
         LuaCtxUnlockState(client->luactx);
     }
 
@@ -587,14 +587,12 @@ void xs_inotifytools_restart(XS_client client)
         exit(XS_ERROR);
     }
 
-    if (__interlock_get(&client->size_paths) && client->paths[0] == 'C') {
-        // 从 XML 配置文件初始化客户端
-        err = XS_client_conf_from_xml(client, 0);
-    } else if (__interlock_get(&client->size_paths) && client->paths[0] == 'W') {
+    if (client->from_watch) {
         // 从监控目录初始化客户端
         err = XS_client_conf_from_watch(client, 0);
     } else {
-        LOGGER_ERROR("should nerver run to this !");
+        // 从 XML 配置文件初始化客户端
+        err = XS_client_conf_from_xml(client, 0);
     }
 
     if (err != XS_SUCCESS) {
@@ -644,7 +642,6 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
     }
 
     client->servers_opts->sidmax = 0;
-    client->size_paths = 0;
 
     /**
      * initialize and watch the entire directory tree from the current working
@@ -652,7 +649,7 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
      */
     LOGGER_DEBUG("inotifytools_initialize");
 
-    if ( ! inotifytools_initialize()) {
+    if (! inotifytools_initialize()) {
         LOGGER_ERROR("inotifytools_initialize(): %s", strerror(inotifytools_error()));
         xs_client_delete((void*) client);
 
@@ -661,9 +658,13 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
 
     if (opts->from_watch) {
         // 从监控目录初始化客户端: 是否递归
+        client->from_watch = 1;
+
         err = XS_client_conf_from_watch(client, opts->config);
     } else {
         // 从 XML 配置文件初始化客户端
+        client->from_watch = 0;
+
         err = XS_client_conf_from_xml(client, opts->config);
     }
 
@@ -682,7 +683,7 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
     LOGGER_INFO("threads=%d queues=%d servers=%d interval=%d sec", THREADS, QUEUES, SERVERS, client->interval_seconds);
 
     /* create per thread data and initialize */
-    snprintf(client->buffer, sizeof(client->buffer), "%sevent-task.lua", watch_root_path(client));
+    snprintf(client->buffer, sizeof(client->buffer), "%sevent-task.lua", client->watch_config);
     if (access(client->buffer, F_OK|R_OK|X_OK)) {
         LOGGER_WARN("event-task.lua cannot access (%d): %s (%s)", errno, strerror(errno), client->buffer);
         *client->buffer = 0;
@@ -790,7 +791,7 @@ int on_inotify_add_wpath (int flag, const char *wpath, void *arg)
                     printf("inotify_watch_on_query output table[%d] = {%s => %s}\n", i, key, value);
                 }
             }
-
+            
             LuaCtxUnlockState(client->luactx);
         }
     } else if (flag == INO_WATCH_ON_READY) {
@@ -856,7 +857,7 @@ void sweep_worker (void *arg)
     for (;;) {
         sleep_ms(client->interval_seconds * 1000);
 
-        listdir(watch_root_path(client), pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_sweep_watch_path, (void*) client, 0);
+        listdir(client->watch_config, pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_sweep_watch_path, (void*) client, 0);
     }
 
     LOGGER_FATAL("thread exit unexpected.");

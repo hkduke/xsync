@@ -95,10 +95,9 @@ typedef struct xs_client_t
     /* 是(1)否(0)重启监控(当配置更改时有必要重启监控) */
     volatile int inotify_reload;
 
-    /* 路径组合配置 */
-    int offs_watch_root;
-    volatile int size_paths;
-    char *paths;
+    /* watch 全路径或 config.xml 全路径: 最长 256 字符 */
+    int from_watch;
+    char watch_config[256];
 
     /* lua context */
     lua_context luactx;
@@ -141,10 +140,6 @@ typedef struct xs_client_t
 
 
 #define event_rbtree_unlock()  pthread_mutex_unlock(&client->rbtree_lock)
-
-#define get_watch_root_len(client)  (client->offs_path_filter - client->offs_watch_root - 1)
-
-#define watch_root_path(client)  (client->paths + client->offs_watch_root)
 
 
 __no_warning_unused(static)

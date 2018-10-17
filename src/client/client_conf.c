@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.6
+ * @version: 0.1.5
  *
  * @create: 2018-01-26
  *
- * @update: 2018-10-17 10:38:39
+ * @update: 2018-10-15 18:04:33
  */
 
 #include "client_api.h"
@@ -58,7 +58,7 @@ void * perthread_data_create (XS_client client, int servers, int threadid, const
     }
 
     // TODO: kafka config from lua
-
+    
     // '/home/root1/Workspace/github.com/pepstack/xsync/target/libkafkatools.so.1'
     client->apphome[client->apphome_len] = 0;
     strcat(client->apphome, "libkafkatools.so.1");
@@ -132,13 +132,6 @@ void xs_client_delete (void *pv)
             perthread_data_free(perdata);
         }
         free(client->thread_args);
-    }
-
-    if (__interlock_get(&client->size_paths)) {
-        __interlock_set(&client->size_paths, 0);
-
-        free(client->paths);
-        client->paths = 0;
     }
 
     LOGGER_TRACE("clean event_rbtree");
@@ -242,12 +235,7 @@ XS_RESULT XS_client_conf_from_xml (XS_client client, const char *config_xml)
     mxml_node_t *root;
     mxml_node_t *node;
 
-    if (config_xml && ! __interlock_get(&client->size_paths)) {
-        int size_paths;
-        char *paths;
-
-        int offs_config_xml;
-
+    if (config_xml) {
         if (strcmp(strrchr(config_xml, '.'), ".xml")) {
             LOGGER_ERROR("config file end with not '.xml': %s", config_xml);
             return XS_E_PARAM;
@@ -259,32 +247,23 @@ XS_RESULT XS_client_conf_from_xml (XS_client client, const char *config_xml)
         }
 
         len = (int) strlen(config_xml);
+        if (len >= sizeof(client->watch_config)) {
+            LOGGER_ERROR("config xml name too long (more than 255): %s", config_xml);
+            return XS_E_PARAM;
+        }
 
-        /* paths =  'w'+config_xml+'\0'+path_filter+'\0'+event_task+'\0'*/
-        size_paths = 1 + (len + 1); //TODO: +   (len + 15) +      (len + 14);
-
-        paths = mem_alloc(1, sizeof(char) * size_paths);
-        paths[0] = 'C';
-
-        offs_config_xml = 1;
-
-        memcpy(paths + offs_config_xml, config_xml, len);
-
-        client->offs_watch_root = offs_config_xml;
-
-        client->paths = paths;
-        __interlock_set(&client->size_paths, size_paths);
+        memcpy(client->watch_config, config_xml, len + 1);
     }
 
-    fp = fopen(client->paths + client->offs_watch_root, "r");
+    fp = fopen(client->watch_config, "r");
     if (! fp) {
-        LOGGER_ERROR("fopen error(%d): %s. (%s)", errno, strerror(errno), client->paths + client->offs_watch_root);
+        LOGGER_ERROR("fopen error(%d): %s. (%s)", errno, strerror(errno), client->watch_config);
         return XS_ERROR;
     }
 
     xml = mxmlLoadFile(0, fp, MXML_TEXT_CALLBACK);
     if (! xml) {
-        LOGGER_ERROR("mxmlLoadFile error. (%s)", client->paths + client->offs_watch_root);
+        LOGGER_ERROR("mxmlLoadFile error. (%s)", client->watch_config);
         fclose(fp);
         return XS_ERROR;
     }
@@ -331,48 +310,28 @@ error_exit:
 XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_root)
 {
     int err, len;
-    char pathbuf[XSYNC_PATH_MAXSIZE];
 
-    if (watch_root && ! __interlock_get(&client->size_paths)) {
-        int size_paths;
-        char *paths;
+    char pathbuf[PATH_MAX];
 
-        int offs_watch_root;
-
-        err = getfullpath(watch_root, pathbuf, sizeof(pathbuf));
+    if (watch_root) {
+        err = getfullpath(watch_root, client->watch_config, sizeof(client->watch_config) - 1);
         if (err != 0) {
-            LOGGER_ERROR("bad watch root: %s", pathbuf);
+            LOGGER_ERROR("bad watch root: %s", watch_root);
             return XS_ERROR;
         }
 
-        len = (int) strlen(pathbuf);
-        if ( pathbuf[len - 1] != '/' ) {
-            pathbuf[len++] = '/';
-            pathbuf[len] = '\0';
-        }
+        len = slashpath(client->watch_config, sizeof(client->watch_config));
 
-        /* paths =  'W' + watch_root + '\0' */
-        size_paths = 1 + (len + 1);
-
-        paths = mem_alloc(1, sizeof(char) * size_paths);
-        paths[0] = 'W';
-
-        offs_watch_root = 1;
-
-        memcpy(paths + offs_watch_root, pathbuf, len);
-
-        if (! strncmp(watch_root, pathbuf, len - 1)) {
+        if (! strncmp(watch_root, client->watch_config, len - 1)) {
             // 绝对路径
-            LOGGER_INFO("init watch root: %s", paths + offs_watch_root);
+            LOGGER_INFO("init watch root: %s", watch_root);
         } else {
             // 符号链接路径
-            LOGGER_INFO("init watch root: %s -> %s", watch_root, paths + offs_watch_root);
+            LOGGER_INFO("init watch root: %s -> %s", watch_root, client->watch_config);
         }
 
-        client->offs_watch_root = offs_watch_root;
-
         /* initialize lua context */
-        len = snprintf(pathbuf, sizeof(pathbuf), "%spath-filter.lua", paths + client->offs_watch_root);
+        snprintf(pathbuf, sizeof(pathbuf), "%spath-filter.lua", client->watch_config);
 
         if (access(pathbuf, F_OK|R_OK|X_OK) == 0) {
             LOGGER_INFO("loading lua script: %s", pathbuf);
@@ -384,12 +343,9 @@ XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_root)
         } else {
             LOGGER_WARN("file access error(%d): %s (%s)", errno, strerror(errno), pathbuf);
         }
-
-        client->paths = paths;
-        __interlock_set(&client->size_paths, size_paths);
     }
 
-    err = listdir(watch_root_path(client), pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_init_watch_path, (void*) client, 0);
+    err = listdir(client->watch_config, pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_init_watch_path, (void*) client, 0);
 
     return (err == 0? XS_SUCCESS : XS_ERROR);
 }
