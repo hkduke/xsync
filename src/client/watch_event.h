@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.6
+ * @version: 0.1.7
  *
  * @create: 2018-01-24
  *
- * @update: 2018-10-17 11:39:21
+ * @update: 2018-10-18 11:15:56
  */
 
 #ifndef WATCH_EVENT_H_INCLUDED
@@ -66,7 +66,7 @@ typedef struct watch_event_t
             uint32_t mask;         /* Mask of events */
             uint32_t cookie;       /* Unique cookie associating related events (for rename(2)) */
             uint32_t len;          /* Size of name field including end null bytes. */
-            char     name[NAME_MAX + 1];    /* Optional null-terminated name */
+            char     name[NAME_MAX + 1];    /* Optional null-terminated name = 256*/
         };
 
         struct inotify_event inevent;
@@ -94,7 +94,7 @@ struct watch_event_buf_t
 
     /* 文件的全路径名长度和全路径名 */
     int pathlen;
-    char pathname[PATH_MAX + 1];
+    char pathname[PATH_MAX];
 } watch_event_buf_t;
 
 

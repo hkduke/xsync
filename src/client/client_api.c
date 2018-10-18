@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.5
+ * @version: 0.1.7
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-15 18:04:34
+ * @update: 2018-10-18 12:44:13
  */
 
 /******************************************************************************
@@ -78,13 +78,13 @@
  *            |
  *            +---- watch/             (可选, 客户端 watch 目录 - 符号链接)
  *                    |
- *                    +---- pathlinkA -> /path/to/A/
+ *                    +---- pathid0 -> /path/to/A/
  *                    |
- *                    +---- pathlinkB -> /path/to/B/
+ *                    +---- pathid1 -> /path/to/B/
  *                    |
- *                    +---- pathLinkC -> /path/to/C/
+ *                    +---- pathid2 -> /path/to/C/
  *                    |        ...
- *                    +---- pathLinkN -> /path/to/N/
+ *                    +---- pathid255 -> /path/to/N/      (最多 256 个 pathid)
  *                    |
  *                    +---- 1   (服务器 sid=1, 内容仅1行 = "host:port#magic";
  *                    |          或者为链接文件: 1 -> ../sid/nameserver/SERVERID)
@@ -114,6 +114,7 @@
 
 #include "../kafkatools/kafkatools.h"
 
+
 static int send_kafka_message(kafkatools_producer_api_t *api, const char *kafka_topic, int kafka_partition, const char *msg, int msglen)
 {
     int ret;
@@ -139,69 +140,74 @@ static int send_kafka_message(kafkatools_producer_api_t *api, const char *kafka_
 }
 
 
-__no_warning_unused(static)
-void do_event_task (thread_context_t *thread_ctx)
+static void do_event_task (thread_context_t *thread_ctx)
 {
     threadpool_task_t *task = thread_ctx->task;
 
     if (task->flags == 100) {
+        int len;
+
+        // TODO:
+        int sid = 0;
+
         perthread_data *perdata = (perthread_data *) thread_ctx->thread_arg;
         XS_client client = (XS_client) perdata->xclient;
 
         red_black_node_t *node = (red_black_node_t *) task->argument;
         XS_watch_event event = (XS_watch_event) node->object;
 
-        // {type[0-9], time[10-39], thread[40-49], event[50-99], clientid[100-199], pathid[200-299], file[300-599], route[600-1999], path[2000-XSYNC_BUFSIZE)}
-        static int offsets[] = {0, 10, 40, 50, 100, 200, 300, 600, 2000, XSYNC_BUFSIZE};
-
-        char *message = 0;
-
-        char *v_type = perdata->buffer + offsets[0];
-        char *v_time = perdata->buffer + offsets[1];
-        char *v_thread = perdata->buffer + offsets[2];
-        char *v_event = perdata->buffer + offsets[3];
-        char *v_clientid = perdata->buffer + offsets[4];
-        char *v_pathid = perdata->buffer + offsets[5];
-        char *v_file = perdata->buffer + offsets[6];
-        char *v_route = perdata->buffer + offsets[7];
-        char *v_path = perdata->buffer + offsets[8];
-
         bzero(perdata->buffer, sizeof(perdata->buffer));
+
+        char *kafka_topic = 0;
+
+        char *v_type = v_type_buf(perdata);
+        char *v_time =  v_time_buf(perdata);
+        char *v_sid =  v_sid_buf(perdata);
+        char *v_thread =  v_thread_buf(perdata);
+        char *v_event =  v_event_buf(perdata);
+        char *v_clientid =  v_clientid_buf(perdata);
+        char *v_pathid =  v_pathid_buf(perdata);
+        char *v_file =  v_file_buf(perdata);
+        char *v_route =  v_route_buf(perdata);
+        char *v_path =  v_path_buf(perdata);
+        char *v_eventmsg =  v_eventmsg_buf(perdata);
 
         __inotifytools_lock();
         {
-            if (xs_client_find_wpath_inlock(client, event->pathname, perdata->buffer, sizeof(perdata->buffer),
-                v_clientid, offsets[5] - offsets[4],
-                v_pathid, offsets[6] - offsets[5],
-                v_route, offsets[8] - offsets[7]) != -1)
-            {
-                // 查找路由成功, 设置字段值
-                message = v_route;
+            if (xs_client_find_wpath_inlock(client, event->pathname,
+                perdata->buffer, sizeof(perdata->buffer),
+                v_clientid, v_clientid_cb(perdata),
+                v_pathid, v_pathid_cb(perdata),
+                v_route, v_route_cb(perdata)) != -1) {
+                /**
+                 * 查找路由成功, 设置字段值
+                 */
+                snprintf(v_type_buf(perdata), v_type_cb(perdata), "%d", task->flags);
 
-                snprintf(v_type, offsets[1] - offsets[0], "%d", task->flags);
-                now_time_str(v_time, offsets[2] - offsets[1]);
-                snprintf(v_thread, offsets[3] - offsets[2], "%d", perdata->threadid);
-                snprintf(v_event, offsets[4] - offsets[3], "%s", inotifytools_event_to_str(event->mask));
-                snprintf(v_file, offsets[7] - offsets[6], "%s", event->name);
-                snprintf(v_path, offsets[9] - offsets[8], "%s", event->pathname);
+                now_time_str(v_time_buf(perdata), v_time_cb(perdata));
+
+                snprintf(v_thread, v_thread_cb(perdata), "%d", perdata->threadid);
+                snprintf(v_event, v_event_cb(perdata), "%s", inotifytools_event_to_str(event->mask));
+                snprintf(v_file, v_file_cb(perdata), "%s", event->name);
+                snprintf(v_path, v_path_cb(perdata), "%s", event->pathname);
+                snprintf(v_sid, v_sid_cb(perdata), "%d", sid);
+
+                kafka_topic = v_pathid;
             }
         }
         __inotifytools_unlock();
 
-        if (message) {
+        if (kafka_topic) {
             int event2kafka = 1;
-
-            char *kafka_topic = 0;
-
             int partition = 0;
 
             if (LuaCtxLockState(perdata->luactx)) {
                 const char *keys[] = {
-                    "type", "time", "thread", "event", "clientid", "pathid", "file", "route", "path"
+                    "type", "time", "sid", "thread", "event", "clientid", "pathid", "file", "route", "path"
                 };
 
                 const char *values[] = {
-                    v_type, v_time, v_thread, v_event, v_clientid, v_pathid, v_file, v_route, v_path
+                    v_type, v_time, v_sid, v_thread, v_event, v_clientid, v_pathid, v_file, v_route, v_path
                 };
 
                 if (LuaCtxCallMany(perdata->luactx, "on_event_task", keys, values, sizeof(keys)/sizeof(keys[0])) == LUACTX_SUCCESS) {
@@ -230,26 +236,24 @@ void do_event_task (thread_context_t *thread_ctx)
                 LuaCtxUnlockState(perdata->luactx);
             }
 
-            if (kafka_topic) {
-                // here we got topic and partition for kafka
-                int msglen = snprintf(message, perdata->buffer + sizeof(perdata->buffer) - message, "{%s|%s|%s|%s|%s|%s|%s|%s}",
-                    v_type, v_time, v_thread, v_event, v_clientid, v_pathid, event->pathname, event->name);
+            /**
+             * here we got topic and partition for kafka
+             */
+            len = snprintf(v_eventmsg, v_eventmsg_cb(perdata), "{%s|%s|%s|%s|%s|%s|%s|%s|%s|%s}",
+                v_type, v_time, v_sid, v_thread, v_event, v_clientid, v_pathid, event->pathname, event->name, v_route);
 
-                if (msglen > 0 && msglen < perdata->buffer + sizeof(perdata->buffer) - message) {
-                    message[msglen] = 0;
+            if (len > 0 && len < v_eventmsg_cb(perdata)) {
+                // 同步发送消息到 kafka
+                LOGGER_DEBUG("send to kafka (topic=%s, partition=%d) message: %s", kafka_topic, partition, v_eventmsg);
 
-                    // 同步发送消息到 kafka
-                    LOGGER_DEBUG("send to kafka: topic=%s, partition=%d, msg=%s", kafka_topic, partition, message);
-
-                    send_kafka_message(&perdata->kt_producer_api, kafka_topic, partition, message, msglen);
-                } else {
-                    LOGGER_FATAL("application error: size of perdata buffer is too small");
-                    exit(-10);
-                }
+                send_kafka_message(&perdata->kt_producer_api, kafka_topic, partition, v_eventmsg, len);
+            } else {
+                LOGGER_FATAL("application error: buffer is too small (see perthread_data.h).");
+                exit(-10);
             }
         }
 
-        int rc = 0;
+        len = 0;
 
         // 使用完毕必须删除 !!
         event_rbtree_lock();
@@ -259,11 +263,11 @@ void do_event_task (thread_context_t *thread_ctx)
 
             rbtree_remove_at(&client->event_rbtree, node);
 
-            rc = rbtree_size(&client->event_rbtree);
+            len = rbtree_size(&client->event_rbtree);
         }
         event_rbtree_unlock();
 
-        LOGGER_DEBUG("rbtree_size=%d", rc);
+        LOGGER_DEBUG("rbtree_size=%d", len);
     } else {
         LOGGER_ERROR("unknown event task flags(=%d)", task->flags);
     }
@@ -369,14 +373,14 @@ int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX
 
     LOGGER_TRACE("path={%s}", abspath);
 
-    // 调用外部脚本, 过滤监控路径
+    // 调用外部脚本, 过滤监视路径
     ret = FILTER_WPATH_ACCEPT;
 
     if (LuaCtxLockState(client->luactx)) {
         LuaCtxCall(client->luactx, "filter_path", "path", abspath);
 
         // TODO: ret
-        
+
         LuaCtxUnlockState(client->luactx);
     }
 
@@ -405,7 +409,7 @@ int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX
                 LOGGER_INFO("remove watch path(wd=%d) ok: %s", wd, abspath);
                 return 0;
             } else {
-                // 移除监视失败, 重启监控
+                // 移除监视失败, 重启监视
                 LOGGER_ERROR("remove watch path(wd=%d) failed: %s", wd, abspath);
                 return (-1);
             }
@@ -443,7 +447,7 @@ int filter_watch_file (XS_client client, char *path, const char *name, int namel
         LuaCtxCallMany(client->luactx, "filter_file", keys, values, 2);
 
         // TODO: retcode
-        
+
         LuaCtxUnlockState(client->luactx);
     }
 
@@ -480,7 +484,7 @@ int lscb_sweep_watch_path (const char *path, int pathlen, struct mydirent *myent
 
     sleep_ms(10);
 
-    if (!pathlen || pathlen >= PATH_MAX) {
+    if (! pathlen || pathlen >= PATH_MAX) {
         LOGGER_FATAL("bad pathlen: %d", pathlen);
         exit(-1);
     }
@@ -534,7 +538,7 @@ int lscb_sweep_watch_path (const char *path, int pathlen, struct mydirent *myent
             if (evbuf.wd > 0) {
                 __inotifytools_lock();
                 {
-                    // 监控的绝对目录: evbuf.pathname
+                    // 监视的绝对目录: evbuf.pathname
                     char *abspath = inotifytools_filename_from_wd(evbuf.wd);
 
                     if (abspath) {
@@ -555,7 +559,7 @@ int lscb_sweep_watch_path (const char *path, int pathlen, struct mydirent *myent
                 }
                 __inotifytools_unlock();
             } else {
-                // 监控的绝对目录: evbuf.pathname
+                // 监视的绝对目录: evbuf.pathname
                 evbuf.pathlen = name - path;
                 memcpy(evbuf.pathname, path, evbuf.pathlen);
                 evbuf.pathname[evbuf.pathlen] = 0;
@@ -638,7 +642,7 @@ void xs_inotifytools_restart(XS_client client)
     }
 
     if (client->from_watch) {
-        // 从监控目录初始化客户端
+        // 从监视目录初始化客户端
         err = XS_client_conf_from_watch(client, 0);
     } else {
         // 从 XML 配置文件初始化客户端
@@ -672,8 +676,7 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
 
     *outClient = 0;
 
-    client = (XS_client) mem_alloc(1, sizeof(xs_client_t) + opts->apphome_len + 32);
-    assert(client->thread_args == 0);
+    client = (XS_client) mem_alloc(1, sizeof(xs_client_t));
 
     /* xsync-client app home dir */
     memcpy(client->apphome, opts->apphome, opts->apphome_len);
@@ -716,7 +719,7 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
     }
 
     if (opts->from_watch) {
-        // 从监控目录初始化客户端: 是否递归
+        // 从监视目录初始化客户端: 是否递归
         client->from_watch = 1;
 
         err = XS_client_conf_from_watch(client, opts->config);
@@ -850,7 +853,7 @@ int on_inotify_add_wpath (int flag, const char *wpath, void *arg)
                     printf("inotify_watch_on_query output table[%d] = {%s => %s}\n", i, key, value);
                 }
             }
-            
+
             LuaCtxUnlockState(client->luactx);
         }
     } else if (flag == INO_WATCH_ON_READY) {
@@ -927,7 +930,7 @@ void sweep_worker (void *arg)
 
 XS_VOID XS_client_bootstrap (XS_client client)
 {
-    char pathbuf[PATH_MAX + 1];
+    char pathbuf[PATH_MAX];
 
     struct inotify_event *inevent;
 

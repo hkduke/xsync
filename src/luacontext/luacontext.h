@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.6
+ * @version: 0.1.7
  *
  * @create: 2018-10-15
  *
- * @update: 2018-10-16 18:16:20
+ * @update: 2018-10-18 12:24:34
  *
  */
 #ifndef LUACTX_H_INCLUDED
@@ -118,12 +118,21 @@ extern int LuaCtxCallMany (lua_context ctx, const char *funcname, const char *ke
 
 extern int LuaCtxNumPairs (lua_context ctx);
 
+/**
+ * outkey 不成功不会设置
+ */
 extern int LuaCtxGetKey (lua_context ctx, int index, char **outkey);
 
+/**
+ * outvalue 不成功不会设置
+ */
 extern int LuaCtxGetValue (lua_context ctx, int index, char **outvalue);
 
 extern int LuaCtxFindKey (lua_context ctx, const char *key, int keylen);
 
+/**
+ * outvalue 不成功不会设置
+ */
 extern int LuaCtxGetValueByKey (lua_context ctx, const char *key, int keylen, char **outvalue);
 
 #if defined(__cplusplus)

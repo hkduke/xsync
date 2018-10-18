@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.6
+ * @version: 0.1.7
  *
  * @create: 2018-01-09
  *
- * @update: 2018-09-21 16:39:52
+ * @update: 2018-10-18 10:49:14
  */
 
 #ifndef COMMON_INCL_H_INCLUDED
@@ -39,7 +39,7 @@
 #include <assert.h>  /* assert */
 #include <string.h>  /* memset */
 #include <stdio.h>   /* printf, perror */
-#include <limits.h>  /* realpath */
+#include <limits.h>  /* realpath, PATH_MAX=4096 */
 #include <stdbool.h> /* memset */
 #include <ctype.h>
 
@@ -91,9 +91,32 @@
   #include <openssl/md5.h>
 #endif
 
+/**
+ * PATH_MAX 在 limits.h 中被定义 = 4096
+ */
+#ifndef PATH_MAX
+#  define PATH_MAX  4096
+#endif
 
+/**
+ * NAME_MAX 在 dirent.h 中被定义 = 255
+ */
+#ifndef NAME_MAX
+#  define NAME_MAX  255
+#endif
+
+/**
+ * max number of characters of file name NOT including path and end null char '\0'.
+ */
+#ifndef FILENAME_MAXLEN
+#  define FILENAME_MAXLEN  NAME_MAX
+#endif
+
+/**
+ * max number of characters of path and file name NOT including the end null char '\0'.
+ */
 #ifndef PATHFILE_MAXLEN
-#  define PATHFILE_MAXLEN  PATH_MAX
+#  define PATHFILE_MAXLEN  (PATH_MAX - 1)
 #endif
 
 #ifndef HOSTNAME_MAXLEN
@@ -105,7 +128,7 @@
 #endif
 
 #ifndef BUFFER_MAXSIZE
-#  define BUFFER_MAXSIZE  4096
+#  define BUFFER_MAXSIZE  (((PATH_MAX * 2 + 8191) / 8192) * 8192)
 #endif
 
 #endif /* COMMON_INCL_H_INCLUDED */

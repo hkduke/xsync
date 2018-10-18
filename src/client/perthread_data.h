@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.6
+ * @version: 0.1.7
  *
  * @create:
  *
- * @update: 2018-10-16 18:17:12
+ * @update: 2018-10-18 12:05:48
  */
 
 #ifndef PERTHREAD_DATA_H_INCLUDED
@@ -56,14 +56,42 @@ typedef struct perthread_data
 
     void  *xclient;
 
-    xs_server_conn_t *server_conns[XSYNC_SERVER_MAXID + 1];;
+    lua_context luactx;
 
     struct  kafkatools_producer_api_t kt_producer_api;
 
-    lua_context luactx;
+    xs_server_conn_t *server_conns[XSYNC_SERVER_MAXID + 1];
 
+    /* buffer with size >= 8192 and >= (PATH_MAX x 2) */
     char buffer[XSYNC_BUFSIZE];
 } perthread_data;
+
+
+#define v_type_buf(ptdata)      (ptdata->buffer + 0)
+#define v_time_buf(ptdata)      (ptdata->buffer + 10)
+#define v_sid_buf(ptdata)       (ptdata->buffer + 38)
+#define v_thread_buf(ptdata)    (ptdata->buffer + 45)
+#define v_event_buf(ptdata)     (ptdata->buffer + 50)
+#define v_clientid_buf(ptdata)  (ptdata->buffer + 100)
+#define v_pathid_buf(ptdata)    (ptdata->buffer + 200)
+#define v_file_buf(ptdata)      (ptdata->buffer + 300)
+#define v_route_buf(ptdata)     (ptdata->buffer + 560)
+#define v_path_buf(ptdata)      (ptdata->buffer + 2000)
+#define v_eventmsg_buf(ptdata)  (ptdata->buffer + 4000)
+#define v_buffer_end(ptdata)    (ptdata->buffer + XSYNC_BUFSIZE)
+
+
+#define v_type_cb(ptdata)      (v_time_buf(ptdata) - v_type_buf(ptdata))
+#define v_time_cb(ptdata)      (v_sid_buf(ptdata) - v_time_buf(ptdata))
+#define v_sid_cb(ptdata)       (v_thread_buf(ptdata) - v_sid_buf(ptdata))
+#define v_thread_cb(ptdata)    (v_event_buf(ptdata) - v_thread_buf(ptdata))
+#define v_event_cb(ptdata)     (v_clientid_buf(ptdata) - v_event_buf(ptdata))
+#define v_clientid_cb(ptdata)  (v_pathid_buf(ptdata) - v_clientid_buf(ptdata))
+#define v_pathid_cb(ptdata)    (v_file_buf(ptdata) - v_pathid_buf(ptdata))
+#define v_file_cb(ptdata)      (v_route_buf(ptdata) - v_file_buf(ptdata))
+#define v_route_cb(ptdata)     (v_path_buf(ptdata) - v_route_buf(ptdata))
+#define v_path_cb(ptdata)      (v_eventmsg_buf(ptdata) - v_path_buf(ptdata))
+#define v_eventmsg_cb(ptdata)  (v_buffer_end(ptdata) - v_eventmsg_buf(ptdata))
 
 
 __no_warning_unused(static)

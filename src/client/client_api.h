@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.6
+ * @version: 0.1.7
  *
  * @create: 2018-01-24
  *
- * @update: 2018-10-17 01:00:17
+ * @update: 2018-10-18 11:03:20
  */
 
 #ifndef CLIENT_API_H_INCLUDED
@@ -84,12 +84,10 @@ typedef struct xs_appopts_t
     char clientid[XSYNC_CLIENTID_MAXLEN + 1];
 
     int apphome_len;
-    char apphome[XSYNC_PATHFILE_MAXLEN + 1];
+    char apphome[FILENAME_MAXLEN + 1];
 
-    char diagnose_server[XSYNC_PATHFILE_MAXLEN + 1];
-
-    char config[XSYNC_PATHFILE_MAXLEN + 1];
-    char save_config[XSYNC_PATHFILE_MAXLEN + 1];
+    char config[FILENAME_MAXLEN + 1];
+    char save_config[FILENAME_MAXLEN + 1];
 } xs_appopts_t;
 
 

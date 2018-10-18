@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.6
+ * @version: 0.1.7
  *
  * @create: 2018-01-24
  *
- * @update: 2018-10-11 14:57:40
+ * @update: 2018-10-18 11:11:49
  */
 
 #ifndef CLIENT_H_INCLUDED
@@ -142,12 +142,12 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
 {
     int ret;
 
-    char buff[XSYNC_BUFSIZE];
+    char buffer[XSYNC_BUFSIZE];
 
-    char config[XSYNC_PATHFILE_MAXLEN + 1];
-    char log4crc[XSYNC_PATHFILE_MAXLEN + 1];
-
-    char save_config[XSYNC_PATHFILE_MAXLEN + 1];
+    /* 程序路径长度不能 > 255 */
+    char config[FILENAME_MAXLEN + 1];
+    char log4crc[FILENAME_MAXLEN + 1];
+    char save_config[FILENAME_MAXLEN + 1];
 
     char priority[20] = { "debug" };
     char appender[60] = { "stdout" };
@@ -196,33 +196,32 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     /**
      * get default real path for xsync-client.conf
      */
-    ret = realpathdir(argv[0], buff, sizeof(buff));
-    if (ret <= 0) {
-        fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buff);
+    ret = realpathdir(argv[0], buffer, sizeof(buffer));
+    if (ret <= 0 || ret >= sizeof(opts->apphome)/2) {
+        fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buffer);
         exit(-1);
     }
 
-    if (strrchr(buff, '/') == strchr(buff, '/')) {
-        fprintf(stderr, "\033[1;31m[error]\033[0m cannot run under root path: %s\n", buff);
+    if (strrchr(buffer, '/') == strchr(buffer, '/')) {
+        fprintf(stderr, "\033[1;31m[error]\033[0m cannot run under root path: %s\n", buffer);
         exit(-1);
     }
 
     opts->apphome_len = ret;
-    memcpy(opts->apphome, buff, ret);
-    opts->apphome[opts->apphome_len] = 0;
+    memcpy(opts->apphome, buffer, opts->apphome_len + 1);
 
-    *strrchr(buff, '/') = 0;
-    *(strrchr(buff, '/') + 1) = 0;
+    *strrchr(buffer, '/') = 0;
+    *(strrchr(buffer, '/') + 1) = 0;
 
-    ret = snprintf(config, sizeof(config), "%sconf/%s-conf.xml", buff, APP_NAME);
+    ret = snprintf(config, sizeof(config), "%sconf/%s-conf.xml", buffer, APP_NAME);
     if (ret < 20 || ret >= sizeof(config)) {
-        fprintf(stderr, "\033[1;31m[error]\033[0m invalid conf path: %s\n", buff);
+        fprintf(stderr, "\033[1;31m[error]\033[0m invalid conf path: %s\n", buffer);
         exit(-1);
     }
 
-    ret = snprintf(log4crc, sizeof(log4crc), "LOG4C_RCPATH=%sconf/", buff);
+    ret = snprintf(log4crc, sizeof(log4crc), "LOG4C_RCPATH=%sconf/", buffer);
     if (ret < 20 || ret >= sizeof(log4crc)) {
-        fprintf(stderr, "\033[1;31m[error]\033[0m invalid log4c path: %s\n", buff);
+        fprintf(stderr, "\033[1;31m[error]\033[0m invalid log4c path: %s\n", buffer);
         exit(-1);
     }
 
@@ -246,13 +245,13 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
                 exit(-1);
             }
 
-            if (getfullpath(config, buff, sizeof(buff)) != 0) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buff);
+            if (getfullpath(config, buffer, sizeof(buffer)) != 0) {
+                fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buffer);
                 exit(-1);
             } else {
-                ret = snprintf(config, sizeof(config), "%s", buff);
+                ret = snprintf(config, sizeof(config), "%s", buffer);
                 if (ret < 20 || ret >= sizeof(config)) {
-                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid config xml file: %s\n", buff);
+                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid config xml file: %s\n", buffer);
                     exit(-1);
                 }
             }
@@ -267,13 +266,13 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
                     exit(-1);
                 }
 
-                if (getfullpath(save_config, buff, sizeof(buff)) != 0) {
-                    fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buff);
+                if (getfullpath(save_config, buffer, sizeof(buffer)) != 0) {
+                    fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buffer);
                     exit(-1);
                 } else {
-                    ret = snprintf(save_config, sizeof(save_config), "%s", buff);
+                    ret = snprintf(save_config, sizeof(save_config), "%s", buffer);
                     if (ret < 20 || ret >= sizeof(save_config)) {
-                        fprintf(stderr, "\033[1;31m[error]\033[0m invalid config xml file: %s\n", buff);
+                        fprintf(stderr, "\033[1;31m[error]\033[0m invalid config xml file: %s\n", buffer);
                         exit(-1);
                     }
                 }
@@ -295,13 +294,13 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
                 exit(-1);
             }
 
-            if (getfullpath(log4crc, buff, sizeof(buff)) != 0) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buff);
+            if (getfullpath(log4crc, buffer, sizeof(buffer)) != 0) {
+                fprintf(stderr, "\033[1;31m[error]\033[0m %s\n", buffer);
                 exit(-1);
             } else {
-                ret = snprintf(log4crc, sizeof(log4crc), "LOG4C_RCPATH=%s", buff);
+                ret = snprintf(log4crc, sizeof(log4crc), "LOG4C_RCPATH=%s", buffer);
                 if (ret < 10 || ret >= sizeof(log4crc)) {
-                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid log4c path: %s\n", buff);
+                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid log4c path: %s\n", buffer);
                     exit(-1);
                 }
             }
@@ -346,10 +345,10 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
             if (ret) {
                 fprintf(stderr, "\033[1;31m[error: md5sum]\033[0m file not found: %s\n\n", optarg);
             } else {
-                ret = md5sum_file(optarg, buff, sizeof(buff));
+                ret = md5sum_file(optarg, buffer, sizeof(buffer));
 
                 if (ret == 0) {
-                    fprintf(stdout, "\033[1;32m[success: md5sum]\033[0m %s (%s)\n", buff, optarg);
+                    fprintf(stdout, "\033[1;32m[success: md5sum]\033[0m %s (%s)\n", buffer, optarg);
                 } else {
                     fprintf(stderr, "\033[1;31m[error: md5sum]\033[0m file: %s\n", optarg);
                 }
@@ -425,49 +424,48 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
 
     if (from_watch) {
         // 强迫从 watch 目录自动配置
-        memcpy(buff, opts->apphome, opts->apphome_len + 1);
+        memcpy(buffer, opts->apphome, opts->apphome_len + 1);
 
-        *strrchr(buff, '/') = 0;
-        *(strrchr(buff, '/') + 1) = 0;
+        *strrchr(buffer, '/') = 0;
+        *(strrchr(buffer, '/') + 1) = 0;
 
-        strcat(buff, "watch");
+        strcat(buffer, "watch");
 
-        if (! isdir(buff)) {
-            fprintf(stderr, "\033[1;31m[error] NOT a directory:\033[0m %s\n\n", buff);
+        if (! isdir(buffer)) {
+            fprintf(stderr, "\033[1;31m[error] NOT a directory:\033[0m %s\n\n", buffer);
             exit(-1);
         }
 
-        if (0 != access(buff, F_OK|R_OK|X_OK)) {
-            fprintf(stderr, "\033[1;31m[error] watch error(%d): %s.\033[0m (%s)\n\n", errno, strerror(errno), buff);
+        if (0 != access(buffer, F_OK|R_OK|X_OK)) {
+            fprintf(stderr, "\033[1;31m[error] watch error(%d): %s.\033[0m (%s)\n\n", errno, strerror(errno), buffer);
             exit(-1);
         }
 
-        snprintf(config, sizeof(config), "%s", buff);
+        snprintf(config, sizeof(config), "%s", buffer);
         fprintf(stdout, "\033[1;36m* force using watch  : %s\033[0m\n", config);
     }
 
     // 设置log4c: common_util.h
-    config_log4crc(APP_NAME, log4crc, priority, appender, sizeof(appender), buff, sizeof(buff));
+    config_log4crc(APP_NAME, log4crc, priority, appender, sizeof(appender), buffer, sizeof(buffer));
 
     // 得到启动命令
-    ret = getstartcmd(argc, argv, buff, sizeof(buff), APP_NAME);
+    ret = getstartcmd(argc, argv, buffer, sizeof(buffer), APP_NAME);
     if (ret) {
-        fprintf(stderr, "\033[1;31m[error: getstartcmd]\033[0m %s\n\n", buff);
+        fprintf(stderr, "\033[1;31m[error: getstartcmd]\033[0m %s\n\n", buffer);
         exit(-1);
     }
 
     // 输出选项
-    ret = strlen(buff) + 1;
+    ret = strlen(buffer) + 1;
     opts->startcmd = (char *) malloc(ret + 1);
-    memcpy(opts->startcmd, buff, ret);
+    memcpy(opts->startcmd, buffer, ret);
     opts->startcmd[ret] = 0;
 
     opts->isdaemon = isdaemon;
     opts->from_watch = from_watch;
     opts->interactive = interactive;
 
-    memcpy(opts->config, config, XSYNC_PATHFILE_MAXLEN);
-    opts->config[XSYNC_PATHFILE_MAXLEN] = 0;
+    memcpy(opts->config, config, sizeof(config));
 }
 
 

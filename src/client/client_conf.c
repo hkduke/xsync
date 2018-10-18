@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.5
+ * @version: 0.1.7
  *
  * @create: 2018-01-26
  *
- * @update: 2018-10-15 18:04:33
+ * @update: 2018-10-18 11:18:46
  */
 
 #include "client_api.h"
@@ -58,7 +58,7 @@ void * perthread_data_create (XS_client client, int servers, int threadid, const
     }
 
     // TODO: kafka config from lua
-    
+
     // '/home/root1/Workspace/github.com/pepstack/xsync/target/libkafkatools.so.1'
     client->apphome[client->apphome_len] = 0;
     strcat(client->apphome, "libkafkatools.so.1");
@@ -72,6 +72,8 @@ void * perthread_data_create (XS_client client, int servers, int threadid, const
         free(perdata);
         exit(-1);
     }
+
+    client->apphome[client->apphome_len] = 0;
 
     /* 没有引用计数 */
     perdata->xclient = (void *) client;
@@ -208,7 +210,6 @@ int xs_client_find_wpath_inlock (XS_client client, const char *wpath, char *path
             snprintf(pathid_buf, pathid_cb, "%s", pathid);
 
             pathlen = snprintf(route_buf, route_cb, "%s", wpath + pathlen);
-
             if (pathlen >= route_cb) {
                 LOGGER_FATAL("should never run to this! bad wpath: %s", wpath);
                 break;
@@ -234,7 +235,7 @@ int xs_client_find_wpath_inlock (XS_client client, const char *wpath, char *path
             if (*p++ == '/') {
                 *p = '\0';
                 pathlen = p - pathroute;
-                
+
                 // 先得到当前路径的父目录: pathroute, 然后得到父目录的 wd
                 wd = inotifytools_wd_from_filename(pathroute);
             }

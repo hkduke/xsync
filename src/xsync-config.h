@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.6
+ * @version: 0.1.7
  *
  * @create: 2018-01-24
  *
- * @update: 2018-10-15 18:08:34
+ * @update: 2018-10-18 11:23:53
  */
 
 #ifndef XSYNC_CONFIG_H_
@@ -48,7 +48,7 @@ extern "C"
 /**
  * DO NOT CHANGE BELOW VALUE
  */
-#define XSYNC_VERSION    "0.1.6"
+#define XSYNC_VERSION    "0.1.7"
 
 #ifndef XSYNC_CLIENT_VERSION
 #  define XSYNC_CLIENT_VERSION          XSYNC_VERSION
@@ -67,9 +67,10 @@ extern "C"
 #define XSYNC_COPYRIGHT                 "pepstack.com"
 #define XSYNC_AUTHOR                    "master@pepstack.com"
 
+
 /**
- * DO NOT CHANGE BELOW VALUE
- *   4096 or 8192. 必须大于 ERRORMSG_MAXLEN
+ * 至少是 PATH_MAX 的 2 倍, 且是 8192 的整数倍 (最少是 8192)
+ *   = 8192
  */
 #define XSYNC_BUFSIZE                   BUFFER_MAXSIZE
 
@@ -78,7 +79,7 @@ extern "C"
  * define max size of path file
  */
 #ifndef XSYNC_PATH_MAXSIZE
-#  define XSYNC_PATH_MAXSIZE            (PATH_MAX + 1)
+#  define XSYNC_PATH_MAXSIZE            (PATH_MAX)
 #endif
 
 
@@ -135,7 +136,7 @@ extern "C"
  * default threads and queues for client and server
  */
 #ifndef XSYNC_CLIENT_THREADS
-#  define XSYNC_CLIENT_THREADS          4
+#  define XSYNC_CLIENT_THREADS            4
 #endif
 
 #ifndef XSYNC_CLIENT_QUEUES
@@ -143,7 +144,7 @@ extern "C"
 #endif
 
 #ifndef XSYNC_SERVER_THREADS
-#  define XSYNC_SERVER_THREADS          16
+#  define XSYNC_SERVER_THREADS           16
 #endif
 
 #ifndef XSYNC_SERVER_QUEUES
@@ -172,7 +173,7 @@ extern "C"
  *   系统支持的最大长度路径文件名
  */
 #ifndef XSYNC_PATHFILE_MAXLEN
-#  define XSYNC_PATHFILE_MAXLEN         PATH_MAX
+#  define XSYNC_PATHFILE_MAXLEN    PATHFILE_MAXLEN
 #endif
 
 
@@ -185,12 +186,12 @@ extern "C"
 
 
 #ifndef XSYNC_PORT_DEFAULT
-#  define XSYNC_PORT_DEFAULT            "8960"
+#  define XSYNC_PORT_DEFAULT           "8960"
 #endif
 
 
 #ifndef XSYNC_MAGIC_DEFAULT
-#  define XSYNC_MAGIC_DEFAULT           "89604916"
+#  define XSYNC_MAGIC_DEFAULT          "89604916"
 #endif
 
 
@@ -208,9 +209,16 @@ extern "C"
 #  define XSYNC_PORTNUMB_MAXLEN         8
 #endif
 
+/**
+ * for xsync client: 最多监视路径 pathid 项
+ */
+#ifndef XSYNC_WATCH_PATHID_MAX
+#  define XSYNC_WATCH_PATHID_MAX     256
+#endif
+
 
 /**
- * for xsync client: 监控路径 hashmap 最大条目
+ * for xsync client: 监视路径 hashmap 最大条目
  */
 #ifndef XSYNC_HASHMAP_MAX_LEN
 #  define XSYNC_HASHMAP_MAX_LEN      255
@@ -218,19 +226,10 @@ extern "C"
 
 
 /**
- * for xsync client: 监控文件 hashmap 最大条目
+ * for xsync client: 监视文件 hashmap 最大条目
  */
 #ifndef XSYNC_WATCH_ENTRY_HASHMAX
 #  define XSYNC_WATCH_ENTRY_HASHMAX     1023
-#endif
-
-
-/**
- * watch path sweeping interval in seconds
- *   should in [60, 300]
- */
-#ifndef XSYNC_SWEEP_PATH_INTERVAL
-#  define XSYNC_SWEEP_PATH_INTERVAL     3
 #endif
 
 

@@ -15,25 +15,27 @@ function on_event_task(intab)
     }
 
     io.write("event-task.lua::on_event_task: {")
-    io.write("type=");
-    io.write(intab.type);
-    io.write(";time=");
+    io.write("type=")
+    io.write(intab.type)
+    io.write(";time=")
     io.write(intab.time)
-    io.write(";thread=");
+    io.write(";sid=")
+    io.write(intab.sid)
+    io.write(";thread=")
     io.write(intab.thread)
-    io.write(";event=");
+    io.write(";event=")
     io.write(intab.event)
-    io.write(";clientid=");
+    io.write(";clientid=")
     io.write(intab.clientid)
-    io.write(";pathid=");
+    io.write(";pathid=")
     io.write(intab.pathid)
-    io.write(";file=");
+    io.write(";file=")
     io.write(intab.file)
-    io.write(";route=");
+    io.write(";route=")
     io.write(intab.route)
-    io.write(";path=");
+    io.write(";path=")
     io.write(intab.path)
-    io.write("}");
+    io.write("}")
     print()
 
     outab.result = "SUCCESS"

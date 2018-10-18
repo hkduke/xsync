@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.6
+ * @version: 0.1.7
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-16 23:53:01
+ * @update: 2018-10-18 11:22:46
  */
 
 #ifndef CLIENT_CONF_H_INCLUDED
@@ -74,9 +74,9 @@ typedef struct xs_client_t
     /* 客户端唯一 ID */
     char clientid[XSYNC_CLIENTID_MAXLEN + 1];
 
-    /* watch 全路径或 config.xml 全路径: 最长 256 字符 */
+    /* watch 全路径或 config.xml 全路径: 最长 FILENAME_MAXLEN 字符 */
     int from_watch;
-    char watch_config[256];
+    char watch_config[FILENAME_MAXLEN + 1];
 
     /**
      * servers_opts[0].servers
@@ -99,25 +99,25 @@ typedef struct xs_client_t
     threadpool_t *pool;
     void        **thread_args;
 
-    /* 是(1)否(0)重启监控(当配置更改时有必要重启监控) */
+    /* 是(1)否(0)重启监视(当配置更改时有必要重启监视) */
     volatile int inotify_reload;
 
     /* lua context */
     lua_context luactx;
 
-    /* 存放监视 wd 对应的 pathid. 最多监视 256 个 pathid 目录 */
-    char *wd_pathid_table[256];
+    /* 存放监视 wd 对应的 pathid. 最多监视 XSYNC_WATCH_PATHID_MAX=256 个 pathid 目录 */
+    char *wd_pathid_table[XSYNC_WATCH_PATHID_MAX];
 
     /* 当前的监视事件树: 用于缓存正在处理的事件, 防止事件被重复处理 */
     red_black_tree_t  event_rbtree;
     pthread_mutex_t rbtree_lock;
 
-    /* buffer */
-    char buffer[XSYNC_BUFSIZE];
-
     /* application home dir, for instance: '/opt/xclient/sbin/' */
     int apphome_len;
-    char apphome[0];
+    char apphome[FILENAME_MAXLEN + FILENAME_MAXLEN + 2];
+
+    /* buffer with size >= 8192 and >= (PATH_MAX x 2) */
+    char buffer[XSYNC_BUFSIZE];
 } xs_client_t;
 
 
