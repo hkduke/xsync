@@ -2,14 +2,14 @@
 # @file: client.mk
 #   see: "client.mk.another" for another style of client.mk
 #
-# @version: 0.1.9
+# @version: 0.2.0
 # @create: 2018-05-18 14:00:00
-# @update: 2018-10-18 16:11:03
+# @update: 2018-10-18 22:59:39
 #######################################################################
 
 # !!! DO NOT change APPNAME and VERSION only when you make sure do that !
 APPNAME := xsync-client
-VERSION := 0.1.9
+VERSION := 0.2.0
 
 TARGET := ${APPNAME}-${VERSION}
 
@@ -52,6 +52,7 @@ SOURCES := \
 #
 #  XSYNC_CLIENT_THREADS=4
 #  XSYNC_CLIENT_QUEUES=256
+#  XSYNC_USE_STATIC_PATHID_TABLE
 #
 SRC_DEFS := NDEBUG \
 	XSYNC_CLIENT_APPNAME='"${APPNAME}"' \
@@ -59,8 +60,7 @@ SRC_DEFS := NDEBUG \
 	XSYNC_PATH_MAXSIZE=1024 \
 	XSYNC_INEVENT_BUFSIZE=4096 \
 	XSYNC_SERVER_MAXID=32 \
-    XSYNC_USE_STATIC_PATHID_TABLE \
-	XSYNC_WATCH_PATHID_MAX=2000
+	XSYNC_WATCH_PATHID_MAX=256
 
 
 SRC_INCDIRS := \

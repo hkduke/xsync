@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.8
+ * @version: 0.2.0
  *
  * @create: 2018-01-26
  *
- * @update: 2018-10-18 15:56:43
+ * @update: 2018-10-18 22:44:56
  */
 
 #include "client_api.h"
@@ -211,7 +211,7 @@ void xs_client_delete (void *pv)
 
 #ifdef XSYNC_USE_STATIC_PATHID_TABLE
     for (i = 0; i < XSYNC_WATCH_PATHID_MAX; i++) {
-        char * pathid = client->wd_pathid_table[i];
+        char *pathid = client->wd_pathid_table[i];
         if (pathid) {
             client->wd_pathid_table[i] = 0;
             free(pathid);
@@ -219,7 +219,7 @@ void xs_client_delete (void *pv)
     }
 #else
     // TODO:
-    rbtree_clean(&client->wd_pathid_rbtree);    
+    rbtree_clean(&client->wd_pathid_rbtree);
 #endif
 
     LOGGER_TRACE("~XS_client(%p)", client);
@@ -267,14 +267,16 @@ int xs_client_find_wpath_inlock (XS_client client, const char *wpath, char *path
             pathid = client->wd_pathid_table[wd];
         }
 #else
-        red_black_node_t *node;
-        struct wd_pathid_buf_t wdpbuf;
+        do {
+            red_black_node_t *node;
+            struct wd_pathid_t wdpbuf;
 
-        wdpbuf.wd = wd;
-        node = rbtree_find(&client->wd_pathid_rbtree, (struct wd_pathid_t *) &wdpbuf);
-        if (node) {
-            pathid = ((struct wd_pathid_t *) node->object)->pathid;
-        }
+            wdpbuf.wd = wd;
+            node = rbtree_find(&client->wd_pathid_rbtree, &wdpbuf);
+            if (node) {
+                pathid = ((struct wd_pathid_t *) node->object)->pathid;
+            }
+        } while (0);
 #endif
 
         if (pathid) {
@@ -359,7 +361,7 @@ int client_init_watch_path (const char *path, int pathlen, struct mydirent *myen
 
 #ifdef XSYNC_USE_STATIC_PATHID_TABLE
                         if (wd_pathid < 0 || wd_pathid >= XSYNC_WATCH_PATHID_MAX) {
-                            LOGGER_ERROR("too many watch pathid(wd=%d). see 'client.mk' for: XSYNC_WATCH_PATHID_MAX=%d", wd_pathid, XSYNC_WATCH_PATHID_MAX);
+                            LOGGER_ERROR("too many watch pathid(wd=%d) in table. see XSYNC_WATCH_PATHID_MAX (=%d) in client.mk", wd_pathid, XSYNC_WATCH_PATHID_MAX);
 
                             __inotifytools_unlock();
                             return (-4);
@@ -368,7 +370,7 @@ int client_init_watch_path (const char *path, int pathlen, struct mydirent *myen
 
                             char *pathid = client->wd_pathid_table[wd_pathid];
                             if (pathid) {
-                                // 如果已经存在则先释放
+                                // 如果已经存在则先删除
                                 free(pathid);
                             }
 
@@ -376,11 +378,12 @@ int client_init_watch_path (const char *path, int pathlen, struct mydirent *myen
                             memcpy(pathid, myent->ent.d_name, len);
                             pathid[len] = '\0';
 
-                            client->wd_pathid_table[wd_pathid] = pathid;                            
+                            client->wd_pathid_table[wd_pathid] = pathid;
                         }
 #else
                         if (wd_pathid < 0 || rbtree_size(&client->wd_pathid_rbtree) >= XSYNC_WATCH_PATHID_MAX) {
-                            LOGGER_ERROR("too many watch pathid (more than %d)", XSYNC_WATCH_PATHID_MAX);
+                            LOGGER_ERROR("too many watch pathid(wd=%d) in tree. see XSYNC_WATCH_PATHID_MAX (=%d) in client.mk", wd_pathid, XSYNC_WATCH_PATHID_MAX);
+
                             __inotifytools_unlock();
                             return (-4);
                         } else {

@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.8
+ * @version: 0.2.0
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-18 14:35:26
+ * @update: 2018-10-18 22:56:04
  */
 
 #ifndef CLIENT_CONF_H_INCLUDED
@@ -54,42 +54,6 @@ extern "C" {
 
 #define XS_client_get_server_maxid(client)            \
     (client->servers_opts->sidmax)
-
-
-#ifndef XSYNC_USE_STATIC_PATHID_TABLE
-
-struct wd_pathid_t
-{
-    int wd;
-    char len;
-    char pathid[0];
-};
-
-
-struct wd_pathid_buf_t
-{
-    int wd;
-    char len;
-    char pathid[XSYNC_CLIENTID_MAXLEN + 1];
-};
-
-
-__no_warning_unused(static)
-int wd_pathid_rbtree_cmp (void *newObject, void *nodeObject)
-{
-    int wdNew = ((struct wd_pathid_t *) newObject)->wd;
-    int wdOld = ((struct wd_pathid_t *) nodeObject)->wd;
-
-    return (wdNew == wdOld ? 0 : (wdNew > wdOld ? 1 : -1));
-}
-
-
-__no_warning_unused(static)
-void wd_pathid_rbtree_op (void *object, void *param)
-{
-}
-
-#endif
 
 
 /**
@@ -222,6 +186,34 @@ __no_warning_unused(static)
 void event_rbtree_op(void *object, void *param)
 {
 }
+
+
+#ifndef XSYNC_USE_STATIC_PATHID_TABLE
+
+struct wd_pathid_t
+{
+    int wd;
+    char len;
+    char pathid[0];
+};
+
+
+__no_warning_unused(static)
+int wd_pathid_rbtree_cmp (void *newObject, void *nodeObject)
+{
+    int wdNew = ((struct wd_pathid_t *) newObject)->wd;
+    int wdOld = ((struct wd_pathid_t *) nodeObject)->wd;
+
+    return (wdNew == wdOld ? 0 : (wdNew > wdOld ? 1 : -1));
+}
+
+
+__no_warning_unused(static)
+void wd_pathid_rbtree_op (void *object, void *param)
+{
+}
+
+#endif
 
 
 /**
