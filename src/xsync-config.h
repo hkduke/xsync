@@ -212,8 +212,6 @@ extern "C"
 /**
  * for xsync client: 最多监视路径 pathid 项
  */
-#define XSYNC_USE_STATIC_PATHID_TABLE
-
 #ifndef XSYNC_WATCH_PATHID_MAX
 #  define XSYNC_WATCH_PATHID_MAX     256
 #endif
