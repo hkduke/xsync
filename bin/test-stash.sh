@@ -12,6 +12,8 @@ while :
 do
     ((i++))
 
+    #mkdir -p "/tmp/xclient-watch-test-stash/$i"
+
     echo "hello $i" > "$testlog_prefix"."$i"
 
     if [ "$i" -gt "$maxfileno" ]; then

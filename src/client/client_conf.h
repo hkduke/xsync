@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.9
+ * @version: 0.1.8
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-18 21:10:50
+ * @update: 2018-10-18 14:35:26
  */
 
 #ifndef CLIENT_CONF_H_INCLUDED
@@ -55,10 +55,8 @@ extern "C" {
 #define XS_client_get_server_maxid(client)            \
     (client->servers_opts->sidmax)
 
-#ifdef XSYNC_USE_STATIC_PATHID_TABLE
-#  define XS_client_pathid_max(client)  ((int)(sizeof(client->wd_pathid_table) / sizeof(client->wd_pathid_table[0])))
-#else
-#  define XS_client_pathid_max(client)  (XSYNC_WATCH_PATHID_MAX)
+
+#ifndef XSYNC_USE_STATIC_PATHID_TABLE
 
 struct wd_pathid_t
 {

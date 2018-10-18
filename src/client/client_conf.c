@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.9
+ * @version: 0.1.8
  *
  * @create: 2018-01-26
  *
- * @update: 2018-10-18 21:10:23
+ * @update: 2018-10-18 15:56:43
  */
 
 #include "client_api.h"
@@ -210,18 +210,16 @@ void xs_client_delete (void *pv)
     LuaCtxFree(&client->luactx);
 
 #ifdef XSYNC_USE_STATIC_PATHID_TABLE
-    for (i = 0; i < XS_client_pathid_max(client); i++) {
+    for (i = 0; i < XSYNC_WATCH_PATHID_MAX; i++) {
         char * pathid = client->wd_pathid_table[i];
-
         if (pathid) {
             client->wd_pathid_table[i] = 0;
-
             free(pathid);
         }
     }
 #else
     // TODO:
-    rbtree_clean(&client->wd_pathid_rbtree);
+    rbtree_clean(&client->wd_pathid_rbtree);    
 #endif
 
     LOGGER_TRACE("~XS_client(%p)", client);
@@ -264,7 +262,7 @@ int xs_client_find_wpath_inlock (XS_client client, const char *wpath, char *path
         }
 
 #ifdef XSYNC_USE_STATIC_PATHID_TABLE
-        if ( wd < XS_client_pathid_max(client) ) {
+        if ( wd < XSYNC_WATCH_PATHID_MAX ) {
             // 取得 wd 对应的 pathid
             pathid = client->wd_pathid_table[wd];
         }
@@ -360,8 +358,8 @@ int client_init_watch_path (const char *path, int pathlen, struct mydirent *myen
                         int wd_pathid = inotifytools_wd_from_filename(abspath);
 
 #ifdef XSYNC_USE_STATIC_PATHID_TABLE
-                        if (wd_pathid < 0 || wd_pathid >= XS_client_pathid_max(client)) {
-                            LOGGER_ERROR("too many watch pathid. pathid_max=%d", XS_client_pathid_max(client));
+                        if (wd_pathid < 0 || wd_pathid >= XSYNC_WATCH_PATHID_MAX) {
+                            LOGGER_ERROR("too many watch pathid(wd=%d). see 'client.mk' for: XSYNC_WATCH_PATHID_MAX=%d", wd_pathid, XSYNC_WATCH_PATHID_MAX);
 
                             __inotifytools_unlock();
                             return (-4);
@@ -378,7 +376,7 @@ int client_init_watch_path (const char *path, int pathlen, struct mydirent *myen
                             memcpy(pathid, myent->ent.d_name, len);
                             pathid[len] = '\0';
 
-                            client->wd_pathid_table[wd_pathid] = pathid;
+                            client->wd_pathid_table[wd_pathid] = pathid;                            
                         }
 #else
                         if (wd_pathid < 0 || rbtree_size(&client->wd_pathid_rbtree) >= XSYNC_WATCH_PATHID_MAX) {
