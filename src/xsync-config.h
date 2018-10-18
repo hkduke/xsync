@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.8
+ * @version: 0.1.9
  *
  * @create: 2018-01-24
  *
- * @update: 2018-10-18 16:09:53
+ * @update: 2018-10-18 21:04:28
  */
 
 #ifndef XSYNC_CONFIG_H_
@@ -48,7 +48,7 @@ extern "C"
 /**
  * DO NOT CHANGE BELOW VALUE
  */
-#define XSYNC_VERSION    "0.1.8"
+#define XSYNC_VERSION    "0.1.9"
 
 #ifndef XSYNC_CLIENT_VERSION
 #  define XSYNC_CLIENT_VERSION          XSYNC_VERSION
@@ -212,6 +212,8 @@ extern "C"
 /**
  * for xsync client: 最多监视路径 pathid 项
  */
+#define XSYNC_USE_STATIC_PATHID_TABLE
+
 #ifndef XSYNC_WATCH_PATHID_MAX
 #  define XSYNC_WATCH_PATHID_MAX     256
 #endif

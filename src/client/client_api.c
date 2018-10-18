@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.8
+ * @version: 0.1.9
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-18 16:01:05
+ * @update: 2018-10-18 21:13:26
  */
 
 /******************************************************************************
@@ -794,6 +794,13 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
         // 失败退出程序
         exit(XS_ERROR);
     }
+
+#ifdef XSYNC_USE_STATIC_PATHID_TABLE
+    LOGGER_WARN("XSYNC_USE_STATIC_PATHID_TABLE");
+#else
+    LOGGER_TRACE("wd_pathid_rbtree init");
+    rbtree_init(&client->wd_pathid_rbtree, (fn_comp_func*) wd_pathid_rbtree_cmp);
+#endif
 
     // 初始化 event_rbtree
     LOGGER_TRACE("event_rbtree");

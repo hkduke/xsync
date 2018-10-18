@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.8
+ * @version: 0.1.9
  *
  * @create: 2018-01-26
  *
- * @update: 2018-10-18 15:56:43
+ * @update: 2018-10-18 21:10:23
  */
 
 #include "client_api.h"
@@ -209,6 +209,7 @@ void xs_client_delete (void *pv)
 
     LuaCtxFree(&client->luactx);
 
+#ifdef XSYNC_USE_STATIC_PATHID_TABLE
     for (i = 0; i < XS_client_pathid_max(client); i++) {
         char * pathid = client->wd_pathid_table[i];
 
@@ -218,6 +219,10 @@ void xs_client_delete (void *pv)
             free(pathid);
         }
     }
+#else
+    // TODO:
+    rbtree_clean(&client->wd_pathid_rbtree);
+#endif
 
     LOGGER_TRACE("~XS_client(%p)", client);
     free(client);
@@ -258,10 +263,21 @@ int xs_client_find_wpath_inlock (XS_client client, const char *wpath, char *path
             break;
         }
 
+#ifdef XSYNC_USE_STATIC_PATHID_TABLE
         if ( wd < XS_client_pathid_max(client) ) {
             // 取得 wd 对应的 pathid
             pathid = client->wd_pathid_table[wd];
         }
+#else
+        red_black_node_t *node;
+        struct wd_pathid_buf_t wdpbuf;
+
+        wdpbuf.wd = wd;
+        node = rbtree_find(&client->wd_pathid_rbtree, (struct wd_pathid_t *) &wdpbuf);
+        if (node) {
+            pathid = ((struct wd_pathid_t *) node->object)->pathid;
+        }
+#endif
 
         if (pathid) {
             // pathid => wdpath
@@ -343,6 +359,7 @@ int client_init_watch_path (const char *path, int pathlen, struct mydirent *myen
                         // 添加目录监视成功
                         int wd_pathid = inotifytools_wd_from_filename(abspath);
 
+#ifdef XSYNC_USE_STATIC_PATHID_TABLE
                         if (wd_pathid < 0 || wd_pathid >= XS_client_pathid_max(client)) {
                             LOGGER_ERROR("too many watch pathid. pathid_max=%d", XS_client_pathid_max(client));
 
@@ -363,6 +380,39 @@ int client_init_watch_path (const char *path, int pathlen, struct mydirent *myen
 
                             client->wd_pathid_table[wd_pathid] = pathid;
                         }
+#else
+                        if (wd_pathid < 0 || rbtree_size(&client->wd_pathid_rbtree) >= XSYNC_WATCH_PATHID_MAX) {
+                            LOGGER_ERROR("too many watch pathid (more than %d)", XSYNC_WATCH_PATHID_MAX);
+                            __inotifytools_unlock();
+                            return (-4);
+                        } else {
+                            int is_new_node;
+                            red_black_node_t * node;
+                            int len = strlen(myent->ent.d_name);
+                            struct wd_pathid_t * wdpObject = (struct wd_pathid_t *) mem_alloc(1, sizeof(*wdpObject) + len + 1);
+
+                            wdpObject->wd = wd_pathid;
+                            wdpObject->len = len;
+                            memcpy(wdpObject->pathid, myent->ent.d_name, len + 1);
+
+                            node = rbtree_insert_unique(&client->wd_pathid_rbtree, (void *) wdpObject, &is_new_node);
+                            if (! is_new_node) {
+                                // 如果已经存在则先删除
+                                void * object = node->object;
+                                rbtree_remove_at(&client->wd_pathid_rbtree, node);
+                                free(object);
+
+                                // 再次插入节点
+                                rbtree_insert_unique(&client->wd_pathid_rbtree, (void *) wdpObject, &is_new_node);
+                                if (! is_new_node) {
+                                    LOGGER_ERROR("should never run to this! see rbtree_insert_unique() in red_black_tree.c");
+
+                                    __inotifytools_unlock();
+                                    return (-4);
+                                }
+                            }
+                        }
+#endif
                     }
                 }
                 __inotifytools_unlock();

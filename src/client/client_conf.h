@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.8
+ * @version: 0.1.9
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-18 14:35:26
+ * @update: 2018-10-18 21:10:50
  */
 
 #ifndef CLIENT_CONF_H_INCLUDED
@@ -55,8 +55,43 @@ extern "C" {
 #define XS_client_get_server_maxid(client)            \
     (client->servers_opts->sidmax)
 
-#define XS_client_pathid_max(client)  \
-    ((int)(sizeof(client->wd_pathid_table) / sizeof(client->wd_pathid_table[0])))
+#ifdef XSYNC_USE_STATIC_PATHID_TABLE
+#  define XS_client_pathid_max(client)  ((int)(sizeof(client->wd_pathid_table) / sizeof(client->wd_pathid_table[0])))
+#else
+#  define XS_client_pathid_max(client)  (XSYNC_WATCH_PATHID_MAX)
+
+struct wd_pathid_t
+{
+    int wd;
+    char len;
+    char pathid[0];
+};
+
+
+struct wd_pathid_buf_t
+{
+    int wd;
+    char len;
+    char pathid[XSYNC_CLIENTID_MAXLEN + 1];
+};
+
+
+__no_warning_unused(static)
+int wd_pathid_rbtree_cmp (void *newObject, void *nodeObject)
+{
+    int wdNew = ((struct wd_pathid_t *) newObject)->wd;
+    int wdOld = ((struct wd_pathid_t *) nodeObject)->wd;
+
+    return (wdNew == wdOld ? 0 : (wdNew > wdOld ? 1 : -1));
+}
+
+
+__no_warning_unused(static)
+void wd_pathid_rbtree_op (void *object, void *param)
+{
+}
+
+#endif
 
 
 /**
@@ -109,7 +144,11 @@ typedef struct xs_client_t
     lua_context luactx;
 
     /* 存放监视 wd 对应的 pathid. 最多监视 XSYNC_WATCH_PATHID_MAX=256 个 pathid 目录 */
+#ifdef XSYNC_USE_STATIC_PATHID_TABLE
     char *wd_pathid_table[XSYNC_WATCH_PATHID_MAX];
+#else
+    red_black_tree_t  wd_pathid_rbtree;
+#endif
 
     /* 当前的监视事件树: 用于缓存正在处理的事件, 防止事件被重复处理 */
     red_black_tree_t  event_rbtree;
