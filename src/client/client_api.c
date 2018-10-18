@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.5
+ * @version: 0.1.8
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-15 18:04:34
+ * @update: 2018-10-18 16:01:05
  */
 
 /******************************************************************************
@@ -404,7 +404,7 @@ int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX
         LuaCtxCall(client->luactx, "filter_path", "path", abspath);
 
         // TODO: ret
-        
+
         LuaCtxUnlockState(client->luactx);
     }
 
@@ -471,7 +471,7 @@ int filter_watch_file (XS_client client, char *path, const char *name, int namel
         LuaCtxCallMany(client->luactx, "filter_file", keys, values, 2);
 
         // TODO: retcode
-        
+
         LuaCtxUnlockState(client->luactx);
     }
 
@@ -879,7 +879,7 @@ int on_inotify_add_wpath (int flag, const char *wpath, void *arg)
                     printf("inotify_watch_on_query output table[%d] = {%s => %s}\n", i, key, value);
                 }
             }
-            
+
             LuaCtxUnlockState(client->luactx);
         }
     } else if (flag == INO_WATCH_ON_READY) {

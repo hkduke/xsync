@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.7
+ * @version: 0.1.8
  *
  * @create: 2018-01-26
  *
- * @update: 2018-10-18 11:18:46
+ * @update: 2018-10-18 15:56:43
  */
 
 #include "client_api.h"
@@ -92,7 +92,7 @@ void * perthread_data_create (XS_client client, int servers, int threadid, const
                                 socket_timeout_ms,
                                 0
                             };
-                            
+
                             if (kafka_producer_api_create(&perdata->kt_producer_api, client->apphome, names, values)) {
                                 LOGGER_FATAL("kafka_producer_api_create fail");
 
@@ -109,21 +109,21 @@ void * perthread_data_create (XS_client client, int servers, int threadid, const
 
                         LuaCtxFree(&perdata->luactx);
                         free(perdata);
-                        exit(-1); 
-                    }            
+                        exit(-1);
+                    }
                 } else {
                     LOGGER_FATAL("LuaCtxCall kafka_config() result != SUCCESS");
 
                     LuaCtxFree(&perdata->luactx);
                     free(perdata);
-                    exit(-1); 
+                    exit(-1);
                 }
             } else {
                 LOGGER_FATAL("LuaCtxCall kafka_config() fail. see: %s", taskscriptfile);
 
                 LuaCtxFree(&perdata->luactx);
                 free(perdata);
-                exit(-1);            
+                exit(-1);
             }
         } else {
             LOGGER_FATAL("luacontext not set");

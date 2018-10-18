@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.7
+ * @version: 0.1.8
  *
  * @create: 2018-01-24
  *
- * @update: 2018-10-18 11:11:49
+ * @update: 2018-10-18 15:57:38
  */
 
 #ifndef CLIENT_H_INCLUDED
@@ -231,7 +231,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     }
 
     /* parse command arguments */
-    while ((ret = getopt_long(argc, argv, "hVC:WO:k::P:A:t:q:s:N:DKLS::Im:r:", lopts, 0)) != EOF) {
+    while ((ret = getopt_long(argc, argv, "hVC:WO:P:A:s:k::t:q:N:DKLIS::m:r:", lopts, 0)) != EOF) {
         switch (ret) {
         case 'D':
             isdaemon = 1;
@@ -430,11 +430,9 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     }
 
     if (save_config[0] == '-') {
-        memcpy(save_config, config, XSYNC_PATHFILE_MAXLEN);
-        save_config[XSYNC_PATHFILE_MAXLEN] = 0;
+        memcpy(save_config, config, sizeof(save_config));
     }
-    memcpy(opts->save_config, save_config, XSYNC_PATHFILE_MAXLEN);
-    opts->save_config[XSYNC_PATHFILE_MAXLEN] = 0;
+    memcpy(opts->save_config, save_config, sizeof(save_config));
 
     if (from_watch) {
         // 强迫从 watch 目录自动配置

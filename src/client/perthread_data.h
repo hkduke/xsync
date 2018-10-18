@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.6
+ * @version: 0.1.8
  *
  * @create:
  *
- * @update: 2018-10-16 18:17:12
+ * @update: 2018-10-18 15:16:28
  */
 
 #ifndef PERTHREAD_DATA_H_INCLUDED
@@ -61,7 +61,7 @@ typedef struct perthread_data
     int kafka_producer_ready;
     struct  kafkatools_producer_api_t kt_producer_api;
 
-    xs_server_conn_t *server_conns[XSYNC_SERVER_MAXID + 1];    
+    xs_server_conn_t *server_conns[XSYNC_SERVER_MAXID + 1];
 
     /* buffer with size >= 8192 and >= (PATH_MAX x 2) */
     char buffer[XSYNC_BUFSIZE];
