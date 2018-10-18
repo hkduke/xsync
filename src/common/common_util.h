@@ -909,7 +909,7 @@ int realpathdir (const char * file, char * rpdir, size_t size)
  * http://www.virtsync.com/c-error-codes-include-errno
  */
 __no_warning_unused(static)
-int getstartcmd (int argc, char **argv, char * cmdbuf, ssize_t bufsize, const char * link_name)
+int getstartcmd (int argc, char ** argv, char * cmdbuf, ssize_t bufsize, const char * link_name)
 {
     int err, len;
     char *tmpbin;

@@ -231,7 +231,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     }
 
     /* parse command arguments */
-    while ((ret = getopt_long(argc, argv, "hVC:WO:P:A:s:k::t:q:N:DKLIS::m:r:", lopts, 0)) != EOF) {
+    while ((ret = getopt_long(argc, argv, "hVC:WO:k::P:A:t:q:s:N:DKLS::Im:r:", lopts, 0)) != EOF) {
         switch (ret) {
         case 'D':
             isdaemon = 1;
