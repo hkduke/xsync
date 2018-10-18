@@ -74,6 +74,8 @@ typedef struct xs_appopts_t
     int isdaemon;
     int interactive;
 
+    int kafka;
+
     int threads;
     int queues;
 

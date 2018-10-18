@@ -52,37 +52,98 @@ void * perthread_data_create (XS_client client, int servers, int threadid, const
             LOGGER_FATAL("LuaCtxNew fail");
 
             free(perdata);
-
             exit(-1);
         }
     }
 
-    // TODO: kafka config from lua
+    if (client->kafka) {
+        if (perdata->luactx) {
+            /* '/home/root1/Workspace/github.com/pepstack/xsync/target/libkafkatools.so.1' */
+            client->apphome[client->apphome_len] = 0;
+            strcat(client->apphome, "libkafkatools.so.1");
 
-    // '/home/root1/Workspace/github.com/pepstack/xsync/target/libkafkatools.so.1'
-    client->apphome[client->apphome_len] = 0;
-    strcat(client->apphome, "libkafkatools.so.1");
+            /* 得到 kafka configuration */
+            if (LuaCtxCall(perdata->luactx, "kafka_config", "kafkalib", client->apphome) == LUACTX_SUCCESS) {
+                char *result = 0;
+                char *bootstrap_servers = 0;
+                char *socket_timeout_ms = 0;
 
-    LOGGER_DEBUG("[thread-%d] create kafka producer. (%s)", threadid, client->apphome);
-    if (kafka_producer_api_create(&perdata->kt_producer_api, client->apphome)) {
-        LOGGER_FATAL("kafka_producer_api_create fail");
+                if (LuaCtxGetValueByKey(perdata->luactx, "result", 6, &result) && !strcmp(result, "SUCCESS")) {
 
-        LuaCtxFree(&perdata->luactx);
+                    if (LuaCtxGetValueByKey(perdata->luactx, "bootstrap_servers", 17, &bootstrap_servers)) {
+                        char default_timeout_ms[] = "1000";
 
-        free(perdata);
-        exit(-1);
+                        LuaCtxGetValueByKey(perdata->luactx, "socket_timeout_ms", 17, &socket_timeout_ms);
+                        if (! socket_timeout_ms) {
+                            socket_timeout_ms = default_timeout_ms;
+                        }
+
+                        LOGGER_INFO("[thread-%d] create kafka producer (bootstrap.servers=%s)", threadid, bootstrap_servers);
+
+                        do {
+                            const char *names[] = {
+                                "bootstrap.servers",
+                                "socket.timeout.ms",
+                                0
+                            };
+
+                            const char *values[] = {
+                                bootstrap_servers,
+                                socket_timeout_ms,
+                                0
+                            };
+                            
+                            if (kafka_producer_api_create(&perdata->kt_producer_api, client->apphome, names, values)) {
+                                LOGGER_FATAL("kafka_producer_api_create fail");
+
+                                LuaCtxFree(&perdata->luactx);
+
+                                free(perdata);
+                                exit(-1);
+                            }
+
+                            perdata->kafka_producer_ready = 1;
+                        } while (0);
+                    } else {
+                        LOGGER_FATAL("kafka_config() fail to gey key: bootstrap_servers");
+
+                        LuaCtxFree(&perdata->luactx);
+                        free(perdata);
+                        exit(-1); 
+                    }            
+                } else {
+                    LOGGER_FATAL("LuaCtxCall kafka_config() result != SUCCESS");
+
+                    LuaCtxFree(&perdata->luactx);
+                    free(perdata);
+                    exit(-1); 
+                }
+            } else {
+                LOGGER_FATAL("LuaCtxCall kafka_config() fail. see: %s", taskscriptfile);
+
+                LuaCtxFree(&perdata->luactx);
+                free(perdata);
+                exit(-1);            
+            }
+        } else {
+            LOGGER_FATAL("luacontext not set");
+
+            free(perdata);
+            exit(-1);
+        }
     }
 
+    /* here all is ok */
     client->apphome[client->apphome_len] = 0;
-
-    /* 没有引用计数 */
-    perdata->xclient = (void *) client;
 
     /* 服务器数量 */
     perdata->server_conns[0] = (XS_server_conn) int_cast_to_pv(servers);
 
     /* 线程 id: 1 based */
     perdata->threadid = threadid;
+
+    /* 没有引用计数 */
+    perdata->xclient = (void *) client;
 
     return (void *) perdata;
 }

@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.7
+ * @version: 0.1.6
  *
  * @create:
  *
- * @update: 2018-10-18 12:05:48
+ * @update: 2018-10-16 18:17:12
  */
 
 #ifndef PERTHREAD_DATA_H_INCLUDED
@@ -58,9 +58,10 @@ typedef struct perthread_data
 
     lua_context luactx;
 
+    int kafka_producer_ready;
     struct  kafkatools_producer_api_t kt_producer_api;
 
-    xs_server_conn_t *server_conns[XSYNC_SERVER_MAXID + 1];
+    xs_server_conn_t *server_conns[XSYNC_SERVER_MAXID + 1];    
 
     /* buffer with size >= 8192 and >= (PATH_MAX x 2) */
     char buffer[XSYNC_BUFSIZE];
@@ -95,22 +96,10 @@ typedef struct perthread_data
 
 
 __no_warning_unused(static)
-int kafka_producer_api_create(kafkatools_producer_api_t *api, const char *libktsofile)
+int kafka_producer_api_create(kafkatools_producer_api_t *api, const char *libktsofile, const char *prop_names[], const char *prop_values[])
 {
     void *handle;
     char *error;
-
-    const char *prop_names[] = {
-        "bootstrap.servers",
-        "socket.timeout.ms",
-        0
-    };
-
-    const char *prop_values[] = {
-        "localhost:9092",
-        "1000",
-        0
-    };
 
     handle = dlopen(libktsofile, RTLD_LAZY);
     if (! handle) {

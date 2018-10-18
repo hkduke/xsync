@@ -84,6 +84,9 @@ typedef struct xs_client_t
      */
     xs_server_opts  servers_opts[XSYNC_SERVER_MAXID + 1];
 
+    /* 是(1)否(0)使用 kafka */
+    int kafka;
+
     /**
      * interval in seconds
      */

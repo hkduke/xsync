@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.1.7
+ * @version: 0.1.5
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-18 12:44:13
+ * @update: 2018-10-15 18:04:34
  */
 
 /******************************************************************************
@@ -145,7 +145,13 @@ static void do_event_task (thread_context_t *thread_ctx)
     threadpool_task_t *task = thread_ctx->task;
 
     if (task->flags == 100) {
-        int len;
+        int ok;
+
+        int msglen;
+        char *message;
+
+        char *kafka_topic;
+        int partition = 0;
 
         // TODO:
         int sid = 0;
@@ -158,8 +164,6 @@ static void do_event_task (thread_context_t *thread_ctx)
 
         bzero(perdata->buffer, sizeof(perdata->buffer));
 
-        char *kafka_topic = 0;
-
         char *v_type = v_type_buf(perdata);
         char *v_time =  v_time_buf(perdata);
         char *v_sid =  v_sid_buf(perdata);
@@ -171,6 +175,8 @@ static void do_event_task (thread_context_t *thread_ctx)
         char *v_route =  v_route_buf(perdata);
         char *v_path =  v_path_buf(perdata);
         char *v_eventmsg =  v_eventmsg_buf(perdata);
+
+        ok = 0;
 
         __inotifytools_lock();
         {
@@ -192,68 +198,86 @@ static void do_event_task (thread_context_t *thread_ctx)
                 snprintf(v_path, v_path_cb(perdata), "%s", event->pathname);
                 snprintf(v_sid, v_sid_cb(perdata), "%d", sid);
 
+                // 默认的 kafka 消息
                 kafka_topic = v_pathid;
+
+                ok = 1;
             }
         }
         __inotifytools_unlock();
 
-        if (kafka_topic) {
-            int event2kafka = 1;
-            int partition = 0;
+        if (! ok) {
+            LOGGER_FATAL("should never run to this: xs_client_find_wpath_inlock fail");
+            exit(-10);
+        }
 
+        msglen = 0;
+        message = 0;
+
+        if (perdata->luactx) {
+            // 使用脚本过滤事件消息
             if (LuaCtxLockState(perdata->luactx)) {
                 const char *keys[] = {
-                    "type", "time", "sid", "thread", "event", "clientid", "pathid", "file", "route", "path"
+                    "type", "time", "clientid", "thread", "sid", "event", "pathid", "path", "file", "route"
                 };
 
                 const char *values[] = {
-                    v_type, v_time, v_sid, v_thread, v_event, v_clientid, v_pathid, v_file, v_route, v_path
+                    v_type, v_time, v_clientid, v_thread, v_sid, v_event, v_pathid, v_path, v_file, v_route
                 };
 
                 if (LuaCtxCallMany(perdata->luactx, "on_event_task", keys, values, sizeof(keys)/sizeof(keys[0])) == LUACTX_SUCCESS) {
                     char *result;
 
                     if (LuaCtxGetValueByKey(perdata->luactx, "result", 6, &result) && !strcmp(result, "SUCCESS")) {
-                        if (event2kafka) {
-                            // 如果要求写入 kafka, 取得当前文件的 kafka 配置: topic, partition
-                            char *kafka_partition;
+                        // 得到用户处理后的消息
+                        msglen = LuaCtxGetValueByKey(perdata->luactx, "message", 7, &message);
 
-                            if (LuaCtxGetValueByKey(perdata->luactx, "kafka_partition", 15, &kafka_partition)) {
-                                partition = atoi(kafka_partition);
+                        if (perdata->kafka_producer_ready) {
+                            // 如果要求写入 kafka, 取得当前文件的 kafka 配置: topic, partition
+                            if (LuaCtxGetValueByKey(perdata->luactx, "kafka_partition", 15, &result)) {
+                                partition = atoi(result);
+                            } else {
+                                LOGGER_WARN("using default kafka partition: %d", partition);
                             }
 
                             if (! LuaCtxGetValueByKey(perdata->luactx, "kafka_topic", 11, &kafka_topic)) {
-                                LOGGER_ERROR("LuaCtxGetValueByKey fail on key: kafka_topic");
+                                LOGGER_WARN("using default kafka topic: %s", kafka_topic);
                             }
                         }
                     } else {
-                        LOGGER_ERROR("LuaCtxGetValueByKey fail on key: result");
+                        LOGGER_WARN("on_event_task() result not SUCCESS");
                     }
                 } else {
-                    LOGGER_ERROR("LuaCtxCallMany fail: %s", LuaCtxGetError(perdata->luactx));
+                    LOGGER_WARN("LuaCtxCallMany fail: on_event_task()");
                 }
 
                 LuaCtxUnlockState(perdata->luactx);
             }
+        }
 
-            /**
-             * here we got topic and partition for kafka
-             */
-            len = snprintf(v_eventmsg, v_eventmsg_cb(perdata), "{%s|%s|%s|%s|%s|%s|%s|%s|%s|%s}",
-                v_type, v_time, v_sid, v_thread, v_event, v_clientid, v_pathid, event->pathname, event->name, v_route);
+        if (! message) {
+            msglen = snprintf(v_eventmsg, v_eventmsg_cb(perdata), "{%s|%s|%s|%s|%s|%s|%s|%s|%s|%s}",
+                v_type, v_time, v_clientid, v_thread, v_sid, v_event, v_pathid, event->pathname, event->name, v_route);
 
-            if (len > 0 && len < v_eventmsg_cb(perdata)) {
-                // 同步发送消息到 kafka
-                LOGGER_DEBUG("send to kafka (topic=%s, partition=%d) message: %s", kafka_topic, partition, v_eventmsg);
-
-                send_kafka_message(&perdata->kt_producer_api, kafka_topic, partition, v_eventmsg, len);
+            if (msglen > 0 && msglen < v_eventmsg_cb(perdata)) {
+                message = v_eventmsg;
             } else {
                 LOGGER_FATAL("application error: buffer is too small (see perthread_data.h).");
                 exit(-10);
             }
         }
 
-        len = 0;
+        if (perdata->kafka_producer_ready) {
+            // 发送消息到 kafka (同步)
+            LOGGER_DEBUG("send event to kafka (%s:%d)", kafka_topic, partition);
+
+            send_kafka_message(&perdata->kt_producer_api, kafka_topic, partition, message, msglen);
+        }
+
+        // 发送消息到日志文件. TODO: 得到 loglevel
+        LOGGER_DEBUG("event(%d)=%s", msglen, message);
+
+        msglen = 0;
 
         // 使用完毕必须删除 !!
         event_rbtree_lock();
@@ -263,11 +287,11 @@ static void do_event_task (thread_context_t *thread_ctx)
 
             rbtree_remove_at(&client->event_rbtree, node);
 
-            len = rbtree_size(&client->event_rbtree);
+            msglen = rbtree_size(&client->event_rbtree);
         }
         event_rbtree_unlock();
 
-        LOGGER_DEBUG("rbtree_size=%d", len);
+        LOGGER_DEBUG("rbtree_size=%d", msglen);
     } else {
         LOGGER_ERROR("unknown event task flags(=%d)", task->flags);
     }
@@ -380,7 +404,7 @@ int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX
         LuaCtxCall(client->luactx, "filter_path", "path", abspath);
 
         // TODO: ret
-
+        
         LuaCtxUnlockState(client->luactx);
     }
 
@@ -447,7 +471,7 @@ int filter_watch_file (XS_client client, char *path, const char *name, int namel
         LuaCtxCallMany(client->luactx, "filter_file", keys, values, 2);
 
         // TODO: retcode
-
+        
         LuaCtxUnlockState(client->luactx);
     }
 
@@ -682,6 +706,8 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
     memcpy(client->apphome, opts->apphome, opts->apphome_len);
     client->apphome_len = opts->apphome_len;
 
+    client->kafka = opts->kafka;
+
     if (opts->clientid[0]) {
         // 通过命令行参数设置 clientid
         memcpy(client->clientid, opts->clientid, sizeof(client->clientid));
@@ -853,7 +879,7 @@ int on_inotify_add_wpath (int flag, const char *wpath, void *arg)
                     printf("inotify_watch_on_query output table[%d] = {%s => %s}\n", i, key, value);
                 }
             }
-
+            
             LuaCtxUnlockState(client->luactx);
         }
     } else if (flag == INO_WATCH_ON_READY) {

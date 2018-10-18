@@ -110,6 +110,8 @@ void print_usage(void)
         "\n"
         "\t-s, --sweep-interval=<SECONDS>  \033[35m specify sweep interval in seconds. %d (default)\033[0m\n"
         "\n"
+        "\t-k, --kafka                  \033[35m specify kafka enabled.\033[0m\n"
+        "\n"
         "\n"
         "\t-t, --threads=<THREADS>      \033[35m specify number of threads. %d (default)\033[0m\n"
         "\n"
@@ -155,6 +157,8 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     int from_watch = 0;
     int sweep_interval = 0;
 
+    int kafka = 0;
+
     int interactive = 0;
     int isdaemon = 0;
 
@@ -180,6 +184,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
         {"priority", required_argument, 0, 'P'},
         {"appender", required_argument, 0, 'A'},
         {"sweep-interval", required_argument, 0, 's'},
+        {"kafka", optional_argument, 0, 'k'},
         {"threads", required_argument, 0, 't'},
         {"queues", required_argument, 0, 'q'},
         {"clientid", required_argument, 0, 'N'},
@@ -226,7 +231,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     }
 
     /* parse command arguments */
-    while ((ret = getopt_long(argc, argv, "hVC:WO:P:A:t:q:s:N:DKLS::Im:r:", lopts, 0)) != EOF) {
+    while ((ret = getopt_long(argc, argv, "hVC:WO:k::P:A:t:q:s:N:DKLS::Im:r:", lopts, 0)) != EOF) {
         switch (ret) {
         case 'D':
             isdaemon = 1;
@@ -255,6 +260,15 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
                     exit(-1);
                 }
             }
+            break;
+
+        case 'k':
+            if (optarg) {
+                fprintf(stderr, "\033[1;31m[warn]\033[0mNOTE: optional argument for --kafka='%s' not implemented. using kafka_config() in event-task.lua instead.\n", optarg);
+                exit(1);
+            }
+
+            kafka = 1;
             break;
 
         case 'S':
@@ -464,6 +478,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     opts->isdaemon = isdaemon;
     opts->from_watch = from_watch;
     opts->interactive = interactive;
+    opts->kafka = kafka;
 
     memcpy(opts->config, config, sizeof(config));
 }
