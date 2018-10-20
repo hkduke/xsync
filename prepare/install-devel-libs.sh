@@ -45,7 +45,7 @@ Options:
 
 example:
   $ sudo ${_name} --prepare
-  $ sudo ${_name} --install
+  $ ${_name} --install
 
 report: 350137278@qq.com
 EOT
@@ -79,7 +79,7 @@ function prep_install()
             exit -1
         fi
 
-        sudo yum install -y make gcc gcc-c++ tcl kernel-devel zlib-devel openssl-devel readline-devel pcre-devel ncurses-devel
+        sudo yum install -y make gcc gcc-c++ tcl kernel-devel zlib-devel openssl-devel libxml2-devel readline-devel pcre-devel ncurses-devel
 
     elif [ "$osid" = "ubuntu" ]; then
         if [ "$major_ver" -lt 14 ]; then
@@ -87,7 +87,7 @@ function prep_install()
             exit -1
         fi
 
-        sudo apt-get install -y build-essential tcl openssl libssl-dev libpcre3 libpcre3-dev zlib1g-dev libreadline-dev libncurses-dev
+        sudo apt-get install -y build-essential tcl openssl libssl-dev libpcre3 libpcre3-dev zlib1g-dev libxml2-dev libreadline-dev libncurses-dev
     fi
 }
 
@@ -191,13 +191,11 @@ function install_libs()
     rm -rf ${_cdir}/librdkafka-master
     cd ${_cdir}
 
-    echoinfo "---- build and install <json-c-20180305> https://github.com/json-c/json-c ..."
-    tar -zxf ${_cdir}/json-c-20180305.tar.gz
-    cd ${_cdir}/json-c-20180305/
-    sh autogen.sh
-    ./configure --prefix=${INSTALLDIR}
-    make && make install
-    rm -rf ${_cdir}/json-c-20180305
+    echoinfo "---- build and install <hiredis-1.0.0r> ..."
+    tar -zxf ${_cdir}/hiredis-1.0.0.tar.gz
+    cd ${_cdir}/hiredis-1.0.0/
+    make PREFIX=${INSTALLDIR} install
+    rm -rf ${_cdir}/hiredis-1.0.0
     cd ${_cdir}
 
     echoinfo "all packages successfully installed at: ${INSTALLDIR}"
@@ -206,18 +204,7 @@ function install_libs()
 
 function post_install() 
 {
-    # default redis installation home:
-    redis_home="/opt/redis-cluster/redis/redis-5.0-RC3"
-
-    if [ -f "$_cdir/redis-ruby/REDIS_HOME_DIR" ]; then
-        redis_home=$(cat "$_cdir/redis-ruby/REDIS_HOME_DIR")
-    fi
-
-    echoinfo "redis_home: $redis_home"
-
-    ln -sf "$redis_home"/include/hiredis "$INSTALLDIR"/include/hiredis
-    ln -sf "$redis_home"/lib/libhiredis.a "$INSTALLDIR"/lib/libhiredis.a
-    ln -sf "$redis_home"/lib/libhiredis.so "$INSTALLDIR"/lib/libhiredis.so
+    echoinfo "do post install ..."
 }
 
 

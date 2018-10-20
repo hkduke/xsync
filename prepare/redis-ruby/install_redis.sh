@@ -208,7 +208,7 @@ function install_redis() {
     ln -sf $redishome/bin/redis-cli /usr/local/bin/redis-cli
 
     # 输出最后安装的目录到文件: REDIS_HOME_DIR
-    echo "$redishome" > "$_cdir/REDIS_HOME_DIR"
+    echoinfo "REDIS_HOME=$redishome"
 
     local ret=`redis-server --version`
 
