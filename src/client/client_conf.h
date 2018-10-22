@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.0
+ * @version: 0.2.2
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-18 22:56:04
+ * @update: 2018-10-22 12:21:29
  */
 
 #ifndef CLIENT_CONF_H_INCLUDED
@@ -101,6 +101,12 @@ typedef struct xs_client_t
 
     /* 是(1)否(0)重启监视(当配置更改时有必要重启监视) */
     volatile int inotify_reload;
+
+    /* inotify 服务就绪时间 */
+    volatile time_t ready_time;
+
+    /* 刷新的文件总数 */
+    int64_t sweep_files;
 
     /* lua context */
     lua_context luactx;

@@ -115,6 +115,9 @@
 #include "../kafkatools/kafkatools.h"
 
 
+#define LOOP_SLEEP_TIME_MS  10
+
+
 static int send_kafka_message(kafkatools_producer_api_t *api, const char *kafka_topic, int kafka_partition, const char *msg, int msglen)
 {
     int ret;
@@ -193,7 +196,7 @@ static void do_event_task (thread_context_t *thread_ctx)
                 now_time_str(v_time_buf(perdata), v_time_cb(perdata));
 
                 snprintf(v_thread, v_thread_cb(perdata), "%d", perdata->threadid);
-                snprintf(v_event, v_event_cb(perdata), "%s", inotifytools_event_to_str(event->mask));
+                snprintf(v_event, v_event_cb(perdata), "%s", inotifytools_event_to_str_safe(event->mask, v_eventmsg));
                 snprintf(v_file, v_file_cb(perdata), "%s", event->name);
                 snprintf(v_path, v_path_cb(perdata), "%s", event->pathname);
                 snprintf(v_sid, v_sid_cb(perdata), "%d", sid);
@@ -455,20 +458,20 @@ int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX
 
 
 __no_warning_unused(static)
-int filter_watch_file (XS_client client, char *path, const char *name, int namelen)
-{
+int filter_watch_file (XS_client client, struct watch_event_buf_t *evbuf)
+{    
     int retcode = FILTER_WPATH_ACCEPT;
 
-    if (! path || ! name) {
+    if (! evbuf->pathname || ! evbuf->name) {
         LOGGER_ERROR("application error: null name");
         return 0;
     }
 
     if (LuaCtxLockState(client->luactx)) {
-        const char *keys[] = {"path", "file"};
-        const char *values[] = {path, name};
+        const char *keys[] = {"path", "file", "mtime", "size"};
+        const char *values[] = {evbuf->pathname, evbuf->name, evbuf->str_mtime, evbuf->str_size};
 
-        LuaCtxCallMany(client->luactx, "filter_file", keys, values, 2);
+        LuaCtxCallMany(client->luactx, "filter_file", keys, values, sizeof(keys)/sizeof(keys[0]));
 
         // TODO: retcode
 
@@ -476,21 +479,21 @@ int filter_watch_file (XS_client client, char *path, const char *name, int namel
     }
 
     if (retcode == FILTER_WPATH_ACCEPT) {
-        LOGGER_DEBUG("ACCEPT(=%d): {%s%s}", retcode, path, name);
+        LOGGER_DEBUG("ACCEPT(=%d): {%s%s}", retcode, evbuf->pathname, evbuf->name);
         return 1;
     }
 
     if (retcode == FILTER_WPATH_REJECT) {
-        LOGGER_DEBUG("REJECT(=%d): {%s%s}", retcode, path, name);
+        LOGGER_DEBUG("REJECT(=%d): {%s%s}", retcode, evbuf->pathname, evbuf->name);
         return 0;
     }
 
     if (retcode == FILTER_WPATH_RELOAD) {
-        LOGGER_WARN("RELOAD(=%d): {%s%s}", retcode, path, name);
+        LOGGER_WARN("RELOAD(=%d): {%s%s}", retcode, evbuf->pathname, evbuf->name);
         return (-1);
     }
 
-    LOGGER_ERROR("UNEXPECTED(=%d): {%s%s}", retcode, path, name);
+    LOGGER_ERROR("UNEXPECTED(=%d): {%s%s}", retcode, evbuf->pathname, evbuf->name);
     return 0;
 }
 
@@ -502,16 +505,23 @@ int filter_watch_file (XS_client client, char *path, const char *name, int namel
 __no_warning_unused(static)
 int lscb_sweep_watch_path (const char *path, int pathlen, struct mydirent *myent, void *arg1, void *arg2)
 {
-    struct watch_event_buf_t evbuf = {0};
-
     XS_client client = (XS_client) arg1;
 
-    sleep_ms(10);
+    time_t ready_time = 0;
+
+    char msgbuf[256];
+
+    struct watch_event_buf_t evbuf;
+    bzero(&evbuf, sizeof(evbuf));
 
     if (! pathlen || pathlen >= PATH_MAX) {
         LOGGER_FATAL("bad pathlen: %d", pathlen);
         exit(-1);
     }
+
+    ready_time = __interlock_get(&client->ready_time);
+
+    sleep_ms(LOOP_SLEEP_TIME_MS);
 
     if (myent->isdir) {
         // path 是目录
@@ -603,7 +613,7 @@ int lscb_sweep_watch_path (const char *path, int pathlen, struct mydirent *myent
             if (evbuf.len) {
                 red_black_node_t *node = 0;
 
-                LOGGER_TRACE("sweep event(wd=%d)[%s]: %s", evbuf.wd, inotifytools_event_to_str(evbuf.mask), name);
+                LOGGER_TRACE("sweep event(wd=%d)[%s]: %s", evbuf.wd, inotifytools_event_to_str_safe(evbuf.mask, msgbuf), name);
 
                 /**
                  * 判断当前文件是否正在任务队列中处理, 如果在, 则忽略之
@@ -614,7 +624,15 @@ int lscb_sweep_watch_path (const char *path, int pathlen, struct mydirent *myent
                     pthread_mutex_unlock(&client->rbtree_lock);
 
                     if (! node) {
-                        result = filter_watch_file(client, evbuf.pathname, evbuf.name, evbuf.len);
+                        if (myent->mtime >= ready_time) {
+                            // 仅仅对最后更改时间在 ready_time 之后的文件做处理
+                            snprintf(evbuf.str_mtime, sizeof(evbuf.str_mtime), "%"PRId64"", myent->mtime);
+                            snprintf(evbuf.str_size, sizeof(evbuf.str_size), "%"PRId64"", myent->size);
+
+                            result = filter_watch_file(client, &evbuf);
+                            
+                            client->sweep_files++;
+                        }
                     }
                 } else {
                     LOGGER_WARN("pthread_mutex_lock failed on rbtree_lock");
@@ -624,7 +642,7 @@ int lscb_sweep_watch_path (const char *path, int pathlen, struct mydirent *myent
             if (result > 0) {
                 // 添加任务到线程池, 如果任务队列忙, 则重试
                 while (client_add_inotify_event(client, &evbuf) == XS_E_POOL) {
-                    sleep_ms(10);
+                    sleep_ms(LOOP_SLEEP_TIME_MS);
                 }
             } else if (result == -1) {
                 // 要求重启服务
@@ -947,13 +965,38 @@ __no_warning_unused(static)
 void sweep_worker (void *arg)
 {
     char pathbuf[PATH_MAX];
+    int64_t count = 0;
+    time_t ready_time, start, end;
 
     XS_client client = (XS_client) arg;
 
     for (;;) {
-        sleep_ms(client->interval_seconds * 1000);
+        // 刷新次数
+        count++;
 
+        client->sweep_files = 0;
+
+        ready_time = __interlock_get(&client->ready_time);
+
+        if (ready_time) {
+            // 等待刷新时间间隔
+            sleep_ms(client->interval_seconds * 1000);
+        }
+
+        // 记录开始刷新时间
+        start = time(NULL);
+
+        // 刷新文件的最后修改时间总是 >= ready_time
         listdir(client->watch_config, pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_sweep_watch_path, (void*) client, 0);
+
+        // 记录结束刷新时间
+        end = time(NULL);
+
+        // 更新时间
+        __interlock_set(&client->ready_time, start);
+
+        // 打印刷新统计报告: 刷新次数, 文件最后时间, 刷新的文件数, 开始刷新时间, 结束刷新时间
+        LOGGER_INFO("[%"PRId64"/%"PRId64"] new files:%"PRId64" (start=%"PRId64", end=%"PRId64", elapsed=%"PRId64")", ready_time, count, client->sweep_files, start, end, end - start);
     }
 
     LOGGER_FATAL("thread exit unexpected.");
@@ -968,7 +1011,8 @@ XS_VOID XS_client_bootstrap (XS_client client)
 
     struct inotify_event *inevent;
 
-    struct watch_event_buf_t evbuf = {0};
+    struct watch_event_buf_t evbuf;
+    bzero(&evbuf, sizeof(evbuf));
 
     pthread_t sweep_thread_id;
 
@@ -1045,11 +1089,11 @@ XS_VOID XS_client_bootstrap (XS_client client)
 
             if (! inevent) {
                 __inotifytools_unlock();
-                sleep_ms(10);
+                sleep_ms(LOOP_SLEEP_TIME_MS);
                 continue;
             }
 
-            LOGGER_DEBUG("inotify event(wd=%d)[%s]: %s (len=%d)", inevent->wd, inotifytools_event_to_str(inevent->mask), inevent->name, inevent->len);
+            LOGGER_DEBUG("inotify event(wd=%d:%s): %s (len=%d)", inevent->wd, inotifytools_event_to_str(inevent->mask), inevent->name, inevent->len);
 
             if (inevent->mask & (IN_DELETE_SELF | IN_IGNORED) && ! inevent->len) {
                 __inotifytools_unlock();
@@ -1059,23 +1103,28 @@ XS_VOID XS_client_bootstrap (XS_client client)
             if (! inotify_event_dump((watch_event_t *)&evbuf, PATH_MAX, inevent)) {
                 __inotifytools_unlock();
 
-                LOGGER_FATAL("unexpected error");
+                LOGGER_ERROR("unexpected for event: %s", inotifytools_event_to_str(inevent->mask));
                 continue;
             }
         }
         __inotifytools_unlock();
 
-        LOGGER_TRACE("inotify event(wd=%d)[%s]: %s", evbuf.wd, inotifytools_event_to_str(evbuf.mask), evbuf.name);
+        if (__interlock_get(&client->ready_time)) {
+            // 如果初始化刷新成功, 更新到最新时间
+            __interlock_set(&client->ready_time, time(0));
+        }
 
         if (evbuf.mask & IN_ISDIR) {
-            int len = snprintf(pathbuf, sizeof(pathbuf), "%s%s/", evbuf.pathname, evbuf.name);
+            int len, wd;
+
+            len = snprintf(pathbuf, sizeof(pathbuf), "%s%s/", evbuf.pathname, evbuf.name);
             if (len < 0 || len >= sizeof(pathbuf)) {
                 LOGGER_FATAL("pathbuf was truncated for: '%s%s/'", evbuf.pathname, evbuf.name);
                 continue;
             }
             pathbuf[len] = 0;
 
-            int wd = inotifytools_wd_from_filename_s(pathbuf);
+            wd = inotifytools_wd_from_filename_s(pathbuf);
 
             if (evbuf.mask & (IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM)) {
                 if (wd > 0) {
@@ -1111,7 +1160,7 @@ XS_VOID XS_client_bootstrap (XS_client client)
 
             continue;
         } else if (evbuf.mask & INOTI_EVENTS_MASK) {
-            red_black_node_t *node = 0;
+            red_black_node_t *node;
 
             /**
              * 判断当前文件是否正在任务队列中处理, 如果在, 则忽略之
@@ -1121,10 +1170,29 @@ XS_VOID XS_client_bootstrap (XS_client client)
             event_rbtree_unlock();
 
             if (! node) {
+                int len, err;
+                struct stat sbuf;
+
+                len = snprintf(pathbuf, sizeof(pathbuf), "%s%s", evbuf.pathname, evbuf.name);
+                if (len < 0 || len >= sizeof(pathbuf)) {
+                    LOGGER_FATAL("pathbuf was truncated for: '%s%s'", evbuf.pathname, evbuf.name);
+                    continue;
+                }
+                pathbuf[len] = 0;
+
+                err = lstat(pathbuf, &sbuf);
+                if (err) {
+                    LOGGER_FATAL("lstat fail(%d): %s. (%s)", errno, strerror(errno), pathbuf);
+                    continue;
+                }
+
                 /**
                  * evbuf.len 总是等于 strlen(evbuf.name)
                  */
-                if (filter_watch_file(client, evbuf.pathname, evbuf.name, evbuf.len) > 0) {
+                snprintf(evbuf.str_mtime, sizeof(evbuf.str_mtime), "%"PRId64"", sbuf.st_mtime);
+                snprintf(evbuf.str_size, sizeof(evbuf.str_size), "%"PRId64"", sbuf.st_size);
+
+                if (filter_watch_file(client, &evbuf) > 0) {
                     // 循环直到添加成功
                     while (client_add_inotify_event(client, &evbuf) == XS_E_POOL) {
                         sleep_ms(1);

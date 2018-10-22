@@ -2,9 +2,9 @@
 # @file: main.mk
 #   refer: https://github.com/dmoulding/boilermake
 #
-# @version: 0.2.0
+# @version: 0.2.2
 # @create: 2018-05-18 14:00:00
-# @update: 2018-10-16 18:15:12
+# @update: 2018-10-22 14:19:20
 #######################################################################
 # GCC, the GNU C compiler, supports `-g' with or without `-O',
 #   making it possible to debug optimized code.
@@ -46,6 +46,5 @@ TARGET_DIR := ../target
 SUBMAKEFILES := common/common.mk \
 	luacontext/luacontext.mk \
 	redisapi/redisapi.mk \
-	mysqldbi/mysqldbi.mk \
 	server/server.mk \
 	client/client.mk

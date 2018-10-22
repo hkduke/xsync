@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.0
+ * @version: 0.2.2
  *
  * @create: 2018-01-09
  *
- * @update: 2018-10-11 19:11:47
+ * @update: 2018-10-22 15:04:47
  */
 
 #ifndef COMMON_UTIL_H_INCLUDED
@@ -83,7 +83,11 @@ struct mydirent {
     unsigned char isdir;
     unsigned char isreg;
     unsigned char islnk;
+
+    off_t size;    /* 总字节大小 */
+    time_t mtime;  /* 最后修改时间 */
 }  __attribute((packed));
+
 
 typedef int (*listdir_callback_t)(const char * path, int pathlen, struct mydirent *myent, void * arg1, void *arg2);
 
@@ -504,11 +508,15 @@ int listdir(const char * path, char *inbuf, ssize_t bufsize, listdir_callback_t 
 
         // lstat 返回符号链接的信息而不是返回其指向的文件信息(stat)
         err = lstat(inbuf, &sbuf);
+
         if (err) {
             perror("lstat\n");
         } else {
             struct mydirent myent;
             bzero(&myent, sizeof(myent));
+
+            myent.mtime = sbuf.st_mtime;
+            myent.size = sbuf.st_size;
 
             if (isdir(inbuf)) {
                 myent.isdir = 1;

@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.0
+ * @version: 0.2.2
  *
  * @create: 2018-09-29
  *
- * @update: 2018-10-17 10:20:32
+ * @update: 2018-10-22 16:10:31
  */
 
 #ifndef INOTIFYAPI_H_INCLUDED
@@ -78,28 +78,6 @@ static inline int inotifytools_error_s ()
     int ret;
     __inotifytools_lock();
     ret = inotifytools_error();
-    __inotifytools_unlock();
-    return ret;
-}
-
-
-__attribute__((unused))
-static inline char * inotifytools_event_to_str_s (int events)
-{
-    char *ret;
-    __inotifytools_lock();
-    ret = inotifytools_event_to_str(events);
-    __inotifytools_unlock();
-    return ret;
-}
-
-
-__attribute__((unused))
-static inline char * inotifytools_event_to_str_sep_s (int events, char sep)
-{
-    char *ret;
-    __inotifytools_lock();
-    ret = inotifytools_event_to_str_sep(events, sep);
     __inotifytools_unlock();
     return ret;
 }

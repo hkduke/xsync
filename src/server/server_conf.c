@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.0
+ * @version: 0.2.2
  *
  * @create: 2018-02-02
  *
- * @update: 2018-09-04 13:27:25
+ * @update: 2018-10-22 14:16:19
  */
 
 #include "server_api.h"
@@ -82,9 +82,6 @@ extern void xs_server_delete (void *pv)
     }
 
     XS_server_clear_client_sessions(server);
-
-    LOGGER_DEBUG("server: zdbpool_end");
-    zdbpool_end(&server->db_pool);
 
     LOGGER_DEBUG("server: RedisConnFree");
     RedisConnFree(&server->redisconn);

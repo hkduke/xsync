@@ -1,32 +1,23 @@
 #######################################################################
 # @file: server.mk
 #
-# @version: 0.2.0
+# @version: 0.2.2
 # @create: 2018-05-18 14:00:00
-# @update: 2018-10-18 21:14:23
+# @update: 2018-10-22 14:17:29
 #######################################################################
 
 # !!! DO NOT change APPNAME and VERSION only when you make sure do that !
 APPNAME := xsync-server
-VERSION := 0.2.0
+VERSION := 0.2.2
 
 TARGET := ${APPNAME}-${VERSION}
 
 
 LIB_PREFIX := ${TARGET_DIR}/../libs/lib
 
-
-# how to ld libzdb.so
-# see:
-#   http://blog.csdn.net/21aspnet/article/details/6724457
-#
-#   '-Wl,-rpath,'
-#
 TGT_LDFLAGS := \
 	-L${TARGET_DIR} \
-	-L${TARGET_DIR}/../libs/lib \
-	-Wl,-rpath,${TARGET_DIR}/../libs/lib
-
+	-L${TARGET_DIR}/../libs/lib
 
 TGT_LDLIBS  := \
 	${LIB_PREFIX}/libcommon.a \
@@ -41,7 +32,6 @@ TGT_LDLIBS  := \
 	${LIB_PREFIX}/libhiredis.a \
     ${LIB_PREFIX}/libevent.a \
 	${LIB_PREFIX}/libz.a \
-	-lzdb \
 	-lrt \
 	-ldl \
 	-lpthread

@@ -2,9 +2,9 @@
 # @file: main.mk
 #   see: "client.mk.another" for another style of client.mk
 #
-# @version: 0.2.0
+# @version: 0.2.2
 # @create: 2018-05-18 14:00:00
-# @update: 2018-08-29 13:35:33
+# @update: 2018-10-22 10:56:41
 #######################################################################
 # The xsync-client application can normally be built by itself.
 #

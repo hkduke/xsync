@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.0
+ * @version: 0.2.2
  *
  * @create: 2018-02-02
  *
- * @update: 2018-09-04 13:27:35
+ * @update: 2018-10-22 14:14:32
  */
 
 #ifndef SERVER_CONF_H_INCLUDED
@@ -41,9 +41,6 @@ extern "C" {
 #endif
 
 #include "client_session.h"
-
-#include "../common/zdbpool.h"
-
 
 /**
  * xs_server_t type
@@ -73,11 +70,6 @@ typedef struct xs_server_t
     int timeout_ms;
 
     int ssl;
-
-    /**
-     * database pool
-     */
-    zdbpool_t db_pool;
 
     /**
      * redis cluster

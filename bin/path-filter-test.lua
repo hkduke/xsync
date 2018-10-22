@@ -38,6 +38,10 @@ function filter_file(intab)
     io.write(intab.path);
     io.write(";file=");
     io.write(intab.file);
+    io.write(";mtime=");
+    io.write(intab.mtime);
+    io.write(";size=");
+    io.write(intab.size);
     io.write("}");
     print()
 

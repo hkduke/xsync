@@ -1,9 +1,9 @@
 #######################################################################
 # @file: main.mk
 #
-# @version: 0.2.0
+# @version: 0.2.2
 # @create: 2018-10-15 10:00:00
-# @update: 2018-10-16 18:14:47
+# @update: 2018-10-22 10:56:41
 #######################################################################
 # The libluakit.a library can normally be built by itself (without also
 #   building the "xsync" program) by running "make libluakit.a" from

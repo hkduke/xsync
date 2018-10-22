@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.0
+ * @version: 0.2.2
  *
  * @create: 2018-01-24
  *
- * @update: 2018-10-18 11:15:56
+ * @update: 2018-10-22 15:30:58
  */
 
 #ifndef WATCH_EVENT_H_INCLUDED
@@ -72,6 +72,9 @@ typedef struct watch_event_t
         struct inotify_event inevent;
     };
 
+    char str_mtime[21];
+    char str_size[21];
+
     /* 文件的全路径名长度和全路径名 */
     int pathlen;
     char pathname[0];
@@ -91,6 +94,9 @@ struct watch_event_buf_t
 
         struct inotify_event inevent;
     };
+
+    char str_mtime[21];
+    char str_size[21];
 
     /* 文件的全路径名长度和全路径名 */
     int pathlen;
@@ -123,9 +129,14 @@ int inotify_event_dump(watch_event_t *outevent, int pathlenmax, struct inotify_e
         return 0;
     }
 
+    if (namelen == NAME_MAX) {
+        LOGGER_WARN("name is too long: %s", inevent->name);
+        return 0;
+    }
+
     wpath = inotifytools_filename_from_wd(inevent->wd);
     if (! wpath) {
-        LOGGER_WARN("null inevent path");
+        LOGGER_WARN("null inevent path(wd=%d): %s", inevent->wd, inevent->name);
         return 0;
     }
 

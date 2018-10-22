@@ -207,7 +207,6 @@ function post_install()
     echoinfo "do post install ..."
 }
 
-
 ################################# main ################################
 if [ $# -eq 0 ]; then usage; exit 1; fi
 

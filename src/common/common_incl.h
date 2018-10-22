@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.0
+ * @version: 0.2.2
  *
  * @create: 2018-01-09
  *
- * @update: 2018-10-18 10:49:14
+ * @update: 2018-10-22 10:56:41
  */
 
 #ifndef COMMON_INCL_H_INCLUDED

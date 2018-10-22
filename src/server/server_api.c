@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.epcb_event_peer_open
  *
- * @version: 0.2.0
+ * @version: 0.2.2
  *
  * @create: 2018-01-29
  *
- * @update: 2018-10-17 01:04:13
+ * @update: 2018-10-22 14:15:57
  */
 
 #include "server_api.h"
@@ -130,8 +130,6 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
 
     XS_server server;
 
-    struct zdbpool_t db_pool;
-
     int redis_timeo_ms = 100;
 
     int THREADS = opts->threads;
@@ -146,12 +144,6 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
     //   https://github.com/mapr/libhbase
     //   https://github.com/mapr
 
-    // TODO: mysql
-    const char dbpool_url[] = "mysql://localhost/xsyncdb?user=xsync&password=pAssW0rd";
-    LOGGER_DEBUG("zdbpool_init: (url=%s, maxsize=%d)", dbpool_url, ZDBPOOL_MAX_SIZE);
-    zdbpool_init(&db_pool, zdbPoolErrorHandler, dbpool_url, 0, 0, 0, 0);
-    LOGGER_DEBUG("%s", db_pool.errmsg);
-
     // create XS_server
     server = (XS_server) mem_alloc(1, sizeof(xs_server_t));
     assert(server->thread_args == 0);
@@ -164,8 +156,6 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
         return XS_ERROR;
     }
 
-    server->db_pool.pool = db_pool.pool;
-
     __interlock_release(&server->session_counter);
 
     /* PTHREAD_PROCESS_PRIVATE = 0 */
@@ -173,7 +163,6 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
     if (0 != pthread_cond_init(&server->condition, PTHREAD_PROCESS_PRIVATE)) {
         LOGGER_FATAL("pthread_cond_init() error(%d): %s", errno, strerror(errno));
 
-        zdbpool_end(&db_pool);
         RedisConnFree(&server->redisconn);
 
         free((void*) server);

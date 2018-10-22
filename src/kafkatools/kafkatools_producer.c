@@ -29,11 +29,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.0
+ * @version: 0.2.2
  *
  * @create: 2018-10-08
  *
- * @update: 2018-10-11 18:41:43
+ * @update: 2018-10-22 10:56:41
  */
 
 #include "kafkatools.h"

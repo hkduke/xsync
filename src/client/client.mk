@@ -2,14 +2,14 @@
 # @file: client.mk
 #   see: "client.mk.another" for another style of client.mk
 #
-# @version: 0.2.0
+# @version: 0.2.2
 # @create: 2018-05-18 14:00:00
-# @update: 2018-10-18 22:59:39
+# @update: 2018-10-22 10:56:41
 #######################################################################
 
 # !!! DO NOT change APPNAME and VERSION only when you make sure do that !
 APPNAME := xsync-client
-VERSION := 0.2.0
+VERSION := 0.2.2
 
 TARGET := ${APPNAME}-${VERSION}
 

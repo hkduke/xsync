@@ -1,9 +1,9 @@
 #######################################################################
 # @file: main.mk
 #
-# @version: 0.2.0
+# @version: 0.2.2
 # @create: 2018-05-18 14:00:00
-# @update: 2018-08-29 13:30:01
+# @update: 2018-10-22 14:08:38
 #######################################################################
 #
 # The xsync-server application can normally be built by itself.
@@ -13,8 +13,7 @@
 # within the "server" subdirectory.
 
 INCDIRS := \
-	../../libs/include \
-	../../libs/include/zdb
+	../../libs/include
 
 
 TGT_LDLIBS :=
