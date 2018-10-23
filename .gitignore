@@ -66,4 +66,6 @@ build/
 target/
 redis/
 dist/
+latest-dist/
 redis-cluster/
+watch-test/test-stash/
