@@ -7,5 +7,5 @@ _name=$(basename $_file)
 
 echo "start zookeeper-server..."
 
-${_cdir}/kafka/bin/zookeeper-server-start.sh ${_cdir}/kafka/config/zookeeper.properties
+export PATH="${_cdir}/kafka/libs:$PATH" && ${_cdir}/kafka/bin/zookeeper-server-start.sh ${_cdir}/kafka/config/zookeeper.properties
 
