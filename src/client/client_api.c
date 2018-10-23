@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.4
+ * @version: 0.2.5
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-23 14:31:21
+ * @update: 2018-10-23 15:08:38
  */
 
 /******************************************************************************
@@ -118,7 +118,7 @@
 #define LOOP_SLEEP_TIME_MS  10
 
 // 刷新重叠时间: 5 seconds
-#define SWEEP_TIME_OVERLAP  5 
+#define SWEEP_TIME_OVERLAP  5
 
 // 定义刷新时间点文件名
 #define SWEEP_TIMEPOINT_FILE    "/watch/.sweep-timepoint"

@@ -167,17 +167,21 @@ find ${_cdir} -name *.pyc | xargs rm -f
 find ${_cdir} -name *.o | xargs rm -f
 find ${_cdir}/utils -name *.pyc | xargs rm -f
 
-
-pkgname="$_proj"-"$verno"_"$buildno".tar.gz
+pkgpath="$_proj"-"$verno"
+pkgname="$pkgpath"_"$buildno".tar.gz
 
 echoinfo "create package: $pkgname"
 workdir=$(pwd)
 outdir=$(dirname $_cdir)
-cd $outdir
-rm -rf "$pkgname"
-tar -zvcf "$pkgname" --exclude="$_proj/.git" --exclude="$_proj/build" --exclude="$_proj/dist" --exclude="$_proj/watch-test/test-stash" --exclude="$_proj/libs" --exclude="$_proj/target" "$_proj/"
-cd $workdir
 
+cd $outdir
+rm -rf "$pkgpath"
+rm -rf "$pkgname"
+cp -r "$_proj" "$pkgpath"
+tar -zvcf "$pkgname" --exclude="$pkgpath/.git" --exclude="$pkgpath/build" --exclude="$pkgpath/dist" --exclude="$pkgpath/watch-test/test-stash" --exclude="$pkgpath/libs" --exclude="$pkgpath/target" "$pkgpath"
+rm -rf "$pkgpath"
+
+cd $workdir
 if [ -f "$outdir/$pkgname" ]; then
     echo "[INFO] SUCCESS update-pkg: $outdir/$pkgname"
 else
