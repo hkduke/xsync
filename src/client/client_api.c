@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.0
+ * @version: 0.2.3
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-18 22:47:11
+ * @update: 2018-10-23 13:12:01
  */
 
 /******************************************************************************
@@ -114,8 +114,11 @@
 
 #include "../kafkatools/kafkatools.h"
 
-
+// 循环间歇时间: 10 milli-seconds
 #define LOOP_SLEEP_TIME_MS  10
+
+// 刷新重叠时间: 60 seconds
+#define SWEEP_TIME_OVERLAP  60
 
 
 static int send_kafka_message(kafkatools_producer_api_t *api, const char *kafka_topic, int kafka_partition, const char *msg, int msglen)
@@ -459,7 +462,7 @@ int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX
 
 __no_warning_unused(static)
 int filter_watch_file (XS_client client, struct watch_event_buf_t *evbuf)
-{    
+{
     int retcode = FILTER_WPATH_ACCEPT;
 
     if (! evbuf->pathname || ! evbuf->name) {
@@ -507,7 +510,7 @@ int lscb_sweep_watch_path (const char *path, int pathlen, struct mydirent *myent
 {
     XS_client client = (XS_client) arg1;
 
-    time_t ready_time = 0;
+    time_t ready_time;
 
     char msgbuf[256];
 
@@ -559,100 +562,106 @@ int lscb_sweep_watch_path (const char *path, int pathlen, struct mydirent *myent
             }
         }
     } else if (myent->isreg) {
-        char *name = strrchr(path, '/');
+        if (! arg2) {
+            // 忽略根目录的文件
+            return 1;
+        } else {
+            char *name = strrchr(path, '/');
 
-        if (name && *name++) {
-            int result = 0;
+            if (name && *name++) {
+                int result = 0;
 
-            evbuf.wd = pv_cast_to_int(arg2);
-            evbuf.mask = IN_CLOSE_NOWRITE;
-            evbuf.cookie = 0;
-            evbuf.len = 0;
+                evbuf.wd = pv_cast_to_int(arg2);
+                evbuf.mask = IN_CLOSE_NOWRITE;
+                evbuf.cookie = 0;
+                evbuf.len = 0;
 
-            if (evbuf.wd > 0) {
-                __inotifytools_lock();
-                {
+                if (evbuf.wd > 0) {
+                    __inotifytools_lock();
+                    {
+                        // 监视的绝对目录: evbuf.pathname
+                        char *abspath = inotifytools_filename_from_wd(evbuf.wd);
+
+                        if (abspath) {
+                            evbuf.pathlen = strlen(abspath);
+                            memcpy(evbuf.pathname, abspath, evbuf.pathlen);
+                            evbuf.pathname[evbuf.pathlen] = 0;
+
+                            evbuf.len = (int) strlen(name);
+
+                            if (evbuf.len < sizeof(evbuf.name)) {
+                                memcpy(evbuf.name, name, evbuf.len);
+                                evbuf.name[evbuf.len] = '\0';
+                            } else {
+                                // error name buffer
+                                evbuf.len = 0;
+                            }
+                        }
+                    }
+                    __inotifytools_unlock();
+                } else {
                     // 监视的绝对目录: evbuf.pathname
-                    char *abspath = inotifytools_filename_from_wd(evbuf.wd);
+                    evbuf.pathlen = name - path;
+                    memcpy(evbuf.pathname, path, evbuf.pathlen);
+                    evbuf.pathname[evbuf.pathlen] = 0;
 
-                    if (abspath) {
-                        evbuf.pathlen = strlen(abspath);
-                        memcpy(evbuf.pathname, abspath, evbuf.pathlen);
-                        evbuf.pathname[evbuf.pathlen] = 0;
+                    evbuf.wd = 0;
+                    evbuf.len = (int) strlen(name);
 
-                        evbuf.len = (int) strlen(name);
-
-                        if (evbuf.len < sizeof(evbuf.name)) {
-                            memcpy(evbuf.name, name, evbuf.len);
-                            evbuf.name[evbuf.len] = '\0';
-                        } else {
-                            // error name buffer
-                            evbuf.len = 0;
-                        }
+                    if (evbuf.len < sizeof(evbuf.name)) {
+                        memcpy(evbuf.name, name, evbuf.len);
+                        evbuf.name[evbuf.len] = '\0';
+                    } else {
+                        // error name buffer
+                        evbuf.len = 0;
                     }
                 }
-                __inotifytools_unlock();
-            } else {
-                // 监视的绝对目录: evbuf.pathname
-                evbuf.pathlen = name - path;
-                memcpy(evbuf.pathname, path, evbuf.pathlen);
-                evbuf.pathname[evbuf.pathlen] = 0;
 
-                evbuf.wd = 0;
-                evbuf.len = (int) strlen(name);
+                if (evbuf.len) {
+                    red_black_node_t *node = 0;
 
-                if (evbuf.len < sizeof(evbuf.name)) {
-                    memcpy(evbuf.name, name, evbuf.len);
-                    evbuf.name[evbuf.len] = '\0';
-                } else {
-                    // error name buffer
-                    evbuf.len = 0;
-                }
-            }
+                    LOGGER_TRACE("sweep event(wd=%d)[%s]: %s", evbuf.wd, inotifytools_event_to_str_safe(evbuf.mask, msgbuf), name);
 
-            if (evbuf.len) {
-                red_black_node_t *node = 0;
+                    /**
+                     * 判断当前文件是否正在任务队列中处理, 如果在, 则忽略之
+                     */
+                    if (pthread_mutex_lock(&client->rbtree_lock) == 0) {
+                        node = rbtree_find(&client->event_rbtree, &evbuf);
 
-                LOGGER_TRACE("sweep event(wd=%d)[%s]: %s", evbuf.wd, inotifytools_event_to_str_safe(evbuf.mask, msgbuf), name);
+                        pthread_mutex_unlock(&client->rbtree_lock);
 
-                /**
-                 * 判断当前文件是否正在任务队列中处理, 如果在, 则忽略之
-                 */
-                if (pthread_mutex_lock(&client->rbtree_lock) == 0) {
-                    node = rbtree_find(&client->event_rbtree, &evbuf);
+                        if (! node) {
+                            if (myent->mtime > ready_time - SWEEP_TIME_OVERLAP) {
+                                // 仅仅对最后更改时间在 ready_time 之后的文件做处理
+                                snprintf(evbuf.str_mtime, sizeof(evbuf.str_mtime), "%"PRId64"", myent->mtime);
+                                snprintf(evbuf.str_size, sizeof(evbuf.str_size), "%"PRId64"", myent->size);
 
-                    pthread_mutex_unlock(&client->rbtree_lock);
+                                result = filter_watch_file(client, &evbuf);
 
-                    if (! node) {
-                        if (myent->mtime >= ready_time) {
-                            // 仅仅对最后更改时间在 ready_time 之后的文件做处理
-                            snprintf(evbuf.str_mtime, sizeof(evbuf.str_mtime), "%"PRId64"", myent->mtime);
-                            snprintf(evbuf.str_size, sizeof(evbuf.str_size), "%"PRId64"", myent->size);
-
-                            result = filter_watch_file(client, &evbuf);
-                            
-                            client->sweep_files++;
+                                client->sweep_files++;
+                            }
                         }
+                    } else {
+                        LOGGER_WARN("pthread_mutex_lock failed on rbtree_lock");
                     }
-                } else {
-                    LOGGER_WARN("pthread_mutex_lock failed on rbtree_lock");
                 }
-            }
 
-            if (result > 0) {
-                // 添加任务到线程池, 如果任务队列忙, 则重试
-                while (client_add_inotify_event(client, &evbuf) == XS_E_POOL) {
-                    sleep_ms(LOOP_SLEEP_TIME_MS);
+                if (result > 0) {
+                    // 添加任务到线程池, 如果任务队列忙, 则重试
+                    while (client_add_inotify_event(client, &evbuf) == XS_E_POOL) {
+                        sleep_ms(LOOP_SLEEP_TIME_MS);
+                    }
+                } else if (result == -1) {
+                    // 要求重启服务
+                    client_set_inotify_reload(client, 1);
+                    return 0;
                 }
-            } else if (result == -1) {
-                // 要求重启服务
-                client_set_inotify_reload(client, 1);
-                return 0;
             }
         }
     } else if (myent->islnk) {
         if (! arg2) {
             // 忽略根目录的文件链接
+            return 1;
         } else {
             // 忽略子目录的文件链接
             char *abspath = realpath(path, evbuf.pathname);
@@ -959,28 +968,134 @@ int on_inotify_add_wpath (int flag, const char *wpath, void *arg)
 
 
 /**
+ * 从文件中恢复保存的时间点
+ */
+static time_t restore_timepoint (XS_client client, char *tmpbuf, ssize_t bufsize)
+{
+    int fd;
+    time_t tp = 0;
+
+    // 生成 watch 目录下的 .timepoint 文件
+    memcpy(tmpbuf, client->apphome, client->apphome_len);
+    tmpbuf[client->apphome_len] = 0;
+
+    *strrchr(tmpbuf, '/') = '\0';
+    *strrchr(tmpbuf, '/') = '\0';
+
+    strcat(tmpbuf, "/watch/.timepoint");
+
+    LOGGER_DEBUG("read timepoint: %s", tmpbuf);
+
+    // 打开读文件
+    fd = open(tmpbuf, O_RDONLY | O_CREAT, S_IRWXU);
+    if (fd == -1) {
+        LOGGER_ERROR("open fail(%d): %s", errno, strerror(errno));
+        exit(-14);
+    } else {
+        ssize_t cb = read(fd, tmpbuf, 256);
+        if (cb == -1) {
+            LOGGER_ERROR("read fail(%d): %s", errno, strerror(errno));
+
+            close(fd);
+            exit(-14);
+        }
+        close(fd);
+
+        if (cb > 0) {
+            char *p;
+            tmpbuf[cb] = '\0';
+
+            while ((p = strrchr(tmpbuf, '\n')) != 0) {
+                *p = '\0';
+            }
+
+            tp = (time_t) strtoll(tmpbuf, 0, 10);
+        }
+    }
+
+    LOGGER_DEBUG("timepoint=%"PRId64"", (int64_t) tp);
+
+    return tp;
+}
+
+
+/**
+ * 保存本次刷新的时间点. 如果程序重启, 则从此时间点开始
+ */
+static void save_timepoint (XS_client client, time_t tp, char *tmpbuf, ssize_t bufsize)
+{
+    int fd;
+
+    // 生成 watch 目录下的 .timepoint 文件
+    memcpy(tmpbuf, client->apphome, client->apphome_len);
+    tmpbuf[client->apphome_len] = 0;
+
+    *strrchr(tmpbuf, '/') = '\0';
+    *strrchr(tmpbuf, '/') = '\0';
+
+    strcat(tmpbuf, "/watch/.timepoint");
+
+    LOGGER_DEBUG("write file: %s", tmpbuf);
+
+    // 打开写文件
+    fd = open(tmpbuf, O_WRONLY | O_CREAT | O_TRUNC | O_SYNC, S_IRWXU);
+    if (fd == -1) {
+        LOGGER_ERROR("open fail(%d): %s", errno, strerror(errno));
+        exit(-14);
+    } else {
+        snprintf(tmpbuf, 22, "%"PRId64"\n", (int64_t) tp);
+        tmpbuf[21] = 0;
+
+        if (write(fd, tmpbuf, strlen(tmpbuf)) == -1) {
+            LOGGER_ERROR("write fail(%d): %s", errno, strerror(errno));
+
+            close(fd);
+            exit(-14);
+        }
+        close(fd);
+
+        LOGGER_DEBUG("timepoint=%"PRId64"", (int64_t) tp);
+    }
+}
+
+
+/**
  * 刷新目录树工作者函数: 刷新超时尽量短 ( < 1s)
  */
 __no_warning_unused(static)
 void sweep_worker (void *arg)
 {
+    int64_t sweeps;
+
     char pathbuf[PATH_MAX];
-    int64_t count = 0;
+
     time_t ready_time, start, end;
 
     XS_client client = (XS_client) arg;
 
-    for (;;) {
-        // 刷新次数
-        count++;
+    unsigned int interval_seconds = client->interval_seconds;
 
+    if (interval_seconds < 1) {
+        interval_seconds = (unsigned int) 4294967295L;
+    }
+
+    for (;;) {
         client->sweep_files = 0;
 
-        ready_time = __interlock_get(&client->ready_time);
+        sweeps = __interlock_get(&client->sweep_count);
 
-        if (ready_time) {
+        if (sweeps == 0) {
+            // 启动后首次立即刷新. 从文件中恢复保存的时间点
+            ready_time = restore_timepoint(client, pathbuf, sizeof(pathbuf));
+
+            // 设置刷新时间起点
+            __interlock_set(&client->ready_time, ready_time);
+        } else {
             // 等待刷新时间间隔
-            sleep_ms(client->interval_seconds * 1000);
+            sleep(interval_seconds);
+
+            ready_time = __interlock_get(&client->ready_time);
+            save_timepoint(client, ready_time, pathbuf, sizeof(pathbuf));
         }
 
         // 记录开始刷新时间
@@ -992,11 +1107,13 @@ void sweep_worker (void *arg)
         // 记录结束刷新时间
         end = time(NULL);
 
-        // 更新时间
+        // 更新刷新时间
         __interlock_set(&client->ready_time, start);
 
+        sweeps = __interlock_add(&client->sweep_count);
+
         // 打印刷新统计报告: 刷新次数, 文件最后时间, 刷新的文件数, 开始刷新时间, 结束刷新时间
-        LOGGER_INFO("[%"PRId64"/%"PRId64"] new files:%"PRId64" (start=%"PRId64", end=%"PRId64", elapsed=%"PRId64")", ready_time, count, client->sweep_files, start, end, end - start);
+        LOGGER_INFO("[%"PRId64"/%"PRId64"] new files:%"PRId64" (start=%"PRId64", end=%"PRId64", elapsed=%"PRId64")", ready_time, sweeps, client->sweep_files, start, end, end - start);
     }
 
     LOGGER_FATAL("thread exit unexpected.");
@@ -1054,24 +1171,20 @@ XS_VOID XS_client_bootstrap (XS_client client)
     /**
      * create a sweep thread for readdir
      */
-    if (client->interval_seconds > 0 && client->interval_seconds < 864000) {
-        LOGGER_INFO("create sweep worker with interval seconds=%d", client->interval_seconds);
-        do {
-            pthread_attr_t pattr;
-            pthread_attr_init(&pattr);
-            pthread_attr_setscope(&pattr, PTHREAD_SCOPE_PROCESS);
-            pthread_attr_setdetachstate(&pattr, PTHREAD_CREATE_JOINABLE);
+    LOGGER_INFO("create sweep worker with interval seconds=%d", client->interval_seconds);
+    do {
+        pthread_attr_t pattr;
+        pthread_attr_init(&pattr);
+        pthread_attr_setscope(&pattr, PTHREAD_SCOPE_PROCESS);
+        pthread_attr_setdetachstate(&pattr, PTHREAD_CREATE_JOINABLE);
 
-            if (pthread_create(&sweep_thread_id, &pattr, (void *) sweep_worker, (void*) client)) {
-                LOGGER_FATAL("pthread_create() error: %s", strerror(errno));
-                pthread_attr_destroy(&pattr);
-                exit(-1);
-            }
+        if (pthread_create(&sweep_thread_id, &pattr, (void *) sweep_worker, (void*) client)) {
+            LOGGER_FATAL("pthread_create() error: %s", strerror(errno));
             pthread_attr_destroy(&pattr);
-        } while(0);
-    } else {
-        LOGGER_WARN("no sweep worker needed: wrong interval seconds(=%d)", client->interval_seconds);
-    }
+            exit(-1);
+        }
+        pthread_attr_destroy(&pattr);
+    } while(0);
 
     /**
      * http://inotify-tools.sourceforge.net/api/inotifytools_8h.html
@@ -1108,11 +1221,6 @@ XS_VOID XS_client_bootstrap (XS_client client)
             }
         }
         __inotifytools_unlock();
-
-        if (__interlock_get(&client->ready_time)) {
-            // 如果初始化刷新成功, 更新到最新时间
-            __interlock_set(&client->ready_time, time(0));
-        }
 
         if (evbuf.mask & IN_ISDIR) {
             int len, wd;
@@ -1184,6 +1292,11 @@ XS_VOID XS_client_bootstrap (XS_client client)
                 if (err) {
                     LOGGER_FATAL("lstat fail(%d): %s. (%s)", errno, strerror(errno), pathbuf);
                     continue;
+                }
+
+                if (__interlock_get(&client->sweep_count) > 0) {
+                    // 首次刷新之后, sweep_count > 0, 则更新到最新时间
+                    __interlock_set(&client->ready_time, sbuf.st_mtime);
                 }
 
                 /**
