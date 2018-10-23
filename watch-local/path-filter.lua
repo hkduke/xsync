@@ -1,1 +1,0 @@
-../bin/path-filter-test.lua

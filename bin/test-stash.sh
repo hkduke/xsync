@@ -5,7 +5,7 @@ maxfileno=1000
 
 interval_second=0.01
 
-testlog_prefix="/tmp/xclient-watch-test-stash"
+stash_prefix="/tmp/xclient/test-log/stash"
 
 i=0
 j=0
@@ -15,10 +15,10 @@ do
     ((j++))
 
     if [ "$j" -lt "$maxfileno" ]; then
-        mkdir -p "/tmp/xclient-watch-test-stash/$j"
+        mkdir -p "${stash_prefix}/$j"
     fi
 
-    echo "hello $i" > "$testlog_prefix/$i/hello_kitty.log.$i"
+    echo "hello $i" > "${stash_prefix}/$i/hello_kitty.log.$i"
 
     if [ "$i" -gt "$maxfileno" ]; then
         i=0

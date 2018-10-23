@@ -20,7 +20,7 @@ clean:
 	cd $(XSYNC_SRC)/kafkatools/ && $(MAKE) $@
 	rm -rf $(XSYNC_PREFIX)/target
 	rm -rf $(XSYNC_PREFIX)/build
-
+	rm -rf $(XSYNC_PREFIX)/dist
 
 updpkg: clean
 	$(XSYNC_PREFIX)/update-pkg.sh

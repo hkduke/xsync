@@ -1,5 +1,6 @@
 # Prerequisites
 *.d
+.sweep-timepoint
 
 # Object files
 *.o
@@ -68,4 +69,5 @@ redis/
 dist/
 latest-dist/
 redis-cluster/
-watch-test/test-stash/
+watch-test/test-log/
+watch/test-log/

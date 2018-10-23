@@ -7,7 +7,7 @@
 # @author: master@pepstack.com
 #
 # @create: 2018-06-21 23:11:00
-# @update: 2018-08-29
+# @update: 2018-10-23
 #
 #######################################################################
 # will cause error on macosx
@@ -48,21 +48,23 @@ revisionVer="${versegs[2]}"
 verno="$majorVer"."$minorVer"."$revisionVer"
 buildno="build$(date +%Y%m%d%H%M)"
 
-XCHOME=${_cdir}/dist/xclient-$verno
-XSHOME=${_cdir}/dist/xserver-$verno
+DISTROOT="${_cdir}/dist"
+
+XCHOME=${DISTROOT}/xclient-$verno
+XSHOME=${DISTROOT}/xserver-$verno
 
 
 function update_xserver_dist() {
-    echoinfo "update xsync-server to dist: ${_cdir}/dist/xserver-$verno"
+    echoinfo "update xsync-server to: ${DISTROOT}/xserver-$verno"
     olddir=$(pwd)
 
-    echowarn "TODO: build xserver dist packages"
+    echowarn "TODO: build xserver packages"
 
-    echoinfo "TODO: update all xserver dist packages"
-    mkdir -p $XSHOME/{bin,conf,lib,sbin,stash-local}
+    echoinfo "TODO: update all xserver packages"
+    mkdir -p ${XSHOME}/{bin,conf,lib,sbin,stash-local}
 
-    echoinfo "TODO: package all xserver dist packages: ${_cdir}/dist/xserver-dist-$verno.tar.gz"
-    cd ${_cdir}/dist/
+    echoinfo "TODO: package all xserver packages: ${DISTROOT}/xserver-dist-$verno.tar.gz"
+    cd ${DISTROOT}
     #tar -zcf xserver-dist-$verno.tar.gz ./xserver-$verno/
 
     ln -sf xserver-$verno xserver-current
@@ -72,10 +74,10 @@ function update_xserver_dist() {
 
 
 function update_xclient_dist() {
-    echoinfo "update xsync-client to dist: ${_cdir}/dist/xclient-$verno"
+    echoinfo "update xsync-client to: ${DISTROOT}/xclient-$verno"
     olddir=$(pwd)
 
-    echoinfo "build xclient dist packages"
+    echoinfo "build xclient packages"
 
     cd ${_cdir}/src/kafkatools/
     make clean && make
@@ -85,55 +87,60 @@ function update_xclient_dist() {
 
     cd ${_cdir}
 
-    echoinfo "update all xclient dist packages"
-    mkdir -p $XCHOME/{bin,conf,lib,sbin,watch-local}
+    echoinfo "update all xclient packages"
+    mkdir -p ${XCHOME}/{bin,conf,lib,sbin,watch-test}
 
-    cd $XCHOME
-    ln -sf watch-local watch
+    echoinfo "create watch-test: /tmp/xclient/test-log/stash"
+    mkdir -p /tmp/xclient/test-log/stash
 
-    mkdir -p /tmp/xclient-watch-test-stash
-    cd $XCHOME/watch/
-    ln -sf /tmp/xclient-watch-test-stash test-stash
+    cd ${XCHOME}
+    ln -s watch-test watch
 
-    cp ${_cdir}/conf/log4crc $XCHOME/conf/
-    cp ${_cdir}/conf/xsync-client-conf.xml $XCHOME/conf/    
-    cp ${_cdir}/bin/test-stash.sh $XCHOME/bin/
-    cp ${_cdir}/bin/common.sh $XCHOME/bin/
-    cp ${_cdir}/bin/xclient-script.lua $XCHOME/bin/
-    cp ${_cdir}/bin/xclient-status.sh $XCHOME/bin/
-    cp ${_cdir}/target/xsync-client-$verno $XCHOME/sbin/
-    cp ${_cdir}/target/libkafkatools.so.1.0.0 $XCHOME/sbin/
-    cp ${_cdir}/libs/lib/librdkafka.so.1 $XCHOME/lib/
+    cd ${XCHOME}/watch/
+    ln -s /tmp/xclient/test-log test-log
+
+    cp ${_cdir}/conf/log4crc ${XCHOME}/conf/
+    cp ${_cdir}/conf/xsync-client-conf.xml ${XCHOME}/conf/    
+    cp ${_cdir}/bin/test-stash.sh ${XCHOME}/bin/
+    cp ${_cdir}/bin/common.sh ${XCHOME}/bin/
+    cp ${_cdir}/bin/path-filter-1.lua ${XCHOME}/bin/
+    cp ${_cdir}/bin/event-task-1.lua ${XCHOME}/bin/
+    cp ${_cdir}/bin/xclient-status.sh ${XCHOME}/bin/
+    cp ${_cdir}/target/xsync-client-$verno ${XCHOME}/sbin/
+    cp ${_cdir}/target/libkafkatools.so.1.0.0 ${XCHOME}/sbin/
+    cp ${_cdir}/libs/lib/librdkafka.so.1 ${XCHOME}/lib/
 
     echoinfo "update xclient links"
 
-    cd $XCHOME/lib/
-    ln -sf librdkafka.so.1 librdkafka.so
+    cd ${XCHOME}/lib/
+    ln -s librdkafka.so.1 librdkafka.so
 
-    cd $XCHOME/sbin/
-    ln -sf xsync-client-$verno xsync-client
-    ln -sf libkafkatools.so.1.0.0 libkafkatools.so.1
+    cd ${XCHOME}/sbin/
+    ln -s xsync-client-$verno xsync-client
+    ln -s libkafkatools.so.1.0.0 libkafkatools.so.1
 
-    cd $XCHOME/sbin/
-    ln -sf ../bin/xclient-script.lua xclient-script.lua
+    cd ${XCHOME}/watch/
+    ln -s ../bin/path-filter-1.lua path-filter.lua
+    ln -s ../bin/event-task-1.lua event-task.lua
 
-    echoinfo "package all xclient dist packages: ${_cdir}/dist/xclient-dist-$verno.tar.gz"
-    cd ${_cdir}/dist/
+    echoinfo "package all xclient packages: ${DISTROOT}/xclient-dist-$verno.tar.gz"
+    cd ${DISTROOT}
     tar -zcf xclient-dist-$verno.tar.gz ./xclient-$verno/
 
-    ln -sf xclient-$verno xclient-current
+    ln -s xclient-$verno xclient-current
 
     echoinfo "clean all"
     cd ${_cdir}/src/
     make clean
     cd "$olddir"
 
-    echoinfo "update xclient dist package ok."
+    echoinfo "update xclient dist packages ok."
 }
 
 
 if [ $# -eq 1 ]; then
     if [ "$1" == "-d" ]; then
+        rm -rf ${DISTROOT}
         update_xclient_dist
         update_xserver_dist
         exit 0;
@@ -168,7 +175,7 @@ workdir=$(pwd)
 outdir=$(dirname $_cdir)
 cd $outdir
 rm -rf "$pkgname"
-tar -zvcf "$pkgname" --exclude="$_proj/.git" --exclude="$_proj/build" --exclude="$_proj/dist" --exclude="$_proj/libs" --exclude="$_proj/target" "$_proj/"
+tar -zvcf "$pkgname" --exclude="$_proj/.git" --exclude="$_proj/build" --exclude="$_proj/dist" --exclude="$_proj/watch-test/test-stash" --exclude="$_proj/libs" --exclude="$_proj/target" "$_proj/"
 cd $workdir
 
 if [ -f "$outdir/$pkgname" ]; then

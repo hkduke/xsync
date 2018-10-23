@@ -40,7 +40,7 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.3
+ * @version: 0.2.4
  *
  * @create: 2018-09-04
  *

@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.3
+ * @version: 0.2.4
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-23 13:12:01
+ * @update: 2018-10-23 14:31:21
  */
 
 /******************************************************************************
@@ -117,8 +117,11 @@
 // 循环间歇时间: 10 milli-seconds
 #define LOOP_SLEEP_TIME_MS  10
 
-// 刷新重叠时间: 60 seconds
-#define SWEEP_TIME_OVERLAP  60
+// 刷新重叠时间: 10 seconds
+#define SWEEP_TIME_OVERLAP  10
+
+// 定义刷新时间点文件名
+#define SWEEP_TIMEPOINT_FILE    "/watch/.sweep-timepoint"
 
 
 static int send_kafka_message(kafkatools_producer_api_t *api, const char *kafka_topic, int kafka_partition, const char *msg, int msglen)
@@ -982,7 +985,7 @@ static time_t restore_timepoint (XS_client client, char *tmpbuf, ssize_t bufsize
     *strrchr(tmpbuf, '/') = '\0';
     *strrchr(tmpbuf, '/') = '\0';
 
-    strcat(tmpbuf, "/watch/.timepoint");
+    strcat(tmpbuf, SWEEP_TIMEPOINT_FILE);
 
     LOGGER_DEBUG("read timepoint: %s", tmpbuf);
 
@@ -1033,7 +1036,7 @@ static void save_timepoint (XS_client client, time_t tp, char *tmpbuf, ssize_t b
     *strrchr(tmpbuf, '/') = '\0';
     *strrchr(tmpbuf, '/') = '\0';
 
-    strcat(tmpbuf, "/watch/.timepoint");
+    strcat(tmpbuf, SWEEP_TIMEPOINT_FILE);
 
     LOGGER_DEBUG("write file: %s", tmpbuf);
 
