@@ -1,0 +1,10 @@
+prefix=/root/Workspace/github.com/pepstack/xsync/libs
+libdir=/root/Workspace/github.com/pepstack/xsync/libs/lib
+includedir=/root/Workspace/github.com/pepstack/xsync/libs/include
+
+Name: librdkafka
+Description: The Apache Kafka C/C++ library
+Version: 0.11.6
+Cflags: -I${includedir}
+Libs: -L${libdir} -lrdkafka
+Libs.private: -lsasl2 -lssl   -lm -lcrypto   -lz   -ldl -lpthread -lrt

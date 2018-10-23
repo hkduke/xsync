@@ -24,6 +24,32 @@ function kafka_config(intab)
 end
 
 
+function get_topic(fn)
+
+
+    local day = nil
+
+    local file="isurecloud.newzt2wd01.ztgame.com.cn.201810231600.log.gz"
+
+
+    local a=string.find(file, ".log.")
+
+    if (a ~= nil) then
+        local b=string.find(file, "-", a + 5)
+        if (b ~= nil) then
+            day = string.sub(file, a+5, b - 1)
+        end
+    end
+
+    if (day ~= nil) then
+        topic = topic .. "_" .. day
+    else
+        topic = topic .. "_noday"
+    end
+
+end
+
+
 -- {type|time|clientid|thread|sid|event|pathid|path|file|route}
 --
 function on_event_task(intab)
@@ -46,12 +72,18 @@ function on_event_task(intab)
         intab.file,
         intab.route)
 
-    ---[[ 调试输出
+    --[[ 调试输出
     print(message)
     --]]
 
+    local topic = get_topic(intab.file)
+
     -- 指定输出的消息
     outab.message = message
+
+    outab.kafka_topic = string.format("%s_%s_%s", intab.clientid, intab.pathid, topic);
+
+    print(outab.kafka_topic)
 
     outab.result = "SUCCESS"
     return outab

@@ -61,7 +61,7 @@ dkms.conf
 *.pyc
 
 # app specific work temp dirs
-libs/
+./libs/
 boilermake/
 build/
 target/
