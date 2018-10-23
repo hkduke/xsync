@@ -117,8 +117,8 @@
 // 循环间歇时间: 10 milli-seconds
 #define LOOP_SLEEP_TIME_MS  10
 
-// 刷新重叠时间: 10 seconds
-#define SWEEP_TIME_OVERLAP  10
+// 刷新重叠时间: 5 seconds
+#define SWEEP_TIME_OVERLAP  5 
 
 // 定义刷新时间点文件名
 #define SWEEP_TIMEPOINT_FILE    "/watch/.sweep-timepoint"
