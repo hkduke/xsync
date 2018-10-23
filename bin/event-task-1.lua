@@ -24,29 +24,35 @@ function kafka_config(intab)
 end
 
 
-function get_topic(fn)
-
-
+local function get_topic(fn)
     local day = nil
+    local topic = "shanghai"
 
-    local file="isurecloud.newzt2wd01.ztgame.com.cn.201810231600.log.gz"
-
-
-    local a=string.find(file, ".log.")
-
-    if (a ~= nil) then
-        local b=string.find(file, "-", a + 5)
-        if (b ~= nil) then
-            day = string.sub(file, a+5, b - 1)
-        end
+    if (fn == nil)
+    then
+        return "errfile"
     end
 
-    if (day ~= nil) then
-        topic = topic .. "_" .. day
+    a=string.find(fn, ".log.")
+    if (a == nil)
+    then
+        return "errfile"
+    end
+
+    b = string.find(fn, "-", a+5)
+    if (b == nil)
+    then
+        return "errfile"
+    end
+
+    day = string.sub(fn, a+5, b-1)
+
+    if (day == nil)
+    then
+        return "nonday"
     else
-        topic = topic .. "_noday"
+        return day
     end
-
 end
 
 
