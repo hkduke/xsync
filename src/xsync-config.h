@@ -131,7 +131,6 @@ extern "C"
 #  define XSYNC_SWEEP_INTERVAL_SECONDS  0
 #endif
 
-
 /**
  * default threads and queues for client and server
  */

@@ -193,11 +193,11 @@ TODO list</a></h2>
 <p>When a function fails, call this to find out why. The returned value is a typical <em>errno</em> value, the meaning of which depends on context. For example, if <a class="el" href="inotifytools_8h.html#a5e51d1c22c968f8c446ede5ff4caa901">inotifytools_watch_file()</a> fails because you attempt to watch a file which doesn't exist, this function will return <em>ENOENT</em>.</p>
 <dl class="return"><dt><b>Returns:</b></dt><dd>an error code. </dd></dl>
 
-<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l01755">1755</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
+<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l01760">1760</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
 
-<p>References <a class="el" href="inotifytools_8c_source.html#l01755">inotifytools_error()</a>.</p>
+<p>References <a class="el" href="inotifytools_8c_source.html#l01760">inotifytools_error()</a>.</p>
 
-<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l01755">inotifytools_error()</a>.</p>
+<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l01760">inotifytools_error()</a>.</p>
 
 </div>
 </div>
@@ -236,7 +236,7 @@ Example</a></h2>
 
 <p>References <a class="el" href="inotifytools_8c_source.html#l00630">inotifytools_event_to_str()</a>, and <a class="el" href="inotifytools_8c_source.html#l00666">inotifytools_event_to_str_sep()</a>.</p>
 
-<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l00630">inotifytools_event_to_str()</a>, and <a class="el" href="inotifytools_8c_source.html#l01981">inotifytools_snprintf()</a>.</p>
+<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l00630">inotifytools_event_to_str()</a>, and <a class="el" href="inotifytools_8c_source.html#l01986">inotifytools_snprintf()</a>.</p>
 
 </div>
 </div>
@@ -285,7 +285,7 @@ Example</a></h2>
 
 <p>References <a class="el" href="inotifytools_8c_source.html#l00666">inotifytools_event_to_str_sep()</a>.</p>
 
-<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l00630">inotifytools_event_to_str()</a>, <a class="el" href="inotifytools_8c_source.html#l00666">inotifytools_event_to_str_sep()</a>, and <a class="el" href="inotifytools_8c_source.html#l01981">inotifytools_snprintf()</a>.</p>
+<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l00630">inotifytools_event_to_str()</a>, <a class="el" href="inotifytools_8c_source.html#l00666">inotifytools_event_to_str_sep()</a>, and <a class="el" href="inotifytools_8c_source.html#l01986">inotifytools_snprintf()</a>.</p>
 
 </div>
 </div>
@@ -319,7 +319,7 @@ Example</a></h2>
 
 <p>References <a class="el" href="inotifytools_8c_source.html#l00861">inotifytools_filename_from_wd()</a>.</p>
 
-<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l00861">inotifytools_filename_from_wd()</a>, and <a class="el" href="inotifytools_8c_source.html#l01981">inotifytools_snprintf()</a>.</p>
+<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l00861">inotifytools_filename_from_wd()</a>, and <a class="el" href="inotifytools_8c_source.html#l01986">inotifytools_snprintf()</a>.</p>
 
 </div>
 </div>
@@ -386,11 +386,11 @@ Example</a></h2>
  <span class="comment">// this prints to standard error something like:</span>
  <span class="comment">// &quot;in mydir/, file myfile had event(s): CLOSE_NOWRITE.CLOSE.ISDIR\n&quot;</span>
 </pre></div> 
-<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l01872">1872</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
+<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l01877">1877</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
 
-<p>References <a class="el" href="inotifytools_8c_source.html#l01872">inotifytools_fprintf()</a>, and <a class="el" href="inotifytools_8c_source.html#l01930">inotifytools_sprintf()</a>.</p>
+<p>References <a class="el" href="inotifytools_8c_source.html#l01877">inotifytools_fprintf()</a>, and <a class="el" href="inotifytools_8c_source.html#l01935">inotifytools_sprintf()</a>.</p>
 
-<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l01872">inotifytools_fprintf()</a>, and <a class="el" href="inotifytools_8c_source.html#l01827">inotifytools_printf()</a>.</p>
+<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l01877">inotifytools_fprintf()</a>, and <a class="el" href="inotifytools_8c_source.html#l01832">inotifytools_printf()</a>.</p>
 
 </div>
 </div>
@@ -412,11 +412,11 @@ Example</a></h2>
 <p>This setting can also be read or modified by accessing the file <em>/proc/sys/fs/inotify/max_queued_events</em>.</p>
 <dl class="return"><dt><b>Returns:</b></dt><dd>the maximum number of events which will be queued in the kernel. </dd></dl>
 
-<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l02120">2120</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
+<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l02125">2125</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
 
-<p>References <a class="el" href="inotifytools_8c_source.html#l02120">inotifytools_get_max_queued_events()</a>.</p>
+<p>References <a class="el" href="inotifytools_8c_source.html#l02125">inotifytools_get_max_queued_events()</a>.</p>
 
-<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l02120">inotifytools_get_max_queued_events()</a>.</p>
+<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l02125">inotifytools_get_max_queued_events()</a>.</p>
 
 </div>
 </div>
@@ -438,11 +438,11 @@ Example</a></h2>
 <p>This setting can also be read or modified by accessing the file <em>/proc/sys/fs/inotify/max_user_instances</em>.</p>
 <dl class="return"><dt><b>Returns:</b></dt><dd>the maximum number of inotify file descriptors a single user can obtain. </dd></dl>
 
-<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l02135">2135</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
+<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l02140">2140</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
 
-<p>References <a class="el" href="inotifytools_8c_source.html#l02135">inotifytools_get_max_user_instances()</a>.</p>
+<p>References <a class="el" href="inotifytools_8c_source.html#l02140">inotifytools_get_max_user_instances()</a>.</p>
 
-<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l02135">inotifytools_get_max_user_instances()</a>.</p>
+<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l02140">inotifytools_get_max_user_instances()</a>.</p>
 
 </div>
 </div>
@@ -464,11 +464,11 @@ Example</a></h2>
 <p>This setting can also be read or modified by accessing the file <em>/proc/sys/fs/inotify/max_user_watches</em>.</p>
 <dl class="return"><dt><b>Returns:</b></dt><dd>the maximum number of inotify watches a single user can obtain per inotify instance. </dd></dl>
 
-<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l02150">2150</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
+<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l02155">2155</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
 
-<p>References <a class="el" href="inotifytools_8c_source.html#l02150">inotifytools_get_max_user_watches()</a>.</p>
+<p>References <a class="el" href="inotifytools_8c_source.html#l02155">inotifytools_get_max_user_watches()</a>.</p>
 
-<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l02150">inotifytools_get_max_user_watches()</a>.</p>
+<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l02155">inotifytools_get_max_user_watches()</a>.</p>
 
 </div>
 </div>
@@ -489,11 +489,11 @@ Example</a></h2>
 <p>Get the number of watches set up through libinotifytools.</p>
 <dl class="return"><dt><b>Returns:</b></dt><dd>number of watches set up by <a class="el" href="inotifytools_8h.html#a5e51d1c22c968f8c446ede5ff4caa901">inotifytools_watch_file()</a>, <a class="el" href="inotifytools_8h.html#a8e7c7a3f704f323ee197c1a3c65e8bb0">inotifytools_watch_files()</a> and <a class="el" href="inotifytools_8h.html#a9092c1154cdf7885ddb70d65438379dd">inotifytools_watch_recursively()</a>. </dd></dl>
 
-<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l01781">1781</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
+<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l01786">1786</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
 
-<p>References <a class="el" href="inotifytools_8c_source.html#l01781">inotifytools_get_num_watches()</a>.</p>
+<p>References <a class="el" href="inotifytools_8c_source.html#l01786">inotifytools_get_num_watches()</a>.</p>
 
-<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l01781">inotifytools_get_num_watches()</a>.</p>
+<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l01786">inotifytools_get_num_watches()</a>.</p>
 
 </div>
 </div>
@@ -533,11 +533,11 @@ Example</a></h2>
 <dl class="return"><dt><b>Returns:</b></dt><dd>the number of times the event specified by <em>event</em> has occurred on the file specified by <em>filename</em> since stats collection was enabled, or -1 if the file is not being watched or <em>event</em> is invalid.</dd></dl>
 <dl class="note"><dt><b>Note:</b></dt><dd>The filename specified must always be the original name used to establish the watch. </dd></dl>
 
-<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l01739">1739</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
+<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l01744">1744</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
 
-<p>References <a class="el" href="inotifytools_8c_source.html#l01739">inotifytools_get_stat_by_filename()</a>, <a class="el" href="inotifytools_8c_source.html#l01662">inotifytools_get_stat_by_wd()</a>, and <a class="el" href="inotifytools_8c_source.html#l00884">inotifytools_wd_from_filename()</a>.</p>
+<p>References <a class="el" href="inotifytools_8c_source.html#l01744">inotifytools_get_stat_by_filename()</a>, <a class="el" href="inotifytools_8c_source.html#l01667">inotifytools_get_stat_by_wd()</a>, and <a class="el" href="inotifytools_8c_source.html#l00884">inotifytools_wd_from_filename()</a>.</p>
 
-<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l01739">inotifytools_get_stat_by_filename()</a>.</p>
+<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l01744">inotifytools_get_stat_by_filename()</a>.</p>
 
 </div>
 </div>
@@ -576,11 +576,11 @@ Example</a></h2>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>the number of times the event specified by <em>event</em> has occurred on the watch descriptor specified by <em>wd</em> since stats collection was enabled, or -1 if <em>event</em> or <em>wd</em> are invalid. </dd></dl>
 
-<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l01662">1662</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
+<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l01667">1667</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
 
-<p>References <a class="el" href="inotifytools_8c_source.html#l01662">inotifytools_get_stat_by_wd()</a>.</p>
+<p>References <a class="el" href="inotifytools_8c_source.html#l01667">inotifytools_get_stat_by_wd()</a>.</p>
 
-<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l01739">inotifytools_get_stat_by_filename()</a>, and <a class="el" href="inotifytools_8c_source.html#l01662">inotifytools_get_stat_by_wd()</a>.</p>
+<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l01744">inotifytools_get_stat_by_filename()</a>, and <a class="el" href="inotifytools_8c_source.html#l01667">inotifytools_get_stat_by_wd()</a>.</p>
 
 </div>
 </div>
@@ -609,11 +609,11 @@ Example</a></h2>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>the number of times the event specified by <em>event</em> has occurred over all watches since stats collection was enabled, or -1 if <em>event</em> is not a valid event. </dd></dl>
 
-<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l01685">1685</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
+<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l01690">1690</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
 
-<p>References <a class="el" href="inotifytools_8c_source.html#l01685">inotifytools_get_stat_total()</a>.</p>
+<p>References <a class="el" href="inotifytools_8c_source.html#l01690">inotifytools_get_stat_total()</a>.</p>
 
-<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l01685">inotifytools_get_stat_total()</a>.</p>
+<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l01690">inotifytools_get_stat_total()</a>.</p>
 
 </div>
 </div>
@@ -645,11 +645,11 @@ Example</a></h2>
 <p><em>pattern</em> is a regular expression and <em>flags</em> is a bitwise combination of POSIX regular expression flags.</p>
 <p>On future calls to <a class="el" href="inotifytools_8h.html#a585a4532ebd9f441c0bc61ec29973a55">inotifytools_next_events()</a> or <a class="el" href="inotifytools_8h.html#acd99ad4277e4259b05eecc7fa51a715c">inotifytools_next_event()</a>, the regular expression is executed on the filename of files on which events occur. If the regular expression matches, the matched event will be ignored. </p>
 
-<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l02219">2219</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
+<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l02224">2224</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
 
-<p>References <a class="el" href="inotifytools_8c_source.html#l02219">inotifytools_ignore_events_by_inverted_regex()</a>.</p>
+<p>References <a class="el" href="inotifytools_8c_source.html#l02224">inotifytools_ignore_events_by_inverted_regex()</a>.</p>
 
-<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l02219">inotifytools_ignore_events_by_inverted_regex()</a>.</p>
+<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l02224">inotifytools_ignore_events_by_inverted_regex()</a>.</p>
 
 </div>
 </div>
@@ -681,11 +681,11 @@ Example</a></h2>
 <p><em>pattern</em> is a regular expression and <em>flags</em> is a bitwise combination of POSIX regular expression flags.</p>
 <p>On future calls to <a class="el" href="inotifytools_8h.html#a585a4532ebd9f441c0bc61ec29973a55">inotifytools_next_events()</a> or <a class="el" href="inotifytools_8h.html#acd99ad4277e4259b05eecc7fa51a715c">inotifytools_next_event()</a>, the regular expression is executed on the filename of files on which events occur. If the regular expression matches, the matched event will be ignored. </p>
 
-<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l02204">2204</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
+<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l02209">2209</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
 
-<p>References <a class="el" href="inotifytools_8c_source.html#l02204">inotifytools_ignore_events_by_regex()</a>.</p>
+<p>References <a class="el" href="inotifytools_8c_source.html#l02209">inotifytools_ignore_events_by_regex()</a>.</p>
 
-<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l02204">inotifytools_ignore_events_by_regex()</a>.</p>
+<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l02209">inotifytools_ignore_events_by_regex()</a>.</p>
 
 </div>
 </div>
@@ -882,11 +882,11 @@ Example</a></h2>
  <span class="comment">// this prints to standard out something like:</span>
  <span class="comment">// &quot;in mydir/, file myfile had event(s): CLOSE_NOWRITE.CLOSE.ISDIR\n&quot;</span>
 </pre></div> 
-<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l01827">1827</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
+<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l01832">1832</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
 
-<p>References <a class="el" href="inotifytools_8c_source.html#l01872">inotifytools_fprintf()</a>, and <a class="el" href="inotifytools_8c_source.html#l01827">inotifytools_printf()</a>.</p>
+<p>References <a class="el" href="inotifytools_8c_source.html#l01877">inotifytools_fprintf()</a>, and <a class="el" href="inotifytools_8c_source.html#l01832">inotifytools_printf()</a>.</p>
 
-<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l01827">inotifytools_printf()</a>.</p>
+<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l01832">inotifytools_printf()</a>.</p>
 
 </div>
 </div>
@@ -1114,11 +1114,11 @@ Example</a></h2>
   </dd>
 </dl>
 
-<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l02108">2108</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
+<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l02113">2113</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
 
-<p>References <a class="el" href="inotifytools_8c_source.html#l02108">inotifytools_set_printf_timefmt()</a>.</p>
+<p>References <a class="el" href="inotifytools_8c_source.html#l02113">inotifytools_set_printf_timefmt()</a>.</p>
 
-<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l02108">inotifytools_set_printf_timefmt()</a>.</p>
+<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l02113">inotifytools_set_printf_timefmt()</a>.</p>
 
 </div>
 </div>
@@ -1195,11 +1195,11 @@ Example</a></h2>
  <span class="comment">// this prints something like:</span>
  <span class="comment">// &quot;in mydir/, file myfile had event(s): CLOSE_WRITE.CLOSE.ISDIR\n&quot;</span>
 </pre></div> 
-<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l01981">1981</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
+<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l01986">1986</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
 
-<p>References <a class="el" href="inotifytools_8c_source.html#l00630">inotifytools_event_to_str()</a>, <a class="el" href="inotifytools_8c_source.html#l00666">inotifytools_event_to_str_sep()</a>, <a class="el" href="inotifytools_8c_source.html#l00861">inotifytools_filename_from_wd()</a>, and <a class="el" href="inotifytools_8c_source.html#l01981">inotifytools_snprintf()</a>.</p>
+<p>References <a class="el" href="inotifytools_8c_source.html#l00630">inotifytools_event_to_str()</a>, <a class="el" href="inotifytools_8c_source.html#l00666">inotifytools_event_to_str_sep()</a>, <a class="el" href="inotifytools_8c_source.html#l00861">inotifytools_filename_from_wd()</a>, and <a class="el" href="inotifytools_8c_source.html#l01986">inotifytools_snprintf()</a>.</p>
 
-<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l01981">inotifytools_snprintf()</a>, and <a class="el" href="inotifytools_8c_source.html#l01930">inotifytools_sprintf()</a>.</p>
+<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l01986">inotifytools_snprintf()</a>, and <a class="el" href="inotifytools_8c_source.html#l01935">inotifytools_sprintf()</a>.</p>
 
 </div>
 </div>
@@ -1271,11 +1271,11 @@ Example</a></h2>
  <span class="comment">// this prints something like:</span>
  <span class="comment">// &quot;in mydir/, file myfile had event(s): CLOSE_WRITE.CLOSE.ISDIR\n&quot;</span>
 </pre></div> 
-<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l01930">1930</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
+<p>Definition at line <a class="el" href="inotifytools_8c_source.html#l01935">1935</a> of file <a class="el" href="inotifytools_8c_source.html">inotifytools.c</a>.</p>
 
-<p>References <a class="el" href="inotifytools_8c_source.html#l01981">inotifytools_snprintf()</a>, and <a class="el" href="inotifytools_8c_source.html#l01930">inotifytools_sprintf()</a>.</p>
+<p>References <a class="el" href="inotifytools_8c_source.html#l01986">inotifytools_snprintf()</a>, and <a class="el" href="inotifytools_8c_source.html#l01935">inotifytools_sprintf()</a>.</p>
 
-<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l01872">inotifytools_fprintf()</a>, and <a class="el" href="inotifytools_8c_source.html#l01930">inotifytools_sprintf()</a>.</p>
+<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l01877">inotifytools_fprintf()</a>, and <a class="el" href="inotifytools_8c_source.html#l01935">inotifytools_sprintf()</a>.</p>
 
 </div>
 </div>
@@ -1626,12 +1626,12 @@ Example</a></h2>
 
 <p>References <a class="el" href="inotifytools_8c_source.html#l00884">inotifytools_wd_from_filename()</a>.</p>
 
-<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l01739">inotifytools_get_stat_by_filename()</a>, and <a class="el" href="inotifytools_8c_source.html#l00884">inotifytools_wd_from_filename()</a>.</p>
+<p>Referenced by <a class="el" href="inotifytools_8c_source.html#l01744">inotifytools_get_stat_by_filename()</a>, and <a class="el" href="inotifytools_8c_source.html#l00884">inotifytools_wd_from_filename()</a>.</p>
 
 </div>
 </div>
 </div>
-<hr size="1"/><address style="text-align: right;"><small>Generated on 22 Oct 2018 for libinotifytools by&nbsp;
+<hr size="1"/><address style="text-align: right;"><small>Generated on 24 Oct 2018 for libinotifytools by&nbsp;
 <a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.6.1 </small></address>
 </body>

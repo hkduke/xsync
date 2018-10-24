@@ -103,27 +103,41 @@
 #  define LOGGER_DEBUG_DISABLED
 #endif
 
-
-#ifdef LOGGER_LEVEL_WARN
+#ifdef LOGGER_LEVEL_NOTICE
 #  undef LOGGER_TRACE_DISABLED
 #  undef LOGGER_DEBUG_DISABLED
 #  undef LOGGER_INFO_DISABLED
-#  undef LOGGER_WARN_DISABLED
+#  undef LOGGER_NOTICE_DISABLED
 
 #  define LOGGER_TRACE_DISABLED
 #  define LOGGER_DEBUG_DISABLED
 #  define LOGGER_INFO_DISABLED
 #endif
 
-#ifdef LOGGER_LEVEL_ERROR
+#ifdef LOGGER_LEVEL_WARN
 #  undef LOGGER_TRACE_DISABLED
 #  undef LOGGER_DEBUG_DISABLED
 #  undef LOGGER_INFO_DISABLED
+#  undef LOGGER_NOTICE_DISABLED
 #  undef LOGGER_WARN_DISABLED
 
 #  define LOGGER_TRACE_DISABLED
 #  define LOGGER_DEBUG_DISABLED
 #  define LOGGER_INFO_DISABLED
+#  define LOGGER_NOTICE_DISABLED
+#endif
+
+#ifdef LOGGER_LEVEL_ERROR
+#  undef LOGGER_TRACE_DISABLED
+#  undef LOGGER_DEBUG_DISABLED
+#  undef LOGGER_INFO_DISABLED
+#  undef LOGGER_NOTICE_DISABLED
+#  undef LOGGER_WARN_DISABLED
+
+#  define LOGGER_TRACE_DISABLED
+#  define LOGGER_DEBUG_DISABLED
+#  define LOGGER_INFO_DISABLED
+#  define LOGGER_NOTICE_DISABLED
 #  define LOGGER_WARN_DISABLED
 #endif
 
@@ -174,6 +188,9 @@ static void LOGGER_FINI ()
 }
 
 
+/**
+ * LOGGER_TRACE()
+ */
 #if defined(LOGGER_TRACE_UNKNOWN)
 #   define LOGGER_UNKNOWN(message, args...)    do {} while (0)
 #else
@@ -200,6 +217,9 @@ static void LOGGER_FINI ()
 #endif
 
 
+/**
+ * LOGGER_DEBUG()
+ */
 #if defined(LOGGER_DEBUG_DISABLED)
 #   define LOGGER_DEBUG(message, args...)    do {} while (0)
 #else
@@ -226,32 +246,9 @@ static void LOGGER_FINI ()
 #endif
 
 
-#if defined(LOGGER_WARN_DISABLED)
-#   define LOGGER_WARN(message, args...)    do {} while (0)
-#else
-#if defined(LOGGER_COLOR_OUTPUT)
-    #define LOGGER_WARN(message, args...)  \
-        if (logger_get_cat(LOG4C_PRIORITY_WARN)) { \
-            char __logger_buf_tmp[LOGGER_BUF_LEN + 1]; \
-            char *__psz_logger_buf = __logger_buf_tmp; \
-            __psz_logger_buf = __logger_buf_tmp + snprintf(__psz_logger_buf, 20, "\033[33m"); \
-            __psz_logger_buf = __psz_logger_buf + snprintf(__psz_logger_buf, LOGGER_BUF_LEN - 20, message, ##args); \
-            snprintf(__psz_logger_buf, 20, "\033[0m"); \
-            __logger_buf_tmp[LOGGER_BUF_LEN] = 0; \
-            logger_write (LOG4C_PRIORITY_WARN, __FILE__, __LINE__, __FUNCTION__, __logger_buf_tmp); \
-        }
-#else
-    #define LOGGER_WARN(message, args...)  \
-        if (logger_get_cat(LOG4C_PRIORITY_WARN)) { \
-            char __logger_buf_tmp[LOGGER_BUF_LEN+1]; \
-            snprintf (__logger_buf_tmp, LOGGER_BUF_LEN, message, ##args); \
-            __logger_buf_tmp[LOGGER_BUF_LEN] = 0; \
-            logger_write (LOG4C_PRIORITY_WARN, __FILE__, __LINE__, __FUNCTION__, __logger_buf_tmp); \
-        }
-#endif
-#endif
-
-
+/**
+ * LOGGER_INFO()
+ */
 #if defined(LOGGER_INFO_DISABLED)
     #define LOGGER_INFO(message, args...)    do {} while (0)
 #else
@@ -278,6 +275,67 @@ static void LOGGER_FINI ()
 #endif
 
 
+/**
+ * LOGGER_NOTICE()
+ */
+#if defined(LOGGER_NOTICE_DISABLED)
+    #define LOGGER_NOTICE(message, args...)    do {} while (0)
+#else
+#if defined(LOGGER_COLOR_OUTPUT)
+    #define LOGGER_NOTICE(message, args...)  \
+        if (logger_get_cat(LOG4C_PRIORITY_NOTICE)) { \
+            char __logger_buf_tmp[LOGGER_BUF_LEN + 1]; \
+            char *__psz_logger_buf = __logger_buf_tmp; \
+            __psz_logger_buf = __logger_buf_tmp + snprintf(__psz_logger_buf, 20, "\033[1;36m"); \
+            __psz_logger_buf = __psz_logger_buf + snprintf(__psz_logger_buf, LOGGER_BUF_LEN - 20, message, ##args); \
+            snprintf(__psz_logger_buf, 20, "\033[0m"); \
+            __logger_buf_tmp[LOGGER_BUF_LEN] = 0; \
+            logger_write (LOG4C_PRIORITY_NOTICE, __FILE__, __LINE__, __FUNCTION__, __logger_buf_tmp); \
+        }
+#else
+    #define LOGGER_NOTICE(message, args...)  \
+        if (logger_get_cat(LOG4C_PRIORITY_NOTICE)) { \
+            char __logger_buf_tmp[LOGGER_BUF_LEN+1]; \
+            snprintf (__logger_buf_tmp, LOGGER_BUF_LEN, message, ##args); \
+            __logger_buf_tmp[LOGGER_BUF_LEN] = 0; \
+            logger_write (LOG4C_PRIORITY_NOTICE, __FILE__, __LINE__, __FUNCTION__, __logger_buf_tmp); \
+        }
+#endif
+#endif
+
+
+/**
+ * LOGGER_WARN()
+ */
+#if defined(LOGGER_WARN_DISABLED)
+#   define LOGGER_WARN(message, args...)    do {} while (0)
+#else
+#if defined(LOGGER_COLOR_OUTPUT)
+    #define LOGGER_WARN(message, args...)  \
+        if (logger_get_cat(LOG4C_PRIORITY_WARN)) { \
+            char __logger_buf_tmp[LOGGER_BUF_LEN + 1]; \
+            char *__psz_logger_buf = __logger_buf_tmp; \
+            __psz_logger_buf = __logger_buf_tmp + snprintf(__psz_logger_buf, 20, "\033[33m"); \
+            __psz_logger_buf = __psz_logger_buf + snprintf(__psz_logger_buf, LOGGER_BUF_LEN - 20, message, ##args); \
+            snprintf(__psz_logger_buf, 20, "\033[0m"); \
+            __logger_buf_tmp[LOGGER_BUF_LEN] = 0; \
+            logger_write (LOG4C_PRIORITY_WARN, __FILE__, __LINE__, __FUNCTION__, __logger_buf_tmp); \
+        }
+#else
+    #define LOGGER_WARN(message, args...)  \
+        if (logger_get_cat(LOG4C_PRIORITY_WARN)) { \
+            char __logger_buf_tmp[LOGGER_BUF_LEN+1]; \
+            snprintf (__logger_buf_tmp, LOGGER_BUF_LEN, message, ##args); \
+            __logger_buf_tmp[LOGGER_BUF_LEN] = 0; \
+            logger_write (LOG4C_PRIORITY_WARN, __FILE__, __LINE__, __FUNCTION__, __logger_buf_tmp); \
+        }
+#endif
+#endif
+
+
+/**
+ * LOGGER_ERROR()
+ */
 #if defined(LOGGER_ERROR_DISABLED)
     #define LOGGER_ERROR(message, args...)    do {} while (0)
 #else
@@ -304,6 +362,9 @@ static void LOGGER_FINI ()
 #endif
 
 
+/**
+ * LOGGER_FATAL()
+ */
 #if defined(LOGGER_FATAL_DISABLED)
     #define LOGGER_FATAL(message, args...)    do {} while (0)
 #else

@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.7
+ * @version: 0.2.6
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-24 11:16:21
+ * @update: 2018-10-23 15:08:38
  */
 
 /******************************************************************************
@@ -695,6 +695,8 @@ void xs_inotifytools_restart(XS_client client)
         exit(XS_ERROR);
     }
 
+    inotifytools_initialize_stats_s();
+
     if (client->from_watch) {
         // 从监视目录初始化客户端
         err = XS_client_conf_from_watch(client, 0);
@@ -785,6 +787,12 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
         exit(XS_ERROR);
     }
 
+    inotifytools_initialize_stats();
+
+    LOGGER_NOTICE("fs.inotify.max_user_watches=%d", inotifytools_get_max_user_watches());
+    LOGGER_NOTICE("fs.inotify.max_queued_events=%d", inotifytools_get_max_queued_events());
+    LOGGER_NOTICE("fs.inotify.max_user_instances=%d", inotifytools_get_max_user_instances());
+
     if (opts->from_watch) {
         // 从监视目录初始化客户端: 是否递归
         client->from_watch = 1;
@@ -807,9 +815,9 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
 
     client->threads = THREADS;
     client->queues = QUEUES;
-    client->interval_seconds = opts->sweep_interval;
+    client->sweep_interval = opts->sweep_interval;
 
-    LOGGER_INFO("CLIENTID(=%s): threads=%d queues=%d servers=%d interval=%d", client->clientid, THREADS, QUEUES, SERVERS, client->interval_seconds);
+    LOGGER_INFO("CLIENTID(=%s): threads=%d queues=%d servers=%d sweep_interval=%d", client->clientid, THREADS, QUEUES, SERVERS, client->sweep_interval);
 
     /* create per thread data and initialize */
     snprintf(client->buffer, sizeof(client->buffer), "%sevent-task.lua", client->watch_config);
@@ -1069,8 +1077,7 @@ static void save_timepoint (XS_client client, time_t tp, char *tmpbuf, ssize_t b
 /**
  * 刷新目录树工作者函数: 刷新超时尽量短 ( < 1s)
  */
-__no_warning_unused(static)
-void sweep_worker (void *arg)
+static void sweep_worker (void *arg)
 {
     int64_t sweeps;
 
@@ -1080,7 +1087,8 @@ void sweep_worker (void *arg)
 
     XS_client client = (XS_client) arg;
 
-    unsigned int interval_seconds = client->interval_seconds;
+    unsigned int elapsed_seconds = 0;
+    unsigned int interval_seconds = client->sweep_interval;
 
     if (interval_seconds < 1) {
         interval_seconds = (unsigned int) 4294967295L;
@@ -1099,14 +1107,19 @@ void sweep_worker (void *arg)
             __interlock_set(&client->ready_time, ready_time);
         } else {
             // 等待刷新时间间隔
-            sleep(interval_seconds);
+            while(elapsed_seconds++ < interval_seconds) {
+                sleep(1);                
+            }
 
+            elapsed_seconds = 0;
             ready_time = __interlock_get(&client->ready_time);
             save_timepoint(client, ready_time, pathbuf, sizeof(pathbuf));
         }
 
         // 记录开始刷新时间
         start = time(NULL);
+
+        LOGGER_NOTICE("[%"PRId64"/%"PRId64"] paths=%d start=%"PRId64"", ready_time, sweeps + 1, inotifytools_get_num_watches_s(), start);
 
         // 刷新文件的最后修改时间总是 >= ready_time
         listdir(client->watch_config, pathbuf, sizeof(pathbuf), (listdir_callback_t) lscb_sweep_watch_path, (void*) client, 0);
@@ -1120,7 +1133,8 @@ void sweep_worker (void *arg)
         sweeps = __interlock_add(&client->sweep_count);
 
         // 打印刷新统计报告: 刷新次数, 文件最后时间, 刷新的文件数, 开始刷新时间, 结束刷新时间
-        LOGGER_INFO("[%"PRId64"/%"PRId64"] new files:%"PRId64" (start=%"PRId64", end=%"PRId64", elapsed=%"PRId64")", ready_time, sweeps, client->sweep_files, start, end, end - start);
+        LOGGER_NOTICE("[%"PRId64"/%"PRId64"] paths=%d start=%"PRId64" end=%"PRId64" elapsed=%"PRId64" files=%"PRId64"",
+            ready_time, sweeps, inotifytools_get_num_watches_s(), start, end, end - start, client->sweep_files);
     }
 
     LOGGER_FATAL("thread exit unexpected.");
@@ -1174,11 +1188,11 @@ XS_VOID XS_client_bootstrap (XS_client client)
             }
         }
     }
-
+    
     /**
      * create a sweep thread for readdir
      */
-    LOGGER_INFO("create sweep worker with interval seconds=%d", client->interval_seconds);
+    LOGGER_INFO("create sweep thread (interval=%d seconds)", client->sweep_interval);
     do {
         pthread_attr_t pattr;
         pthread_attr_init(&pattr);
@@ -1193,6 +1207,8 @@ XS_VOID XS_client_bootstrap (XS_client client)
         pthread_attr_destroy(&pattr);
     } while(0);
 
+    LOGGER_NOTICE("inotify total watches=%d", inotifytools_get_num_watches_s());
+
     /**
      * http://inotify-tools.sourceforge.net/api/inotifytools_8h.html
      */
@@ -1200,6 +1216,8 @@ XS_VOID XS_client_bootstrap (XS_client client)
         if (client_is_inotify_reload(client)) {
             xs_inotifytools_restart(client);
             client_set_inotify_reload(client, 0);
+
+            LOGGER_NOTICE("inotify total watches=%d", inotifytools_get_num_watches_s());
         }
 
         __inotifytools_lock();
@@ -1273,6 +1291,7 @@ XS_VOID XS_client_bootstrap (XS_client client)
                 LOGGER_ERROR("should never run to this!");
             }
 
+            LOGGER_NOTICE("inotify total watches=%d", inotifytools_get_num_watches_s());
             continue;
         } else if (evbuf.mask & INOTI_EVENTS_MASK) {
             red_black_node_t *node;

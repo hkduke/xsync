@@ -24,6 +24,11 @@
  * @file: inotifyapi.h
  *   inotifytools thread safe api
  *
+ * reder:
+ *   (1) https://sourceforge.net/projects/inotify-tools/
+ *   (2) http://inotify-tools.sourceforge.net/api/inotifytools_8h.html
+ *   (3) https://blog.csdn.net/weiguang1017/article/details/54381439
+ *
  * @author: master@pepstack.com
  *
  * @version: 0.2.7
@@ -42,9 +47,7 @@ extern "C" {
 
 #include "../common/common_incl.h"
 
-/**
- * https://sourceforge.net/projects/inotify-tools/
- */
+
 #include <inotifytools/inotify.h>
 #include <inotifytools/inotifytools.h>
 

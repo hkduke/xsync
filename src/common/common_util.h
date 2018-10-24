@@ -1037,7 +1037,7 @@ void config_log4crc (const char * catname, char * log4crc, char * priority, char
 
     char result[512];
 
-    char old_priority[30] = "info";
+    char old_priority[20] = "info";
     char old_appender[60] = "stdout";
     char old_category[256] = {0};
 
@@ -1111,6 +1111,7 @@ void config_log4crc (const char * catname, char * log4crc, char * priority, char
             "fatal",
             "error",
             "warn",
+            "notice",
             "info",
             "debug",
             "trace",

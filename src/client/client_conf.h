@@ -87,7 +87,7 @@ typedef struct xs_client_t
     /**
      * interval in seconds
      */
-    int interval_seconds;
+    int sweep_interval;
 
     /** queue size per thread */
     int queues;

@@ -49,7 +49,7 @@
 <a name="l00123"></a>00123 <span class="preprocessor"></span><span class="preprocessor">#define MAX_STRLEN 4096</span>
 <a name="l00124"></a>00124 <span class="preprocessor"></span><span class="preprocessor">#define INOTIFY_PROCDIR &quot;/proc/sys/fs/inotify/&quot;</span>
 <a name="l00125"></a>00125 <span class="preprocessor"></span><span class="preprocessor">#define WATCHES_SIZE_PATH INOTIFY_PROCDIR &quot;max_user_watches&quot;</span>
-<a name="l00126"></a>00126 <span class="preprocessor"></span><span class="preprocessor">#define QUEUE_SIZE_PATH   INOTIFY_PROCDIR &quot;max_queued_watches&quot;</span>
+<a name="l00126"></a>00126 <span class="preprocessor"></span><span class="preprocessor">#define QUEUE_SIZE_PATH   INOTIFY_PROCDIR &quot;max_queued_events&quot;</span>
 <a name="l00127"></a>00127 <span class="preprocessor"></span><span class="preprocessor">#define INSTANCES_PATH    INOTIFY_PROCDIR &quot;max_user_instances&quot;</span>
 <a name="l00128"></a>00128 <span class="preprocessor"></span>
 <a name="l00129"></a>00129 <span class="keyword">static</span> <span class="keywordtype">int</span> inotify_fd;
@@ -1066,338 +1066,343 @@
 <a name="l01613"></a>01613 
 <a name="l01614"></a>01614 <span class="keywordtype">int</span> *stat_ptr(watch *w, <span class="keywordtype">int</span> event)
 <a name="l01615"></a>01615 {
-<a name="l01616"></a>01616     <span class="keywordflow">if</span> ( IN_ACCESS == event )
-<a name="l01617"></a>01617         <span class="keywordflow">return</span> &amp;w-&gt;hit_access;
-<a name="l01618"></a>01618     <span class="keywordflow">if</span> ( IN_MODIFY == event )
-<a name="l01619"></a>01619         <span class="keywordflow">return</span> &amp;w-&gt;hit_modify;
-<a name="l01620"></a>01620     <span class="keywordflow">if</span> ( IN_ATTRIB == event )
-<a name="l01621"></a>01621         <span class="keywordflow">return</span> &amp;w-&gt;hit_attrib;
-<a name="l01622"></a>01622     <span class="keywordflow">if</span> ( IN_CLOSE_WRITE == event )
-<a name="l01623"></a>01623         <span class="keywordflow">return</span> &amp;w-&gt;hit_close_write;
-<a name="l01624"></a>01624     <span class="keywordflow">if</span> ( IN_CLOSE_NOWRITE == event )
-<a name="l01625"></a>01625         <span class="keywordflow">return</span> &amp;w-&gt;hit_close_nowrite;
-<a name="l01626"></a>01626     <span class="keywordflow">if</span> ( IN_OPEN == event )
-<a name="l01627"></a>01627         <span class="keywordflow">return</span> &amp;w-&gt;hit_open;
-<a name="l01628"></a>01628     <span class="keywordflow">if</span> ( IN_MOVED_FROM == event )
-<a name="l01629"></a>01629         <span class="keywordflow">return</span> &amp;w-&gt;hit_moved_from;
-<a name="l01630"></a>01630     <span class="keywordflow">if</span> ( IN_MOVED_TO == event )
-<a name="l01631"></a>01631         <span class="keywordflow">return</span> &amp;w-&gt;hit_moved_to;
-<a name="l01632"></a>01632     <span class="keywordflow">if</span> ( IN_CREATE == event )
-<a name="l01633"></a>01633         <span class="keywordflow">return</span> &amp;w-&gt;hit_create;
-<a name="l01634"></a>01634     <span class="keywordflow">if</span> ( IN_DELETE == event )
-<a name="l01635"></a>01635         <span class="keywordflow">return</span> &amp;w-&gt;hit_delete;
-<a name="l01636"></a>01636     <span class="keywordflow">if</span> ( IN_DELETE_SELF == event )
-<a name="l01637"></a>01637         <span class="keywordflow">return</span> &amp;w-&gt;hit_delete_self;
-<a name="l01638"></a>01638     <span class="keywordflow">if</span> ( IN_UNMOUNT == event )
-<a name="l01639"></a>01639         <span class="keywordflow">return</span> &amp;w-&gt;hit_unmount;
-<a name="l01640"></a>01640     <span class="keywordflow">if</span> ( IN_MOVE_SELF == event )
-<a name="l01641"></a>01641         <span class="keywordflow">return</span> &amp;w-&gt;hit_move_self;
-<a name="l01642"></a>01642     <span class="keywordflow">if</span> ( 0 == event )
-<a name="l01643"></a>01643         <span class="keywordflow">return</span> &amp;w-&gt;hit_total;
-<a name="l01644"></a>01644     <span class="keywordflow">return</span> 0;
-<a name="l01645"></a>01645 }
-<a name="l01646"></a>01646 
-<a name="l01662"></a><a class="code" href="inotifytools_8h.html#a4d5002bd8504b70faed608886e0fa307">01662</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#a4d5002bd8504b70faed608886e0fa307">inotifytools_get_stat_by_wd</a>( <span class="keywordtype">int</span> wd, <span class="keywordtype">int</span> event ) {
-<a name="l01663"></a>01663     <span class="keywordflow">if</span> (!collect_stats) <span class="keywordflow">return</span> -1;
-<a name="l01664"></a>01664 
-<a name="l01665"></a>01665     watch *w = watch_from_wd(wd);
-<a name="l01666"></a>01666     <span class="keywordflow">if</span> (!w) <span class="keywordflow">return</span> -1;
-<a name="l01667"></a>01667     <span class="keywordtype">int</span> *i = stat_ptr(w, event);
-<a name="l01668"></a>01668     <span class="keywordflow">if</span> (!i) <span class="keywordflow">return</span> -1;
-<a name="l01669"></a>01669     <span class="keywordflow">return</span> *i;
-<a name="l01670"></a>01670 }
-<a name="l01671"></a>01671 
-<a name="l01685"></a><a class="code" href="inotifytools_8h.html#af3de070bdf428d548e0b54f5e9043dcc">01685</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#af3de070bdf428d548e0b54f5e9043dcc">inotifytools_get_stat_total</a>( <span class="keywordtype">int</span> event ) {
-<a name="l01686"></a>01686     <span class="keywordflow">if</span> (!collect_stats) <span class="keywordflow">return</span> -1;
-<a name="l01687"></a>01687     <span class="keywordflow">if</span> ( IN_ACCESS == event )
-<a name="l01688"></a>01688         <span class="keywordflow">return</span> num_access;
-<a name="l01689"></a>01689     <span class="keywordflow">if</span> ( IN_MODIFY == event )
-<a name="l01690"></a>01690         <span class="keywordflow">return</span> num_modify;
-<a name="l01691"></a>01691     <span class="keywordflow">if</span> ( IN_ATTRIB == event )
-<a name="l01692"></a>01692         <span class="keywordflow">return</span> num_attrib;
-<a name="l01693"></a>01693     <span class="keywordflow">if</span> ( IN_CLOSE_WRITE == event )
-<a name="l01694"></a>01694         <span class="keywordflow">return</span> num_close_write;
-<a name="l01695"></a>01695     <span class="keywordflow">if</span> ( IN_CLOSE_NOWRITE == event )
-<a name="l01696"></a>01696         <span class="keywordflow">return</span> num_close_nowrite;
-<a name="l01697"></a>01697     <span class="keywordflow">if</span> ( IN_OPEN == event )
-<a name="l01698"></a>01698         <span class="keywordflow">return</span> num_open;
-<a name="l01699"></a>01699     <span class="keywordflow">if</span> ( IN_MOVED_FROM == event )
-<a name="l01700"></a>01700         <span class="keywordflow">return</span> num_moved_from;
-<a name="l01701"></a>01701     <span class="keywordflow">if</span> ( IN_MOVED_TO == event )
-<a name="l01702"></a>01702         <span class="keywordflow">return</span> num_moved_to;
-<a name="l01703"></a>01703     <span class="keywordflow">if</span> ( IN_CREATE == event )
-<a name="l01704"></a>01704         <span class="keywordflow">return</span> num_create;
-<a name="l01705"></a>01705     <span class="keywordflow">if</span> ( IN_DELETE == event )
-<a name="l01706"></a>01706         <span class="keywordflow">return</span> num_delete;
-<a name="l01707"></a>01707     <span class="keywordflow">if</span> ( IN_DELETE_SELF == event )
-<a name="l01708"></a>01708         <span class="keywordflow">return</span> num_delete_self;
-<a name="l01709"></a>01709     <span class="keywordflow">if</span> ( IN_UNMOUNT == event )
-<a name="l01710"></a>01710         <span class="keywordflow">return</span> num_unmount;
-<a name="l01711"></a>01711     <span class="keywordflow">if</span> ( IN_MOVE_SELF == event )
-<a name="l01712"></a>01712         <span class="keywordflow">return</span> num_move_self;
-<a name="l01713"></a>01713 
-<a name="l01714"></a>01714     <span class="keywordflow">if</span> ( 0 == event )
-<a name="l01715"></a>01715         <span class="keywordflow">return</span> num_total;
-<a name="l01716"></a>01716 
-<a name="l01717"></a>01717     <span class="keywordflow">return</span> -1;
-<a name="l01718"></a>01718 }
-<a name="l01719"></a>01719 
-<a name="l01739"></a><a class="code" href="inotifytools_8h.html#a70bf8afcf5dce7d324d3a1a4cf48871a">01739</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#a70bf8afcf5dce7d324d3a1a4cf48871a">inotifytools_get_stat_by_filename</a>( <span class="keywordtype">char</span> <span class="keyword">const</span> * filename,
-<a name="l01740"></a>01740                                                 <span class="keywordtype">int</span> event ) {
-<a name="l01741"></a>01741     <span class="keywordflow">return</span> <a class="code" href="inotifytools_8h.html#a4d5002bd8504b70faed608886e0fa307">inotifytools_get_stat_by_wd</a>( <a class="code" href="inotifytools_8h.html#a594e7f515b392c07c4f1f4eeffcda6c3">inotifytools_wd_from_filename</a>(
-<a name="l01742"></a>01742            filename ), event );
-<a name="l01743"></a>01743 }
-<a name="l01744"></a>01744 
-<a name="l01755"></a><a class="code" href="inotifytools_8h.html#a313399ccce221c8a5862892396d1a8ec">01755</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#a313399ccce221c8a5862892396d1a8ec">inotifytools_error</a>() {
-<a name="l01756"></a>01756     <span class="keywordflow">return</span> error;
-<a name="l01757"></a>01757 }
-<a name="l01758"></a>01758 
-<a name="l01762"></a>01762 <span class="keyword">static</span> <span class="keywordtype">int</span> isdir( <span class="keywordtype">char</span> <span class="keyword">const</span> * path ) {
-<a name="l01763"></a>01763     <span class="keyword">static</span> <span class="keyword">struct </span>stat64 my_stat;
-<a name="l01764"></a>01764 
-<a name="l01765"></a>01765     <span class="keywordflow">if</span> ( -1 == lstat64( path, &amp;my_stat ) ) {
-<a name="l01766"></a>01766         <span class="keywordflow">if</span> (errno == ENOENT) <span class="keywordflow">return</span> 0;
-<a name="l01767"></a>01767         fprintf(stderr, <span class="stringliteral">&quot;Stat failed on %s: %s\n&quot;</span>, path, strerror(errno));
-<a name="l01768"></a>01768         <span class="keywordflow">return</span> 0;
-<a name="l01769"></a>01769     }
-<a name="l01770"></a>01770 
-<a name="l01771"></a>01771     <span class="keywordflow">return</span> S_ISDIR( my_stat.st_mode ) &amp;&amp; !S_ISLNK( my_stat.st_mode );
-<a name="l01772"></a>01772 }
-<a name="l01773"></a>01773 
-<a name="l01774"></a>01774 
-<a name="l01781"></a><a class="code" href="inotifytools_8h.html#aaf934e6f66eb02f3c6e72d65c9bd610c">01781</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#aaf934e6f66eb02f3c6e72d65c9bd610c">inotifytools_get_num_watches</a>() {
-<a name="l01782"></a>01782     <span class="keywordtype">int</span> ret = 0;
-<a name="l01783"></a>01783     rbwalk(tree_filename, get_num, (<span class="keywordtype">void</span>*)&amp;ret);
-<a name="l01784"></a>01784     <span class="keywordflow">return</span> ret;
-<a name="l01785"></a>01785 }
-<a name="l01786"></a>01786 
-<a name="l01827"></a><a class="code" href="inotifytools_8h.html#ac2c06dd72f39a6145ea3b6661378df31">01827</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#ac2c06dd72f39a6145ea3b6661378df31">inotifytools_printf</a>( <span class="keyword">struct</span> inotify_event* event, <span class="keywordtype">char</span>* fmt ) {
-<a name="l01828"></a>01828     <span class="keywordflow">return</span> <a class="code" href="inotifytools_8h.html#a6ed4450ad545bde13a1328e53ed8cf6d">inotifytools_fprintf</a>( stdout, event, fmt );
-<a name="l01829"></a>01829 }
-<a name="l01830"></a>01830 
-<a name="l01872"></a><a class="code" href="inotifytools_8h.html#a6ed4450ad545bde13a1328e53ed8cf6d">01872</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#a6ed4450ad545bde13a1328e53ed8cf6d">inotifytools_fprintf</a>( FILE* file, <span class="keyword">struct</span> inotify_event* event, <span class="keywordtype">char</span>* fmt ) {
-<a name="l01873"></a>01873     <span class="keyword">static</span> <span class="keywordtype">char</span> out[MAX_STRLEN+1];
-<a name="l01874"></a>01874     <span class="keyword">static</span> <span class="keywordtype">int</span> ret;
-<a name="l01875"></a>01875     ret = <a class="code" href="inotifytools_8h.html#aabf4cbafd50012f6e35b32a052677c74">inotifytools_sprintf</a>( out, event, fmt );
-<a name="l01876"></a>01876     <span class="keywordflow">if</span> ( -1 != ret ) fprintf( file, <span class="stringliteral">&quot;%s&quot;</span>, out );
-<a name="l01877"></a>01877     <span class="keywordflow">return</span> ret;
-<a name="l01878"></a>01878 }
-<a name="l01879"></a>01879 
-<a name="l01930"></a><a class="code" href="inotifytools_8h.html#aabf4cbafd50012f6e35b32a052677c74">01930</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#aabf4cbafd50012f6e35b32a052677c74">inotifytools_sprintf</a>( <span class="keywordtype">char</span> * out, <span class="keyword">struct</span> inotify_event* event, <span class="keywordtype">char</span>* fmt ) {
-<a name="l01931"></a>01931     <span class="keywordflow">return</span> <a class="code" href="inotifytools_8h.html#a92f2dc66af4fd01b09b64b6813686282">inotifytools_snprintf</a>( out, MAX_STRLEN, event, fmt );
-<a name="l01932"></a>01932 }
-<a name="l01933"></a>01933 
-<a name="l01934"></a>01934 
-<a name="l01981"></a><a class="code" href="inotifytools_8h.html#a92f2dc66af4fd01b09b64b6813686282">01981</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#a92f2dc66af4fd01b09b64b6813686282">inotifytools_snprintf</a>( <span class="keywordtype">char</span> * out, <span class="keywordtype">int</span> size,
-<a name="l01982"></a>01982                            <span class="keyword">struct</span> inotify_event* event, <span class="keywordtype">char</span>* fmt ) {
-<a name="l01983"></a>01983     <span class="keyword">static</span> <span class="keywordtype">char</span> * filename, * eventname, * eventstr;
-<a name="l01984"></a>01984     <span class="keyword">static</span> <span class="keywordtype">unsigned</span> <span class="keywordtype">int</span> i, ind;
-<a name="l01985"></a>01985     <span class="keyword">static</span> <span class="keywordtype">char</span> ch1;
-<a name="l01986"></a>01986     <span class="keyword">static</span> <span class="keywordtype">char</span> timestr[MAX_STRLEN];
-<a name="l01987"></a>01987     <span class="keyword">static</span> time_t now;
-<a name="l01988"></a>01988 
-<a name="l01989"></a>01989 
-<a name="l01990"></a>01990     <span class="keywordflow">if</span> ( event-&gt;len &gt; 0 ) {
-<a name="l01991"></a>01991         eventname = <span class="keyword">event</span>-&gt;name;
-<a name="l01992"></a>01992     }
-<a name="l01993"></a>01993     <span class="keywordflow">else</span> {
-<a name="l01994"></a>01994         eventname = NULL;
-<a name="l01995"></a>01995     }
-<a name="l01996"></a>01996 
-<a name="l01997"></a>01997 
-<a name="l01998"></a>01998     filename = <a class="code" href="inotifytools_8h.html#afd4dcc915248f2d0b0ae708e88611186">inotifytools_filename_from_wd</a>( event-&gt;wd );
-<a name="l01999"></a>01999 
-<a name="l02000"></a>02000     <span class="keywordflow">if</span> ( !fmt || 0 == strlen(fmt) ) {
-<a name="l02001"></a>02001         error = EINVAL;
-<a name="l02002"></a>02002         <span class="keywordflow">return</span> -1;
-<a name="l02003"></a>02003     }
-<a name="l02004"></a>02004     <span class="keywordflow">if</span> ( strlen(fmt) &gt; MAX_STRLEN || size &gt; MAX_STRLEN) {
-<a name="l02005"></a>02005         error = EMSGSIZE;
-<a name="l02006"></a>02006         <span class="keywordflow">return</span> -1;
-<a name="l02007"></a>02007     }
-<a name="l02008"></a>02008 
-<a name="l02009"></a>02009     ind = 0;
-<a name="l02010"></a>02010     <span class="keywordflow">for</span> ( i = 0; i &lt; strlen(fmt) &amp;&amp;
-<a name="l02011"></a>02011                  (int)ind &lt; size - 1; ++i ) {
-<a name="l02012"></a>02012         <span class="keywordflow">if</span> ( fmt[i] != <span class="charliteral">&apos;%&apos;</span> ) {
-<a name="l02013"></a>02013             out[ind++] = fmt[i];
-<a name="l02014"></a>02014             <span class="keywordflow">continue</span>;
-<a name="l02015"></a>02015         }
-<a name="l02016"></a>02016 
-<a name="l02017"></a>02017         <span class="keywordflow">if</span> ( i == strlen(fmt) - 1 ) {
-<a name="l02018"></a>02018             <span class="comment">// last character is %, invalid</span>
-<a name="l02019"></a>02019             error = EINVAL;
-<a name="l02020"></a>02020             <span class="keywordflow">return</span> ind;
-<a name="l02021"></a>02021         }
-<a name="l02022"></a>02022 
-<a name="l02023"></a>02023         ch1 = fmt[i+1];
-<a name="l02024"></a>02024 
-<a name="l02025"></a>02025         <span class="keywordflow">if</span> ( ch1 == <span class="charliteral">&apos;%&apos;</span> ) {
-<a name="l02026"></a>02026             out[ind++] = <span class="charliteral">&apos;%&apos;</span>;
-<a name="l02027"></a>02027             ++i;
-<a name="l02028"></a>02028             <span class="keywordflow">continue</span>;
-<a name="l02029"></a>02029         }
-<a name="l02030"></a>02030 
-<a name="l02031"></a>02031         <span class="keywordflow">if</span> ( ch1 == <span class="charliteral">&apos;w&apos;</span> ) {
-<a name="l02032"></a>02032             <span class="keywordflow">if</span> ( filename ) {
-<a name="l02033"></a>02033                 strncpy( &amp;out[ind], filename, size - ind );
-<a name="l02034"></a>02034                 ind += strlen(filename);
-<a name="l02035"></a>02035             }
-<a name="l02036"></a>02036             ++i;
-<a name="l02037"></a>02037             <span class="keywordflow">continue</span>;
-<a name="l02038"></a>02038         }
-<a name="l02039"></a>02039 
-<a name="l02040"></a>02040         <span class="keywordflow">if</span> ( ch1 == <span class="charliteral">&apos;f&apos;</span> ) {
-<a name="l02041"></a>02041             <span class="keywordflow">if</span> ( eventname ) {
-<a name="l02042"></a>02042                 strncpy( &amp;out[ind], eventname, size - ind );
-<a name="l02043"></a>02043                 ind += strlen(eventname);
-<a name="l02044"></a>02044             }
-<a name="l02045"></a>02045             ++i;
-<a name="l02046"></a>02046             <span class="keywordflow">continue</span>;
-<a name="l02047"></a>02047         }
-<a name="l02048"></a>02048 
-<a name="l02049"></a>02049         <span class="keywordflow">if</span> ( ch1 == <span class="charliteral">&apos;e&apos;</span> ) {
-<a name="l02050"></a>02050             eventstr = <a class="code" href="inotifytools_8h.html#a744bb8792d8ea8edbaf8f845fe1d9307">inotifytools_event_to_str</a>( event-&gt;mask );
-<a name="l02051"></a>02051             strncpy( &amp;out[ind], eventstr, size - ind );
-<a name="l02052"></a>02052             ind += strlen(eventstr);
-<a name="l02053"></a>02053             ++i;
-<a name="l02054"></a>02054             <span class="keywordflow">continue</span>;
-<a name="l02055"></a>02055         }
-<a name="l02056"></a>02056 
-<a name="l02057"></a>02057         <span class="keywordflow">if</span> ( ch1 == <span class="charliteral">&apos;T&apos;</span> ) {
-<a name="l02058"></a>02058 
-<a name="l02059"></a>02059             <span class="keywordflow">if</span> ( timefmt ) {
-<a name="l02060"></a>02060 
-<a name="l02061"></a>02061                 now = time(0);
-<a name="l02062"></a>02062                 <span class="keywordflow">if</span> ( 0 &gt;= strftime( timestr, MAX_STRLEN-1, timefmt,
-<a name="l02063"></a>02063                                     localtime( &amp;now ) ) ) {
-<a name="l02064"></a>02064 
-<a name="l02065"></a>02065                     <span class="comment">// time format probably invalid</span>
-<a name="l02066"></a>02066                     error = EINVAL;
-<a name="l02067"></a>02067                     <span class="keywordflow">return</span> ind;
-<a name="l02068"></a>02068                 }
-<a name="l02069"></a>02069             }
-<a name="l02070"></a>02070             <span class="keywordflow">else</span> {
-<a name="l02071"></a>02071                 timestr[0] = 0;
-<a name="l02072"></a>02072             }
-<a name="l02073"></a>02073 
-<a name="l02074"></a>02074             strncpy( &amp;out[ind], timestr, size - ind );
-<a name="l02075"></a>02075             ind += strlen(timestr);
-<a name="l02076"></a>02076             ++i;
-<a name="l02077"></a>02077             <span class="keywordflow">continue</span>;
-<a name="l02078"></a>02078         }
-<a name="l02079"></a>02079 
-<a name="l02080"></a>02080         <span class="comment">// Check if next char in fmt is e</span>
-<a name="l02081"></a>02081         <span class="keywordflow">if</span> ( i &lt; strlen(fmt) - 2 &amp;&amp; fmt[i+2] == <span class="charliteral">&apos;e&apos;</span> ) {
-<a name="l02082"></a>02082             eventstr = <a class="code" href="inotifytools_8h.html#a317a5b1ea969f570a49c4549b22e7e71">inotifytools_event_to_str_sep</a>( event-&gt;mask, ch1 );
-<a name="l02083"></a>02083             strncpy( &amp;out[ind], eventstr, size - ind );
-<a name="l02084"></a>02084             ind += strlen(eventstr);
-<a name="l02085"></a>02085             i += 2;
-<a name="l02086"></a>02086             <span class="keywordflow">continue</span>;
-<a name="l02087"></a>02087         }
-<a name="l02088"></a>02088 
-<a name="l02089"></a>02089         <span class="comment">// OK, this wasn&apos;t a special format character, just output it as normal</span>
-<a name="l02090"></a>02090         <span class="keywordflow">if</span> ( ind &lt; MAX_STRLEN ) out[ind++] = <span class="charliteral">&apos;%&apos;</span>;
-<a name="l02091"></a>02091         <span class="keywordflow">if</span> ( ind &lt; MAX_STRLEN ) out[ind++] = ch1;
-<a name="l02092"></a>02092         ++i;
-<a name="l02093"></a>02093     }
-<a name="l02094"></a>02094     out[ind] = 0;
-<a name="l02095"></a>02095 
-<a name="l02096"></a>02096     <span class="keywordflow">return</span> ind - 1;
-<a name="l02097"></a>02097 }
-<a name="l02098"></a>02098 
-<a name="l02108"></a><a class="code" href="inotifytools_8h.html#af4528ccdf013b4c86e8f7fe4db88244a">02108</a> <span class="keywordtype">void</span> <a class="code" href="inotifytools_8h.html#af4528ccdf013b4c86e8f7fe4db88244a">inotifytools_set_printf_timefmt</a>( <span class="keywordtype">char</span> * fmt ) {
-<a name="l02109"></a>02109     timefmt = fmt;
-<a name="l02110"></a>02110 }
-<a name="l02111"></a>02111 
-<a name="l02120"></a><a class="code" href="inotifytools_8h.html#a1d96f4600d1187670304b83439b0cd05">02120</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#a1d96f4600d1187670304b83439b0cd05">inotifytools_get_max_queued_events</a>() {
-<a name="l02121"></a>02121     <span class="keywordtype">int</span> ret;
-<a name="l02122"></a>02122     <span class="keywordflow">if</span> ( !read_num_from_file( QUEUE_SIZE_PATH, &amp;ret ) ) <span class="keywordflow">return</span> -1;
-<a name="l02123"></a>02123     <span class="keywordflow">return</span> ret;
-<a name="l02124"></a>02124 }
-<a name="l02125"></a>02125 
-<a name="l02135"></a><a class="code" href="inotifytools_8h.html#a9e8052a5fb77768cec9fff4aed9b9eb0">02135</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#a9e8052a5fb77768cec9fff4aed9b9eb0">inotifytools_get_max_user_instances</a>() {
-<a name="l02136"></a>02136     <span class="keywordtype">int</span> ret;
-<a name="l02137"></a>02137     <span class="keywordflow">if</span> ( !read_num_from_file( INSTANCES_PATH, &amp;ret ) ) <span class="keywordflow">return</span> -1;
-<a name="l02138"></a>02138     <span class="keywordflow">return</span> ret;
-<a name="l02139"></a>02139 }
-<a name="l02140"></a>02140 
-<a name="l02150"></a><a class="code" href="inotifytools_8h.html#ae3b79f096737ef3c7e176324514b4556">02150</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#ae3b79f096737ef3c7e176324514b4556">inotifytools_get_max_user_watches</a>() {
-<a name="l02151"></a>02151     <span class="keywordtype">int</span> ret;
-<a name="l02152"></a>02152     <span class="keywordflow">if</span> ( !read_num_from_file( WATCHES_SIZE_PATH, &amp;ret ) ) <span class="keywordflow">return</span> -1;
-<a name="l02153"></a>02153     <span class="keywordflow">return</span> ret;
-<a name="l02154"></a>02154 }
-<a name="l02155"></a>02155 
-<a name="l02169"></a>02169 <span class="keyword">static</span> <span class="keywordtype">int</span> do_ignore_events_by_regex( <span class="keywordtype">char</span> <span class="keyword">const</span> *pattern, <span class="keywordtype">int</span> flags, <span class="keywordtype">int</span> invert ) {
-<a name="l02170"></a>02170     <span class="keywordflow">if</span> (!pattern) {
-<a name="l02171"></a>02171         <span class="keywordflow">if</span> (regex) {
-<a name="l02172"></a>02172             regfree(regex);
-<a name="l02173"></a>02173             free(regex);
-<a name="l02174"></a>02174             regex = 0;
-<a name="l02175"></a>02175         }
-<a name="l02176"></a>02176         <span class="keywordflow">return</span> 1;
-<a name="l02177"></a>02177     }
-<a name="l02178"></a>02178 
-<a name="l02179"></a>02179     <span class="keywordflow">if</span> (regex) { regfree(regex); }
-<a name="l02180"></a>02180     <span class="keywordflow">else</span>       { regex = (regex_t *)malloc(<span class="keyword">sizeof</span>(regex_t)); }
-<a name="l02181"></a>02181 
-<a name="l02182"></a>02182     invert_regexp = invert;
-<a name="l02183"></a>02183     <span class="keywordtype">int</span> ret = regcomp(regex, pattern, flags | REG_NOSUB);
-<a name="l02184"></a>02184     <span class="keywordflow">if</span> (0 == ret) <span class="keywordflow">return</span> 1;
-<a name="l02185"></a>02185 
-<a name="l02186"></a>02186     regfree(regex);
-<a name="l02187"></a>02187     free(regex);
-<a name="l02188"></a>02188     regex = 0;
-<a name="l02189"></a>02189     error = EINVAL;
-<a name="l02190"></a>02190     <span class="keywordflow">return</span> 0;
-<a name="l02191"></a>02191 }
-<a name="l02192"></a>02192 
-<a name="l02204"></a><a class="code" href="inotifytools_8h.html#a07f4f258123feb8864f89663a2785ef0">02204</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#a07f4f258123feb8864f89663a2785ef0">inotifytools_ignore_events_by_regex</a>( <span class="keywordtype">char</span> <span class="keyword">const</span> *pattern, <span class="keywordtype">int</span> flags ) {
-<a name="l02205"></a>02205     <span class="keywordflow">return</span> do_ignore_events_by_regex(pattern, flags, 0);
-<a name="l02206"></a>02206 }
-<a name="l02207"></a>02207 
-<a name="l02219"></a><a class="code" href="inotifytools_8h.html#a6f246b367da63c839aab6546319d196c">02219</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#a6f246b367da63c839aab6546319d196c">inotifytools_ignore_events_by_inverted_regex</a>( <span class="keywordtype">char</span> <span class="keyword">const</span> *pattern, <span class="keywordtype">int</span> flags ) {
-<a name="l02220"></a>02220     <span class="keywordflow">return</span> do_ignore_events_by_regex(pattern, flags, 1);
-<a name="l02221"></a>02221 }
-<a name="l02222"></a>02222 
-<a name="l02223"></a>02223 <span class="keywordtype">int</span> event_compare(<span class="keyword">const</span> <span class="keywordtype">void</span> *p1, <span class="keyword">const</span> <span class="keywordtype">void</span> *p2, <span class="keyword">const</span> <span class="keywordtype">void</span> *config)
-<a name="l02224"></a>02224 {
-<a name="l02225"></a>02225     <span class="keywordflow">if</span> (!p1 || !p2) <span class="keywordflow">return</span> p1 - p2;
-<a name="l02226"></a>02226     <span class="keywordtype">char</span> asc = 1;
-<a name="l02227"></a>02227     <span class="keywordtype">int</span> sort_event = (int)config;
-<a name="l02228"></a>02228     <span class="keywordflow">if</span> (sort_event == -1) {
-<a name="l02229"></a>02229         sort_event = 0;
-<a name="l02230"></a>02230         asc = 0;
-<a name="l02231"></a>02231     } <span class="keywordflow">else</span> <span class="keywordflow">if</span> (sort_event &lt; 0) {
-<a name="l02232"></a>02232         sort_event = -sort_event;
-<a name="l02233"></a>02233         asc = 0;
-<a name="l02234"></a>02234     }
-<a name="l02235"></a>02235     <span class="keywordtype">int</span> *i1 = stat_ptr((watch*)p1, sort_event);
-<a name="l02236"></a>02236     <span class="keywordtype">int</span> *i2 = stat_ptr((watch*)p2, sort_event);
-<a name="l02237"></a>02237     <span class="keywordflow">if</span> (0 == *i1 - *i2) {
-<a name="l02238"></a>02238         <span class="keywordflow">return</span> ((watch*)p1)-&gt;wd - ((watch*)p2)-&gt;wd;
+<a name="l01616"></a>01616     <span class="keywordflow">if</span> ( 0 == event ) {
+<a name="l01617"></a>01617         <span class="keywordflow">return</span> &amp;w-&gt;hit_total;
+<a name="l01618"></a>01618     } <span class="keywordflow">else</span> {
+<a name="l01619"></a>01619         <span class="keywordflow">switch</span> (event) {
+<a name="l01620"></a>01620         <span class="keywordflow">case</span> IN_MODIFY:
+<a name="l01621"></a>01621             <span class="keywordflow">return</span> &amp;w-&gt;hit_modify;
+<a name="l01622"></a>01622         <span class="keywordflow">case</span> IN_CLOSE_WRITE:
+<a name="l01623"></a>01623             <span class="keywordflow">return</span> &amp;w-&gt;hit_close_write;
+<a name="l01624"></a>01624         <span class="keywordflow">case</span> IN_ACCESS:
+<a name="l01625"></a>01625             <span class="keywordflow">return</span> &amp;w-&gt;hit_access;
+<a name="l01626"></a>01626         <span class="keywordflow">case</span> IN_ATTRIB:
+<a name="l01627"></a>01627             <span class="keywordflow">return</span> &amp;w-&gt;hit_attrib;
+<a name="l01628"></a>01628         <span class="keywordflow">case</span> IN_CLOSE_NOWRITE:
+<a name="l01629"></a>01629             <span class="keywordflow">return</span> &amp;w-&gt;hit_close_nowrite;
+<a name="l01630"></a>01630         <span class="keywordflow">case</span> IN_OPEN:
+<a name="l01631"></a>01631             <span class="keywordflow">return</span> &amp;w-&gt;hit_open;
+<a name="l01632"></a>01632         <span class="keywordflow">case</span> IN_MOVED_FROM:
+<a name="l01633"></a>01633             <span class="keywordflow">return</span> &amp;w-&gt;hit_moved_from;
+<a name="l01634"></a>01634         <span class="keywordflow">case</span> IN_MOVED_TO:
+<a name="l01635"></a>01635             <span class="keywordflow">return</span> &amp;w-&gt;hit_moved_to;
+<a name="l01636"></a>01636         <span class="keywordflow">case</span> IN_CREATE:
+<a name="l01637"></a>01637             <span class="keywordflow">return</span> &amp;w-&gt;hit_create;
+<a name="l01638"></a>01638         <span class="keywordflow">case</span> IN_DELETE:
+<a name="l01639"></a>01639             <span class="keywordflow">return</span> &amp;w-&gt;hit_delete;
+<a name="l01640"></a>01640         <span class="keywordflow">case</span> IN_DELETE_SELF:
+<a name="l01641"></a>01641             <span class="keywordflow">return</span> &amp;w-&gt;hit_delete_self;
+<a name="l01642"></a>01642         <span class="keywordflow">case</span> IN_UNMOUNT:
+<a name="l01643"></a>01643             <span class="keywordflow">return</span> &amp;w-&gt;hit_unmount;
+<a name="l01644"></a>01644         <span class="keywordflow">case</span> IN_MOVE_SELF:
+<a name="l01645"></a>01645             <span class="keywordflow">return</span> &amp;w-&gt;hit_move_self;
+<a name="l01646"></a>01646         }
+<a name="l01647"></a>01647 
+<a name="l01648"></a>01648         <span class="keywordflow">return</span> 0;
+<a name="l01649"></a>01649     }
+<a name="l01650"></a>01650 }
+<a name="l01651"></a>01651 
+<a name="l01667"></a><a class="code" href="inotifytools_8h.html#a4d5002bd8504b70faed608886e0fa307">01667</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#a4d5002bd8504b70faed608886e0fa307">inotifytools_get_stat_by_wd</a>( <span class="keywordtype">int</span> wd, <span class="keywordtype">int</span> event ) {
+<a name="l01668"></a>01668     <span class="keywordflow">if</span> (!collect_stats) <span class="keywordflow">return</span> -1;
+<a name="l01669"></a>01669 
+<a name="l01670"></a>01670     watch *w = watch_from_wd(wd);
+<a name="l01671"></a>01671     <span class="keywordflow">if</span> (!w) <span class="keywordflow">return</span> -1;
+<a name="l01672"></a>01672     <span class="keywordtype">int</span> *i = stat_ptr(w, event);
+<a name="l01673"></a>01673     <span class="keywordflow">if</span> (!i) <span class="keywordflow">return</span> -1;
+<a name="l01674"></a>01674     <span class="keywordflow">return</span> *i;
+<a name="l01675"></a>01675 }
+<a name="l01676"></a>01676 
+<a name="l01690"></a><a class="code" href="inotifytools_8h.html#af3de070bdf428d548e0b54f5e9043dcc">01690</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#af3de070bdf428d548e0b54f5e9043dcc">inotifytools_get_stat_total</a>( <span class="keywordtype">int</span> event ) {
+<a name="l01691"></a>01691     <span class="keywordflow">if</span> (!collect_stats) <span class="keywordflow">return</span> -1;
+<a name="l01692"></a>01692     <span class="keywordflow">if</span> ( IN_ACCESS == event )
+<a name="l01693"></a>01693         <span class="keywordflow">return</span> num_access;
+<a name="l01694"></a>01694     <span class="keywordflow">if</span> ( IN_MODIFY == event )
+<a name="l01695"></a>01695         <span class="keywordflow">return</span> num_modify;
+<a name="l01696"></a>01696     <span class="keywordflow">if</span> ( IN_ATTRIB == event )
+<a name="l01697"></a>01697         <span class="keywordflow">return</span> num_attrib;
+<a name="l01698"></a>01698     <span class="keywordflow">if</span> ( IN_CLOSE_WRITE == event )
+<a name="l01699"></a>01699         <span class="keywordflow">return</span> num_close_write;
+<a name="l01700"></a>01700     <span class="keywordflow">if</span> ( IN_CLOSE_NOWRITE == event )
+<a name="l01701"></a>01701         <span class="keywordflow">return</span> num_close_nowrite;
+<a name="l01702"></a>01702     <span class="keywordflow">if</span> ( IN_OPEN == event )
+<a name="l01703"></a>01703         <span class="keywordflow">return</span> num_open;
+<a name="l01704"></a>01704     <span class="keywordflow">if</span> ( IN_MOVED_FROM == event )
+<a name="l01705"></a>01705         <span class="keywordflow">return</span> num_moved_from;
+<a name="l01706"></a>01706     <span class="keywordflow">if</span> ( IN_MOVED_TO == event )
+<a name="l01707"></a>01707         <span class="keywordflow">return</span> num_moved_to;
+<a name="l01708"></a>01708     <span class="keywordflow">if</span> ( IN_CREATE == event )
+<a name="l01709"></a>01709         <span class="keywordflow">return</span> num_create;
+<a name="l01710"></a>01710     <span class="keywordflow">if</span> ( IN_DELETE == event )
+<a name="l01711"></a>01711         <span class="keywordflow">return</span> num_delete;
+<a name="l01712"></a>01712     <span class="keywordflow">if</span> ( IN_DELETE_SELF == event )
+<a name="l01713"></a>01713         <span class="keywordflow">return</span> num_delete_self;
+<a name="l01714"></a>01714     <span class="keywordflow">if</span> ( IN_UNMOUNT == event )
+<a name="l01715"></a>01715         <span class="keywordflow">return</span> num_unmount;
+<a name="l01716"></a>01716     <span class="keywordflow">if</span> ( IN_MOVE_SELF == event )
+<a name="l01717"></a>01717         <span class="keywordflow">return</span> num_move_self;
+<a name="l01718"></a>01718 
+<a name="l01719"></a>01719     <span class="keywordflow">if</span> ( 0 == event )
+<a name="l01720"></a>01720         <span class="keywordflow">return</span> num_total;
+<a name="l01721"></a>01721 
+<a name="l01722"></a>01722     <span class="keywordflow">return</span> -1;
+<a name="l01723"></a>01723 }
+<a name="l01724"></a>01724 
+<a name="l01744"></a><a class="code" href="inotifytools_8h.html#a70bf8afcf5dce7d324d3a1a4cf48871a">01744</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#a70bf8afcf5dce7d324d3a1a4cf48871a">inotifytools_get_stat_by_filename</a>( <span class="keywordtype">char</span> <span class="keyword">const</span> * filename,
+<a name="l01745"></a>01745                                                 <span class="keywordtype">int</span> event ) {
+<a name="l01746"></a>01746     <span class="keywordflow">return</span> <a class="code" href="inotifytools_8h.html#a4d5002bd8504b70faed608886e0fa307">inotifytools_get_stat_by_wd</a>( <a class="code" href="inotifytools_8h.html#a594e7f515b392c07c4f1f4eeffcda6c3">inotifytools_wd_from_filename</a>(
+<a name="l01747"></a>01747            filename ), event );
+<a name="l01748"></a>01748 }
+<a name="l01749"></a>01749 
+<a name="l01760"></a><a class="code" href="inotifytools_8h.html#a313399ccce221c8a5862892396d1a8ec">01760</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#a313399ccce221c8a5862892396d1a8ec">inotifytools_error</a>() {
+<a name="l01761"></a>01761     <span class="keywordflow">return</span> error;
+<a name="l01762"></a>01762 }
+<a name="l01763"></a>01763 
+<a name="l01767"></a>01767 <span class="keyword">static</span> <span class="keywordtype">int</span> isdir( <span class="keywordtype">char</span> <span class="keyword">const</span> * path ) {
+<a name="l01768"></a>01768     <span class="keyword">static</span> <span class="keyword">struct </span>stat64 my_stat;
+<a name="l01769"></a>01769 
+<a name="l01770"></a>01770     <span class="keywordflow">if</span> ( -1 == lstat64( path, &amp;my_stat ) ) {
+<a name="l01771"></a>01771         <span class="keywordflow">if</span> (errno == ENOENT) <span class="keywordflow">return</span> 0;
+<a name="l01772"></a>01772         fprintf(stderr, <span class="stringliteral">&quot;Stat failed on %s: %s\n&quot;</span>, path, strerror(errno));
+<a name="l01773"></a>01773         <span class="keywordflow">return</span> 0;
+<a name="l01774"></a>01774     }
+<a name="l01775"></a>01775 
+<a name="l01776"></a>01776     <span class="keywordflow">return</span> S_ISDIR( my_stat.st_mode ) &amp;&amp; !S_ISLNK( my_stat.st_mode );
+<a name="l01777"></a>01777 }
+<a name="l01778"></a>01778 
+<a name="l01779"></a>01779 
+<a name="l01786"></a><a class="code" href="inotifytools_8h.html#aaf934e6f66eb02f3c6e72d65c9bd610c">01786</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#aaf934e6f66eb02f3c6e72d65c9bd610c">inotifytools_get_num_watches</a>() {
+<a name="l01787"></a>01787     <span class="keywordtype">int</span> ret = 0;
+<a name="l01788"></a>01788     rbwalk(tree_filename, get_num, (<span class="keywordtype">void</span>*)&amp;ret);
+<a name="l01789"></a>01789     <span class="keywordflow">return</span> ret;
+<a name="l01790"></a>01790 }
+<a name="l01791"></a>01791 
+<a name="l01832"></a><a class="code" href="inotifytools_8h.html#ac2c06dd72f39a6145ea3b6661378df31">01832</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#ac2c06dd72f39a6145ea3b6661378df31">inotifytools_printf</a>( <span class="keyword">struct</span> inotify_event* event, <span class="keywordtype">char</span>* fmt ) {
+<a name="l01833"></a>01833     <span class="keywordflow">return</span> <a class="code" href="inotifytools_8h.html#a6ed4450ad545bde13a1328e53ed8cf6d">inotifytools_fprintf</a>( stdout, event, fmt );
+<a name="l01834"></a>01834 }
+<a name="l01835"></a>01835 
+<a name="l01877"></a><a class="code" href="inotifytools_8h.html#a6ed4450ad545bde13a1328e53ed8cf6d">01877</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#a6ed4450ad545bde13a1328e53ed8cf6d">inotifytools_fprintf</a>( FILE* file, <span class="keyword">struct</span> inotify_event* event, <span class="keywordtype">char</span>* fmt ) {
+<a name="l01878"></a>01878     <span class="keyword">static</span> <span class="keywordtype">char</span> out[MAX_STRLEN+1];
+<a name="l01879"></a>01879     <span class="keyword">static</span> <span class="keywordtype">int</span> ret;
+<a name="l01880"></a>01880     ret = <a class="code" href="inotifytools_8h.html#aabf4cbafd50012f6e35b32a052677c74">inotifytools_sprintf</a>( out, event, fmt );
+<a name="l01881"></a>01881     <span class="keywordflow">if</span> ( -1 != ret ) fprintf( file, <span class="stringliteral">&quot;%s&quot;</span>, out );
+<a name="l01882"></a>01882     <span class="keywordflow">return</span> ret;
+<a name="l01883"></a>01883 }
+<a name="l01884"></a>01884 
+<a name="l01935"></a><a class="code" href="inotifytools_8h.html#aabf4cbafd50012f6e35b32a052677c74">01935</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#aabf4cbafd50012f6e35b32a052677c74">inotifytools_sprintf</a>( <span class="keywordtype">char</span> * out, <span class="keyword">struct</span> inotify_event* event, <span class="keywordtype">char</span>* fmt ) {
+<a name="l01936"></a>01936     <span class="keywordflow">return</span> <a class="code" href="inotifytools_8h.html#a92f2dc66af4fd01b09b64b6813686282">inotifytools_snprintf</a>( out, MAX_STRLEN, event, fmt );
+<a name="l01937"></a>01937 }
+<a name="l01938"></a>01938 
+<a name="l01939"></a>01939 
+<a name="l01986"></a><a class="code" href="inotifytools_8h.html#a92f2dc66af4fd01b09b64b6813686282">01986</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#a92f2dc66af4fd01b09b64b6813686282">inotifytools_snprintf</a>( <span class="keywordtype">char</span> * out, <span class="keywordtype">int</span> size,
+<a name="l01987"></a>01987                            <span class="keyword">struct</span> inotify_event* event, <span class="keywordtype">char</span>* fmt ) {
+<a name="l01988"></a>01988     <span class="keyword">static</span> <span class="keywordtype">char</span> * filename, * eventname, * eventstr;
+<a name="l01989"></a>01989     <span class="keyword">static</span> <span class="keywordtype">unsigned</span> <span class="keywordtype">int</span> i, ind;
+<a name="l01990"></a>01990     <span class="keyword">static</span> <span class="keywordtype">char</span> ch1;
+<a name="l01991"></a>01991     <span class="keyword">static</span> <span class="keywordtype">char</span> timestr[MAX_STRLEN];
+<a name="l01992"></a>01992     <span class="keyword">static</span> time_t now;
+<a name="l01993"></a>01993 
+<a name="l01994"></a>01994 
+<a name="l01995"></a>01995     <span class="keywordflow">if</span> ( event-&gt;len &gt; 0 ) {
+<a name="l01996"></a>01996         eventname = <span class="keyword">event</span>-&gt;name;
+<a name="l01997"></a>01997     }
+<a name="l01998"></a>01998     <span class="keywordflow">else</span> {
+<a name="l01999"></a>01999         eventname = NULL;
+<a name="l02000"></a>02000     }
+<a name="l02001"></a>02001 
+<a name="l02002"></a>02002 
+<a name="l02003"></a>02003     filename = <a class="code" href="inotifytools_8h.html#afd4dcc915248f2d0b0ae708e88611186">inotifytools_filename_from_wd</a>( event-&gt;wd );
+<a name="l02004"></a>02004 
+<a name="l02005"></a>02005     <span class="keywordflow">if</span> ( !fmt || 0 == strlen(fmt) ) {
+<a name="l02006"></a>02006         error = EINVAL;
+<a name="l02007"></a>02007         <span class="keywordflow">return</span> -1;
+<a name="l02008"></a>02008     }
+<a name="l02009"></a>02009     <span class="keywordflow">if</span> ( strlen(fmt) &gt; MAX_STRLEN || size &gt; MAX_STRLEN) {
+<a name="l02010"></a>02010         error = EMSGSIZE;
+<a name="l02011"></a>02011         <span class="keywordflow">return</span> -1;
+<a name="l02012"></a>02012     }
+<a name="l02013"></a>02013 
+<a name="l02014"></a>02014     ind = 0;
+<a name="l02015"></a>02015     <span class="keywordflow">for</span> ( i = 0; i &lt; strlen(fmt) &amp;&amp;
+<a name="l02016"></a>02016                  (int)ind &lt; size - 1; ++i ) {
+<a name="l02017"></a>02017         <span class="keywordflow">if</span> ( fmt[i] != <span class="charliteral">&apos;%&apos;</span> ) {
+<a name="l02018"></a>02018             out[ind++] = fmt[i];
+<a name="l02019"></a>02019             <span class="keywordflow">continue</span>;
+<a name="l02020"></a>02020         }
+<a name="l02021"></a>02021 
+<a name="l02022"></a>02022         <span class="keywordflow">if</span> ( i == strlen(fmt) - 1 ) {
+<a name="l02023"></a>02023             <span class="comment">// last character is %, invalid</span>
+<a name="l02024"></a>02024             error = EINVAL;
+<a name="l02025"></a>02025             <span class="keywordflow">return</span> ind;
+<a name="l02026"></a>02026         }
+<a name="l02027"></a>02027 
+<a name="l02028"></a>02028         ch1 = fmt[i+1];
+<a name="l02029"></a>02029 
+<a name="l02030"></a>02030         <span class="keywordflow">if</span> ( ch1 == <span class="charliteral">&apos;%&apos;</span> ) {
+<a name="l02031"></a>02031             out[ind++] = <span class="charliteral">&apos;%&apos;</span>;
+<a name="l02032"></a>02032             ++i;
+<a name="l02033"></a>02033             <span class="keywordflow">continue</span>;
+<a name="l02034"></a>02034         }
+<a name="l02035"></a>02035 
+<a name="l02036"></a>02036         <span class="keywordflow">if</span> ( ch1 == <span class="charliteral">&apos;w&apos;</span> ) {
+<a name="l02037"></a>02037             <span class="keywordflow">if</span> ( filename ) {
+<a name="l02038"></a>02038                 strncpy( &amp;out[ind], filename, size - ind );
+<a name="l02039"></a>02039                 ind += strlen(filename);
+<a name="l02040"></a>02040             }
+<a name="l02041"></a>02041             ++i;
+<a name="l02042"></a>02042             <span class="keywordflow">continue</span>;
+<a name="l02043"></a>02043         }
+<a name="l02044"></a>02044 
+<a name="l02045"></a>02045         <span class="keywordflow">if</span> ( ch1 == <span class="charliteral">&apos;f&apos;</span> ) {
+<a name="l02046"></a>02046             <span class="keywordflow">if</span> ( eventname ) {
+<a name="l02047"></a>02047                 strncpy( &amp;out[ind], eventname, size - ind );
+<a name="l02048"></a>02048                 ind += strlen(eventname);
+<a name="l02049"></a>02049             }
+<a name="l02050"></a>02050             ++i;
+<a name="l02051"></a>02051             <span class="keywordflow">continue</span>;
+<a name="l02052"></a>02052         }
+<a name="l02053"></a>02053 
+<a name="l02054"></a>02054         <span class="keywordflow">if</span> ( ch1 == <span class="charliteral">&apos;e&apos;</span> ) {
+<a name="l02055"></a>02055             eventstr = <a class="code" href="inotifytools_8h.html#a744bb8792d8ea8edbaf8f845fe1d9307">inotifytools_event_to_str</a>( event-&gt;mask );
+<a name="l02056"></a>02056             strncpy( &amp;out[ind], eventstr, size - ind );
+<a name="l02057"></a>02057             ind += strlen(eventstr);
+<a name="l02058"></a>02058             ++i;
+<a name="l02059"></a>02059             <span class="keywordflow">continue</span>;
+<a name="l02060"></a>02060         }
+<a name="l02061"></a>02061 
+<a name="l02062"></a>02062         <span class="keywordflow">if</span> ( ch1 == <span class="charliteral">&apos;T&apos;</span> ) {
+<a name="l02063"></a>02063 
+<a name="l02064"></a>02064             <span class="keywordflow">if</span> ( timefmt ) {
+<a name="l02065"></a>02065 
+<a name="l02066"></a>02066                 now = time(0);
+<a name="l02067"></a>02067                 <span class="keywordflow">if</span> ( 0 &gt;= strftime( timestr, MAX_STRLEN-1, timefmt,
+<a name="l02068"></a>02068                                     localtime( &amp;now ) ) ) {
+<a name="l02069"></a>02069 
+<a name="l02070"></a>02070                     <span class="comment">// time format probably invalid</span>
+<a name="l02071"></a>02071                     error = EINVAL;
+<a name="l02072"></a>02072                     <span class="keywordflow">return</span> ind;
+<a name="l02073"></a>02073                 }
+<a name="l02074"></a>02074             }
+<a name="l02075"></a>02075             <span class="keywordflow">else</span> {
+<a name="l02076"></a>02076                 timestr[0] = 0;
+<a name="l02077"></a>02077             }
+<a name="l02078"></a>02078 
+<a name="l02079"></a>02079             strncpy( &amp;out[ind], timestr, size - ind );
+<a name="l02080"></a>02080             ind += strlen(timestr);
+<a name="l02081"></a>02081             ++i;
+<a name="l02082"></a>02082             <span class="keywordflow">continue</span>;
+<a name="l02083"></a>02083         }
+<a name="l02084"></a>02084 
+<a name="l02085"></a>02085         <span class="comment">// Check if next char in fmt is e</span>
+<a name="l02086"></a>02086         <span class="keywordflow">if</span> ( i &lt; strlen(fmt) - 2 &amp;&amp; fmt[i+2] == <span class="charliteral">&apos;e&apos;</span> ) {
+<a name="l02087"></a>02087             eventstr = <a class="code" href="inotifytools_8h.html#a317a5b1ea969f570a49c4549b22e7e71">inotifytools_event_to_str_sep</a>( event-&gt;mask, ch1 );
+<a name="l02088"></a>02088             strncpy( &amp;out[ind], eventstr, size - ind );
+<a name="l02089"></a>02089             ind += strlen(eventstr);
+<a name="l02090"></a>02090             i += 2;
+<a name="l02091"></a>02091             <span class="keywordflow">continue</span>;
+<a name="l02092"></a>02092         }
+<a name="l02093"></a>02093 
+<a name="l02094"></a>02094         <span class="comment">// OK, this wasn&apos;t a special format character, just output it as normal</span>
+<a name="l02095"></a>02095         <span class="keywordflow">if</span> ( ind &lt; MAX_STRLEN ) out[ind++] = <span class="charliteral">&apos;%&apos;</span>;
+<a name="l02096"></a>02096         <span class="keywordflow">if</span> ( ind &lt; MAX_STRLEN ) out[ind++] = ch1;
+<a name="l02097"></a>02097         ++i;
+<a name="l02098"></a>02098     }
+<a name="l02099"></a>02099     out[ind] = 0;
+<a name="l02100"></a>02100 
+<a name="l02101"></a>02101     <span class="keywordflow">return</span> ind - 1;
+<a name="l02102"></a>02102 }
+<a name="l02103"></a>02103 
+<a name="l02113"></a><a class="code" href="inotifytools_8h.html#af4528ccdf013b4c86e8f7fe4db88244a">02113</a> <span class="keywordtype">void</span> <a class="code" href="inotifytools_8h.html#af4528ccdf013b4c86e8f7fe4db88244a">inotifytools_set_printf_timefmt</a>( <span class="keywordtype">char</span> * fmt ) {
+<a name="l02114"></a>02114     timefmt = fmt;
+<a name="l02115"></a>02115 }
+<a name="l02116"></a>02116 
+<a name="l02125"></a><a class="code" href="inotifytools_8h.html#a1d96f4600d1187670304b83439b0cd05">02125</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#a1d96f4600d1187670304b83439b0cd05">inotifytools_get_max_queued_events</a>() {
+<a name="l02126"></a>02126     <span class="keywordtype">int</span> ret;
+<a name="l02127"></a>02127     <span class="keywordflow">if</span> ( !read_num_from_file( QUEUE_SIZE_PATH, &amp;ret ) ) <span class="keywordflow">return</span> -1;
+<a name="l02128"></a>02128     <span class="keywordflow">return</span> ret;
+<a name="l02129"></a>02129 }
+<a name="l02130"></a>02130 
+<a name="l02140"></a><a class="code" href="inotifytools_8h.html#a9e8052a5fb77768cec9fff4aed9b9eb0">02140</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#a9e8052a5fb77768cec9fff4aed9b9eb0">inotifytools_get_max_user_instances</a>() {
+<a name="l02141"></a>02141     <span class="keywordtype">int</span> ret;
+<a name="l02142"></a>02142     <span class="keywordflow">if</span> ( !read_num_from_file( INSTANCES_PATH, &amp;ret ) ) <span class="keywordflow">return</span> -1;
+<a name="l02143"></a>02143     <span class="keywordflow">return</span> ret;
+<a name="l02144"></a>02144 }
+<a name="l02145"></a>02145 
+<a name="l02155"></a><a class="code" href="inotifytools_8h.html#ae3b79f096737ef3c7e176324514b4556">02155</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#ae3b79f096737ef3c7e176324514b4556">inotifytools_get_max_user_watches</a>() {
+<a name="l02156"></a>02156     <span class="keywordtype">int</span> ret;
+<a name="l02157"></a>02157     <span class="keywordflow">if</span> ( !read_num_from_file( WATCHES_SIZE_PATH, &amp;ret ) ) <span class="keywordflow">return</span> -1;
+<a name="l02158"></a>02158     <span class="keywordflow">return</span> ret;
+<a name="l02159"></a>02159 }
+<a name="l02160"></a>02160 
+<a name="l02174"></a>02174 <span class="keyword">static</span> <span class="keywordtype">int</span> do_ignore_events_by_regex( <span class="keywordtype">char</span> <span class="keyword">const</span> *pattern, <span class="keywordtype">int</span> flags, <span class="keywordtype">int</span> invert ) {
+<a name="l02175"></a>02175     <span class="keywordflow">if</span> (!pattern) {
+<a name="l02176"></a>02176         <span class="keywordflow">if</span> (regex) {
+<a name="l02177"></a>02177             regfree(regex);
+<a name="l02178"></a>02178             free(regex);
+<a name="l02179"></a>02179             regex = 0;
+<a name="l02180"></a>02180         }
+<a name="l02181"></a>02181         <span class="keywordflow">return</span> 1;
+<a name="l02182"></a>02182     }
+<a name="l02183"></a>02183 
+<a name="l02184"></a>02184     <span class="keywordflow">if</span> (regex) { regfree(regex); }
+<a name="l02185"></a>02185     <span class="keywordflow">else</span>       { regex = (regex_t *)malloc(<span class="keyword">sizeof</span>(regex_t)); }
+<a name="l02186"></a>02186 
+<a name="l02187"></a>02187     invert_regexp = invert;
+<a name="l02188"></a>02188     <span class="keywordtype">int</span> ret = regcomp(regex, pattern, flags | REG_NOSUB);
+<a name="l02189"></a>02189     <span class="keywordflow">if</span> (0 == ret) <span class="keywordflow">return</span> 1;
+<a name="l02190"></a>02190 
+<a name="l02191"></a>02191     regfree(regex);
+<a name="l02192"></a>02192     free(regex);
+<a name="l02193"></a>02193     regex = 0;
+<a name="l02194"></a>02194     error = EINVAL;
+<a name="l02195"></a>02195     <span class="keywordflow">return</span> 0;
+<a name="l02196"></a>02196 }
+<a name="l02197"></a>02197 
+<a name="l02209"></a><a class="code" href="inotifytools_8h.html#a07f4f258123feb8864f89663a2785ef0">02209</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#a07f4f258123feb8864f89663a2785ef0">inotifytools_ignore_events_by_regex</a>( <span class="keywordtype">char</span> <span class="keyword">const</span> *pattern, <span class="keywordtype">int</span> flags ) {
+<a name="l02210"></a>02210     <span class="keywordflow">return</span> do_ignore_events_by_regex(pattern, flags, 0);
+<a name="l02211"></a>02211 }
+<a name="l02212"></a>02212 
+<a name="l02224"></a><a class="code" href="inotifytools_8h.html#a6f246b367da63c839aab6546319d196c">02224</a> <span class="keywordtype">int</span> <a class="code" href="inotifytools_8h.html#a6f246b367da63c839aab6546319d196c">inotifytools_ignore_events_by_inverted_regex</a>( <span class="keywordtype">char</span> <span class="keyword">const</span> *pattern, <span class="keywordtype">int</span> flags ) {
+<a name="l02225"></a>02225     <span class="keywordflow">return</span> do_ignore_events_by_regex(pattern, flags, 1);
+<a name="l02226"></a>02226 }
+<a name="l02227"></a>02227 
+<a name="l02228"></a>02228 <span class="keywordtype">int</span> event_compare(<span class="keyword">const</span> <span class="keywordtype">void</span> *p1, <span class="keyword">const</span> <span class="keywordtype">void</span> *p2, <span class="keyword">const</span> <span class="keywordtype">void</span> *config)
+<a name="l02229"></a>02229 {
+<a name="l02230"></a>02230     <span class="keywordflow">if</span> (!p1 || !p2) <span class="keywordflow">return</span> p1 - p2;
+<a name="l02231"></a>02231     <span class="keywordtype">char</span> asc = 1;
+<a name="l02232"></a>02232     <span class="keywordtype">int</span> sort_event = (int)config;
+<a name="l02233"></a>02233     <span class="keywordflow">if</span> (sort_event == -1) {
+<a name="l02234"></a>02234         sort_event = 0;
+<a name="l02235"></a>02235         asc = 0;
+<a name="l02236"></a>02236     } <span class="keywordflow">else</span> <span class="keywordflow">if</span> (sort_event &lt; 0) {
+<a name="l02237"></a>02237         sort_event = -sort_event;
+<a name="l02238"></a>02238         asc = 0;
 <a name="l02239"></a>02239     }
-<a name="l02240"></a>02240     <span class="keywordflow">if</span> (asc)
-<a name="l02241"></a>02241         <span class="keywordflow">return</span> *i1 - *i2;
-<a name="l02242"></a>02242     <span class="keywordflow">else</span>
-<a name="l02243"></a>02243         <span class="keywordflow">return</span> *i2 - *i1;
-<a name="l02244"></a>02244 }
-<a name="l02245"></a>02245 
-<a name="l02246"></a>02246 <span class="keyword">struct </span>rbtree *inotifytools_wd_sorted_by_event(<span class="keywordtype">int</span> sort_event)
-<a name="l02247"></a>02247 {
-<a name="l02248"></a>02248     <span class="keyword">struct </span>rbtree *ret = rbinit(event_compare, (<span class="keywordtype">void</span>*)sort_event);
-<a name="l02249"></a>02249     RBLIST *all = rbopenlist(tree_wd);
-<a name="l02250"></a>02250     <span class="keywordtype">void</span> <span class="keyword">const</span> *p = rbreadlist(all);
-<a name="l02251"></a>02251     <span class="keywordflow">while</span> (p) {
-<a name="l02252"></a>02252         <span class="keywordtype">void</span> <span class="keyword">const</span> *r = rbsearch(p, ret);
-<a name="l02253"></a>02253         niceassert((<span class="keywordtype">int</span>)(r == p), <span class="stringliteral">&quot;Couldn&apos;t insert watch into new tree&quot;</span>);
-<a name="l02254"></a>02254         p = rbreadlist(all);
-<a name="l02255"></a>02255     }
-<a name="l02256"></a>02256     rbcloselist(all);
-<a name="l02257"></a>02257     <span class="keywordflow">return</span> ret;
-<a name="l02258"></a>02258 }
+<a name="l02240"></a>02240     <span class="keywordtype">int</span> *i1 = stat_ptr((watch*)p1, sort_event);
+<a name="l02241"></a>02241     <span class="keywordtype">int</span> *i2 = stat_ptr((watch*)p2, sort_event);
+<a name="l02242"></a>02242     <span class="keywordflow">if</span> (0 == *i1 - *i2) {
+<a name="l02243"></a>02243         <span class="keywordflow">return</span> ((watch*)p1)-&gt;wd - ((watch*)p2)-&gt;wd;
+<a name="l02244"></a>02244     }
+<a name="l02245"></a>02245     <span class="keywordflow">if</span> (asc)
+<a name="l02246"></a>02246         <span class="keywordflow">return</span> *i1 - *i2;
+<a name="l02247"></a>02247     <span class="keywordflow">else</span>
+<a name="l02248"></a>02248         <span class="keywordflow">return</span> *i2 - *i1;
+<a name="l02249"></a>02249 }
+<a name="l02250"></a>02250 
+<a name="l02251"></a>02251 <span class="keyword">struct </span>rbtree *inotifytools_wd_sorted_by_event(<span class="keywordtype">int</span> sort_event)
+<a name="l02252"></a>02252 {
+<a name="l02253"></a>02253     <span class="keyword">struct </span>rbtree *ret = rbinit(event_compare, (<span class="keywordtype">void</span>*)sort_event);
+<a name="l02254"></a>02254     RBLIST *all = rbopenlist(tree_wd);
+<a name="l02255"></a>02255     <span class="keywordtype">void</span> <span class="keyword">const</span> *p = rbreadlist(all);
+<a name="l02256"></a>02256     <span class="keywordflow">while</span> (p) {
+<a name="l02257"></a>02257         <span class="keywordtype">void</span> <span class="keyword">const</span> *r = rbsearch(p, ret);
+<a name="l02258"></a>02258         niceassert((<span class="keywordtype">int</span>)(r == p), <span class="stringliteral">&quot;Couldn&apos;t insert watch into new tree&quot;</span>);
+<a name="l02259"></a>02259         p = rbreadlist(all);
+<a name="l02260"></a>02260     }
+<a name="l02261"></a>02261     rbcloselist(all);
+<a name="l02262"></a>02262     <span class="keywordflow">return</span> ret;
+<a name="l02263"></a>02263 }
 </pre></div></div>
-<hr size="1"/><address style="text-align: right;"><small>Generated on 22 Oct 2018 for libinotifytools by&nbsp;
+<hr size="1"/><address style="text-align: right;"><small>Generated on 24 Oct 2018 for libinotifytools by&nbsp;
 <a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.6.1 </small></address>
 </body>

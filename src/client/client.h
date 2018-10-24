@@ -98,6 +98,7 @@ void print_usage(void)
         "\t                                    \033[35m 'fatal'\033[0m\n"
         "\t                                    \033[35m 'error' - used in stable release stage\033[0m\n"
         "\t                                    \033[35m 'warn'\033[0m\n"
+        "\t                                    \033[35m 'notice'\033[0m\n"
         "\t                                    \033[35m 'info'  - used in release stage\033[0m\n"
         "\t                                    \033[35m 'debug' - used only in devel. (default)\033[0m\n"
         "\t                                    \033[35m 'trace' - show all details\033[0m\n"
@@ -110,8 +111,7 @@ void print_usage(void)
         "\n"
         "\t-s, --sweep-interval=<SECONDS>  \033[35m specify sweep interval in seconds. %d (default)\033[0m\n"
         "\n"
-        "\t-k, --kafka                  \033[35m specify kafka enabled.\033[0m\n"
-        "\n"
+        "\t-k, --kafka                  \033[35m logging event to kafka enabled.\033[0m\n"
         "\n"
         "\t-t, --threads=<THREADS>      \033[35m specify number of threads. %d (default)\033[0m\n"
         "\n"
@@ -126,7 +126,6 @@ void print_usage(void)
         "\t-S, --save-config            \033[35m save config xml file specified by '--config' or '--save-config'.\033[0m\n"
         "\n"
         "\t-m, --md5=FILE               \033[35m md5sum on given file.\033[0m\n"
-        "\t-r, --regexp=PATTERN         \033[35m use pattern for matching on <express>.\033[0m\n"
         "\n"
         "\033[47;35m* COPYRIGHT (c) 2014-2020 PEPSTACK.COM, ALL RIGHTS RESERVED.\033[0m\n",
         APP_NAME, APP_NAME, APP_VERSION, APP_NAME,
@@ -153,14 +152,6 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
 
     char priority[20] = { "debug" };
     char appender[60] = { "stdout" };
-
-    int from_watch = 0;
-    int sweep_interval = 0;
-
-    int kafka = 0;
-
-    int interactive = 0;
-    int isdaemon = 0;
 
     int threads = 0;
     int queues = 0;
@@ -194,7 +185,6 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
         {"interactive", no_argument, 0, 'I'},
         {"save-config", optional_argument , 0, 'S'},
         {"md5", required_argument, 0, 'm'},
-        {"regexp", required_argument, 0, 'r'},
         {0, 0, 0, 0}
     };
 
@@ -234,7 +224,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     while ((ret = getopt_long(argc, argv, "hVC:WO:k::P:A:t:q:s:N:DKLS::Im:r:", lopts, 0)) != EOF) {
         switch (ret) {
         case 'D':
-            isdaemon = 1;
+            opts->isdaemon = 1;
             break;
 
         case 'h':
@@ -268,7 +258,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
                 exit(1);
             }
 
-            kafka = 1;
+            opts->kafka = 1;
             break;
 
         case 'S':
@@ -297,7 +287,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
             break;
 
         case 'W':
-            from_watch = 1;
+            opts->from_watch = 1;
             break;
 
         case 'O':
@@ -345,7 +335,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
             break;
 
         case 's':
-            sweep_interval = atoi(optarg);
+            opts->sweep_interval = atoi(optarg);
             break;
 
         case 'N':
@@ -371,7 +361,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
             break;
 
         case 'I':
-            interactive = 1;
+            opts->interactive = 1;
             break;
 
         case 'K':
@@ -379,10 +369,6 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
             break;
 
         case 'L':
-            exit(0);
-            break;
-
-        case 'r':
             exit(0);
             break;
 
@@ -403,9 +389,9 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     fprintf(stdout, "\033[1;34m* default log4c path : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
     fprintf(stdout, "\033[1;34m* default config xml : %s\033[0m\n\n", config);
 
-    if (interactive) {
-        if (isdaemon) {
-            isdaemon = 0;
+    if (opts->interactive) {
+        if (opts->isdaemon) {
+            opts->isdaemon = 0;
             fprintf(stdout, "\033[1;31m* daemon mode ignored due to specify '-T,--test'.\033[0m\n");
         }
 
@@ -413,10 +399,6 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
             fprintf(stdout, "\033[1;31m* appender ('%s') redesignated to 'stdout' due to specify '-T,--test'.\033[0m\n", appender);
             strcpy(appender, "stdout");
         }
-    }
-
-    if (sweep_interval != 0) {
-        opts->sweep_interval = sweep_interval;
     }
 
     if (threads != 0) {
@@ -434,7 +416,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     }
     memcpy(opts->save_config, save_config, sizeof(save_config));
 
-    if (from_watch) {
+    if (opts->from_watch) {
         // 强迫从 watch 目录自动配置
         memcpy(buffer, opts->apphome, opts->apphome_len + 1);
 
@@ -472,11 +454,6 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     opts->startcmd = (char *) malloc(ret + 1);
     memcpy(opts->startcmd, buffer, ret);
     opts->startcmd[ret] = 0;
-
-    opts->isdaemon = isdaemon;
-    opts->from_watch = from_watch;
-    opts->interactive = interactive;
-    opts->kafka = kafka;
 
     memcpy(opts->config, config, sizeof(config));
 }
