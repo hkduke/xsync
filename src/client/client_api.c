@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.6
+ * @version: 0.2.7
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-23 15:08:38
+ * @update: 2018-10-24 11:16:21
  */
 
 /******************************************************************************
@@ -985,7 +985,9 @@ static time_t restore_timepoint (XS_client client, char *tmpbuf, ssize_t bufsize
     *strrchr(tmpbuf, '/') = '\0';
     *strrchr(tmpbuf, '/') = '\0';
 
-    strcat(tmpbuf, SWEEP_TIMEPOINT_FILE);
+    strcat(tmpbuf, "/watch/");
+    strcat(tmpbuf, client->clientid);
+    strcat(tmpbuf, ".sweep-timepoint");
 
     LOGGER_DEBUG("read timepoint: %s", tmpbuf);
 
@@ -1036,7 +1038,9 @@ static void save_timepoint (XS_client client, time_t tp, char *tmpbuf, ssize_t b
     *strrchr(tmpbuf, '/') = '\0';
     *strrchr(tmpbuf, '/') = '\0';
 
-    strcat(tmpbuf, SWEEP_TIMEPOINT_FILE);
+    strcat(tmpbuf, "/watch/");
+    strcat(tmpbuf, client->clientid);
+    strcat(tmpbuf, ".sweep-timepoint");
 
     LOGGER_DEBUG("write file: %s", tmpbuf);
 

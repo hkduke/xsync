@@ -26,30 +26,30 @@ end
 
 local function get_topic(fn)
     local day = nil
-    local topic = "shanghai"
+    local errday = "errday"
 
     if (fn == nil)
     then
-        return "errfile"
+        return errday
     end
 
     a=string.find(fn, ".log.")
     if (a == nil)
     then
-        return "errfile"
+        return errday
     end
 
     b = string.find(fn, "-", a+5)
     if (b == nil)
     then
-        return "errfile"
+        return errday
     end
 
     day = string.sub(fn, a+5, b-1)
 
     if (day == nil)
     then
-        return "nonday"
+        return errday
     else
         return day
     end
