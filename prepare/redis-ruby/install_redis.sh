@@ -63,7 +63,7 @@ Options:
 
   $ sudo ${_name} \
 --prefix=/usr/local/redis \
---package=./redis-5.0-RC3.tar.gz
+--package=./redis-5.0.0.tar.gz
 
   $ sudo ${_name} \
 --prefix=/usr/local/redis \

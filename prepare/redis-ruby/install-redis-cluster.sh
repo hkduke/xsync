@@ -86,6 +86,9 @@ EOT
 
 if [ $# -eq 0 ]; then usage; exit 1; fi
 
+REDIS_PKG_NAME="redis-5.0.0"
+
+
 # 开始安装 redis-cluster
 cluster_id="test"
 replica="1"
@@ -96,6 +99,7 @@ maxmemory="2g"
 timeoutms=12000
 requirepass=
 ignore_test=false
+
 
 # parse options:
 RET=`getopt -o Vh --long version,help,ignore-test,prefix:,cluster-id:,hostip:,ports:,replica:,maxmemory:,requirepass:,\
@@ -139,8 +143,6 @@ if [ -z "$ports" ]; then
     echoerror "ports not given. (use: --ports=PORTS)"
     exit -1
 fi
-
-REDIS_PKG_NAME="redis-5.0-RC3"
 
 prepare_dir=$(dirname $_cdir)
 project_dir=$(dirname $prepare_dir)
@@ -251,7 +253,7 @@ elif [[ $ret == $DIR_NOT_EMPTY ]]; then
 fi
 
 # 开始安装 redis-5.0
-#   redis-5.0-RC3 不需要安装 ruby
+#   redis-5.0 不需要安装 ruby
 $_cdir/install_redis.sh --prefix=$REDIS_PREFIX --package=$_cdir/"$REDIS_PKG_NAME".tar.gz
 
 start_sh="$CLUSTER_ROOT/start.sh"
