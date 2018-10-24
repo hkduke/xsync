@@ -31,11 +31,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.7
+ * @version: 0.2.8
  *
  * @create: 2018-09-29
  *
- * @update: 2018-10-22 16:10:31
+ * @update: 2018-10-24 12:06:27
  */
 
 #ifndef INOTIFYAPI_H_INCLUDED

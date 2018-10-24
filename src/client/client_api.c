@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.6
+ * @version: 0.2.8
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-23 15:08:38
+ * @update: 2018-10-24 15:05:32
  */
 
 /******************************************************************************
@@ -1108,7 +1108,7 @@ static void sweep_worker (void *arg)
         } else {
             // 等待刷新时间间隔
             while(elapsed_seconds++ < interval_seconds) {
-                sleep(1);                
+                sleep(1);
             }
 
             elapsed_seconds = 0;
@@ -1188,7 +1188,7 @@ XS_VOID XS_client_bootstrap (XS_client client)
             }
         }
     }
-    
+
     /**
      * create a sweep thread for readdir
      */

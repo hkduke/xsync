@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.7
+ * @version: 0.2.8
  *
  * @create: 2018-01-24
  *
- * @update: 2018-10-22 10:56:41
+ * @update: 2018-10-24 14:42:14
  */
 
 #ifndef CLIENT_API_H_INCLUDED

@@ -1,6 +1,6 @@
 # Prerequisites
 *.d
-.sweep-timepoint
+*.sweep-timepoint
 
 # Object files
 *.o

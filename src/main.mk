@@ -2,7 +2,7 @@
 # @file: main.mk
 #   refer: https://github.com/dmoulding/boilermake
 #
-# @version: 0.2.7
+# @version: 0.2.8
 # @create: 2018-05-18 14:00:00
 # @update: 2018-10-22 14:19:20
 #######################################################################
