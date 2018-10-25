@@ -204,7 +204,7 @@ int epcb_event_pollin(epollet_msg epmsg, void *arg)
 
         // 增加到线程池失败
         LOGGER_ERROR("threadpool_add task failed");
-        free(pollin);
+        mem_free(pollin);
         return 0;
     }
 

@@ -97,6 +97,8 @@ void exit_handler (int exitCode, void *ppData)
  *
  *   $ xsync-server --redis-cluster='127.0.0.1:7001,127.0.0.1:7002,127.0.0.1:7003,127.0.0.1:7004,127.0.0.1:7005,127.0.0.1:7006,127.0.0.1:7007,127.0.0.1:7008,127.0.0.1:7009' --redis-auth='PepSt@ck'
  *
+ *   $ xsync-server --redis-cluster='localhost:7001-7009'
+ *
  **********************************************************************/
 int main (int argc, char *argv[])
 {

@@ -106,8 +106,7 @@ void event_task (thread_context_t *thread_ctx)
 
     memcpy(&perdata->pollin, (PollinData_t *) task->argument, sizeof(PollinData_t));
 
-    free(task->argument);
-    task->argument = 0;
+    mem_free_s(&task->argument);
 
     LOGGER_TRACE("(thread-%d) task start...", perdata->threadid);
 
@@ -152,7 +151,7 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
     LOGGER_DEBUG("RedisConnInit2: cluster='%s'", opts->redis_cluster);
     if (RedisConnInit2(&server->redisconn, opts->redis_cluster, opts->redis_auth, redis_timeo_ms, redis_timeo_ms) != 0) {
         LOGGER_ERROR("RedisConnInit2 failed - %s", server->redisconn.errmsg);
-        free((void*) server);
+        mem_free((void*) server);
         return XS_ERROR;
     }
 
@@ -165,7 +164,7 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
 
         RedisConnFree(&server->redisconn);
 
-        free((void*) server);
+        mem_free((void*) server);
         return XS_ERROR;
     }
 

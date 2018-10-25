@@ -133,13 +133,13 @@ inline void session_clear_file_entry (XS_client_session client)
 __no_warning_unused(static)
 inline void xs_client_session_delete (void *pv)
 {
-    XS_client_session client = (XS_client_session) pv;
+    XS_client_session cs = (XS_client_session) pv;
 
     LOGGER_TRACE0();
 
-    session_clear_file_entry(client);
+    session_clear_file_entry(cs);
 
-    free(pv);
+    mem_free(pv);
 }
 
 

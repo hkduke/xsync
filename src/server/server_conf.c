@@ -74,10 +74,10 @@ extern void xs_server_delete (void *pv)
             LOGGER_DEBUG("thread-%d: RedisConnFree", pdata->threadid);
             RedisConnFree(&pdata->redconn);
 
-            free(pdata);
+            mem_free(pdata);
         }
 
-        free(server->thread_args);
+        mem_free_s((void**) &server->thread_args);
     }
 
     XS_server_clear_client_sessions(server);
@@ -87,5 +87,5 @@ extern void xs_server_delete (void *pv)
 
     LOGGER_TRACE("%p", server);
 
-    free(server);
+    mem_free(server);
 }

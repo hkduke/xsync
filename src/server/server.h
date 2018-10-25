@@ -216,7 +216,6 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
             {"appender", required_argument, 0, 'A'},
             {"server-id", required_argument, 0, 'i'},
             {"magic", required_argument, 0, 'n'},
-            {"appender", required_argument, 0, 'A'},
             {"host", required_argument, 0, 's'},
             {"port", required_argument, 0, 'p'},
             {"threads", required_argument, 0, 't'},

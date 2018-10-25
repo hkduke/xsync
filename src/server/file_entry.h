@@ -176,7 +176,7 @@ inline void xs_file_entry_delete (void *pv)
     // TODO:
     file_entry_close_file(entry);
 
-    free(pv);
+    mem_free(pv);
 }
 
 
