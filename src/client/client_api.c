@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.9
+ * @version: 0.3.0
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-24 15:05:32
+ * @update: 2018-10-25 12:32:36
  */
 
 /******************************************************************************
@@ -702,7 +702,7 @@ void xs_inotifytools_restart(XS_client client)
         err = XS_client_conf_from_watch(client, 0);
     } else {
         // 从 XML 配置文件初始化客户端
-        err = XS_client_conf_from_xml(client, 0);
+        err = XS_client_conf_from_config(client, 0);
     }
 
     if (err != XS_SUCCESS) {
@@ -802,7 +802,7 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
         // 从 XML 配置文件初始化客户端
         client->from_watch = 0;
 
-        err = XS_client_conf_from_xml(client, opts->config);
+        err = XS_client_conf_from_config(client, opts->config);
     }
 
     if (err) {

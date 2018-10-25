@@ -26,7 +26,7 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.9
+ * @version: 0.3.0
  *
  * @create: 2018-02-02
  *
@@ -36,7 +36,6 @@
 #include "server_api.h"
 #include "server_conf.h"
 
-#include "../xsync-xmlconf.h"
 #include "../common/readconf.h"
 #include "../common/common_util.h"
 

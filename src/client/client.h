@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.9
+ * @version: 0.3.0
  *
  * @create: 2018-01-24
  *
- * @update: 2018-10-24 14:47:22
+ * @update: 2018-10-25 12:31:56
  */
 
 #ifndef CLIENT_H_INCLUDED
@@ -48,7 +48,7 @@ extern "C" {
 
 #include "../common/cshell.h"
 #include "../common/common_util.h"
-
+#include "../common/readconf.h"
 
 /**
  * print usage for app
@@ -75,7 +75,7 @@ void print_usage(void)
         "\t-h, --help                   \033[35m display help messages\033[0m\n"
         "\t-V, --version                \033[35m print version information\033[0m\n"
         "\n"
-        "\t-C, --config=XMLFILE         \033[35m specify path file to conf. '../conf/%s.xml' (default)\033[0m\n"
+        "\t-C, --config=CFGFILE         \033[35m specify config file. '../conf/xclient.cfg' (default)\033[0m\n"
         "\t-W, --from-watch             \033[35m config client from watch path no matter if specify config(-C, --config) or not.\033[0m\n"
         "\t                               \033[35m if enable watch path by '--use-watch', config=PATHFILE will be ignored.\033[0m\n"
         "\t                               \033[35m NOTE: watch/ folder lives alway in the sibling directory of config PATHFILE, for example:\033[0m\n"
@@ -123,12 +123,12 @@ void print_usage(void)
         "\t-K, --kill                   \033[35m kill all processes for this program.\033[0m\n"
         "\t-L, --list                   \033[35m list of pids for this program.\033[0m\n"
         "\t-I, --interactive            \033[35m run as interactive mode for testing.\033[0m\n"
-        "\t-S, --save-config            \033[35m save config xml file specified by '--config' or '--save-config'.\033[0m\n"
+        "\t-S, --save-config            \033[35m save config file specified by '--config' or '--save-config'.\033[0m\n"
         "\n"
         "\t-m, --md5=FILE               \033[35m md5sum on given file.\033[0m\n"
         "\n"
         "\033[47;35m* COPYRIGHT (c) 2014-2020 PEPSTACK.COM, ALL RIGHTS RESERVED.\033[0m\n",
-        APP_NAME, APP_NAME, APP_VERSION, APP_NAME,
+        APP_NAME, APP_VERSION, APP_NAME,
         XSYNC_SWEEP_INTERVAL_SECONDS, XSYNC_CLIENT_THREADS, XSYNC_CLIENT_QUEUES);
 
 #ifdef DEBUG
@@ -208,9 +208,9 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     *strrchr(buffer, '/') = 0;
     *(strrchr(buffer, '/') + 1) = 0;
 
-    ret = snprintf(config, sizeof(config), "%sconf/%s-conf.xml", buffer, APP_NAME);
+    ret = snprintf(config, sizeof(config), "%sconf/xclient.cfg", buffer);
     if (ret < 20 || ret >= sizeof(config)) {
-        fprintf(stderr, "\033[1;31m[error]\033[0m invalid conf path: %s\n", buffer);
+        fprintf(stderr, "\033[1;31m[error]\033[0m invalid config path: %s\n", buffer);
         exit(-1);
     }
 
@@ -236,7 +236,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
             /* overwrite default config file */
             ret = snprintf(config, sizeof(config), "%s", optarg);
             if (ret < 20 || ret >= sizeof(config)) {
-                fprintf(stderr, "\033[1;31m[error]\033[0m invalid config xml file: %s\n", optarg);
+                fprintf(stderr, "\033[1;31m[error]\033[0m invalid config file: %s\n", optarg);
                 exit(-1);
             }
 
@@ -246,7 +246,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
             } else {
                 ret = snprintf(config, sizeof(config), "%s", buffer);
                 if (ret < 20 || ret >= sizeof(config)) {
-                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid config xml file: %s\n", buffer);
+                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid config file: %s\n", buffer);
                     exit(-1);
                 }
             }
@@ -266,7 +266,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
                 /* overwrite default config file */
                 ret = snprintf(save_config, sizeof(save_config), "%s", optarg);
                 if (ret < 20 || ret >= sizeof(save_config)) {
-                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid config xml file: %s\n", optarg);
+                    fprintf(stderr, "\033[1;31m[error]\033[0m invalid config file: %s\n", optarg);
                     exit(-1);
                 }
 
@@ -276,7 +276,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
                 } else {
                     ret = snprintf(save_config, sizeof(save_config), "%s", buffer);
                     if (ret < 20 || ret >= sizeof(save_config)) {
-                        fprintf(stderr, "\033[1;31m[error]\033[0m invalid config xml file: %s\n", buffer);
+                        fprintf(stderr, "\033[1;31m[error]\033[0m invalid config file: %s\n", buffer);
                         exit(-1);
                     }
                 }
@@ -386,8 +386,8 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
         }
     }
 
-    fprintf(stdout, "\033[1;34m* default log4c path : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
-    fprintf(stdout, "\033[1;34m* default config xml : %s\033[0m\n\n", config);
+    fprintf(stdout, "\033[1;34m* default log4c path  : %s\033[0m\n", log4crc + sizeof("LOG4C_RCPATH"));
+    fprintf(stdout, "\033[1;34m* default config file : %s\033[0m\n\n", config);
 
     if (opts->interactive) {
         if (opts->isdaemon) {

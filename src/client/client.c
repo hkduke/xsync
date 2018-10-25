@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.9
+ * @version: 0.3.0
  *
  * @create: 2018-01-24
  *
- * @update: 2018-10-22 10:56:41
+ * @update: 2018-10-25 12:34:32
  */
 
 #include "client.h"
@@ -201,7 +201,7 @@ void run_forever (xs_appopts_t *opts)
     if (XS_client_create(opts, &client) == XS_SUCCESS) {
 
         if (opts->save_config[0]) {
-            XS_client_conf_save_xml(client, opts->save_config);
+            XS_client_conf_save_config(client, opts->save_config);
         }
 
         /** 启动客户端服务程序, 永远运行 */

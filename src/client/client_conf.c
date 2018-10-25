@@ -26,18 +26,17 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.9
+ * @version: 0.3.0
  *
  * @create: 2018-01-26
  *
- * @update: 2018-10-22 10:56:41
+ * @update: 2018-10-25 12:33:43
  */
 
 #include "client_api.h"
 
 #include "client_conf.h"
 
-#include "../xsync-xmlconf.h"
 #include "../common/readconf.h"
 
 
@@ -478,36 +477,7 @@ XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_root)
 }
 
 
-__no_warning_unused(static)
-int list_server_cb (mxml_node_t *server_node, XS_client client)
-{
-    const char * attr;
-
-    xmlconf_element_attr_read(server_node, "sid", 0, attr);
-    xmlconf_element_attr_read(server_node, "host", 0, attr);
-    xmlconf_element_attr_read(server_node, "port", 0, attr);
-    xmlconf_element_attr_read(server_node, "magic", 0, attr);
-
-    return 1;
-}
-
-
-__no_warning_unused(static)
-int list_watch_path_cb (mxml_node_t *wp_node, XS_client client)
-{
-    const char * attr;
-
-    xmlconf_element_attr_read(wp_node, "pathid", 0, attr);
-    xmlconf_element_attr_read(wp_node, "fullpath", 0, attr);
-
-    return 1;
-}
-
-
-/**
- * https://www.systutorials.com/docs/linux/man/3-mxml/
- */
-extern XS_RESULT XS_client_conf_save_xml (XS_client client, const char * config_file)
+XS_RESULT XS_client_conf_save_config (XS_client client, const char * cfgfile)
 {
     //TODO:
 
@@ -517,80 +487,9 @@ extern XS_RESULT XS_client_conf_save_xml (XS_client client, const char * config_
 
 // 只能初始化一次
 //
-XS_RESULT XS_client_conf_from_xml (XS_client client, const char *config_xml)
+XS_RESULT XS_client_conf_from_config (XS_client client, const char *cfgfile)
 {
-    int len;
+    //TODO:
 
-    FILE *fp;
-    const char * attr;
-
-    mxml_node_t *xml;
-    mxml_node_t *root;
-    mxml_node_t *node;
-
-    if (config_xml) {
-        if (strcmp(strrchr(config_xml, '.'), ".xml")) {
-            LOGGER_ERROR("config file end with not '.xml': %s", config_xml);
-            return XS_E_PARAM;
-        }
-
-        if (strstr(strrchr(config_xml, '/'), XSYNC_CLIENT_APPNAME) !=  strrchr(config_xml, '/') + 1) {
-            LOGGER_ERROR("config file start without '%s': %s", XSYNC_CLIENT_APPNAME, config_xml);
-            return XS_E_PARAM;
-        }
-
-        len = (int) strlen(config_xml);
-        if (len >= sizeof(client->watch_config)) {
-            LOGGER_ERROR("config xml name too long (more than 255): %s", config_xml);
-            return XS_E_PARAM;
-        }
-
-        memcpy(client->watch_config, config_xml, len + 1);
-    }
-
-    fp = fopen(client->watch_config, "r");
-    if (! fp) {
-        LOGGER_ERROR("fopen error(%d): %s. (%s)", errno, strerror(errno), client->watch_config);
-        return XS_ERROR;
-    }
-
-    xml = mxmlLoadFile(0, fp, MXML_TEXT_CALLBACK);
-    if (! xml) {
-        LOGGER_ERROR("mxmlLoadFile error. (%s)", client->watch_config);
-        fclose(fp);
-        return XS_ERROR;
-    }
-
-    xmlconf_find_element_node(xml, "xs:"XSYNC_CLIENT_APPNAME"-conf", root);
-    {
-        xmlconf_element_attr_check(root, "xmlns:xs", XSYNC_CLIENT_XMLNS, attr);
-        xmlconf_element_attr_check(root, "copyright", XSYNC_COPYRIGHT, attr);
-        xmlconf_element_attr_check(root, "version", XSYNC_CLIENT_VERSION, attr);
-    }
-
-    xmlconf_find_element_node(root, "xs:application", node);
-    {
-        xmlconf_element_attr_read(node, "clientid", 0, attr);
-        xmlconf_element_attr_read(node, "threads", 0, attr);
-        xmlconf_element_attr_read(node, "queues", 0, attr);
-    }
-
-    xmlconf_find_element_node(root, "xs:server-list", node);
-    {
-        xmlconf_list_mxml_nodes(node, "xs:server", (xmlconf_list_node_cb_t) list_server_cb, (void *) client);
-    }
-
-    xmlconf_find_element_node(root, "xs:watch-path-list", node);
-    {
-        xmlconf_list_mxml_nodes(node, "xs:watch-path", (xmlconf_list_node_cb_t) list_watch_path_cb, (void *) client);
-    }
-
-    mxmlDelete(xml);
-    fclose(fp);
-    return XS_SUCCESS;
-
-error_exit:
-    mxmlDelete(xml);
-    fclose(fp);
     return XS_ERROR;
 }

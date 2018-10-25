@@ -1,14 +1,14 @@
 #######################################################################
 # @file: server.mk
 #
-# @version: 0.2.9
+# @version: 0.3.0
 # @create: 2018-05-18 14:00:00
-# @update: 2018-10-24 15:08:48
+# @update: 2018-10-24 15:55:57
 #######################################################################
 
 # !!! DO NOT change APPNAME and VERSION only when you make sure do that !
 APPNAME := xsync-server
-VERSION := 0.2.9
+VERSION := 0.3.0
 
 TARGET := ${APPNAME}-${VERSION}
 
@@ -25,7 +25,6 @@ TGT_LDLIBS  := \
 	${LIB_PREFIX}/libexpat.a \
 	${LIB_PREFIX}/libsqlite3.a \
 	${LIB_PREFIX}/libjemalloc.a \
-	${LIB_PREFIX}/libmxml.a \
 	${LIB_PREFIX}/libcrypto.a \
 	${LIB_PREFIX}/libssl.a \
 	${LIB_PREFIX}/libredisapi.a \

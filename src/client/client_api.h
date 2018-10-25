@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.9
+ * @version: 0.3.0
  *
  * @create: 2018-01-24
  *
- * @update: 2018-10-24 14:42:14
+ * @update: 2018-10-25 12:30:37
  */
 
 #ifndef CLIENT_API_H_INCLUDED
@@ -115,9 +115,9 @@ extern XS_VOID XS_client_bootstrap (XS_client client);
  * implemented in:
  *   client_conf.c
  */
-extern XS_RESULT XS_client_conf_save_xml (XS_client client, const char *config_xml);
+extern XS_RESULT XS_client_conf_save_config (XS_client client, const char *cfgfile);
 
-extern XS_RESULT XS_client_conf_from_xml (XS_client client, const char *config_xml);
+extern XS_RESULT XS_client_conf_from_config (XS_client client, const char *cfgfile);
 
 extern XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_root);
 

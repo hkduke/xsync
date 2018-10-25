@@ -26,7 +26,7 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.9
+ * @version: 0.3.0
  *
  * @create: 2018-01-29
  *
@@ -210,8 +210,7 @@ void run_service (xs_appopts_t *opts)
     if (XS_server_create(opts, &server) == XS_SUCCESS) {
 
 #ifdef DEBUG
-        //TODO:XS_server_conf_save_xml(server, "/tmp/xsync-server-conf_DEBUG.xml");
-        //TODO:XS_server_conf_save_ini(server, "/tmp/xsync-server-conf_DEBUG.ini");
+
 #endif
 
         /** 启动客户端服务程序, 永远运行 */

@@ -79,7 +79,7 @@ function prep_install()
             exit -1
         fi
 
-        sudo yum install -y make gcc gcc-c++ tcl kernel-devel zlib-devel openssl-devel libxml2-devel readline-devel pcre-devel ncurses-devel
+        sudo yum install -y make gcc gcc-c++ tcl kernel-devel zlib-devel openssl-devel readline-devel pcre-devel ncurses-devel
 
     elif [ "$osid" = "ubuntu" ]; then
         if [ "$major_ver" -lt 14 ]; then
@@ -87,21 +87,13 @@ function prep_install()
             exit -1
         fi
 
-        sudo apt-get install -y build-essential tcl openssl libssl-dev libpcre3 libpcre3-dev zlib1g-dev libxml2-dev libreadline-dev libncurses-dev
+        sudo apt-get install -y build-essential tcl openssl libssl-dev libpcre3 libpcre3-dev zlib1g-dev libreadline-dev libncurses-dev
     fi
 }
 
 
 function install_libs()
 {
-    cd ${_cdir}
-
-    echoinfo "---- build and install <mxml-2.9> ..."
-    tar -zxf ${_cdir}/mxml-2.9.tgz
-    cd ${_cdir}/mxml-2.9/
-    ./configure --prefix=${INSTALLDIR}
-    make && make install
-    rm -rf ${_cdir}/mxml-2.9
     cd ${_cdir}
 
     echoinfo "---- build and install <expat-2.1.0> ..."

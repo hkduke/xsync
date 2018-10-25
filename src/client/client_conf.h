@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.9
+ * @version: 0.3.0
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-24 14:44:13
+ * @update: 2018-10-25 12:31:02
  */
 
 #ifndef CLIENT_CONF_H_INCLUDED
@@ -71,7 +71,7 @@ typedef struct xs_client_t
     /* 客户端唯一 ID */
     char clientid[XSYNC_CLIENTID_MAXLEN + 1];
 
-    /* watch 全路径或 config.xml 全路径: 最长 FILENAME_MAXLEN 字符 */
+    /* watch 全路径或 config 全路径: 最长 FILENAME_MAXLEN 字符 */
     int from_watch;
     char watch_config[FILENAME_MAXLEN + 1];
 

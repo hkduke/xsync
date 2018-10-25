@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.2.9
+ * @version: 0.3.0
  *
  * @create: 2018-01-29
  *
- * @update: 2018-10-22 10:56:41
+ * @update: 2018-10-25 12:25:14
  */
 
 #ifndef SERVER_H_INCLUDED
@@ -48,7 +48,7 @@ extern "C" {
 
 #include "../common/cshell.h"
 #include "../common/common_util.h"
-
+#include "../common/readconf.h"
 
 /**
  * print usage for app
