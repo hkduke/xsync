@@ -26,33 +26,20 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.0
+ * @version: 0.3.2
  *
  * @create: 2018-01-09
  *
- * @update: 2018-10-22 10:56:41
+ * @update: 2018-10-25 16:33:44
  */
 
 #ifndef COMMON_INCL_H_INCLUDED
 #define COMMON_INCL_H_INCLUDED
 
-#include <assert.h>  /* assert */
-#include <string.h>  /* memset */
-#include <stdio.h>   /* printf, perror */
-#include <limits.h>  /* realpath, PATH_MAX=4096 */
-#include <stdbool.h> /* memset */
-#include <ctype.h>
-
-/**
- * MUST include stdlib before jemalloc
- * link: LDFLAGS ?= /usr/local/lib/libjemalloc.a -lpthread
- */
-#include <stdlib.h>
-#include <jemalloc/jemalloc.h>
+#include "memapi.h"
 
 #include <unistd.h>          /* close */
 #include <fcntl.h>           /* open */
-#include <errno.h>           /* errno */
 #include <signal.h>
 
 #include <pthread.h>         /* link: -pthread */
@@ -79,9 +66,6 @@
 
 #include <getopt.h>          /* getopt_long */
 #include <regex.h>           /* regex_t */
-
-/* sqlite3 should be installed first */
-#include <sqlite3.h>
 
 /* openssl should be installed first */
 #ifdef OPENSSL_NO_MD5

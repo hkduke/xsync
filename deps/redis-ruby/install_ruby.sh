@@ -32,12 +32,15 @@ _ver=0.0.1
 
 . $_cdir/download.sh
 
+# Treat unset variables as an error
+set -o nounset
+
+# Treat any error as exit
+set -o errexit
+
 # Set characters encodeing
 #   LANG=en_US.UTF-8;export LANG
 LANG=zh_CN.UTF-8;export LANG
-
-# Treat unset variables as an error
-set -o nounset
 
 #######################################################################
 #-----------------------------------------------------------------------

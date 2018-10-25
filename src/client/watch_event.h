@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.0
+ * @version: 0.3.2
  *
  * @create: 2018-01-24
  *
- * @update: 2018-10-22 15:30:58
+ * @update: 2018-10-25 16:41:52
  */
 
 #ifndef WATCH_EVENT_H_INCLUDED
@@ -166,15 +166,8 @@ __no_warning_unused(static)
 watch_event_t * watch_event_clone(const watch_event_t *inevent)
 {
     ssize_t cb = sizeof(watch_event_t) + sizeof(char)*(inevent->pathlen + 1);
-
-    watch_event_t *outevent = (watch_event_t *) malloc(cb);
-    if (! outevent) {
-        // outof memory
-        exit(-4);
-    }
-
+    watch_event_t *outevent = (watch_event_t *) mem_alloc_unset(cb);
     memcpy(outevent, inevent, cb);
-
     return outevent;
 }
 
@@ -182,7 +175,7 @@ watch_event_t * watch_event_clone(const watch_event_t *inevent)
 __no_warning_unused(static)
 void watch_event_free(watch_event_t *event)
 {
-    free(event);
+    mem_free(event);
 }
 
 

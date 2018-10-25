@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.0
+ * @version: 0.3.2
  *
  * @create: 2018-01-24
  *
- * @update: 2018-10-22 10:56:41
+ * @update: 2018-10-25 16:39:44
  */
 
 #ifndef WATCH_ENTRY_H_INCLUDED
@@ -188,7 +188,7 @@ inline void watch_entry_delete(void *pv)
 
     watch_entry_close_file(entry);
 
-    free(pv);
+    mem_free(pv);
 }
 
 

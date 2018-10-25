@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.0
+ * @version: 0.3.2
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-25 12:32:36
+ * @update: 2018-10-25 16:39:42
  */
 
 /******************************************************************************
@@ -732,7 +732,7 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
 
     *outClient = 0;
 
-    client = (XS_client) mem_alloc(1, sizeof(xs_client_t));
+    client = (XS_client) mem_alloc_zero(1, sizeof(xs_client_t));
 
     /* xsync-client app home dir */
     memcpy(client->apphome, opts->apphome, opts->apphome_len);
@@ -756,7 +756,7 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
     if (0 != pthread_cond_init(&client->condition, PTHREAD_PROCESS_PRIVATE)) {
         LOGGER_FATAL("pthread_cond_init() error(%d): %s", errno, strerror(errno));
 
-        free((void *)client);
+        mem_free((void *)client);
 
         exit(XS_ERROR);
     }
@@ -826,7 +826,7 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
         *client->buffer = 0;
     }
 
-    client->thread_args = (void **) mem_alloc(THREADS, sizeof(void*));
+    client->thread_args = (void **) mem_alloc_zero(THREADS, sizeof(void*));
     for (i = 0; i < THREADS; ++i) {
         const char *luascriptfile = (client->buffer[0]? client->buffer : 0);
 

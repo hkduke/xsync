@@ -77,7 +77,7 @@ static void redisLibeventCleanup(void *privdata) {
     event_del(e->wev);
     free(e);
 }
-__attribute__((used))
+
 static int redisLibeventAttach(redisAsyncContext *ac, struct event_base *base) {
     redisContext *c = &(ac->c);
     redisLibeventEvents *e;

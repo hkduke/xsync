@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.0
+ * @version: 0.3.2
  *
  * @create: 2018-01-24
  *
- * @update: 2018-10-25 12:34:32
+ * @update: 2018-10-25 16:40:49
  */
 
 #include "client.h"
@@ -101,6 +101,8 @@ void exit_handler (int exitCode, void *ppData)
     }
 }
 
+#define JEMALLOC_NO_DEMANGLE
+#include <jemalloc/jemalloc.h>
 
 /***********************************************************************
  * client application
@@ -377,7 +379,7 @@ void run_interactive (int threads)
     getinputline(msg, 0, 0);
 
     do {
-        pthread_t * pthreads = (pthread_t *) calloc(threads, sizeof(pthread_t));
+        pthread_t * pthreads = (pthread_t *) mem_alloc_zero(threads, sizeof(pthread_t));
 
         void *ret;
         int i;
@@ -390,7 +392,7 @@ void run_interactive (int threads)
             pthread_join (pthreads[i], (void**) &ret);
         }
 
-        free(pthreads);
+        mem_free(pthreads);
     } while(0);
 
     LOGGER_INFO("interactive client [%s] exit.", APP_NAME);

@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.0
+ * @version: 0.3.2
  *
  * @create: 2018-01-29
  *
- * @update: 2018-10-22 10:56:41
+ * @update: 2018-10-25 16:14:19
  */
 
 #include "server_api.h"
@@ -44,7 +44,7 @@ extern XS_VOID XS_file_entry_create (XS_file_entry *outEntry)
 
     *outEntry = 0;
 
-    entry = (XS_file_entry) mem_alloc(1, sizeof(struct xs_file_entry_t));
+    entry = (XS_file_entry) mem_alloc_zero(1, sizeof(struct xs_file_entry_t));
 
     entry->wofd = -1;
 

@@ -29,6 +29,9 @@ LANG=zh_CN.UTF-8;export LANG
 # Treat unset variables as an error
 set -o nounset
 
+# Treat any error as exit
+set -o errexit
+
 #######################################################################
 #-----------------------------------------------------------------------
 # FUNCTION: usage

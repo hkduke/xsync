@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.0
+ * @version: 0.3.2
  *
  * @create: 2018-01-09
  *
- * @update: 2018-10-24 13:50:11
+ * @update: 2018-10-25 16:30:58
  */
 
 #ifndef COMMON_UTIL_H_INCLUDED
@@ -164,45 +164,6 @@ sigfunc * signal (int signo, sigfunc *func)
 }
 #endif
 
-
-/**
- * memory helper api
- */
-__no_warning_unused(static) __attribute__((malloc))
-inline void * mem_alloc (int num, size_t size)
-{
-    void * pv = calloc(num, size);
-    if (! pv) {
-        perror("calloc");
-        exit(-1);
-    }
-    return pv;
-}
-
-
-__no_warning_unused(static) __attribute__((malloc))
-inline void * mem_realloc (void * pvOld, size_t newSize)
-{
-    void * pvNew = realloc(pvOld, newSize);
-    if (! pvNew) {
-        perror("recalloc");
-        exit(-1);
-    }
-    return pvNew;
-}
-
-
-__no_warning_unused(static)
-inline void mem_free (void **ppv)
-{
-    if (ppv) {
-        void * pv = *ppv;
-        if (pv) {
-            free(pv);
-        }
-        *ppv = 0;
-    }
-}
 
 /**
  * set timeout in milliseconds

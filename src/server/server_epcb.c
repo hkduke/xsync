@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.0
+ * @version: 0.3.2
  *
  * @create: 2018-01-29
  *
- * @update: 2018-10-22 10:56:41
+ * @update: 2018-10-25 16:14:20
  */
 
 #include "server_api.h"
@@ -167,7 +167,7 @@ int epcb_event_pollin(epollet_msg epmsg, void *arg)
     if (rc > 0) {
         int flags = 0;
 
-        PollinData_t * pollin = (PollinData_t *) mem_alloc(1, sizeof(PollinData_t));
+        PollinData_t * pollin = (PollinData_t *) mem_alloc_zero(1, sizeof(PollinData_t));
 
         if (reply->element[2]->type == REDIS_REPLY_STRING) {
             // 用户连接已经存在

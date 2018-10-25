@@ -11,6 +11,13 @@
 #
 ########################################################################
 
+# Treat unset variables as an error
+set -o nounset
+
+# Treat any error as exit
+set -o errexit
+
+
 # wget_download_pkg "ftp://pub:public@pepstack.com/hacl-repo/redis-ruby/ruby-2.3.1.tar.gz"
 #
 function wget_download_pkg() {

@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.0
+ * @version: 0.3.2
  *
  * @create: 2018-02-12
  *
- * @update: 2018-10-22 10:56:41
+ * @update: 2018-10-25 16:14:21
  */
 
 #include "client_api.h"
@@ -44,7 +44,7 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
 {
     XS_server_conn xcon;
 
-    xcon = (XS_server_conn) mem_alloc(1, sizeof(struct xs_server_conn_t) + sizeof(xs_server_opts));
+    xcon = (XS_server_conn) mem_alloc_zero(1, sizeof(struct xs_server_conn_t) + sizeof(xs_server_opts));
 
     xcon->sockfd = -1;
 
@@ -75,7 +75,7 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
 
         if (sockfd == -1) {
             LOGGER_ERROR("opensocket_v2 failed: %s", msg);
-            mem_free((void**) &xcon);
+            mem_free_s((void**) &xcon);
             return XS_ERROR;
         } else {
             int flags, err;
@@ -86,7 +86,7 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
             if (flags == -1) {
                 LOGGER_ERROR("socket_set_nonblock failed: %s", msg);
                 close(sockfd);
-                mem_free((void**) &xcon);
+                mem_free_s((void**) &xcon);
                 return XS_ERROR;
             }
 

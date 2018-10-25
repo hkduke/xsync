@@ -6,7 +6,7 @@
 #
 # @create: 2014-12-18
 #
-# @update: 2018-07-30
+# @update: 2018-10-25
 #
 ########################################################################
 # Error Codes:
@@ -20,6 +20,12 @@ ERR_NOT_ROOT=100
 
 # file is already existed
 ERR_FILE_EXISTED=200
+
+# Treat unset variables as an error
+set -o nounset
+
+# Treat any error as exit
+set -o errexit
 
 #-----------------------------------------------------------------------
 # detect_color_support

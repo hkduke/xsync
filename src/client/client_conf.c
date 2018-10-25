@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.0
+ * @version: 0.3.2
  *
  * @create: 2018-01-26
  *
- * @update: 2018-10-25 12:33:43
+ * @update: 2018-10-25 16:40:09
  */
 
 #include "client_api.h"
@@ -42,7 +42,7 @@
 
 void * perthread_data_create (XS_client client, int servers, int threadid, const char *taskscriptfile)
 {
-    perthread_data *perdata = (perthread_data *) mem_alloc(1, sizeof(perthread_data));
+    perthread_data *perdata = (perthread_data *) mem_alloc_zero(1, sizeof(perthread_data));
 
     if (taskscriptfile) {
         LOGGER_INFO("[thread-%d] loading lua script: %s", threadid, taskscriptfile);
@@ -50,7 +50,7 @@ void * perthread_data_create (XS_client client, int servers, int threadid, const
         if (LuaCtxNew(taskscriptfile, LUACTX_THREAD_MODE_SINGLE, &perdata->luactx) != LUACTX_SUCCESS) {
             LOGGER_FATAL("LuaCtxNew fail");
 
-            free(perdata);
+            mem_free(perdata);
             exit(-1);
         }
     }
@@ -97,7 +97,7 @@ void * perthread_data_create (XS_client client, int servers, int threadid, const
 
                                 LuaCtxFree(&perdata->luactx);
 
-                                free(perdata);
+                                mem_free(perdata);
                                 exit(-1);
                             }
 
@@ -107,27 +107,27 @@ void * perthread_data_create (XS_client client, int servers, int threadid, const
                         LOGGER_FATAL("kafka_config() fail to gey key: bootstrap_servers");
 
                         LuaCtxFree(&perdata->luactx);
-                        free(perdata);
+                        mem_free(perdata);
                         exit(-1);
                     }
                 } else {
                     LOGGER_FATAL("LuaCtxCall kafka_config() result != SUCCESS");
 
                     LuaCtxFree(&perdata->luactx);
-                    free(perdata);
+                    mem_free(perdata);
                     exit(-1);
                 }
             } else {
                 LOGGER_FATAL("LuaCtxCall kafka_config() fail. see: %s", taskscriptfile);
 
                 LuaCtxFree(&perdata->luactx);
-                free(perdata);
+                mem_free(perdata);
                 exit(-1);
             }
         } else {
             LOGGER_FATAL("luacontext not set");
 
-            free(perdata);
+            mem_free(perdata);
             exit(-1);
         }
     }
@@ -168,7 +168,7 @@ void perthread_data_free (perthread_data *perdata)
 
     LuaCtxFree(&perdata->luactx);
 
-    free(perdata);
+    mem_free(perdata);
 }
 
 
@@ -193,7 +193,7 @@ void xs_client_delete (void *pv)
             client->thread_args[i] = 0;
             perthread_data_free(perdata);
         }
-        free(client->thread_args);
+        mem_free(client->thread_args);
     }
 
     LOGGER_TRACE("clean event_rbtree");
@@ -213,7 +213,7 @@ void xs_client_delete (void *pv)
         char *pathid = client->wd_pathid_table[i];
         if (pathid) {
             client->wd_pathid_table[i] = 0;
-            free(pathid);
+            mem_free(pathid);
         }
     }
 #else
@@ -222,7 +222,7 @@ void xs_client_delete (void *pv)
 #endif
 
     LOGGER_TRACE("~XS_client(%p)", client);
-    free(client);
+    mem_free(client);
 }
 
 
@@ -370,10 +370,10 @@ int client_init_watch_path (const char *path, int pathlen, struct mydirent *myen
                             char *pathid = client->wd_pathid_table[wd_pathid];
                             if (pathid) {
                                 // 如果已经存在则先删除
-                                free(pathid);
+                                mem_free(pathid);
                             }
 
-                            pathid = malloc(len + 1);
+                            pathid = mem_alloc(len + 1);
                             memcpy(pathid, myent->ent.d_name, len);
                             pathid[len] = '\0';
 
@@ -389,7 +389,7 @@ int client_init_watch_path (const char *path, int pathlen, struct mydirent *myen
                             int is_new_node;
                             red_black_node_t * node;
                             int len = strlen(myent->ent.d_name);
-                            struct wd_pathid_t * wdpObject = (struct wd_pathid_t *) mem_alloc(1, sizeof(*wdpObject) + len + 1);
+                            struct wd_pathid_t * wdpObject = (struct wd_pathid_t *) mem_alloc_zero(1, sizeof(*wdpObject) + len + 1);
 
                             wdpObject->wd = wd_pathid;
                             wdpObject->len = len;
@@ -400,7 +400,7 @@ int client_init_watch_path (const char *path, int pathlen, struct mydirent *myen
                                 // 如果已经存在则先删除
                                 void * object = node->object;
                                 rbtree_remove_at(&client->wd_pathid_rbtree, node);
-                                free(object);
+                                mem_free(object);
 
                                 // 再次插入节点
                                 rbtree_insert_unique(&client->wd_pathid_rbtree, (void *) wdpObject, &is_new_node);

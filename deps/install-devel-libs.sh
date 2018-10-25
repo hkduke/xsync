@@ -5,7 +5,7 @@
 #   install devel lib for building both xsync-client and xsync-server
 #
 # @create: 2018-01-19
-# @update: 2018-10-08
+# @update: 2018-10-25
 #
 ########################################################################
 # NOTE: readlink -f not support by MaxOS-X
@@ -23,9 +23,12 @@ INSTALLDIR=$(dirname $_cdir)/libs
 #   LANG=en_US.UTF-8;export LANG
 LANG=zh_CN.UTF-8;export LANG
 
+# https://blog.csdn.net/drbinzhao/article/details/8281645
 # Treat unset variables as an error
 set -o nounset
 
+# Treat any error as exit
+set -o errexit
 
 ###########################################################
 
@@ -96,6 +99,14 @@ function install_libs()
 {
     cd ${_cdir}
 
+    echoinfo "---- build and install <jemalloc-5.1.0> ..."
+    tar -zxf ${_cdir}/jemalloc-5.1.0.tar.gz
+    cd ${_cdir}/jemalloc-5.1.0/
+    ./autogen.sh --with-jemalloc-prefix=je_ --prefix=${INSTALLDIR}
+    make dist && make && make install
+    rm -rf ${_cdir}/jemalloc-5.1.0
+    cd ${_cdir}
+
     echoinfo "---- build and install <expat-2.1.0> ..."
     tar -zxf ${_cdir}/expat-2.1.0.tgz
     cd ${_cdir}/expat-2.1.0/
@@ -104,28 +115,12 @@ function install_libs()
     rm -rf ${_cdir}/expat-2.1.0
     cd ${_cdir}
 
-    echoinfo "---- build and install <jemalloc-3.6.0> ..."
-    tar -zxf ${_cdir}/jemalloc-3.6.0.tgz
-    cd ${_cdir}/jemalloc-3.6.0/
-    ./configure --prefix=${INSTALLDIR}
-    make && make install
-    rm -rf ${_cdir}/jemalloc-3.6.0
-    cd ${_cdir}
-
     echoinfo "---- build and install <log4c-1.2.4>..."
     tar -zxf ${_cdir}/log4c-1.2.4.tgz
     cd ${_cdir}/log4c-1.2.4/
     ./configure --prefix=${INSTALLDIR} --without-expat
     make && make install
     rm -rf ${_cdir}/log4c-1.2.4
-    cd ${_cdir}
-
-    echoinfo "---- build and install <sqlite-autoconf-3130000> ..."
-    tar -zxf ${_cdir}/sqlite-autoconf-3130000.tgz
-    cd ${_cdir}/sqlite-autoconf-3130000/
-    ./configure --prefix=${INSTALLDIR}
-    make && make install
-    rm -rf ${_cdir}/sqlite-autoconf-3130000
     cd ${_cdir}
 
     echoinfo "---- build and install <openssl-1.0.2e> ..."
@@ -183,21 +178,16 @@ function install_libs()
     rm -rf ${_cdir}/librdkafka-master
     cd ${_cdir}
 
-    echoinfo "---- build and install <hiredis-1.0.0r> ..."
-    tar -zxf ${_cdir}/hiredis-1.0.0.tar.gz
-    cd ${_cdir}/hiredis-1.0.0/
+    echoinfo "---- build and install <hiredis-1.0.1> ..."
+    tar -zxf ${_cdir}/hiredis-1.0.1.tar.gz
+    cd ${_cdir}/hiredis-1.0.1/
     make PREFIX=${INSTALLDIR} install
-    rm -rf ${_cdir}/hiredis-1.0.0
+    rm -rf ${_cdir}/hiredis-1.0.1
     cd ${_cdir}
 
     echoinfo "all packages successfully installed at: ${INSTALLDIR}"
 }
 
-
-function post_install() 
-{
-    echoinfo "do post install ..."
-}
 
 ################################# main ################################
 if [ $# -eq 0 ]; then usage; exit 1; fi
@@ -218,7 +208,7 @@ while true; do
         -h | --help ) usage; exit 1;;
 
         --prepare ) prep_install; exit 0;;
-	--install ) install_libs; post_install; exit 0;;
+	--install ) install_libs; exit 0;;
 
         -- ) shift; break ;;
         * ) break ;;

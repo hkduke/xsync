@@ -1,9 +1,9 @@
 #######################################################################
 # @file: main.mk
 #
-# @version: 0.3.0
+# @version: 0.3.2
 # @create: 2012-05-18 14:00:00
-# @update: 2018-10-22 10:56:41
+# @update: 2018-10-25 14:38:22
 #######################################################################
 # The libcommon.a library can normally be built by itself (without also
 # building the "xsync" program) by running "make libcommon.a" from within the

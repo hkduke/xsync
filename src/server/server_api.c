@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.epcb_event_peer_open
  *
- * @version: 0.3.0
+ * @version: 0.3.2
  *
  * @create: 2018-01-29
  *
- * @update: 2018-10-22 14:15:57
+ * @update: 2018-10-25 16:14:19
  */
 
 #include "server_api.h"
@@ -145,7 +145,7 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
     //   https://github.com/mapr
 
     // create XS_server
-    server = (XS_server) mem_alloc(1, sizeof(xs_server_t));
+    server = (XS_server) mem_alloc_zero(1, sizeof(xs_server_t));
     assert(server->thread_args == 0);
 
     // redis connection
@@ -178,11 +178,11 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
     LOGGER_INFO("serverid=%s threads=%d queues=%d timeout_ms=%d", opts->serverid, THREADS, QUEUES, TIMEOUTMS);
 
     /* create per thread data */
-    server->thread_args = (void **) mem_alloc(THREADS, sizeof(void*));
+    server->thread_args = (void **) mem_alloc_zero(THREADS, sizeof(void*));
 
     for (i = 0; i < THREADS; ++i) {
         // perthread_data was defined in file_entry.h
-        perthread_data *perdata = (perthread_data *) mem_alloc(1, sizeof(perthread_data));
+        perthread_data *perdata = (perthread_data *) mem_alloc_zero(1, sizeof(perthread_data));
 
         RedisConnInit2(&perdata->redconn, opts->redis_cluster, opts->redis_auth, redis_timeo_ms, redis_timeo_ms);
 

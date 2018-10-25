@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.0
+ * @version: 0.3.2
  *
  * @create: 2018-01-24
  *
- * @update: 2018-10-22 10:56:41
+ * @update: 2018-10-25 16:14:20
  */
 
 #include "client_api.h"
@@ -62,7 +62,7 @@ extern XS_VOID XS_watch_entry_create (const XS_watch_path wp, int sid, const cha
 
     nbsize = nameoff + namelen + sizeof('\0') + MD5_HASH_FIXLEN + sizeof('\0') + wp->pathsize + namelen + sizeof('\0');
 
-    entry = (XS_watch_entry) mem_alloc(1, sizeof(struct xs_watch_entry_t) + sizeof(char) * nbsize);
+    entry = (XS_watch_entry) mem_alloc_zero(1, sizeof(struct xs_watch_entry_t) + sizeof(char) * nbsize);
 
     entry->nameoff = nameoff;
     entry->namelen = namelen;

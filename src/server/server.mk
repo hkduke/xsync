@@ -1,14 +1,14 @@
 #######################################################################
 # @file: server.mk
 #
-# @version: 0.3.0
+# @version: 0.3.2
 # @create: 2018-05-18 14:00:00
-# @update: 2018-10-24 15:55:57
+# @update: 2018-10-25 16:56:45
 #######################################################################
 
 # !!! DO NOT change APPNAME and VERSION only when you make sure do that !
 APPNAME := xsync-server
-VERSION := 0.3.0
+VERSION := 0.3.2
 
 TARGET := ${APPNAME}-${VERSION}
 
@@ -23,14 +23,13 @@ TGT_LDLIBS  := \
 	${LIB_PREFIX}/libcommon.a \
 	${LIB_PREFIX}/liblog4c.a \
 	${LIB_PREFIX}/libexpat.a \
-	${LIB_PREFIX}/libsqlite3.a \
-	${LIB_PREFIX}/libjemalloc.a \
 	${LIB_PREFIX}/libcrypto.a \
 	${LIB_PREFIX}/libssl.a \
 	${LIB_PREFIX}/libredisapi.a \
 	${LIB_PREFIX}/libhiredis.a \
     ${LIB_PREFIX}/libevent.a \
 	${LIB_PREFIX}/libz.a \
+	${LIB_PREFIX}/libjemalloc.a \
 	-lrt \
 	-ldl \
 	-lpthread
@@ -53,7 +52,8 @@ SRC_DEFS := DEBUG \
 	XSYNC_SERVER_APPNAME='"${APPNAME}"' \
 	XSYNC_SERVER_VERSION='"${VERSION}"' \
     XSYNC_SERVER_THREADS_MAX=128 \
-	XSYNC_SERVER_QUEUES_MAX=4096
+	XSYNC_SERVER_QUEUES_MAX=4096 \
+    MEMAPI_USE_LIBJEMALLOC
 
 
 SRC_INCDIRS := \

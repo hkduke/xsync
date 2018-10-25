@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.0
+ * @version: 0.3.2
  *
  * @create: 2018-02-12
  *
- * @update: 2018-10-22 10:56:41
+ * @update: 2018-10-25 16:39:43
  */
 
 #ifndef SERVER_CONN_H_INCLUDED
@@ -74,7 +74,7 @@ inline void server_conn_delete (void *pv)
         close(sfd);
     }
 
-    free(pv);
+    mem_free(pv);
 }
 
 
