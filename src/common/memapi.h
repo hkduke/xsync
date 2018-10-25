@@ -29,7 +29,7 @@
  *
  * @create: 2018-10-25
  *
- * @update: 2018-10-25 16:26:16
+ * @update: 2018-10-25 18:10:48
  */
 #ifndef MEMAPI_H_INCLUDED
 #define MEMAPI_H_INCLUDED
@@ -46,6 +46,11 @@
 
 #ifdef MEMAPI_USE_LIBJEMALLOC
 #  include <jemalloc/jemalloc.h>    /* need to link: libjemalloc.a */
+#endif
+
+#if defined(__cplusplus)
+extern "C"
+{
 #endif
 
 
@@ -170,5 +175,8 @@ static inline void mem_free_s (void **pptr)
     }
 }
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* MEMAPI_H_INCLUDED */
