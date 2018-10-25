@@ -8,5 +8,5 @@ _name=$(basename $_file)
 
 echo "list all kafka topics..."
 
-export PATH="${_cdir}/kafka/libs:$PATH" && ${_cdir}/kafka/bin/kafka-topics.sh --zookeeper=localhost --list
+export PATH="${_cdir}/kafka/libs:$PATH" && ${_cdir}/kafka/bin/kafka-topics.sh --zookeeper=localhost:2181 --list
 
