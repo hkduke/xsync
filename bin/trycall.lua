@@ -6,7 +6,37 @@
   @update: 2018-10-26
 --]]
 
--- 异常捕获封装
+---[[
+  -- 定义脚本路径
+  -- lua 脚本的路径都是存放在: package.path
+
+  package.path = package.path .. ";./?.lua;../bin/?.lua"
+
+--]]
+
+
+
+---[[
+  -- 加载外部脚本文件, 用户根据需要配置
+
+  require("path-filter-1")
+  require("event-task-1")
+
+--]]
+
+
+function get_version(intab)
+    return {
+        version = "1.0",
+        author = "zhangliang",
+        update = "2018-10-26"
+    }
+end
+
+
+--[[
+ 异常捕获封装. 以下内容禁止更改!
+--]]
 function __try(block)
     local func = block.__func
     local catch = block.__catch
@@ -33,75 +63,84 @@ function __try(block)
 end
 
 
+--[[
 -- 安全沙箱调用
---    funcname: 要调用的函数名, 返回值必须为一个表
---    intable:  要调用的函数的输入表参数
---  返回: 函数 funcname 的返回值 (输出表)
-
+--   funcname: 要调用的函数名, 返回值必须为一个表
+--   intable:  要调用的函数的输入表参数
+-- 返回: 函数 funcname 的返回值 (输出表)
+--]]
 local function __trycall(funcname, intable)
+    local func = _G[funcname]
+
     -- 定义返回值
     local ret = {
-        otable = {
-            result = "ERROR"
+        out = {
+            result = "ERROR",
+            exception = string.format("error funcname: %s", funcname)
         }
     }
+
+    if not func
+    then
+        return ret.out
+    end
 
     __try {
         __func = function ()
             -- 函数 func 执行必须返回 table
-            ret.otable = funcname(intable)
+            ret.out = func(intable)
         end,
 
         __catch = function (errors)
             -- 调用函数发生异常
-            -- print("catch exception : " .. errors)
-            ret.otable.exception = "exception: " .. tostring(errors)
+            ret.out.exception = "exception: " .. tostring(errors)
         end,
 
         __finally = function (ok, errors)
             if not ok
             then
                 -- 执行函数发生异常
-                ret.otable.result = "EXCEPTION"
+                ret.out.result = "EXCEPTION"
             end
         end
     }
 
-    if not ret.otable
+    -- 如果函数 funcname 无返回值 out
+    if not ret.out
     then
-        ret.otable = {
-            result = "SUCCESS"
+        ret.out = {
+            result = "SUCCESS",
+            exception = "(none)"
         }
     end
 
-    if not ret.otable.result
+    -- 如果函数 funcname 没有设定返回值 out.result
+    if not ret.out.result
     then
-        ret.otable.result = "SUCCESS"
-    end    
+        ret.out.result = "SUCCESS"
+    end
 
-    return ret.otable;
+    -- 如果函数 funcname 没有设定返回值 out.exception
+    if not ret.out.exception
+    then
+        ret.out.exception = "(none)"
+    end
+
+    -- 总是返回一个表
+    return ret.out;
 end
 
 
--- ======================================================================
--- 用户实现的函数:
---   intab: 输入参数表
---   outab: 输出参数表
-local function user_test(intab)
-    local outab = {
-        age = 89
-    }
+--[[
+    -- 安全调用用户实现的函数: kafka_config
+    local out = __trycall("get_version")
 
-    -- 下面这句会抛出异常
-    print(intab.hello + 100)
+    print("result=" .. out.result)
+    print("exception=" .. out.exception)
 
-    return outab
-end
-
-
--- 安全调用用户实现的函数
-local outab = __trycall(user_test, {hello = "woorld"})
-
-print(outab.result)
-print(outab.exception)
-
+    if out.result == "SUCCESS"
+    then
+        print("version=" .. out.version)
+        print("author=" .. out.author)
+    end
+--]]
