@@ -1,1 +1,1 @@
-../bin/trycall.lua
+../bin/watch-config.lua

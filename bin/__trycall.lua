@@ -6,26 +6,8 @@
   @update: 2018-10-26
 --]]
 
----[[
-  -- 定义脚本路径
-  -- lua 脚本的路径都是存放在: package.path
 
-  package.path = package.path .. ";./?.lua;../bin/?.lua"
-
---]]
-
-
-
----[[
-  -- 加载外部脚本文件, 用户根据需要配置
-
-  require("path-filter-1")
-  require("event-task-1")
-
---]]
-
-
-function get_version(intab)
+function module_version(intab)
     return {
         version = "1.0",
         author = "zhangliang",
@@ -35,9 +17,9 @@ end
 
 
 --[[
- 异常捕获封装. 以下内容禁止更改!
+-- 异常捕获封装. 以下内容禁止更改 !!
 --]]
-function __try(block)
+local function __try(block)
     local func = block.__func
     local catch = block.__catch
     local finally = block.__finally
@@ -69,7 +51,7 @@ end
 --   intable:  要调用的函数的输入表参数
 -- 返回: 函数 funcname 的返回值 (输出表)
 --]]
-local function __trycall(funcname, intable)
+function __trycall(funcname, intable)
     local func = _G[funcname]
 
     -- 定义返回值
@@ -132,8 +114,8 @@ end
 
 
 --[[
-    -- 安全调用用户实现的函数: kafka_config
-    local out = __trycall("get_version")
+    -- 安全调用用户实现的函数: module_version
+    local out = __trycall("module_version")
 
     print("result=" .. out.result)
     print("exception=" .. out.exception)
