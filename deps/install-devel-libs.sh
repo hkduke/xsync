@@ -82,7 +82,7 @@ function prep_install()
             exit -1
         fi
 
-        sudo yum install -y make gcc gcc-c++ tcl kernel-devel zlib-devel openssl-devel readline-devel pcre-devel ncurses-devel
+        sudo yum install -y make gcc gcc-c++ tcl kernel-devel libtool zlib-devel openssl-devel readline-devel pcre-devel ncurses-devel libxml2 libxml2-devel
 
     elif [ "$osid" = "ubuntu" ]; then
         if [ "$major_ver" -lt 14 ]; then
@@ -90,7 +90,7 @@ function prep_install()
             exit -1
         fi
 
-        sudo apt-get install -y build-essential tcl openssl libssl-dev libpcre3 libpcre3-dev zlib1g-dev libreadline-dev libncurses-dev
+        sudo apt-get install -y build-essential autoconf libtool tcl openssl libssl-dev libpcre3 libpcre3-dev zlib1g-dev libreadline-dev libncurses-dev libxml2 libxml2-dev
     fi
 }
 
@@ -103,8 +103,9 @@ function install_libs()
     tar -zxf ${_cdir}/jemalloc-5.1.0.tar.gz
     cd ${_cdir}/jemalloc-5.1.0/
     ./autogen.sh --with-jemalloc-prefix=je_ --prefix=${INSTALLDIR}
-    make dist && make && make install
-    rm -rf ${_cdir}/jemalloc-5.1.0
+    # rhel: make dist && make && make install
+    make && make install
+    rm -rf "${_cdir}/jemalloc-5.1.0"
     cd ${_cdir}
 
     echoinfo "---- build and install <expat-2.1.0> ..."
@@ -112,7 +113,7 @@ function install_libs()
     cd ${_cdir}/expat-2.1.0/
     ./configure --prefix=${INSTALLDIR}
     make && make install
-    rm -rf ${_cdir}/expat-2.1.0
+    rm -rf "${_cdir}/expat-2.1.0"
     cd ${_cdir}
 
     echoinfo "---- build and install <log4c-1.2.4>..."
@@ -120,7 +121,7 @@ function install_libs()
     cd ${_cdir}/log4c-1.2.4/
     ./configure --prefix=${INSTALLDIR} --without-expat
     make && make install
-    rm -rf ${_cdir}/log4c-1.2.4
+    rm -rf "${_cdir}/log4c-1.2.4"
     cd ${_cdir}
 
     echoinfo "---- build and install <openssl-1.0.2e> ..."
@@ -128,7 +129,7 @@ function install_libs()
     cd ${_cdir}/openssl-1.0.2e/
     ./config --prefix=${INSTALLDIR}
     make && make install
-    rm -rf ${_cdir}/openssl-1.0.2e
+    rm -rf "${_cdir}/openssl-1.0.2e"
     cd ${_cdir}
 
     echoinfo "---- build and install <zlib-1.2.11> ..."
@@ -136,7 +137,7 @@ function install_libs()
     cd ${_cdir}/zlib-1.2.11/
     ./configure --prefix=${INSTALLDIR}
     make && make install
-    rm -rf ${_cdir}/zlib-1.2.11
+    rm -rf "${_cdir}/zlib-1.2.11"
     cd ${_cdir}
 
     echoinfo "---- build and install <libevent-2.1.8-stable> ..."
@@ -144,14 +145,14 @@ function install_libs()
     cd ${_cdir}/libevent-2.1.8-stable/
     ./configure --prefix=${INSTALLDIR}
     make && make install
-    rm -rf ${_cdir}/libevent-2.1.8-stable
+    rm -rf "${_cdir}/libevent-2.1.8-stable"
     cd ${_cdir}
 
     echoinfo "---- build and install <lua-5.3.5r> http://troubleshooters.com/codecorn/lua/lua_c_calls_lua.htm ..."
     tar -zxf ${_cdir}/lua-5.3.5.tar.gz
     cd ${_cdir}/lua-5.3.5/
     make linux test && make install INSTALL_TOP=${INSTALLDIR}
-    rm -rf ${_cdir}/lua-5.3.5
+    rm -rf "${_cdir}/lua-5.3.5"
     cd ${_cdir}
 
     echoinfo "---- build and install <libiconv-1.15> ..."
@@ -159,7 +160,7 @@ function install_libs()
     cd ${_cdir}/libiconv-1.15/
     ./configure --prefix=${INSTALLDIR}
     make && make install
-    rm -rf ${_cdir}/libiconv-1.15
+    rm -rf "${_cdir}/libiconv-1.15"
     cd ${_cdir}
 
     echoinfo "---- build and install <inotify-tools-3.20.4> ..."
@@ -167,7 +168,7 @@ function install_libs()
     cd ${_cdir}/inotify-tools-3.20.4/
     ./configure --prefix=${INSTALLDIR}
     make && make install
-    rm -rf ${_cdir}/inotify-tools-3.20.4
+    rm -rf "${_cdir}/inotify-tools-3.20.4"
     cd ${_cdir}
 
     echoinfo "---- build and install <librdkafka-master> https://github.com/edenhill/librdkafka ..."
@@ -175,14 +176,22 @@ function install_libs()
     cd ${_cdir}/librdkafka-master/
     ./configure --prefix=${INSTALLDIR}
     make && make install
-    rm -rf ${_cdir}/librdkafka-master
+    rm -rf "${_cdir}/librdkafka-master"
     cd ${_cdir}
 
     echoinfo "---- build and install <hiredis-1.0.1> ..."
     tar -zxf ${_cdir}/hiredis-1.0.1.tar.gz
     cd ${_cdir}/hiredis-1.0.1/
     make PREFIX=${INSTALLDIR} install
-    rm -rf ${_cdir}/hiredis-1.0.1
+    rm -rf "${_cdir}/hiredis-1.0.1"
+    cd ${_cdir}
+
+    echoinfo "---- build and install <igraph-0.7.1> http://igraph.org/nightly/get/c/igraph-0.7.1.tar.gz"
+    tar -zxf ${_cdir}/igraph-0.7.1.tar.gz
+    cd ${_cdir}/igraph-0.7.1/
+    ./configure --prefix=${INSTALLDIR}
+    make && make install
+    rm -rf "${_cdir}/igraph-0.7.1"
     cd ${_cdir}
 
     echoinfo "all packages successfully installed at: ${INSTALLDIR}"

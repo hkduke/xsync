@@ -10,7 +10,7 @@
 #
 # @create: $create$
 #
-# @update:
+# @update: 2018-10-26
 #
 ########################################################################
 # NOTE: readlink -f not support by MaxOS-X
@@ -198,16 +198,17 @@ do
         for (( portno=$startport; portno<=$endport; portno++ ));
         do
             iportarr[iport]="$portno"
-            ((iport++))
+
+            ((iport=iport+1))
         done
     elif [ $sublen -eq 1 ]; then
         iportarr[iport]="$subpt"
-        ((iport++))
+        ((iport=iport+1))
     else
         echoerror "bad argument for --ports: $subpt"
         exit -1
     fi
-    
+
     for (( j=0; j<$iport; j++ ));
     do
         port=$(echo ${iportarr[j]} | sed 's/^\s+//' | sed 's/\s+$//')
@@ -216,7 +217,7 @@ do
             portslist[numports]="$port"
             hostports[numports]="$host:$port"
 
-            ((numports++))
+            ((++numports))
         else
             ret=$(array_find portslist "$port")
 
@@ -224,7 +225,7 @@ do
                 portslist[numports]="$port"
                 hostports[numports]="$host:$port"
 
-                ((numports++))
+                ((++numports))
             else
                 echoerror "duplicated port: $port"
                 exit -1
@@ -243,8 +244,7 @@ if [ $numports -gt 20 ]; then
 fi
 
 # 目录必须为空
-is_empty_dir "$CLUSTER_ROOT"
-ret=$?
+ret=$(is_empty_dir "$CLUSTER_ROOT")
 
 if [[ $ret == $DIR_NOT_EXISTED ]]; then
     echoinfo "create cluster path: $CLUSTER_ROOT"

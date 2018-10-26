@@ -316,7 +316,7 @@ function strarray_at() {
             col="$s"
             break
         fi
-        ((i++))
+        ((++i))
     done
 
     echo $col

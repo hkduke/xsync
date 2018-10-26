@@ -210,19 +210,19 @@ DIR_NOT_EMPTY=0
 function is_empty_dir() {
     local olddir=$PWD
     local indir=$1
-
+	
     if [ ! -d "$indir" ]; then
-        return $DIR_NOT_EXISTED
-    fi
+        echo "$DIR_NOT_EXISTED"
+	else
+		cd $indir
+		local files=`ls 2>/dev/null`
+		cd $olddir
 
-    cd $indir
-    local files=`ls 2>/dev/null`
-    cd $olddir
-
-    if [ -n "$files" ]; then
-        return $DIR_NOT_EMPTY
-    else
-        return $DIR_IS_EMPTY
+		if [ -n "$files" ]; then
+			echo "$DIR_NOT_EMPTY"
+		else
+			echo "$DIR_IS_EMPTY"
+		fi
     fi
 }
 
@@ -316,7 +316,7 @@ function strarray_at() {
             col="$s"
             break
         fi
-        ((i++))
+        ((i=i+1))
     done
 
     echo $col
