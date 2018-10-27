@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.2
+ * @version: 0.3.3
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-25 16:39:42
+ * @update: 2018-10-27 21:22:02
  */
 
 /******************************************************************************
@@ -100,9 +100,7 @@
  *                    |
  *                    +---- i.included
  *                    |
- *                    +---- path-filter.sh  (路径和文件名过滤脚本: 用户实现)
- *                    |
- *                    +---- event-task.sh   (事件任务执行脚本: 用户实现)
+ *                    +---- events.lua -> (../bin/watch-events.lua 过滤路径和文件名脚本: 用户实现)
  *
  *****************************************************************************/
 #include "client_api.h"
@@ -119,9 +117,6 @@
 
 // 刷新重叠时间: 5 seconds
 #define SWEEP_TIME_OVERLAP  5
-
-// 定义刷新时间点文件名
-#define SWEEP_TIMEPOINT_FILE    "/watch/.sweep-timepoint"
 
 
 static int send_kafka_message(kafkatools_producer_api_t *api, const char *kafka_topic, int kafka_partition, const char *msg, int msglen)
@@ -369,7 +364,7 @@ XS_RESULT client_add_inotify_event (XS_client client, struct watch_event_buf_t *
 
 
 /**
- * 调用外部脚本 path-filter.lua 过滤文件路径目录
+ * 调用外部脚本 events.lua 过滤文件路径目录
  *
  *  (外部脚本返回值):
  *    100 - 接受
@@ -820,10 +815,12 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
     LOGGER_INFO("CLIENTID(=%s): threads=%d queues=%d servers=%d sweep_interval=%d", client->clientid, THREADS, QUEUES, SERVERS, client->sweep_interval);
 
     /* create per thread data and initialize */
-    snprintf(client->buffer, sizeof(client->buffer), "%sevent-task.lua", client->watch_config);
+    snprintf(client->buffer, sizeof(client->buffer), "%sevents.lua", client->watch_config);
     if (access(client->buffer, F_OK|R_OK|X_OK)) {
-        LOGGER_WARN("event-task.lua cannot access (%d): %s (%s)", errno, strerror(errno), client->buffer);
-        *client->buffer = 0;
+        LOGGER_FATAL("events.lua cannot access (%d): %s (%s)", errno, strerror(errno), client->buffer);
+
+        xs_client_delete((void*) client);
+        exit(XS_ERROR);
     }
 
     client->thread_args = (void **) mem_alloc_zero(THREADS, sizeof(void*));

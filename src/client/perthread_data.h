@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.2
+ * @version: 0.3.3
  *
  * @create:
  *
- * @update: 2018-10-22 10:56:41
+ * @update: 2018-10-26 21:57:54
  */
 
 #ifndef PERTHREAD_DATA_H_INCLUDED

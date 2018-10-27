@@ -25,11 +25,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.2
+ * @version: 0.3.3
  *
  * @create: 2018-10-15
  *
- * @update: 2018-10-22 10:56:41
+ * @update: 2018-10-27 21:30:16
  *
  */
 
@@ -228,26 +228,36 @@ int LuaCtxCall (lua_context ctx, const char *funcname, const char *key, const ch
     ctx->keys_offset[0] = 0;
     ctx->values_offset[0] = 0;
 
+	// clear stack
     lua_settop(L, 0);
 
-    lua_getglobal(L, funcname);                 /* Tell it to run callfuncscript.lua->tweaktable() */
+    // tell it ro run __trycall()
+    lua_getglobal(L, "__trycall");
 
-    lua_newtable(L);                            /* Push empty table onto stack table now at -1 */
+    // tell __trycall() the funcname
+	lua_pushstring(L, funcname);
 
-    lua_pushstring(L, key);          /* Push a key onto the stack, table now at -2 */
-    lua_pushstring(L, value);        /* Push a value onto the stack, table now at -3 */
+	// tell __trycall() the intable, table now at -1
+	lua_newtable(L);
 
-    lua_settable(L, -3);                    /* Take key and value, put into table at -3, */
-                                                /*  then pop key and value so table again at -1 */
+	if (key) {
+		// push a key onto the stack, table now at -2
+		lua_pushstring(L, key);
 
-    /* Run function, !!! NRETURN=1 !!! */
-    if ( lua_pcall(L, 1, 1, 0) ) {
+		// push a value onto the stack, table now at -3
+		lua_pushstring(L, value);
+
+		// take key and value, put into table at -3, then pop key and value so table again at -1
+		lua_settable(L, -3);
+	}
+
+    // Run function, !!! NRETURN=1 !!!
+    if ( lua_pcall(L, 2, 1, 0) ) {
         snprintf(ctx->error, sizeof(ctx->error), "lua_pcall fail: %s", lua_tostring(L, -1));
         return LUACTX_ERROR;
     }
 
-    /* table is in the stack at index 't' */
-    /* Make sure lua_next starts at beginning */
+    // table is in the stack at index 't'. Make sure lua_next starts at beginning.
     lua_pushnil(L);
 
     while (lua_next(L, -2)) {                    /* TABLE LOCATED AT -2 IN STACK */
@@ -311,24 +321,33 @@ int LuaCtxCallMany (lua_context ctx, const char *funcname, const char *keys[], c
 
     lua_settop(L, 0);
 
-    lua_getglobal(L, funcname);                 /* Tell it to run callfuncscript.lua->tweaktable() */
+	// tell it ro run __trycall()
+    lua_getglobal(L, "__trycall");
 
-    lua_newtable(L);                            /* Push empty table onto stack table now at -1 */
+    // tell __trycall() the funcname
+	lua_pushstring(L, funcname);
+
+	// tell __trycall() the intable, table now at -1
+    lua_newtable(L);
 
     while (i < kv_pairs) {
         const char * ki = keys[i];
         const char * vi = values[i];
 
-        lua_pushstring(L, ki);                  /* Push a key onto the stack, table now at -2 */
-        lua_pushstring(L, vi);                  /* Push a value onto the stack, table now at -3 */
+		// push a key onto the stack, table now at -2
+        lua_pushstring(L, ki);
 
-        lua_settable(L, -3);                    /* Take key and value, put into table at -3, */
-                                                /*  then pop key and value so table again at -1 */
+        // push a value onto the stack, table now at -3
+        lua_pushstring(L, vi);
+
+		// take key and value, put into table at -3, then pop key and value so table again at -1
+        lua_settable(L, -3);
+
         ++i;
     }
 
-    /* Run function, !!! NRETURN=1 !!! */
-    if ( lua_pcall(L, 1, 1, 0) ) {
+    // Run function, !!! NRETURN=1 !!!
+    if ( lua_pcall(L, 2, 1, 0) ) {
         snprintf(ctx->error, sizeof(ctx->error), "lua_pcall fail: %s", lua_tostring(L, -1));
         return LUACTX_ERROR;
     }

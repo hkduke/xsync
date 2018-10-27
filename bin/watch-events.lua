@@ -1,5 +1,5 @@
--- @file: watch-config.lua
---    xsync-client 配置脚本
+-- @file: watch-events.lua
+--    xsync-client watch events handler
 --
 -- @create: 2018-10-26
 -- @update: 2018-10-26
@@ -22,7 +22,7 @@ require("event-task-1")
 
 
 
----[[ 测试调用
+--[[ 测试调用
     -- 安全调用用户实现的函数: module_version
     local out = __trycall("module_version")
 

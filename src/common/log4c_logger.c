@@ -23,7 +23,7 @@
  * @file: log4c_logger.c
  *
  * @create: 2018-09-28
- * @update: 2018-10-22 10:56:41
+ * @update: 2018-10-26 21:57:54
  */
 
 #include "log4c_logger.h"

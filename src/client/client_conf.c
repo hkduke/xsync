@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.2
+ * @version: 0.3.3
  *
  * @create: 2018-01-26
  *
- * @update: 2018-10-25 16:40:09
+ * @update: 2018-10-27 21:23:50
  */
 
 #include "client_api.h"
@@ -40,14 +40,14 @@
 #include "../common/readconf.h"
 
 
-void * perthread_data_create (XS_client client, int servers, int threadid, const char *taskscriptfile)
+void * perthread_data_create (XS_client client, int servers, int threadid, const char *events_lua)
 {
     perthread_data *perdata = (perthread_data *) mem_alloc_zero(1, sizeof(perthread_data));
 
-    if (taskscriptfile) {
-        LOGGER_INFO("[thread-%d] loading lua script: %s", threadid, taskscriptfile);
+    if (events_lua) {
+        LOGGER_NOTICE("[thread-%d] loading: %s", threadid, events_lua);
 
-        if (LuaCtxNew(taskscriptfile, LUACTX_THREAD_MODE_SINGLE, &perdata->luactx) != LUACTX_SUCCESS) {
+        if (LuaCtxNew(events_lua, LUACTX_THREAD_MODE_SINGLE, &perdata->luactx) != LUACTX_SUCCESS) {
             LOGGER_FATAL("LuaCtxNew fail");
 
             mem_free(perdata);
@@ -118,7 +118,7 @@ void * perthread_data_create (XS_client client, int servers, int threadid, const
                     exit(-1);
                 }
             } else {
-                LOGGER_FATAL("LuaCtxCall kafka_config() fail. see: %s", taskscriptfile);
+                LOGGER_FATAL("LuaCtxCall kafka_config() fail. see: %s", events_lua);
 
                 LuaCtxFree(&perdata->luactx);
                 mem_free(perdata);
@@ -457,17 +457,44 @@ XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_root)
         }
 
         /* initialize lua context */
-        snprintf(pathbuf, sizeof(pathbuf), "%spath-filter.lua", client->watch_config);
+        snprintf(pathbuf, sizeof(pathbuf), "%sevents.lua", client->watch_config);
 
         if (access(pathbuf, F_OK|R_OK|X_OK) == 0) {
-            LOGGER_INFO("loading lua script: %s", pathbuf);
+			char * result = 0;
+
+            LOGGER_NOTICE("loading: events.lua -> %s", pathbuf);
 
             if (LuaCtxNew(pathbuf, LUACTX_THREAD_MODE_MULTI, &client->luactx) != LUACTX_SUCCESS) {
                 LOGGER_FATAL("LuaCtxNew fail");
                 return XS_ERROR;
             }
+
+			if (LuaCtxCall(client->luactx, "module_version", NULL, NULL) != LUACTX_SUCCESS) {
+				LOGGER_FATAL("LuaCtxCall module_version() fail: %s", LuaCtxGetError(client->luactx));
+			} else {
+				if (LuaCtxGetValueByKey(client->luactx, "result", 6, &result) && ! strcmp(result, "SUCCESS")) {
+					char * version;
+					char * author;
+
+					if (LuaCtxGetValueByKey(client->luactx, "version", 7, &version) && LuaCtxGetValueByKey(client->luactx, "author", 6, &author)) {
+						LOGGER_NOTICE("version=%s, author=%s", version, author);
+					} else {
+						result = 0;
+						LOGGER_FATAL("LuaCtxCall module_version() fail: version or author not found");
+					}
+				} else {
+					result = 0;
+					LOGGER_FATAL("LuaCtxCall module_version() fail");
+				}
+			}
+
+			if (! result) {
+				LuaCtxFree(&client->luactx);
+                return XS_ERROR;
+			}
         } else {
-            LOGGER_WARN("file access error(%d): %s (%s)", errno, strerror(errno), pathbuf);
+            LOGGER_ERROR("file access error(%d): %s (%s)", errno, strerror(errno), pathbuf);
+            return XS_ERROR;
         }
     }
 
