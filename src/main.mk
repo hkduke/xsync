@@ -2,9 +2,9 @@
 # @file: main.mk
 #   refer: https://github.com/dmoulding/boilermake
 #
-# @version: 0.3.3
+# @version: 0.3.4
 # @create: 2018-05-18 14:00:00
-# @update: 2018-10-26 21:57:54
+# @update: 2018-10-29 10:24:55
 #######################################################################
 # GCC, the GNU C compiler, supports `-g' with or without `-O',
 #   making it possible to debug optimized code.

@@ -35,11 +35,11 @@
  * 异步:
  *    https://blog.csdn.net/l1902090/article/details/38583663
  *
- * @version: 0.3.3
+ * @version: 0.3.4
  *
  * @create: 2018-02-10
  *
- * @update: 2018-10-26 21:57:54
+ * @update: 2018-10-29 10:24:55
  *
  */
 #ifndef REDIS_CONN_SYN_H_INCLUDED

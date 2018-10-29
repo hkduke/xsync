@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.3
+ * @version: 0.3.4
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-27 21:22:02
+ * @update: 2018-10-29 11:50:24
  */
 
 /******************************************************************************
@@ -100,7 +100,7 @@
  *                    |
  *                    +---- i.included
  *                    |
- *                    +---- events.lua -> (../bin/watch-events.lua 过滤路径和文件名脚本: 用户实现)
+ *                    +---- events-filter.lua -> (../bin/watch-events-filter.lua 过滤路径和文件名脚本: 用户实现)
  *
  *****************************************************************************/
 #include "client_api.h"
@@ -364,7 +364,7 @@ XS_RESULT client_add_inotify_event (XS_client client, struct watch_event_buf_t *
 
 
 /**
- * 调用外部脚本 events.lua 过滤文件路径目录
+ * 调用外部脚本 events-filter.lua 过滤文件路径目录
  *
  *  (外部脚本返回值):
  *    100 - 接受
@@ -387,6 +387,8 @@ int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX
 {
     int len, ret, wd;
 
+    char *p = client->illegal_name_chars;
+
     char *abspath = realpath(path, pathbuf);
     if (! abspath) {
         LOGGER_ERROR("realpath error(%d): %s (%s)", errno, strerror(errno), path);
@@ -400,6 +402,30 @@ int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX
     }
 
     LOGGER_TRACE("path={%s}", abspath);
+
+    // 过滤掉包含非法字符的路径
+    if ( *p ) {
+        int i;
+        char ch;
+        int illegal = 0;
+
+        for (i = 0; i < len; i++) {
+            ch = abspath[i];
+
+            p = client->illegal_name_chars + 1;
+
+            while (!illegal && *p) {
+                if (ch == *p) {
+                    illegal = 1;
+                }
+            }
+
+            if (illegal) {
+                LOGGER_WARN("illegal path: %s", path);
+                return 0;
+            }
+        }
+    }
 
     // 调用外部脚本, 过滤监视路径
     ret = FILTER_WPATH_ACCEPT;
@@ -463,11 +489,38 @@ int filter_watch_file (XS_client client, struct watch_event_buf_t *evbuf)
 {
     int retcode = FILTER_WPATH_ACCEPT;
 
+    char *p = client->illegal_name_chars;
+
     if (! evbuf->pathname || ! evbuf->name) {
         LOGGER_ERROR("application error: null name");
         return 0;
     }
 
+    // 过滤掉包含非法字符的文件名
+    if ( *p ) {
+        int i;
+        char ch;
+        int illegal = 0;
+
+        for (i = 0; i < evbuf->len; i++) {
+            ch = evbuf->name[i];
+
+            p = client->illegal_name_chars + 1;
+
+            while (!illegal && *p) {
+                if (ch == *p) {
+                    illegal = 1;
+                }
+            }
+
+            if (illegal) {
+                LOGGER_WARN("illegal file: %s", evbuf->name);
+                return 0;
+            }
+        }
+    }
+
+    // 调用脚本过滤文件名
     if (LuaCtxLockState(client->luactx)) {
         const char *keys[] = {"path", "file", "mtime", "size"};
         const char *values[] = {evbuf->pathname, evbuf->name, evbuf->str_mtime, evbuf->str_size};
@@ -567,7 +620,7 @@ int lscb_sweep_watch_path (const char *path, int pathlen, struct mydirent *myent
             char *name = strrchr(path, '/');
 
             if (name && *name++) {
-                int result = 0;
+                int result;
 
                 evbuf.wd = pv_cast_to_int(arg2);
                 evbuf.mask = IN_CLOSE_NOWRITE;
@@ -614,6 +667,8 @@ int lscb_sweep_watch_path (const char *path, int pathlen, struct mydirent *myent
                         evbuf.len = 0;
                     }
                 }
+
+                result = 0;
 
                 if (evbuf.len) {
                     red_black_node_t *node = 0;
@@ -814,10 +869,14 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
 
     LOGGER_INFO("CLIENTID(=%s): threads=%d queues=%d servers=%d sweep_interval=%d", client->clientid, THREADS, QUEUES, SERVERS, client->sweep_interval);
 
+    /* 路径或文件名不可以包含的字符. TODO: 用户可以更改 ! */
+    strcpy(client->illegal_name_chars + 1, " |,;:'\"*(){}");
+    client->illegal_name_chars[0] = (char) strlen(client->illegal_name_chars + 1);
+
     /* create per thread data and initialize */
-    snprintf(client->buffer, sizeof(client->buffer), "%sevents.lua", client->watch_config);
+    snprintf(client->buffer, sizeof(client->buffer), "%sevents-filter.lua", client->watch_config);
     if (access(client->buffer, F_OK|R_OK|X_OK)) {
-        LOGGER_FATAL("events.lua cannot access (%d): %s (%s)", errno, strerror(errno), client->buffer);
+        LOGGER_FATAL("events-filter.lua cannot access (%d): %s (%s)", errno, strerror(errno), client->buffer);
 
         xs_client_delete((void*) client);
         exit(XS_ERROR);

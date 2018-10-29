@@ -100,11 +100,13 @@ function update_xclient_dist() {
     ln -s /tmp/xclient/test-log test-log
 
     cp ${_cdir}/conf/log4crc ${XCHOME}/conf/
-    cp ${_cdir}/conf/xsync-client-conf.xml ${XCHOME}/conf/    
+    cp ${_cdir}/conf/xclient.cfg ${XCHOME}/conf/    
     cp ${_cdir}/bin/test-stash.sh ${XCHOME}/bin/
     cp ${_cdir}/bin/common.sh ${XCHOME}/bin/
+    cp ${_cdir}/bin/__trycall.lua ${XCHOME}/bin/
     cp ${_cdir}/bin/path-filter-1.lua ${XCHOME}/bin/
     cp ${_cdir}/bin/event-task-1.lua ${XCHOME}/bin/
+    cp ${_cdir}/bin/watch-events-filter.lua ${XCHOME}/bin/
     cp ${_cdir}/bin/xclient-status.sh ${XCHOME}/bin/
     cp ${_cdir}/target/xsync-client-$verno ${XCHOME}/sbin/
     cp ${_cdir}/target/libkafkatools.so.1.0.0 ${XCHOME}/sbin/
@@ -120,8 +122,7 @@ function update_xclient_dist() {
     ln -s libkafkatools.so.1.0.0 libkafkatools.so.1
 
     cd ${XCHOME}/watch/
-    ln -s ../bin/path-filter-1.lua path-filter.lua
-    ln -s ../bin/event-task-1.lua event-task.lua
+    ln -s ../bin/watch-events-filter.lua events-filter.lua
 
     echoinfo "package all xclient packages: ${DISTROOT}/xclient-dist-$verno.tar.gz"
     cd ${DISTROOT}

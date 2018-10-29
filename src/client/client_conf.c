@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.3
+ * @version: 0.3.4
  *
  * @create: 2018-01-26
  *
- * @update: 2018-10-27 21:23:50
+ * @update: 2018-10-29 10:31:51
  */
 
 #include "client_api.h"
@@ -457,12 +457,12 @@ XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_root)
         }
 
         /* initialize lua context */
-        snprintf(pathbuf, sizeof(pathbuf), "%sevents.lua", client->watch_config);
+        snprintf(pathbuf, sizeof(pathbuf), "%sevents-filter.lua", client->watch_config);
 
         if (access(pathbuf, F_OK|R_OK|X_OK) == 0) {
 			char * result = 0;
 
-            LOGGER_NOTICE("loading: events.lua -> %s", pathbuf);
+            LOGGER_NOTICE("loading: events-filter.lua -> %s", pathbuf);
 
             if (LuaCtxNew(pathbuf, LUACTX_THREAD_MODE_MULTI, &client->luactx) != LUACTX_SUCCESS) {
                 LOGGER_FATAL("LuaCtxNew fail");

@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.3
+ * @version: 0.3.4
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-26 21:57:54
+ * @update: 2018-10-29 11:49:29
  */
 
 #ifndef CLIENT_CONF_H_INCLUDED
@@ -104,6 +104,9 @@ typedef struct xs_client_t
 
     /* 刷新时间: 默认 0 */
     volatile time_t ready_time;
+
+    /* 非法的路径文件名字符: 第一个字符保存的是字符的数目 */
+    char illegal_name_chars[32];
 
     /* 总的刷新计数器 */
     volatile int64_t sweep_count;

@@ -1,5 +1,5 @@
 -- @file: watch-events.lua
---    xsync-client watch events handler
+--    xsync-client watch events filter
 --
 -- @create: 2018-10-26
 -- @update: 2018-10-26
@@ -18,20 +18,4 @@ require("__trycall")
 require("path-filter-1")
 require("event-task-1")
 
---]]
-
-
-
---[[ 测试调用
-    -- 安全调用用户实现的函数: module_version
-    local out = __trycall("module_version")
-
-    print("result=" .. out.result)
-    print("exception=" .. out.exception)
-
-    if out.result == "SUCCESS"
-    then
-        print("version=" .. out.version)
-        print("author=" .. out.author)
-    end
 --]]
