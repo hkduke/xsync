@@ -567,7 +567,10 @@ inline const char * XSConnectRequestPrint (const XSConnectReq_t *req, char *buff
 
     XSVersion_t ver;
 
-    snprintf(buffer, bufsize, "\n  clientid='%s'\n  msgid='%c%c%c%c'\n  magic=%d\n  randnum=%d\n  version=%s(%d)\n  utctime=%ju",
+    /* printf for uint32 or uint64
+     *   https://blog.csdn.net/nullzhou/article/details/38703095
+     */
+    snprintf(buffer, bufsize, "\n  clientid='%s'\n  msgid='%c%c%c%c'\n  magic=%d\n  randnum=%u\n  version=%s (%u)\n  utctime=%ju",
         clientid,
         req->head[0], req->head[1], req->head[2], req->head[3],
         req->magic,
