@@ -30,7 +30,7 @@
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-29 11:50:24
+ * @update: 2018-10-29 12:17:11
  */
 
 /******************************************************************************
@@ -415,13 +415,13 @@ int filter_watch_path (XS_client client, const char *path, char pathbuf[PATH_MAX
             p = client->illegal_name_chars + 1;
 
             while (!illegal && *p) {
-                if (ch == *p) {
+                if (ch == *p++) {
                     illegal = 1;
                 }
             }
 
             if (illegal) {
-                LOGGER_WARN("illegal path: %s", path);
+                LOGGER_WARN("illegal path: '%s'", path);
                 return 0;
             }
         }
@@ -508,13 +508,13 @@ int filter_watch_file (XS_client client, struct watch_event_buf_t *evbuf)
             p = client->illegal_name_chars + 1;
 
             while (!illegal && *p) {
-                if (ch == *p) {
+                if (ch == *p++) {
                     illegal = 1;
                 }
             }
 
             if (illegal) {
-                LOGGER_WARN("illegal file: %s", evbuf->name);
+                LOGGER_WARN("illegal file: '%s'", evbuf->name);
                 return 0;
             }
         }
