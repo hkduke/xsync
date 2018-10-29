@@ -50,6 +50,187 @@ static char * trim(char *s, char c)
 
 
 __attribute__((used))
+static int str_to_port(char *port)
+{
+    int pno = 0;
+
+    char *p = port;
+
+    while (*p) {
+        if (! isdigit(*p)) {
+            return 0;
+        }
+
+        p++;
+
+        if (p - port > 8) {
+            return 0;
+        }
+    }
+
+    if (p == port) {
+        return 0;
+    }
+
+    pno = atoi(port);
+
+    if (pno < 1024 || pno > 65535) {
+        return 0;
+    }
+
+    return pno;
+}
+
+
+/**
+ * hps:
+ *
+ *  127.0.0.1:7001,127.0.0.1:7002,127.0.0.1:7003,127.0.0.1:7004,127.0.0.1:7005,127.0.0.1:7006,127.0.0.1:7007,127.0.0.1:7008,127.0.0.1:7009
+ *  127.0.0.1:7001-7009
+ *  127.0.0.1:7001-7005,127.0.0.1:7006-7009
+ *  localhost:7001-7009
+ */
+__attribute__((used))
+int RedisParseHosts(const char *hpstr, ssize_t len, char **hpstrOut)
+{
+    if (len == -1) {
+        len  = (hpstr ? strlen(hpstr) : 0);
+    }
+
+    if (len > 0 && len < 4096) {
+        char *port, *endp;
+
+        char *hpout;
+
+        int outlen = 0;
+        int nodes = 0;
+
+        char *hp, *pairs;
+
+        int ncb, pno, startpno, endpno;
+
+        char hpbuf[134];
+
+        char *buf = (char*) malloc(len + 1);
+
+        // 复制 hpstr
+        memcpy(buf, hpstr, len);
+        buf[len] = 0;
+
+        // 去掉空格
+        pairs = trim(buf, 32);
+
+        // 获取节点数
+        hp = strtok(pairs, ",");
+        while (hp) {
+            port = strchr(hp, ':');
+            if (! port) {
+                free(buf);
+                return 0;
+            }
+
+            *port++ = 0;
+
+            endp = strchr(port, '-');
+
+            if (endp) {
+                *endp++ = 0;
+
+                startpno = str_to_port(port);
+                endpno = str_to_port(endp);
+            } else {
+                startpno = str_to_port(port);
+                endpno = startpno;
+            }
+
+            if (startpno == 0 || endpno == 0 || startpno > endpno || endpno - startpno > 255) {
+                free(buf);
+                return 0;
+            }
+
+            // 组合每个主机和端口
+            for (pno = startpno; pno <= endpno; pno++) {
+                ncb = snprintf(hpbuf, sizeof(hpbuf), "%s:%d", hp, pno);
+                if (ncb < 6 || ncb >= sizeof(hpbuf)) {
+                    free(buf);
+                    return 0;
+                }
+
+                outlen += (ncb + 1);
+
+                if (nodes++ > 255) {
+                    free(buf);
+                    return 0;
+                }
+            }
+
+            hp = strtok(0, ",");
+        }
+
+        if (! outlen) {
+            free(buf);
+            return 0;
+        }
+
+        // 输出列表
+        hpout = malloc(sizeof(char) * (outlen + 1));
+        *hpout = '\0';
+        
+        // 复制 hpstr
+        memcpy(buf, hpstr, len);
+        buf[len] = 0;
+
+        // 去掉空格
+        pairs = trim(buf, 32);
+
+        // 获取节点数
+        hp = strtok(pairs, ",");
+        while (hp) {
+            port = strchr(hp, ':');
+            *port++ = 0;
+
+            endp = strchr(port, '-');
+            if (endp) {
+                *endp++ = 0;
+
+                startpno = str_to_port(port);
+                endpno = str_to_port(endp);
+            } else {
+                startpno = str_to_port(port);
+                endpno = startpno;
+            }
+
+            // 组合每个主机和端口
+            for (pno = startpno; pno <= endpno; pno++) {
+                snprintf(hpbuf, sizeof(hpbuf), "%s:%d,", hp, pno);
+                strcat(hpout, hpbuf);
+            }
+
+            hp = strtok(0, ",");
+        }
+
+        free(buf);
+
+        // 去掉末尾的 ','
+        hpout[outlen - 1] = '\0';
+        
+        *hpstrOut = hpout;
+
+        return nodes;
+    }
+
+    return 0;
+}
+
+
+__attribute__((used))
+void RedisMemFree(void *pbuf)
+{
+    free(pbuf);
+}
+
+
+__attribute__((used))
 int RedisConnInit(RedisConn_t * redconn, int maxNodes, const char * password, int conn_timeo_ms, int data_timeo_ms)
 {
     size_t authlen = 0;
@@ -105,79 +286,36 @@ int RedisConnInit(RedisConn_t * redconn, int maxNodes, const char * password, in
 
 
 __attribute__((used))
-int RedisConnInit2(RedisConn_t * redconn, const char * host_post_pairs, const char * password, int conn_timeo_ms, int data_timeo_ms)
+int RedisConnInit2(RedisConn_t * redconn, const char * parsed_hosts, int nodes, const char * password, int conn_timeo_ms, int data_timeo_ms)
 {
-    /**
-     * host_post_pairs:
-     *
-     *  127.0.0.1:7001,127.0.0.1:7002,127.0.0.1:7003,127.0.0.1:7004,127.0.0.1:7005,127.0.0.1:7006,127.0.0.1:7007,127.0.0.1:7008,127.0.0.1:7009
-     *  127.0.0.1:7001-7009
-     *  127.0.0.1:7001-7005,127.0.0.1:7006-7009
-     *  localhost:7001-7009
-     */
-    char *buf, *pairs, *hp, *port;
-
-    int nodes, rc = -1;
-
-    size_t len = strlen(host_post_pairs);
-
-    buf = (char*) malloc(len + 1);
-
-    memcpy(buf, host_post_pairs, len);
-    buf[len] = 0;
-    pairs = trim(buf, 32);
-
-    nodes = 0;
-    hp = strtok(pairs, ",");
-    while (hp) {
-        port = strchr(hp, ':');
-        if (! port) {
-            free(buf);
-
-            snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad argument: port not found");
-            redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
-
-            return REDISAPI_EARG;
-        }
-        *port++ = 0;
-        while(*port) {
-            if (! isdigit(*port++)) {
-                free(buf);
-
-                snprintf(redconn->errmsg, sizeof(redconn->errmsg), "bad argument: invalid port");
-                redconn->errmsg[ REDISAPI_ERRMSG_MAXLEN ] = 0;
-
-                return REDISAPI_EARG;
-            }
-        }
-        ++nodes;
-        hp = strtok(0, ",");
-    }
+    char *hpbuf, *host, *port;
+    int node, rc;
 
     rc = RedisConnInit(redconn, nodes, password, conn_timeo_ms, data_timeo_ms);
     if (rc != 0) {
-        free(buf);
         return rc;
     }
 
-    memcpy(buf, host_post_pairs, len);
-    buf[len] = 0;
-    pairs = trim(buf, 32);
+    rc = strlen(parsed_hosts);
+    hpbuf = malloc(rc + 1);
+    memcpy(hpbuf, parsed_hosts, rc);
+    hpbuf[rc] = '\0';
 
-    nodes = 0;
-    hp = strtok(pairs, ",");
-    while (hp) {
-        port = strchr(hp, ':');
+    node = 0;
+    host = strtok(hpbuf, ",");
+    while (host) {
+        port = strchr(host, ':');
         *port++ = 0;
-        if (RedisConnSetNode(redconn, nodes++, hp, atoi(port)) != 0) {
-            free(buf);
+
+        if (RedisConnSetNode(redconn, node++, host, atoi(port)) != 0) {
+            free(hpbuf);
             return -1;
         }
-        hp = strtok(0, ",");
+
+        host = strtok(0, ",");
     }
 
-    free(buf);
-
+    free(hpbuf);
     return REDISAPI_SUCCESS;
 }
 

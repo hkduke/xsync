@@ -168,13 +168,21 @@ typedef struct RedisAsynConn_t
 
 
 /**
+ * 解析 host 参数
+ */
+extern int RedisParseHosts(const char *hpstr, ssize_t len, char **hpstrOut);
+
+extern void RedisMemFree(void *pbuf);
+
+
+/**
  * 同步 API
  * low level functions
  */
-
+ 
 extern int RedisConnInit(RedisConn_t * redconn, int nodesNum, const char * password, int conn_timeo_ms, int data_timeo_ms);
 
-extern int RedisConnInit2(RedisConn_t * redconn, const char * host_post_pairs, const char * password, int conn_timeo_ms, int data_timeo_ms);
+extern int RedisConnInit2(RedisConn_t * redconn, const char * parsed_hosts, int nodes, const char * password, int conn_timeo_ms, int data_timeo_ms);
 
 extern void RedisConnFree(RedisConn_t * redconn);
 

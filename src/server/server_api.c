@@ -129,6 +129,9 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
 
     XS_server server;
 
+    char *hosts;
+    int nodes;
+
     int redis_timeo_ms = 100;
 
     int THREADS = opts->threads;
@@ -149,10 +152,23 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
 
     // redis connection
     LOGGER_DEBUG("RedisConnInit2: cluster='%s'", opts->redis_cluster);
-    if (RedisConnInit2(&server->redisconn, opts->redis_cluster, opts->redis_auth, redis_timeo_ms, redis_timeo_ms) != 0) {
-        LOGGER_ERROR("RedisConnInit2 failed - %s", server->redisconn.errmsg);
+
+    nodes = RedisParseHosts(opts->redis_cluster, -1, &hosts);
+    if ( ! nodes ) {
+        LOGGER_ERROR("RedisConnInit2 failed. bad argument: --redis-cluster='%s'", opts->redis_cluster);
         mem_free((void*) server);
         return XS_ERROR;
+    }
+
+    if (RedisConnInit2(&server->redisconn, hosts, nodes, opts->redis_auth, redis_timeo_ms, redis_timeo_ms) != 0) {
+        LOGGER_ERROR("RedisConnInit2 failed: '%s'", hosts);
+
+        RedisMemFree(hosts);
+        mem_free((void*) server);
+
+        return XS_ERROR;
+    } else {
+        LOGGER_NOTICE("RedisConnInit2 success: '%s'", hosts);
     }
 
     __interlock_release(&server->session_counter);
@@ -164,11 +180,13 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
 
         RedisConnFree(&server->redisconn);
 
+        RedisMemFree(hosts);
         mem_free((void*) server);
+
         return XS_ERROR;
     }
 
-    /* init dhlist for client_session */
+    /* TODO: init dhlist for client_session */
     LOGGER_TRACE("hlist_init client_session");
     for (i = 0; i <= XSYNC_CLIENT_SESSION_HASHMAX; i++) {
         INIT_HLIST_HEAD(&server->client_hlist[i]);
@@ -183,12 +201,14 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
         // perthread_data was defined in file_entry.h
         perthread_data *perdata = (perthread_data *) mem_alloc_zero(1, sizeof(perthread_data));
 
-        RedisConnInit2(&perdata->redconn, opts->redis_cluster, opts->redis_auth, redis_timeo_ms, redis_timeo_ms);
+        RedisConnInit2(&perdata->redconn, hosts, nodes, opts->redis_auth, redis_timeo_ms, redis_timeo_ms);
 
         perdata->threadid = i + 1;
 
         server->thread_args[i] = (void*) perdata;
     }
+
+    RedisMemFree(hosts);
 
     server->threads = THREADS;
     server->queues = QUEUES;
