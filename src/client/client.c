@@ -300,18 +300,18 @@ static void * thread_func_ok (void *arg)
 
 static void * thread_func (void *arg)
 {
-    int tid = pthread_self();
-
     XS_RESULT xres;
 
-    char clientid[] = "xsync-test";
+    xs_server_opts *xsrvopts = (xs_server_opts *) arg;
 
     XS_server_conn xcon = 0;
+
+    int tid = pthread_self();
 
     printf("thread#%lld start ...\n", (long long) tid);
 
     do {
-        xres = XS_server_conn_create((xs_server_opts *) arg, clientid, &xcon);
+        xres = XS_server_conn_create(xsrvopts, xsrvopts->clientid, &xcon);
 
         if (xres != XS_SUCCESS) {
             printf("failed to connect server.\n");
@@ -331,18 +331,23 @@ static void * thread_func (void *arg)
 void run_interactive (int threads)
 {
 #define XSCLIAPP    csh_green_msg("["APP_NAME"] ")
+    char msg[256];
+    const char *result;
 
     xs_server_opts  srvopts;
     bzero(&srvopts, sizeof(srvopts));
 
+    strcpy(srvopts.clientid, "xsync-test");
     strcpy(srvopts.host, "localhost");
     strcpy(srvopts.sport, XSYNC_PORT_DEFAULT);
 
-    LOGGER_INFO("interactive client [%s] start ...", APP_NAME);
+    LOGGER_INFO("[%s] start in interactive mode...", APP_NAME);
 
-    char msg[256];
-
-    const char *result;
+    result = getinputline(XSCLIAPP CSH_CYAN_MSG("Input clientid [xsync-test]: "), msg, sizeof(msg));
+    if (result) {
+        strncpy(srvopts.clientid, result, sizeof(srvopts.clientid) - 1);
+    }
+    srvopts.clientid[sizeof(srvopts.clientid) - 1] = '\0';
 
     result = getinputline(XSCLIAPP CSH_CYAN_MSG("Input server ip [localhost]: "), msg, sizeof(msg));
     if (result) {

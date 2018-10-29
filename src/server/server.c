@@ -210,11 +210,6 @@ void run_service (xs_appopts_t *opts)
     XS_server server;
 
     if (XS_server_create(opts, &server) == XS_SUCCESS) {
-
-#ifdef DEBUG
-
-#endif
-
         /** 启动客户端服务程序, 永远运行 */
         XS_server_bootstrap(server);
 

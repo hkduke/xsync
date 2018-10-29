@@ -62,6 +62,8 @@ typedef struct xs_server_opts
     int port;
 
     struct sockconn_opts sockopts;
+
+    char clientid[XSYNC_CLIENTID_MAXLEN + 1];
 } xs_server_opts;
 
 

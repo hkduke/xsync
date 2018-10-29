@@ -37,15 +37,6 @@
 #include "server_conf.h"
 
 
-__attribute__((unused))
-static void zdbPoolErrorHandler (const char *error)
-{
-    LOGGER_FATAL("%s", error);
-
-    exit(-101);
-}
-
-
 __attribute__((used))
 static void handleNewConnection (perthread_data *perdata)
 {
