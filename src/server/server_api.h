@@ -90,6 +90,18 @@ typedef struct xs_appopts_t
 } xs_appopts_t;
 
 
+/**
+ * 生成 redis XCON 表的 key = 'xs:$serverid:xcon:$connfd'
+ *   size of key[] specified by len must > 30
+ */
+static inline const char * XCON_redis_table_key(const char *serverid, int connfd, char key[], int len)
+{
+    len = snprintf(key, 30, "xs:%s:xcon:%d", serverid, connfd);
+    key[len] = 0;
+    return key;
+}
+
+
 extern void event_task (thread_context_t *thread_ctx);
 
 /**
@@ -110,19 +122,6 @@ extern int epcb_event_accept(epollet_msg epmsg, void *arg);
 extern int epcb_event_reject(epollet_msg epmsg, void *arg);
 
 extern int epcb_event_pollin(epollet_msg epmsg, void *arg);
-
-
-
-
-/**
- * 生成 redis XCON 表的 key = 'xs:$serverid:xcon:$connfd'
- *   size of key[] specified by len must > 30
- */
-static inline const char * XCON_redis_table_key(const char *serverid, int connfd, char key[], int len) {
-    len = snprintf(key, 30, "xs:%s:xcon:%d", serverid, connfd);
-    key[len] = 0;
-    return key;
-}
 
 
 /**

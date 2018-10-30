@@ -38,9 +38,9 @@
 
 
 __attribute__((used))
-static void handleNewConnection (perthread_data *perdata)
+static void handle_peer_connect (perthread_data *perdata)
 {
-    //TODO: XS_server server = (XS_server) perdata->pollin.arg;
+    //// XS_server server = (XS_server) perdata->pollin.arg;
 
     int epollfd = perdata->pollin.epollfd;
     int clientfd = perdata->pollin.epevent.data.fd;
@@ -48,6 +48,7 @@ static void handleNewConnection (perthread_data *perdata)
     int next = 1;
     int cb = 0;
 
+    // read-up all bytes
     while (next && (cb = readlen_next(clientfd, perdata->buffer, XSYNC_BUFSIZE, &next)) >= 0) {
         if (cb > 0) {
             LOGGER_DEBUG("(thread-%d) sock(%d): read %d bytes.", perdata->threadid, clientfd, cb);
@@ -102,7 +103,7 @@ void event_task (thread_context_t *thread_ctx)
     LOGGER_TRACE("(thread-%d) task start...", perdata->threadid);
 
     if (task->flags == 100) {
-        handleNewConnection(perdata);
+        handle_peer_connect(perdata);
     } else {
         // handleOldClient(perdata);
         LOGGER_ERROR("(thread-%d) unknown task flags(=%d)", perdata->threadid, task->flags);
@@ -307,6 +308,7 @@ extern XS_VOID XS_server_bootstrap (XS_server server)
 
     LOGGER_INFO("epollet_server starting...");
 
+    // see: common/epollet.h
     epollet_server_loop_events(&server->epserver, &epmsg);
 
     mul_timer_pause();

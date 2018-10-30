@@ -630,7 +630,7 @@ static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg 
                     if (err == 0) {
                         // success
                         if (! EPOLLET_EVENT_CB(EPEVT_PEER_OPEN, epmsg)) {
-                            // client rejected
+                            // client was rejected
 
                             EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
 

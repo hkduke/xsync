@@ -80,7 +80,7 @@ int epcb_event_peer_open(epollet_msg epmsg, void *arg)
     };
 
     const char * vals[] = {
-        0, // delete it
+        0, // 0 delete key
         epmsg->hbuf,
         epmsg->sbuf,
         0
@@ -89,12 +89,12 @@ int epcb_event_peer_open(epollet_msg epmsg, void *arg)
     if (RedisHashMultiSet(&server->redisconn, server->msgbuf, flds, vals, 0, 60 * 1000) != 0) {
         LOGGER_ERROR("RedisHashMultiSet(%s): %s", server->msgbuf, server->redisconn.errmsg);
 
-        /* 0=拒绝新客户连接 */
+        /* 0: 拒绝新客户连接 */
         return 0;
     } else {
         LOGGER_DEBUG("RedisHashMultiSet(%s): {host=%s, port=%s}", server->msgbuf, epmsg->hbuf, epmsg->sbuf);
 
-        /* 1=接受新客户连接 */
+        /* 1: 接受新客户连接 */
         return 1;
     }
 }
@@ -121,15 +121,16 @@ int epcb_event_reject(epollet_msg epmsg, void *arg)
 }
 
 
+/**
+ * 返回值:
+ *    -1 没有实现, 使用默认实现
+ *     0  暂时无法提供服务
+ *     1  接受请求
+ */
 int epcb_event_pollin(epollet_msg epmsg, void *arg)
 {
-    // 返回值:
-    //   -1 没有实现, 使用默认实现
-    //   0  暂时无法提供服务
-    //   1  接受请求
-    LOGGER_TRACE("EPEVT_POLLIN(%d): %s", epmsg->clientfd, epmsg->buf);
+    int ret;
 
-    int rc;
     XS_server server = (XS_server) arg;
 
     /**
@@ -146,32 +147,32 @@ int epcb_event_pollin(epollet_msg epmsg, void *arg)
 
     redisReply *reply = 0;
 
+    LOGGER_DEBUG("EPEVT_POLLIN(%d): %s", epmsg->clientfd, epmsg->buf);
+
     XCON_redis_table_key(server->serverid, epmsg->clientfd, server->msgbuf, sizeof server->msgbuf);
 
     if (RedisHashMultiGet(&server->redisconn, server->msgbuf, fields, &reply) != REDISAPI_SUCCESS) {
+        LOGGER_ERROR("redis error");
         return 0;
     }
 
-    LOGGER_TRACE("[%s] => {%s='%s' %s='%s' %s='%s'}", server->msgbuf,
-        fields[0],
-            (reply->element[0]->str? reply->element[0]->str : "(nil)"),
-        fields[1],
-            (reply->element[1]->str? reply->element[1]->str : "(nil)"),
-        fields[2],
-            (reply->element[2]->str? reply->element[2]->str : "(nil)")
-    );
+    LOGGER_DEBUG("[%s] => {%s='%s' %s='%s' %s='%s'}", server->msgbuf,
+        fields[0], reply->element[0]->str,
+        fields[1], reply->element[1]->str,
+        fields[2], reply->element[2]->str);
 
-    rc = threadpool_unused_queues(server->pool);
-    LOGGER_TRACE("threadpool_unused_queues=%d", rc);
+    ret = threadpool_unused_queues(server->pool);
 
-    if (rc > 0) {
+    if (ret > 0) {
         int flags = 0;
 
         PollinData_t * pollin = (PollinData_t *) mem_alloc_zero(1, sizeof(PollinData_t));
 
+        // 根据 clientid 字段是否为空判断用户已经连接
+
         if (reply->element[2]->type == REDIS_REPLY_STRING) {
             // 用户连接已经存在
-            LOGGER_TRACE("peer connected.");
+            LOGGER_DEBUG("peer already connected.");
 
             // 复制 clientid 到 buf
             memcpy(pollin->buf, reply->element[2]->str, reply->element[2]->len);
@@ -180,36 +181,46 @@ int epcb_event_pollin(epollet_msg epmsg, void *arg)
 
             flags = 1;
         } else {
-            // 用户要求建立连接
-            LOGGER_TRACE("peer connecting ...");
-
             assert(reply->element[2]->type == REDIS_REPLY_NIL);
 
-            pollin->buf[0] = 0;
+            // 用户要求建立连接
+            LOGGER_DEBUG("new peer connecting ...");           
 
+            // flags = 100 表示新用户连接
             flags = 100;
         }
 
+        // 释放临时对象
         RedisFreeReplyObject(&reply);
 
+        // 设置值
         pollin->epollfd = epmsg->epollfd;
         pollin->epevent = epmsg->pollin_event;
         pollin->arg = arg;
 
-        if (threadpool_add(server->pool, event_task, (void*) pollin, flags) == 0) {
+        // 由工作线程来处理新用户连接
+        ret = threadpool_add(server->pool, event_task, (void*) pollin, flags);
+
+        if (ret == 0) {
             // 增加到线程池成功
             LOGGER_TRACE("threadpool_add task success");
-            return 1;
-        }
 
-        // 增加到线程池失败
-        LOGGER_ERROR("threadpool_add task failed");
-        mem_free(pollin);
-        return 0;
+            return 1;
+        } else {
+            // 增加到线程池失败 (可能线程数目不够, 需要增加线程数)
+            LOGGER_ERROR("threadpool_add fail: %s", threadpool_error_messages[-ret]);
+
+            // 释放线程参数对象
+            mem_free(pollin);
+
+            return 0;
+        }
     }
 
+    // 释放临时对象
     RedisFreeReplyObject(&reply);
+    
+    LOGGER_WARN("queue is full");
 
-    /* queue is full */
     return 0;
 }

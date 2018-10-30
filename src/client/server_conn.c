@@ -122,7 +122,7 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
                     break;
                 }
 
-                sleep(1);
+                sleep(10);
             }
         }
 
