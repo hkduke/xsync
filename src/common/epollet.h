@@ -357,52 +357,6 @@ static inline void cleanup_socket (int *fd_addr)
 }
 
 
-/**
- * 读光缓冲区
- * We have data on the infd waiting to be read. Read and display it.
- * We must read whatever data is available completely, as we are running
- *  in edge-triggered mode and won't get a notification again for the same data.
- */
-__attribute__((unused))
-static inline int readlen_next (int fd, char * buf, int len, int *next)
-{
-    ssize_t count;
-
-    // 已读字节
-    int offset = 0;
-
-    // 剩余未读字节
-    int remain = len - offset;
-
-    *next = 1;
-
-    while (remain > 0) {
-        count = read(fd, buf + offset, remain);
-        if (count == -1) {
-            if (errno != EAGAIN) {
-                perror("read");
-                return (-1);
-            }
-
-            /**
-             * if (errno == EAGAIN) that means we have read all data.
-             */
-            *next = 0;
-            break;
-        } else if (count == 0) {
-            /* End of file. The remote has closed the connection. */
-            printf("remote has closed the connection.\n");
-            return (-2);
-        } else {
-            offset += count;
-            remain = len - offset;
-        }
-    }
-
-    return offset;
-}
-
-
 __attribute__((unused))
 static int epollet_create_epoll (int sfd, int backlog, char *errmsg, ssize_t msglen)
 {

@@ -727,10 +727,11 @@ static inline int socket_set_nonblock (int fd, char *errmsg, ssize_t msglen)
  *   返回实际读的字节. 如果返回的字节数 >=0 且 errno == EAGAIN, 则数据已经读完
  *
     char msg[256];
+
     int next = 1;
     int cbread = 0;
 
-    while (next && (cbread = nb_readlen_next(sockfd, msg, sizeof(msg), &next)) >= 0) {
+    while (next && (cbread = readlen_next(sockfd, msg, sizeof(msg), &next)) >= 0) {
         if (cbread > 0) {
             msg[cbread] = 0;
 
@@ -746,29 +747,30 @@ static inline int socket_set_nonblock (int fd, char *errmsg, ssize_t msglen)
  *
  */
 __attribute__((unused))
-static inline int nb_readlen_next (int fd, char * buf, int len, int *next)
+static ssize_t readlen_next (int fd, char * buf, size_t len, int *next)
 {
     ssize_t count;
 
     // 已读字节
-    int offset = 0;
+    size_t offset = 0;
 
     // 剩余未读字节
-    int remain = len - offset;
+    ssize_t remain = (ssize_t) (len - offset);
 
+    // 设置下次是(1)否(0)还要读
     *next = 1;
 
     while (remain > 0) {
-        count = read(fd, buf + offset, remain);
+        count = read(fd, buf + offset, (size_t) remain);
+
         if (count == -1) {
             if (errno != EAGAIN) {
+                /* expected error */
                 perror("read");
                 return (-1);
             }
 
-            /**
-             * if (errno == EAGAIN) that means we have read all data.
-             */
+            /* (errno == EAGAIN) that means we have read all data! */
             *next = 0;
             break;
         } else if (count == 0) {

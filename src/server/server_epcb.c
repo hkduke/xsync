@@ -63,43 +63,6 @@ int epcb_event_fatal(epollet_msg epmsg, void *arg)
 }
 
 
-int epcb_event_peer_open(epollet_msg epmsg, void *arg)
-{
-    LOGGER_DEBUG("EPEVT_PEER_OPEN(%d): %s:%s", epmsg->clientfd, epmsg->hbuf, epmsg->sbuf);
-
-    XS_server server = (XS_server) arg;
-
-    // xs:1:xcon:10 host port clientid
-    XCON_redis_table_key(server->serverid, epmsg->clientfd, server->msgbuf, sizeof server->msgbuf);
-
-    const char * flds[] = {
-        "clientid",
-        "host",
-        "port",
-        0
-    };
-
-    const char * vals[] = {
-        0, // 0 delete key
-        epmsg->hbuf,
-        epmsg->sbuf,
-        0
-    };
-
-    if (RedisHashMultiSet(&server->redisconn, server->msgbuf, flds, vals, 0, 60 * 1000) != 0) {
-        LOGGER_ERROR("RedisHashMultiSet(%s): %s", server->msgbuf, server->redisconn.errmsg);
-
-        /* 0: 拒绝新客户连接 */
-        return 0;
-    } else {
-        LOGGER_DEBUG("RedisHashMultiSet(%s): {host=%s, port=%s}", server->msgbuf, epmsg->hbuf, epmsg->sbuf);
-
-        /* 1: 接受新客户连接 */
-        return 1;
-    }
-}
-
-
 int epcb_event_peer_close(epollet_msg epmsg, void *arg)
 {
     LOGGER_TRACE("EPEVT_PEER_CLOSE(%d): %s", epmsg->clientfd, epmsg->buf);
@@ -122,6 +85,49 @@ int epcb_event_reject(epollet_msg epmsg, void *arg)
 
 
 /**
+ * 新的 peer socket 建立
+ */
+int epcb_event_peer_open(epollet_msg epmsg, void *arg)
+{
+    LOGGER_DEBUG("EPEVT_PEER_OPEN(%d): %s:%s", epmsg->clientfd, epmsg->hbuf, epmsg->sbuf);
+
+    XS_server server = (XS_server) arg;
+
+    // xs:1:xcon:10 host port clientid
+    XCON_redis_table_key(server->serverid, epmsg->clientfd, server->msgbuf, sizeof server->msgbuf);
+
+    const char * flds[] = {
+        "clientid",
+        "host",
+        "port",
+        0
+    };
+
+    const char * vals[] = {
+        0, // 0: clear the field!
+        epmsg->hbuf,
+        epmsg->sbuf,
+        0
+    };
+
+    if (RedisHashMultiSet(&server->redisconn, server->msgbuf, flds, vals, 0, 60 * 1000) != 0) {
+        LOGGER_ERROR("RedisHashMultiSet(%s): %s", server->msgbuf, server->redisconn.errmsg);
+
+        /* 0: 拒绝新客户连接 */
+        return 0;
+    } else {
+        LOGGER_DEBUG("RedisHashMultiSet(%s): {host=%s, port=%s}", server->msgbuf, epmsg->hbuf, epmsg->sbuf);
+
+        /* 1: 接受新客户连接 */
+        return 1;
+    }
+}
+
+
+/**
+ * peer 有数据到来, 服务端接收数据
+ *   服务端总是用这个回调接收数据, 因此需要区分对待是新建连接还是旧连接
+ *
  * 返回值:
  *    -1 没有实现, 使用默认实现
  *     0  暂时无法提供服务

@@ -107,7 +107,7 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
                 int next = 1;
                 int cbread = 0;
 
-                while (next && (cbread = nb_readlen_next(sockfd, msg, sizeof(msg), &next)) >= 0) {
+                while (next && (cbread = readlen_next(sockfd, msg, sizeof(msg), &next)) >= 0) {
                     if (cbread > 0) {
                         msg[cbread] = 0;
 

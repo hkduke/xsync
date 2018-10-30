@@ -38,6 +38,179 @@
 
 
 __attribute__((used))
+static void read_all_peer (perthread_data *perdata)
+{
+    int epollfd = perdata->pollin.epollfd;
+    int clientfd = perdata->pollin.epevent.data.fd;
+
+    int error = 1;
+    int next = 1;
+
+    off_t total = 0;
+    off_t offset = 0;
+
+    ssize_t count;
+
+    // read-up all bytes
+    while (next && (count = readlen_next(clientfd, perdata->buffer + offset, sizeof(perdata->buffer) - offset, &next)) >= 0) {
+        offset += count;
+        total += count;
+
+        if (offset == sizeof perdata->buffer) {
+            //  缓冲区已经用完, 处理数据...
+            LOGGER_WARN("(thread-%d) TODO: read %ju bytes (total %ju bytes)", perdata->threadid, offset, total);
+
+            // 重头开始再次读
+            offset = 0;            
+        }
+    }
+
+    if (! next) {
+        // 成功读光了全部数据
+        error = 0;
+    } else if (count == -1) {
+        // 读出错
+        LOGGER_ERROR("(thread-%d) sock(%d): read error (%s)", perdata->threadid, clientfd, strerror(errno));
+    } else if (count == -2) {
+        // 客户端关闭了连接
+        LOGGER_WARN("(thread-%d) sock(%d): remote closed connection", perdata->threadid, clientfd);
+    }
+
+    if (error) {
+        /**
+         * Closing the descriptor will make epoll remove it from the set of
+         *  descriptors which are monitored.
+         */
+        close(clientfd);
+        return;
+    }
+
+    // Re-arm the socket 添加到 epollet 中
+    if (epollet_ctl_mod(epollfd, &perdata->pollin.epevent, perdata->buffer, XSYNC_BUFSIZE - 1) == -1) {
+        LOGGER_ERROR("(thread-%d) sock(%d): epollet_ctl_mod error: %s", perdata->threadid, clientfd, perdata->buffer);
+
+        close(clientfd);
+    }
+}
+
+
+__attribute__((used))
+static void handle_peer_connect2 (perthread_data *perdata)
+{
+    XS_server server = (XS_server) perdata->pollin.arg;
+
+    int epollfd = perdata->pollin.epollfd;
+    int clientfd = perdata->pollin.epevent.data.fd;
+
+    int connected = 0;
+    int next = 1;
+
+    off_t total = 0;
+    off_t offset = 0;
+    
+    ssize_t count;
+
+    // read-up all bytes
+    while (next && (count = readlen_next(clientfd, perdata->buffer + offset, sizeof(perdata->buffer) - offset, &next)) >= 0) {
+        offset += count;
+        total += count;
+
+        if (offset == sizeof perdata->buffer) {
+            //  缓冲区已经用完, 处理数据...
+            LOGGER_WARN("(thread-%d) TODO: read %ju bytes (total %ju bytes)", perdata->threadid, offset, total);
+
+            // 重头开始再次读
+            offset = 0;            
+        }
+    }
+
+    if (! next) {
+        // 成功读光了全部数据
+        if (total == XS_CONNECT_REQ_SIZE) {
+            // 数据正好为连接请求尺寸
+            LOGGER_INFO("(thread-%d) sock(%d): read connect request ok", perdata->threadid, clientfd);
+
+            // xs:1:xcon:10 host port clientid
+            XCON_redis_table_key(server->serverid, clientfd, perdata->buffer, sizeof perdata->buffer);
+
+            const char * flds[] = {
+                "clientid",
+                0
+            };
+
+            const char * vals[] = {
+                "todo_clientid",
+                0
+            };
+
+            if (RedisHashMultiSet(&perdata->redconn, perdata->buffer, flds, vals, 0, -1) != 0) {
+                LOGGER_ERROR("RedisHashMultiSet(%s): %s", perdata->buffer, perdata->redconn.errmsg);
+            } else {
+                connected = 1;
+                LOGGER_INFO("RedisHashMultiSet(%s) success connected", perdata->buffer);
+            }            
+        } else {
+            // 无效的连接请求
+            LOGGER_WARN("(thread-%d) sock(%d): invalid connect request(=%d)", perdata->threadid, clientfd, total);
+        }
+    } else if (count == -1) {
+        // 读出错
+        LOGGER_ERROR("(thread-%d) sock(%d): read error (%s)", perdata->threadid, clientfd, strerror(errno));
+    } else if (count == -2) {
+        // 客户端关闭了连接
+        LOGGER_WARN("(thread-%d) sock(%d): remote closed connection", perdata->threadid, clientfd);
+    }
+
+    if (! connected) {
+        /**
+         * Closing the descriptor will make epoll remove it from the set of
+         *  descriptors which are monitored.
+         */
+        close(clientfd);
+        return;
+    }
+
+    // Re-arm the socket 添加到 epollet 中
+    if (epollet_ctl_mod(epollfd, &perdata->pollin.epevent, perdata->buffer, XSYNC_BUFSIZE - 1) == -1) {
+        LOGGER_ERROR("(thread-%d) sock(%d): epollet_ctl_mod error: %s", perdata->threadid, clientfd, perdata->buffer);
+
+        close(clientfd);
+
+        connected = 0;
+    }
+
+    /**
+     * TODO: 通知客户端连接已经成功建立:
+     *   如果本连接是客户端接收 socket 用于消息通知, 则不要添加到 epollet 中
+     *   可以将 clientfd 缓存起来 (Redis?), 当有消息需要通知客户时, 再写入消息
+
+    count = snprintf(perdata->buffer, XSYNC_BUFSIZE, "SUCCESS");
+    perdata->buffer[count] = 0;
+
+    if (write(clientfd, perdata->buffer, count + 1) == -1) {
+        LOGGER_ERROR("(thread-%d) sock(%d): write error(%d): %s", perdata->threadid, clientfd, errno, strerror(errno));
+
+        close(clientfd);
+
+        connected = 0;
+    } else {
+        LOGGER_INFO("(thread-%d) sock(%d): write SUCCESS.", perdata->threadid, clientfd);
+
+        // Re-arm the socket 添加到 epollet 中
+        if (epollet_ctl_mod(epollfd, &perdata->pollin.epevent, perdata->buffer, XSYNC_BUFSIZE - 1) == -1) {
+            LOGGER_ERROR("(thread-%d) sock(%d): epollet_ctl_mod error: %s", perdata->threadid, clientfd, perdata->buffer);
+
+            close(clientfd);
+
+            connected = 0;
+        }
+    }
+    */
+}
+
+
+
+__attribute__((used))
 static void handle_peer_connect (perthread_data *perdata)
 {
     //// XS_server server = (XS_server) perdata->pollin.arg;
@@ -106,7 +279,9 @@ void event_task (thread_context_t *thread_ctx)
         handle_peer_connect(perdata);
     } else {
         // handleOldClient(perdata);
-        LOGGER_ERROR("(thread-%d) unknown task flags(=%d)", perdata->threadid, task->flags);
+        LOGGER_ERROR("(thread-%d) unhandled task (flags=%d)", perdata->threadid, task->flags);
+
+        // read_all_peer(perdata);
     }
 
     task->flags = 0;
