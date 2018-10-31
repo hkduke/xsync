@@ -90,8 +90,12 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
                 return XS_ERROR;
             }
 
+            ub8 rc_read = 0;
+
             XSConnectReq_t xconReq;
             while(1) {
+                rc_read++;
+
                 XSConnectRequestBuild(&xconReq, clientid, servOpts->magic, xcon->client_utctime, rand_gen(&xcon->rctx), (ub1*) msg);
 
                 // 发送连接请求: XS_CONNECT_REQ_SIZE 字节
@@ -107,11 +111,16 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
                 int next = 1;
                 int cbread = 0;
 
-                while (next && (cbread = readlen_next(sockfd, msg, sizeof(msg), &next)) >= 0) {
-                    if (cbread > 0) {
-                        msg[cbread] = 0;
+                // 接收
+                while(cbread == 0) {
+                    sleep_ms(10);
 
-                        LOGGER_DEBUG("read: %s", msg);
+                    while (next && (cbread = readlen_next(sockfd, msg, sizeof(msg), &next)) >= 0) {
+                        if (cbread > 0) {
+                            msg[cbread] = 0;
+
+                            LOGGER_DEBUG("[%ju] read: %s", rc_read, msg);
+                        }
                     }
                 }
 
@@ -122,7 +131,7 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
                     break;
                 }
 
-                sleep(10);
+                sleep_ms(10);
             }
         }
 

@@ -77,9 +77,9 @@ typedef struct xs_server_t
     RedisConn_t redisconn;
 
     /**
-     * epoll data
+     * epollet
      */
-    epollet_server_t epserver;
+    epollet_conf_t epconf;
 
     /**
      * thread pool specific

@@ -80,30 +80,28 @@
 extern "C" {
 #endif
 
-#define EPET_MSG_MAXLEN  255
+typedef struct epollet_event_t
+{
+    int epollfd;
+    int clientfd;
 
+    struct sockaddr in_addr;
+    socklen_t in_len;
 
-/**
- * epollet event id
- */
-#define EPEVT_TRACE               0
-#define EPEVT_WARN                1
-#define EPEVT_FATAL               2
-#define EPEVT_PEER_OPEN           3
-#define EPEVT_PEER_CLOSE          4
-#define EPEVT_ACCEPT              5
-#define EPEVT_REJECT              6
-#define EPEVT_POLLIN              7
-#define EPEVT_COUNT              (EPEVT_POLLIN + 1)
+    struct epoll_event epev;
 
+    union {
+        struct {
+            char hbuf[NI_MAXHOST];
+            char sbuf[NI_MAXSERV];
+        };
 
-#define EPOLLET_EVENT_CB(evtid, epmsg)  (epmsg->msg_cbs[evtid])(epmsg, epmsg->userarg)
+        char msg[NI_MAXHOST + NI_MAXSERV];
+    };
 
-
-/**
- * 回调函数数据，不可以在多线程中使用
- */
-typedef struct epollet_msg_t * epollet_msg;
+    // user-specific argument
+    void *arg;
+} epollet_event_t;
 
 
 /**
@@ -111,112 +109,116 @@ typedef struct epollet_msg_t * epollet_msg;
  *   1 - 用户已经处理
  *   0 - 用户要求放弃
  */
-typedef int (* epollet_msg_cb) (epollet_msg epmsg, void *arg);
-
-#define EPET_BUF_MAXSIZE    (NI_MAXHOST + NI_MAXSERV)
+typedef int (* epollet_event_cb) (struct epollet_event_t *);
 
 
-typedef struct epollet_msg_t
+typedef struct epollet_conf_t
 {
     int epollfd;
-    int clientfd;
-
-    struct epoll_event pollin_event;
-
-    // 用户指定的参数
-    void *userarg;
-
-    struct sockaddr in_addr;
-    socklen_t in_len;
-
-    union {
-        struct {
-            char hbuf[NI_MAXHOST];
-            char sbuf[NI_MAXSERV + 1];
-        };
-
-        struct {
-            char buf[EPET_BUF_MAXSIZE + 1];
-        };
-    };
-
-    epollet_msg_cb msg_cbs[EPEVT_COUNT];
-} epollet_msg_t;
-
-
-typedef struct epollet_server_t
-{
-    int timerfd;
-    int sigfd;
-
     int listenfd;
-    int epollfd;
+
     int old_flags;
 
-    int maxevents;
+    int numevents;
     struct epoll_event *events;
 
-    char msg[EPET_MSG_MAXLEN + 1];
-} epollet_server_t;
+    epollet_event_cb epcb_trace;
+    epollet_event_cb epcb_warn;
+    epollet_event_cb epcb_error;
+    epollet_event_cb epcb_new_peer;
+    epollet_event_cb epcb_accept;
+    epollet_event_cb epcb_reject;
+    epollet_event_cb epcb_pollin;
+    epollet_event_cb epcb_pollout;
+} epollet_conf_t;
 
 
-/**
- * 回调函数原型
- */
-static inline int epcb_trace(epollet_msg epmsg, void *arg)
+__attribute__((unused)) static inline void close_socket_s (int *sfd)
 {
-    printf("EPEVT_TRACE(%d): %s", epmsg->clientfd, epmsg->buf);
-    return 1;
+    int fd = *sfd;
+
+    if (fd != -1) {
+        *sfd = -1;
+
+        close(fd);
+    }
 }
 
-static inline int epcb_warn(epollet_msg epmsg, void *arg)
+
+__attribute__((unused)) static inline int set_socket_nonblock (int sfd, char *errmsg, ssize_t msgsize)
 {
-    printf("EPEVT_WARN(%d): %s", epmsg->clientfd, epmsg->buf);
-    return 1;
+    // Get the current flags on this socket
+    int flags = fcntl(sfd, F_GETFL, 0);
+
+    if ( flags == -1 ) {
+        snprintf(errmsg, msgsize, "fcntl error(%d): %s", errno, strerror(errno));
+        errmsg[msgsize - 1] = '\0';
+        return -1;
+    }
+
+    // Add the non-block flag
+    if ( fcntl(sfd, F_SETFL, flags | O_NONBLOCK) == -1 ) {
+        snprintf(errmsg, msgsize, "fcntl error(%d): %s", errno, strerror(errno));
+        errmsg[msgsize - 1] = '\0';
+        return -1;
+    }
+
+    return flags;
 }
 
-static inline int epcb_fatal(epollet_msg epmsg, void *arg)
-{
-    printf("EPEVT_FATAL(%d): %s", epmsg->clientfd, epmsg->buf);
 
-    /* 1=忽略错误, 0=退出服务 */
+__attribute__((unused)) static int epollin_add (int epollfd, int fd, char *errmsg, ssize_t msgsize)
+{
+    struct epoll_event ev;
+
+    ev.data.fd = fd;
+    ev.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
+
+    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev) == -1) {
+        snprintf(errmsg, msgsize, "epoll_ctl fail: %s", strerror(errno));
+        errmsg[ msgsize - 1 ] = 0;
+        return -1;
+    }
+
     return 0;
 }
 
-static inline int epcb_peer_open(epollet_msg epmsg, void *arg)
+
+__attribute__((unused)) static int epollin_mod (int epollfd, int fd, char *errmsg, ssize_t msgsize)
 {
-    printf("EPEVT_PEER_OPEN(%d): %s:%s", epmsg->clientfd, epmsg->hbuf, epmsg->sbuf);
+    struct epoll_event ev;
 
-    /* 1=接受新客户连接, 0=拒绝新客户连接 */
-    return 1;
-}
+    ev.data.fd = fd;
+    ev.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
 
-static inline int epcb_accepted(epollet_msg epmsg, void *arg)
-{
-    printf("EPEVT_ACCEPT(%d)", epmsg->clientfd);
-    return 0;
-}
+    if (epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, &ev) == -1) {
+        snprintf(errmsg, msgsize, "epoll_ctl fail: %s", strerror(errno));
+        errmsg[ msgsize - 1 ] = 0;
+        return -1;
+    }
 
-static inline int epcb_pollin(epollet_msg epmsg, void *arg)
-{
-    printf("EPEVT_POLLIN(%d): TODO", epmsg->clientfd);
-
-    // -1: 没有实现, 使用默认实现
-    // 0: 暂时无法提供服务
-    // 1: 接受请求
-
-    return -1;
-}
-
-static inline int epcb_peer_close(epollet_msg epmsg, void *arg)
-{
-    printf("EPEVT_PEER_CLOSE(%d): %s", epmsg->clientfd, epmsg->buf);
     return 0;
 }
 
 
-__attribute__((unused))
-static int create_and_bind (const char *node, const char *port, char *errmsg, ssize_t msglen)
+__attribute__((unused)) static int epollout_mod (int epollfd, int fd, char *errmsg, ssize_t msgsize)
+{
+    struct epoll_event ev;
+
+    ev.data.fd = fd;
+    ev.events = EPOLLOUT | EPOLLET | EPOLLONESHOT;
+
+    if (epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, &ev) == -1) {
+        snprintf(errmsg, msgsize, "epoll_ctl fail: %s", strerror(errno));
+        errmsg[ msgsize - 1 ] = 0;
+        return -1;
+    }
+
+    return 0;
+}
+
+
+__attribute__((unused)) static int create_and_bind (const char *node, const char *port, char *errmsg, ssize_t msgsize)
 {
     struct addrinfo hints;
     struct addrinfo *result, *rp;
@@ -235,8 +237,8 @@ static int create_and_bind (const char *node, const char *port, char *errmsg, ss
     err = getaddrinfo( node, port, &hints, &result );
 
     if ( err != 0 ) {
-        snprintf(errmsg, msglen, "getaddrinfo error(%d): %s", err, gai_strerror(err));
-        errmsg[msglen] = '\0';
+        snprintf(errmsg, msgsize, "getaddrinfo error(%d): %s", err, gai_strerror(err));
+        errmsg[msgsize - 1] = '\0';
         return -1;
     }
 
@@ -263,8 +265,8 @@ static int create_and_bind (const char *node, const char *port, char *errmsg, ss
 
     /* Fail if nothing worked */
     if ( rp == NULL ) {
-        snprintf(errmsg, msglen, "socket bind error");
-        errmsg[msglen] = '\0';
+        snprintf(errmsg, msgsize, "socket bind error");
+        errmsg[msgsize - 1] = '\0';
         return (-1);
     }
 
@@ -276,89 +278,7 @@ static int create_and_bind (const char *node, const char *port, char *errmsg, ss
 }
 
 
-__attribute__((unused))
-static inline int set_socket_nonblock (int sfd, char *errmsg, ssize_t msglen)
-{
-    int flags;
-
-    /* Get the current flags on this socket */
-    flags = fcntl(sfd, F_GETFL, 0);
-    if ( flags == -1 ) {
-        snprintf(errmsg, msglen, "fcntl error(%d): %s", errno, strerror(errno));
-        errmsg[msglen] = '\0';
-        return -1;
-    }
-
-    /* Add the non-block flag */
-    if ( fcntl(sfd, F_SETFL, flags | O_NONBLOCK) == -1 ) {
-        snprintf(errmsg, msglen, "fcntl error(%d): %s", errno, strerror(errno));
-        errmsg[msglen] = '\0';
-        return -1;
-    }
-
-    return flags;
-}
-
-
-__attribute__((unused))
-static inline int epollet_ctl_add (int epollfd, int infd, char *errmsg, ssize_t msglen)
-{
-    struct epoll_event event = {0};
-
-    event.data.fd = infd;
-    event.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
-
-    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, infd, &event) == -1) {
-        snprintf(errmsg, msglen, "epoll_ctl error(%d): %s", errno, strerror(errno));
-        errmsg[msglen] = 0;
-        return (-1);
-    }
-
-    return 0;
-}
-
-
-__attribute__((unused))
-static inline int epollet_ctl_mod (int epollfd, struct epoll_event *epevent, char *errmsg, ssize_t msglen)
-{
-    if (epoll_ctl(epollfd, EPOLL_CTL_MOD, epevent->data.fd, epevent) == -1) {
-        snprintf(errmsg, msglen, "epoll_ctl error(%d): %s", errno, strerror(errno));
-        errmsg[msglen] = 0;
-        return (-1);
-    }
-
-    return 0;
-}
-
-
-__attribute__((unused))
-static inline int epollet_ctl_del (int epollfd, struct epoll_event *epevent, char *errmsg, ssize_t msglen)
-{
-    if (epoll_ctl(epollfd, EPOLL_CTL_DEL, epevent->data.fd, epevent) == -1) {
-        snprintf(errmsg, msglen, "epoll_ctl error(%d): %s", errno, strerror(errno));
-        errmsg[msglen] = 0;
-        return (-1);
-    }
-
-    return 0;
-}
-
-
-__attribute__((unused))
-static inline void cleanup_socket (int *fd_addr)
-{
-    int fd = *fd_addr;
-
-    *fd_addr = -1;
-
-    if (fd != -1) {
-        close(fd);
-    }
-}
-
-
-__attribute__((unused))
-static int epollet_create_epoll (int sfd, int backlog, char *errmsg, ssize_t msglen)
+__attribute__((unused)) static int epollet_create_epoll (int sfd, int backlog, char *errmsg, ssize_t msgsize)
 {
     int epollfd;
 
@@ -369,18 +289,17 @@ static int epollet_create_epoll (int sfd, int backlog, char *errmsg, ssize_t msg
      *   $ sudo vi /etc/sysctl.conf:
      *   net.core.somaxconn=2048
      *   $ sysctl -p
-     **/
-
+     */
     if (listen (sfd, backlog) == -1) {
-        snprintf(errmsg, msglen, "listen error(%d): %s", errno, strerror(errno));
-        errmsg[msglen] = '\0';
+        snprintf(errmsg, msgsize, "listen error(%d): %s", errno, strerror(errno));
+        errmsg[msgsize - 1] = '\0';
         return -1;
     }
 
     epollfd = epoll_create1 (EPOLL_CLOEXEC);
     if (epollfd == -1) {
-        snprintf(errmsg, msglen, "epoll_create1 error(%d): %s", errno, strerror(errno));
-        errmsg[msglen] = '\0';
+        snprintf(errmsg, msgsize, "epoll_create1 error(%d): %s", errno, strerror(errno));
+        errmsg[msgsize - 1] = '\0';
         return -1;
     }
 
@@ -388,7 +307,7 @@ static int epollet_create_epoll (int sfd, int backlog, char *errmsg, ssize_t msg
      * Make up the event structure with our socket and
      *   mark it for read ( EPOLLIN ) and edge triggered ( EPOLLET )
      */
-    if (epollet_ctl_add(epollfd, sfd, errmsg, msglen) == -1) {
+    if (epollin_add (epollfd, sfd, errmsg, msgsize) == -1) {
         close(epollfd);
         return -1;
     }
@@ -397,31 +316,30 @@ static int epollet_create_epoll (int sfd, int backlog, char *errmsg, ssize_t msg
 }
 
 
-__attribute__((unused))
-static int epollet_server_initiate (epollet_server_t *epserver, const char *host, const char *port, int somaxconn, int maxevents)
+__attribute__((unused)) static int epollet_conf_init (struct epollet_conf_t *epconf,
+    const char *host, const char *port, int somaxconn, int maxevents, char *errmsg, ssize_t msgsize)
 {
     int listenfd, epollfd, old_flags;
+
     struct epoll_event *events;
 
-    char *errmsg = epserver->msg;
-
-    bzero(epserver, sizeof(*epserver));
+    bzero(epconf, sizeof(*epconf));
 
     /* Setup a server socket */
-    listenfd = create_and_bind(host, port, errmsg, EPET_MSG_MAXLEN);
+    listenfd = create_and_bind(host, port, errmsg, msgsize);
     if (listenfd == -1) {
         return (-1);
     }
 
     /* Make server socket non-blocking */
-    old_flags = set_socket_nonblock(listenfd, errmsg, EPET_MSG_MAXLEN);
+    old_flags = set_socket_nonblock(listenfd, errmsg, msgsize);
     if (old_flags == -1) {
         close(listenfd);
         return (-1);
     }
 
     /* Mark server socket as a listener, with maximum backlog queue */
-    epollfd = epollet_create_epoll(listenfd, somaxconn, errmsg, EPET_MSG_MAXLEN);
+    epollfd = epollet_create_epoll(listenfd, somaxconn, errmsg, msgsize);
     if (epollfd == -1) {
         fcntl(listenfd, F_SETFL, old_flags);
         close(listenfd);
@@ -430,8 +348,8 @@ static int epollet_server_initiate (epollet_server_t *epserver, const char *host
 
     events = (struct epoll_event *) calloc(maxevents, sizeof(struct epoll_event));
     if (! events) {
-        snprintf(errmsg, EPET_MSG_MAXLEN, "memory overflow when alloc events(=%d)", maxevents);
-        errmsg[EPET_MSG_MAXLEN] = '\0';
+        snprintf(errmsg, msgsize, "memory overflow when alloc events(=%d)", maxevents);
+        errmsg[msgsize - 1] = '\0';
 
         fcntl(listenfd, F_SETFL, old_flags);
         close(epollfd);
@@ -439,331 +357,391 @@ static int epollet_server_initiate (epollet_server_t *epserver, const char *host
         return (-1);
     }
 
-    epserver->listenfd = listenfd;
-    epserver->epollfd = epollfd;
-    epserver->old_flags = old_flags;
+    epconf->listenfd = listenfd;
+    epconf->epollfd = epollfd;
+    epconf->old_flags = old_flags;
 
-    epserver->events = events;
-    epserver->maxevents = maxevents;
+    epconf->events = events;
+    epconf->numevents = maxevents;
 
-    snprintf(errmsg, EPET_MSG_MAXLEN, "success");
-    errmsg[EPET_MSG_MAXLEN] = '\0';
+    snprintf(errmsg, msgsize, "success");
+    errmsg[msgsize - 1] = '\0';
 
     return 0;
 }
 
 
-__attribute__((unused))
-static void epollet_server_finalize (epollet_server_t *epserver)
+__attribute__((unused)) static void epollet_conf_uninit (epollet_conf_t *epconf)
 {
-    fcntl(epserver->listenfd, F_SETFL, epserver->old_flags);
+    fcntl(epconf->listenfd, F_SETFL, epconf->old_flags);
 
-    close(epserver->listenfd);
-    close(epserver->epollfd);
+    close(epconf->listenfd);
+    close(epconf->epollfd);
 
-    free(epserver->events);
+    free(epconf->events);
 
-    epserver->epollfd = -1;
-    epserver->listenfd = -1;
-    epserver->events = 0;
+    epconf->epollfd = -1;
+    epconf->listenfd = -1;
+    epconf->events = 0;
 }
 
 
-__attribute__((unused))
-static void epollet_server_loop_events (epollet_server_t *epserver, epollet_msg epmsg)
+__attribute__((unused)) static inline int ON_EPCB_TRACE(struct epollet_event_t *event, struct epollet_conf_t *epconf)
 {
-    int epollfd = epserver->epollfd;
-    int listenfd = epserver->listenfd;
+    if (epconf->epcb_trace) {
+        return epconf->epcb_trace(event);
+    } else {
+        // 不能使用线程池, 必须在主线程中
+        printf("epcb_trace: %s\n", event->msg);
 
-    int maxevents = epserver->maxevents;
-    struct epoll_event *events = epserver->events;
+        return 0;
+    }
+}
 
-    struct epoll_event *epevent;
 
-    int nfd, i, err;
+__attribute__((unused)) static inline int ON_EPCB_WARN(struct epollet_event_t *event, struct epollet_conf_t *epconf)
+{
+    if (epconf->epcb_warn) {
+        return epconf->epcb_warn(event);
+    } else {
+        // 不能使用线程池, 必须在主线程中
+        printf("epcb_warn: %s\n", event->msg);
 
-    char *msg = epserver->msg;
+        return 0;
+    }
+}
 
-    epmsg->epollfd = epollfd;
-    epmsg->clientfd = -1;
 
-    while (1) {
-        /**
-         * Wait for an event. -1 = wait forever
-         * ( 0 would mean return immediately, otherwise value is in ms )
-         */
-        nfd = epoll_wait(epollfd, events, maxevents, -1);
+__attribute__((unused)) static inline int ON_EPCB_ERROR(struct epollet_event_t *event, struct epollet_conf_t *epconf)
+{
+    if (epconf->epcb_error) {
+        return epconf->epcb_error(event);
+    } else {
+        // 不能使用线程池, 必须在主线程中
+        printf("epcb_error: %s\n", event->msg);
+
+        // 返回值:
+        //   1: 继续不退出
+        //   0: 退出进程 (总是应该返回 0)
+        return 0;
+    }
+}
+
+
+__attribute__((unused)) static inline int ON_EPCB_NEW_PEER(struct epollet_event_t *event, struct epollet_conf_t *epconf)
+{
+    if (epconf->epcb_new_peer) {
+        return epconf->epcb_new_peer(event);
+    } else {
+        // 不能使用线程池, 必须在主线程中
+        printf("new peer: [%s:%s]\n", event->hbuf, event->sbuf);
+
+        // 返回值:
+        //   1: 接受
+        //   0: 拒绝
+        return 1;
+    }
+}
+
+
+__attribute__((unused)) static inline int ON_EPCB_ACCEPT(struct epollet_event_t *event, struct epollet_conf_t *epconf)
+{
+    if (epconf->epcb_accept) {
+        return epconf->epcb_accept(event);
+    } else {
+        // 不能使用线程池, 必须在主线程中
+        printf("accept peer: [%s:%s]\n", event->hbuf, event->sbuf);
+
+        // 不关心返回值
+        return 1;
+    }
+}
+
+
+__attribute__((unused)) static inline int ON_EPCB_REJECT(struct epollet_event_t *event, struct epollet_conf_t *epconf)
+{
+    if (epconf->epcb_reject) {
+        return epconf->epcb_reject(event);
+    } else {
+        // 不能使用线程池, 必须在主线程中
+        printf("reject peer: [%s:%s]\n", event->hbuf, event->sbuf);
+
+        // 不关心返回值
+        return 0;
+    }
+}
+
+
+__attribute__((unused)) static inline int ON_EPCB_POLLIN(struct epollet_event_t *event, struct epollet_conf_t *epconf)
+{
+    if (epconf->epcb_pollin) {
+        return epconf->epcb_pollin(event);
+    } else {
+        return 0;
+    }
+}
+
+
+__attribute__((unused)) static inline int ON_EPCB_POLLOUT(struct epollet_event_t *event, struct epollet_conf_t *epconf)
+{
+    if (epconf->epcb_pollout) {
+        return epconf->epcb_pollout(event);
+    } else {
+        return 0;
+    }
+}
+
+
+__attribute__((unused)) static int epollet_loop_events (struct epollet_conf_t *epconf, struct epollet_event_t *event)
+{
+    int epollfd = epconf->epollfd;
+    int listenfd = epconf->listenfd;
+
+    struct epoll_event *events = epconf->events;
+    int numevents = epconf->numevents;
+
+    int i, err, nfd, clientfd;
+
+    int len =  sizeof(event->msg) - 1;
+
+    ub8 rc_read = 0;
+
+    event->epollfd = epollfd;
+
+    for (;;) {
+        // wait for an event:
+        //  -1 = wait forever
+        //  ( 0 would mean return immediately, otherwise value is in ms )
+
+        nfd = epoll_wait(epollfd, events, numevents, -1);
+
         if (nfd == 0) {
-            snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "epoll_wait: no file descriptor ready");
-            epmsg->buf[EPET_BUF_MAXSIZE] = 0;
+            snprintf(event->msg, len, "epoll_wait: no file descriptor ready");
+            event->msg[len] = 0;
 
-            EPOLLET_EVENT_CB(EPEVT_TRACE, epmsg);
-
+            ON_EPCB_WARN(event, epconf);
             continue;
         }
 
         if (nfd == -1) {
-            snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "epoll_wait error(%d): %s", errno, strerror(errno));
-            epmsg->buf[EPET_BUF_MAXSIZE] = 0;
+            snprintf(event->msg, len, "epoll_wait fail: %s", strerror(errno));
+            event->msg[len] = 0;
 
-            if (EPOLLET_EVENT_CB(EPEVT_FATAL, epmsg)) {
-                continue;
+            if (! ON_EPCB_ERROR(event, epconf)) {
+                return (-1);
             }
-
-            goto exit_fatal_error;
         }
 
-        /**
-         * loop-for-each-event
-         *   For each event that the epoll instance just gave us
-         */
+        // For each event that the epoll instance just gave us
+
         for (i = 0; i < nfd; i++) {
-            epevent = &events[i];
-            epmsg->clientfd = epevent->data.fd;
+            // If error, hangup, or NOT ready for read
 
-            /**
-             * If error, hangup, or NOT ready for read
-             */
-            if ((epevent->events & EPOLLERR) ||
-                (epevent->events & EPOLLHUP) ||
-                (!(epevent->events & EPOLLIN))) {
-                /**
-                 * An error has occured on this fd, or the socket is not
-                 *  ready for reading ( why were we notified then? )
-                 */
-                snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "error has occured on fd or socket not ready for reading");
-                epmsg->buf[EPET_BUF_MAXSIZE] = 0;
+            int sfd = events[i].data.fd;
 
-                EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
+            event->clientfd = sfd;
 
-                cleanup_socket(&epevent->data.fd);
+            if (sfd == -1) {
+                snprintf(event->msg, len, "epoll_wait: invalid socket");
+                event->msg[len] = 0;
 
+                ON_EPCB_WARN(event, epconf);
                 continue;
             }
 
-            if ( listenfd == epevent->data.fd ) {
-                /**
-                 * If the event is on our listening socket we have a notification on
-                 * the listening socket, which means one (or more) incoming connections
-                 */
-                while (1) {
-                    /**
-                     * accept new client ?
-                     *   Grab an incoming connection socket and its address
-                     */
-                    epmsg->in_len = sizeof(epmsg->in_addr);
-                    epmsg->clientfd = accept(listenfd, &epmsg->in_addr, &epmsg->in_len);
+            if (events[i].events & EPOLLERR) {
+                snprintf(event->msg, len, "epoll_wait: EPOLLERR");
+                event->msg[len] = 0;
 
-                    if (epmsg->clientfd == -1) {
+                ON_EPCB_WARN(event, epconf);
+
+                close(sfd);
+                continue;
+            }
+
+            if (events[i].events & EPOLLHUP) {
+                snprintf(event->msg, len, "epoll_wait: EPOLLHUP");
+                event->msg[len] = 0;
+
+                ON_EPCB_WARN(event, epconf);
+
+                close(sfd);
+                continue;
+            }
+
+            if ( ! (events[i].events & EPOLLIN || events[i].events & EPOLLOUT) ) {
+                snprintf(event->msg, len, "epoll_wait: unexpected events(=%d)", events[i].events);
+                event->msg[len] = 0;
+
+                ON_EPCB_WARN(event, epconf);
+
+                close(sfd);
+                continue;
+            }
+
+            if ( listenfd == events[i].data.fd ) {
+                // If the event is on our listening socket we have a notification on
+                //  the listening socket, which means one (or more) incoming connections
+
+                while (1) {
+
+                    // accept new client ? Grab an incoming connection socket and its address
+                    event->in_len = sizeof(event->in_addr);
+
+                    clientfd = accept(listenfd, (struct sockaddr *) & event->in_addr, & event->in_len);
+
+                    event->clientfd = clientfd;
+
+                    if (clientfd == -1) {
                         // Nothing was waiting
 
                         if ( (errno == EAGAIN) || (errno == EWOULDBLOCK) ) {
                             // We have processed all incoming connections
-                            snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "accept again(%d): %s", errno, strerror(errno));
-                            epmsg->buf[EPET_BUF_MAXSIZE] = 0;
 
-                            EPOLLET_EVENT_CB(EPEVT_TRACE, epmsg);
+                            snprintf(event->msg, len, "accept(%d): %s", errno, strerror(errno));
+                            event->msg[len] = 0;
 
+                            ON_EPCB_TRACE(event, epconf);                          
                         } else {
                             // unexpected error
-                            snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "accept error(%d): %s", errno, strerror(errno));
-                            epmsg->buf[EPET_BUF_MAXSIZE] = 0;
+                            snprintf(event->msg, len, "accept error(%d): %s", errno, strerror(errno));
+                            event->msg[len] = 0;
 
-                            EPOLLET_EVENT_CB(EPEVT_WARN, epmsg);
+                            ON_EPCB_WARN(event, epconf);
                         }
 
                         break;
                     }
 
-                    /* Translate that sockets address to host:port */
-                    err = getnameinfo(&epmsg->in_addr, epmsg->in_len,
-                                epmsg->hbuf, sizeof(epmsg->hbuf),
-                                epmsg->sbuf, sizeof(epmsg->sbuf),
-                                NI_NUMERICHOST | NI_NUMERICSERV);
+                    // translate that sockets address to host:port
 
-                    if (err == 0) {
-                        // success
-                        if (! EPOLLET_EVENT_CB(EPEVT_PEER_OPEN, epmsg)) {
-                            // client was rejected
+                    err = getnameinfo (&event->in_addr, event->in_len,
+                        event->hbuf, sizeof event->hbuf,
+                        event->sbuf, sizeof event->sbuf,
+                        NI_NUMERICHOST | NI_NUMERICSERV);
 
-                            EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
+                    if (err) {
+                        // unexpected error
+                        snprintf(event->msg, len, "getnameinfo error(%d): %s", err, strerror(err));
+                        event->msg[len] = 0;
 
-                            cleanup_socket(&epmsg->clientfd);
+                        ON_EPCB_WARN(event, epconf);
 
-                            continue;
+                        close(clientfd);
+                        continue;
+                    }
+
+                    // Make the incoming socket non-blocking (required for epoll edge-triggered mode)
+
+                    err = set_socket_nonblock(clientfd, event->msg, sizeof event->msg);
+                    if (err == -1) {
+                        ON_EPCB_WARN(event, epconf);
+
+                        close(clientfd);
+                        continue;
+                    }
+
+                    // success accept client?
+
+                    if ( ON_EPCB_NEW_PEER(event, epconf) ) {
+                        // Start watching for events to READ ( EPOLLIN ) on this socket in et mode
+                        //  (EPOLLET - edge trigger) on the same epoll instance we are already using
+                        // 注册用于 read 事件: EPOLLIN
+
+                        if (epollin_add(epollfd, clientfd, event->msg, sizeof event->msg) == -1) {
+
+                            ON_EPCB_REJECT(event, epconf);
+
+                            close(clientfd);
+                        } else {
+                            // 通知接受新客户
+
+                            ON_EPCB_ACCEPT(event, epconf);
                         }
                     } else {
-                        // error
-                        snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "getnameinfo error(%d): %s", err, strerror(err));
-                        epmsg->buf[EPET_BUF_MAXSIZE] = 0;
-                        EPOLLET_EVENT_CB(EPEVT_WARN, epmsg);
+                        ON_EPCB_REJECT(event, epconf);
 
-                        EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
-
-                        cleanup_socket(&epmsg->clientfd);
-
-                        continue;
+                        close(clientfd);
                     }
-
-                    /**
-                     * Make the incoming socket non-blocking (required for epoll edge-triggered mode)
-                     */
-                    err = set_socket_nonblock(epmsg->clientfd, msg, EPET_MSG_MAXLEN);
-                    if ( err == -1 ) {
-                        snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "set_socket_nonblock error: %s", msg);
-                        epmsg->buf[EPET_BUF_MAXSIZE] = 0;
-
-                        if (EPOLLET_EVENT_CB(EPEVT_FATAL, epmsg)) {
-
-                            EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
-
-                            cleanup_socket(&epmsg->clientfd);
-
-                            continue;
-                        }
-
-                        EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
-
-                        cleanup_socket(&epmsg->clientfd);
-
-                        goto exit_fatal_error;
-                    }
-
-                    /**
-                     * Start watching for events to READ ( EPOLLIN ) on this socket in
-                     *  edge triggered mode ( EPOLLET ) on the same epoll instance we
-                     *  are already using
-                     */
-                    if (epollet_ctl_add(epollfd, epmsg->clientfd, msg, EPET_MSG_MAXLEN) == -1) {
-                        snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "epollet_ctl_add error: %s", msg);
-                        epmsg->buf[EPET_BUF_MAXSIZE] = 0;
-
-                        if (EPOLLET_EVENT_CB(EPEVT_FATAL, epmsg)) {
-
-                            EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
-
-                            cleanup_socket(&epmsg->clientfd);
-
-                            continue;
-                        }
-
-                        EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
-
-                        cleanup_socket(&epmsg->clientfd);
-
-                        goto exit_fatal_error;
-                    }
-
-                    /* here we accept client */
-                    EPOLLET_EVENT_CB(EPEVT_ACCEPT, epmsg);
                 }
 
-                /**
-                 * Re-arm the listening socket
-                 */
-                if (epollet_ctl_mod(epollfd, epevent, msg, EPET_MSG_MAXLEN) == -1) {
-                    snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "epollet_ctl_mod error: %s", msg);
-                    epmsg->buf[EPET_BUF_MAXSIZE] = 0;
-
-                    EPOLLET_EVENT_CB(EPEVT_FATAL, epmsg);
-
-                    goto exit_fatal_error;
+                // rearm the listening socket
+                if (epollin_mod(epollfd, listenfd, event->msg, sizeof event->msg) == -1) {
+                    if (! ON_EPCB_ERROR(event, epconf)) {
+                        return (-1);
+                    }
                 }
+            } else if (events[i].events & EPOLLIN) {
+                // The event was on a client socket:
+                // We have data on the fd waiting to be read. Take action.
+                // We must read whatever data is available completely, as we are running in
+                //  edge-triggered mode and we won't get a notification again for the same data.
 
-                /* next event please */
-                continue;
-            } else if (epevent->events & EPOLLIN) {
-                /**
-                 * The event was on a client socket:
-                 * We have data on the fd waiting to be read. Take action.
-                 * We must read whatever data is available completely,
-                 * as we are running in edge-triggered mode and we won't
-                 * get a notification again for the same data.
-                 */
-                *epmsg->buf = 0;
-
-                epmsg->pollin_event = *epevent;
-
-                err = EPOLLET_EVENT_CB(EPEVT_POLLIN, epmsg);
-
-                if (err == 0) {
-                    /* 暂时无法提供服务 */
-                    EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
-
-                    cleanup_socket(&epmsg->clientfd);
-                } else if (err == -1) {
-                    /* 没有实现, 使用默认实现 */
+                if (! ON_EPCB_POLLIN(event, epconf)) {
+                    // 读光缓冲区
+                    off_t total = 0;
                     int next = 1;
-                    int cb = 0;
+                    int count = 0;
 
-                    while (next && (cb = readlen_next(epmsg->clientfd, msg, EPET_MSG_MAXLEN + 1, &next)) >= 0) {
-                        if (cb > 0) {
-                            msg[cb] = 0;
-
-                            snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "read %d bytes", cb);
-                            epmsg->buf[EPET_BUF_MAXSIZE] = 0;
-
-                            EPOLLET_EVENT_CB(EPEVT_TRACE, epmsg);
+                    while (next && (count = readlen_next(sfd, event->msg, sizeof event->msg, &next)) >= 0) {
+                        if (count > 0) {
+                            total += count;
                         }
                     }
 
-                    if (cb < 0) {
-                        /**
-                         * Closing the descriptor will make epoll remove it from the set of
-                         *  descriptors which are monitored.
-                         */
-                        snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "peer close: read error(%d)", cb);
-                        epmsg->buf[EPET_BUF_MAXSIZE] = 0;
+                    if (! next) {
+                        snprintf(event->msg, len, "[%ju] read %d bytes ok.\n", ++rc_read, count);
+                        event->msg[len] = 0;
 
-                        EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
+                        ON_EPCB_TRACE(event, epconf);
 
-                        cleanup_socket(&epmsg->clientfd);
+                    } else if (count < 0) {
+                        // Closing the descriptor will make epoll remove it from
+                        //  the set of descriptors which are monitored
 
-                        // goto: loop-for-each-event
+                        snprintf(event->msg, len, "client close socket(%d)", sfd);
+                        event->msg[len] = 0;
+
+                        ON_EPCB_WARN(event, epconf);
+
+                        close(sfd);
                         continue;
                     }
 
-                    cb = snprintf(msg, EPET_MSG_MAXLEN, "SUCCESS");
-                    msg[cb] = 0;
+                    // rearm the socket. 注册事件用于 write
+                    if (epollout_mod(epollfd, sfd, event->msg, sizeof event->msg) == -1) {
 
-                    if (write(epmsg->clientfd, msg, cb + 1) == -1) {
-                        snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "peer close: write error(%d): %s", errno, strerror(errno));
-                        epmsg->buf[EPET_BUF_MAXSIZE] = 0;
+                        close(sfd);
 
-                        EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
-
-                        cleanup_socket(&epmsg->clientfd);
-
-                        // goto: loop-for-each-event
-                        continue;
+                        if (! ON_EPCB_ERROR(event, epconf)) {                            
+                            return (-1);
+                        }
                     }
+                }
+            } else if (events[i].events & EPOLLOUT) {
 
-                    /**
-                     * Re-arm the socket
-                     */
-                    if (epollet_ctl_mod(epollfd, epevent, msg, EPET_MSG_MAXLEN) == -1) {
-                        snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "epollet_ctl_mod error: %s", msg);
-                        epmsg->buf[EPET_BUF_MAXSIZE] = 0;
+                if (! ON_EPCB_POLLOUT(event, epconf)) {
 
-                        EPOLLET_EVENT_CB(EPEVT_FATAL, epmsg);
+                    // 如果回调未实现
 
-                        EPOLLET_EVENT_CB(EPEVT_PEER_CLOSE, epmsg);
+                    snprintf(event->msg, sizeof event->msg, "TODO: EPOLLOUT");
 
-                        cleanup_socket(&epmsg->clientfd);
+                    write(sfd, event->msg, strlen(event->msg));
 
-                        goto exit_fatal_error;
+                    if (epollin_mod(epollfd, sfd, event->msg, sizeof event->msg) == -1) {
+
+                        close(sfd);
+
+                        if (! ON_EPCB_ERROR(event, epconf)) {
+                            return (-1);
+                        }
                     }
                 }
             }
         }
     }
 
-exit_fatal_error:
-
-    snprintf(epmsg->buf, EPET_BUF_MAXSIZE, "exit_fatal_error");
-    epmsg->buf[EPET_BUF_MAXSIZE] = 0;
-
-    EPOLLET_EVENT_CB(EPEVT_FATAL, epmsg);
+    return 0;
 }
 
 

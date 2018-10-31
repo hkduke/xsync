@@ -38,65 +38,9 @@
 
 
 __attribute__((used))
-static void read_all_peer (perthread_data *perdata)
-{
-    int epollfd = perdata->pollin.epollfd;
-    int clientfd = perdata->pollin.epevent.data.fd;
-
-    int error = 1;
-    int next = 1;
-
-    off_t total = 0;
-    off_t offset = 0;
-
-    ssize_t count;
-
-    // read-up all bytes
-    while (next && (count = readlen_next(clientfd, perdata->buffer + offset, sizeof(perdata->buffer) - offset, &next)) >= 0) {
-        offset += count;
-        total += count;
-
-        if (offset == sizeof perdata->buffer) {
-            //  缓冲区已经用完, 处理数据...
-            LOGGER_WARN("(thread-%d) TODO: read %ju bytes (total %ju bytes)", perdata->threadid, offset, total);
-
-            // 重头开始再次读
-            offset = 0;            
-        }
-    }
-
-    if (! next) {
-        // 成功读光了全部数据
-        error = 0;
-    } else if (count == -1) {
-        // 读出错
-        LOGGER_ERROR("(thread-%d) sock(%d): read error (%s)", perdata->threadid, clientfd, strerror(errno));
-    } else if (count == -2) {
-        // 客户端关闭了连接
-        LOGGER_WARN("(thread-%d) sock(%d): remote closed connection", perdata->threadid, clientfd);
-    }
-
-    if (error) {
-        /**
-         * Closing the descriptor will make epoll remove it from the set of
-         *  descriptors which are monitored.
-         */
-        close(clientfd);
-        return;
-    }
-
-    // Re-arm the socket 添加到 epollet 中
-    if (epollet_ctl_mod(epollfd, &perdata->pollin.epevent, perdata->buffer, XSYNC_BUFSIZE - 1) == -1) {
-        LOGGER_ERROR("(thread-%d) sock(%d): epollet_ctl_mod error: %s", perdata->threadid, clientfd, perdata->buffer);
-
-        close(clientfd);
-    }
-}
-
-
-__attribute__((used))
 static void handle_peer_connect2 (perthread_data *perdata)
 {
+    /*
     XS_server server = (XS_server) perdata->pollin.arg;
 
     int epollfd = perdata->pollin.epollfd;
@@ -162,14 +106,13 @@ static void handle_peer_connect2 (perthread_data *perdata)
     }
 
     if (! connected) {
-        /**
-         * Closing the descriptor will make epoll remove it from the set of
-         *  descriptors which are monitored.
-         */
+        // Closing the descriptor will make epoll remove it from the set of
+        //  descriptors which are monitored.
         close(clientfd);
         return;
     }
 
+    
     // Re-arm the socket 添加到 epollet 中
     if (epollet_ctl_mod(epollfd, &perdata->pollin.epevent, perdata->buffer, XSYNC_BUFSIZE - 1) == -1) {
         LOGGER_ERROR("(thread-%d) sock(%d): epollet_ctl_mod error: %s", perdata->threadid, clientfd, perdata->buffer);
@@ -179,10 +122,9 @@ static void handle_peer_connect2 (perthread_data *perdata)
         connected = 0;
     }
 
-    /**
-     * TODO: 通知客户端连接已经成功建立:
-     *   如果本连接是客户端接收 socket 用于消息通知, 则不要添加到 epollet 中
-     *   可以将 clientfd 缓存起来 (Redis?), 当有消息需要通知客户时, 再写入消息
+    // TODO: 通知客户端连接已经成功建立:
+    //   如果本连接是客户端接收 socket 用于消息通知, 则不要添加到 epollet 中
+    //   可以将 clientfd 缓存起来 (Redis?), 当有消息需要通知客户时, 再写入消息
 
     count = snprintf(perdata->buffer, XSYNC_BUFSIZE, "SUCCESS");
     perdata->buffer[count] = 0;
@@ -215,6 +157,7 @@ static void handle_peer_connect (perthread_data *perdata)
 {
     //// XS_server server = (XS_server) perdata->pollin.arg;
 
+    /*
     int epollfd = perdata->pollin.epollfd;
     int clientfd = perdata->pollin.epevent.data.fd;
 
@@ -231,19 +174,17 @@ static void handle_peer_connect (perthread_data *perdata)
     if (cb < 0) {
         LOGGER_ERROR("(thread-%d) sock(%d): read error(%d).", perdata->threadid, clientfd, cb);
 
-        /**
-         * Closing the descriptor will make epoll remove it from the set of
-         *  descriptors which are monitored.
-         */
+        // Closing the descriptor will make epoll remove it from the set of
+        // descriptors which are monitored.
+
         close(clientfd);
 
         return;
     }
 
-    /**
-     * 如果本连接是客户端接收 socket 用于消息通知, 则不要添加到 epollet 中
-     * 可以将 clientfd 缓存起来 (Redis?), 当有消息需要通知客户时, 再写入消息
-     */
+    // 如果本连接是客户端接收 socket 用于消息通知, 则不要添加到 epollet 中
+    // 可以将 clientfd 缓存起来 (Redis?), 当有消息需要通知客户时, 再写入消息
+
     cb = snprintf(perdata->buffer, XSYNC_BUFSIZE, "SUCCESS");
     perdata->buffer[cb] = 0;
 
@@ -259,6 +200,7 @@ static void handle_peer_connect (perthread_data *perdata)
             close(clientfd);
         }
     }
+    */
 }
 
 
@@ -391,15 +333,27 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
         exit(XS_ERROR);
     }
 
-    LOGGER_DEBUG("epollet_server_initiate(%s:%s): somaxconn=%d maxevents=%d", opts->host, opts->port, BACKLOGS, MAXEVENTS);
+    LOGGER_DEBUG("epollet_conf_init(%s:%s): somaxconn=%d maxevents=%d", opts->host, opts->port, BACKLOGS, MAXEVENTS);
     do {
-        if (epollet_server_initiate(&server->epserver, opts->host, opts->port, BACKLOGS, MAXEVENTS) == -1) {
-            LOGGER_FATAL("epollet_server_initiate failed: %s", server->epserver.msg);
+        if (epollet_conf_init(&server->epconf, opts->host, opts->port, BACKLOGS, MAXEVENTS, server->msgbuf, sizeof server->msgbuf) == -1) {
+            LOGGER_FATAL("epollet_conf_init fail: %s", server->msgbuf);
             xs_server_delete((void*) server);
             exit(XS_ERROR);
         }
 
-        LOGGER_INFO("epollet_server_initiate: %s", server->epserver.msg);
+        // 设置回调函数
+        /*
+        server->epconf.epcb_trace = epcb_event_trace;
+        server->epconf.epcb_warn = epcb_event_warn;
+        server->epconf.epcb_error = epcb_event_error;
+        server->epconf.epcb_new_peer = epcb_event_new_peer;
+        server->epconf.epcb_accept = epcb_event_accept;
+        server->epconf.epcb_reject = epcb_event_reject;
+        server->epconf.epcb_pollin = epcb_event_pollin;
+        server->epconf.epcb_pollout = epcb_event_pollout;
+        */
+
+        LOGGER_INFO("epollet_conf_init: %s", server->msgbuf);
     } while (0);
 
     memcpy(server->host, opts->host, sizeof(opts->host));
@@ -465,6 +419,7 @@ extern XS_VOID XS_server_bootstrap (XS_server server)
 
     mul_timer_start();
 
+    /*
     epollet_msg_t epmsg;
     bzero(&epmsg, sizeof(epmsg));
 
@@ -480,15 +435,23 @@ extern XS_VOID XS_server_bootstrap (XS_server server)
     epmsg.msg_cbs[EPEVT_ACCEPT] = epcb_event_accept;
     epmsg.msg_cbs[EPEVT_REJECT] = epcb_event_reject;
     epmsg.msg_cbs[EPEVT_POLLIN] = epcb_event_pollin;
+    */
 
-    LOGGER_INFO("epollet_server starting...");
+    LOGGER_INFO("epollet_loop_events starting...");
 
-    // see: common/epollet.h
-    epollet_server_loop_events(&server->epserver, &epmsg);
+    do {
+        struct epollet_event_t event;
+        bzero(&event, sizeof(event));
+
+        event.arg = (void *) server;
+
+        // see: common/epollet.h
+        epollet_loop_events(&server->epconf, &event);
+    } while (0);
 
     mul_timer_pause();
 
-    LOGGER_FATAL("epollet_server stopped.");
+    LOGGER_FATAL("epollet_loop_events stopped.");
 }
 
 

@@ -104,24 +104,26 @@ static inline const char * XCON_redis_table_key(const char *serverid, int connfd
 
 extern void event_task (thread_context_t *thread_ctx);
 
+
 /**
  * epollet event 回调函数
  */
-extern int epcb_event_trace(epollet_msg epmsg, void *arg);
 
-extern int epcb_event_warn(epollet_msg epmsg, void *arg);
+extern int epcb_event_trace (struct epollet_event_t *event);
 
-extern int epcb_event_fatal(epollet_msg epmsg, void *arg);
+extern int epcb_event_warn (struct epollet_event_t *event);
 
-extern int epcb_event_peer_open(epollet_msg epmsg, void *arg);
+extern int epcb_event_error (struct epollet_event_t *event);
 
-extern int epcb_event_peer_close(epollet_msg epmsg, void *arg);
+extern int epcb_event_new_peer (struct epollet_event_t *event);
 
-extern int epcb_event_accept(epollet_msg epmsg, void *arg);
+extern int epcb_event_accept (struct epollet_event_t *event);
 
-extern int epcb_event_reject(epollet_msg epmsg, void *arg);
+extern int epcb_event_reject (struct epollet_event_t *event);
 
-extern int epcb_event_pollin(epollet_msg epmsg, void *arg);
+extern int epcb_event_pollin (struct epollet_event_t *event);
+
+extern int epcb_event_pollout (struct epollet_event_t *event);
 
 
 /**

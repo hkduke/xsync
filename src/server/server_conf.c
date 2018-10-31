@@ -53,8 +53,8 @@ extern void xs_server_delete (void *pv)
     LOGGER_TRACE("pthread_cond_destroy");
     pthread_cond_destroy(&server->condition);
 
-    LOGGER_TRACE("epollet_server_finalize");
-    epollet_server_finalize(&server->epserver);
+    LOGGER_TRACE("epollet_conf_uninit");
+    epollet_conf_uninit(&server->epconf);
 
     if (server->pool) {
         LOGGER_DEBUG("threadpool_destroy");

@@ -765,7 +765,7 @@ static ssize_t readlen_next (int fd, char * buf, size_t len, int *next)
 
         if (count == -1) {
             if (errno != EAGAIN) {
-                /* expected error */
+                /* unexpected error */
                 perror("read");
                 return (-1);
             }
