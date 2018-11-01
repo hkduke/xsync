@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.4
+ * @version: 0.3.8
  *
  * @create: 2018-02-12
  *
- * @update: 2018-10-29 10:24:55
+ * @update: 2018-11-01 17:20:05
  */
 
 #include "client_api.h"
@@ -40,7 +40,7 @@
 #include "../common/common_util.h"
 
 
-extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char clientid[40], XS_server_conn *outSConn)
+extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char *clientid, char *password, XS_server_conn *outSConn)
 {
     XS_server_conn xcon;
 
@@ -96,7 +96,7 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
             while(1) {
                 rc_read++;
 
-                XSConnectRequestBuild(&xconReq, clientid, servOpts->magic, xcon->client_utctime, rand_gen(&xcon->rctx), (ub1*) msg);
+                XSConnectRequestBuild(&xconReq, clientid, password, servOpts->magic, xcon->client_utctime, rand_gen(&xcon->rctx), (ub1*) msg);
 
                 // 发送连接请求: XS_CONNECT_REQ_SIZE 字节
                 err = sendlen(sockfd, msg, XS_CONNECT_REQ_SIZE);
@@ -106,7 +106,7 @@ extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char cli
                     return XS_ERROR;
                 }
 
-                LOGGER_DEBUG("%s", XSConnectRequestPrint(&xconReq, msg, sizeof(msg)));
+                LOGGER_DEBUG("%s", XSConnectRequestOutput(&xconReq, password, msg, sizeof(msg)));
 
                 int next = 1;
                 int cbread = 0;

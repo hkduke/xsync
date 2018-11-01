@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.4
+ * @version: 0.3.8
  *
  * @create: 2018-01-29
  *
- * @update: 2018-10-29 10:24:55
+ * @update: 2018-11-01 17:30:47
  */
 
 /***********************************************************************
@@ -105,14 +105,14 @@ extern "C"
 {
 #endif
 
-#include "xsync-config.h"
+#include <zlib.h>
 
 #include "./common/byteorder.h"
 #include "./common/threadlock.h"
-
 #include "./common/randctx.h"
+#include "./common/rc4.h"
 
-#include <zlib.h>
+#include "xsync-config.h"
 
 
 #ifdef __GNUC__
@@ -162,26 +162,37 @@ static union {
  *   This is the 1st message sent by client to server so as to
  *     establish a new session connection.
  *
- *   The xsync_newconn_t makes up with a fix head of 64 bytes.
+ *   The XSConnectReq_t makes up with a fix head of 64 bytes.
  *
- *        4 bytes      |       4 bytes
- * --------------------+--------------------
- *  0  ConnType        |        MAGIC      7
- * --------------------+--------------------
- *  8   Version        |      TimeStamp   15
- * --------------------+--------------------
- *  16          CLIENTID 40 bytes
- *                 ...   ...              55
- * --------------------+--------------------
- *  56  Random Number  |        CRC32     63
- * -----------------------------------------
- *  64
+ * 0
+ * --------------------------------+--------------------------------
+ * 0       msgid (4 bytes)         |4          magic (4 bytes)
+ * --------------------------------+--------------------------------
+ * 8        randnum                |12         client_version
+ * --------------------------------+--------------------------------
+ * 16                       client_utctime ( 8 bytes)
+ * --------------------------------+--------------------------------
+ * 24             clientid (36 bytes)
+ * 32                            ...
+ * 40
+ * 48
+ * 56                              |60:'\0'|61:idlen|62: password...
+ * --------------------------------+--------------------------------
+ * 64  ... password (16 bytes)
+ * 72                                               |78:'\0'|79:pwlen
+ * --------------------------------+--------------------------------
+ * 80:      reserved               |84        ub4 crc32_checksum
+ * -----------------------------------------------------------------
+ * 88
  **********************************************************************/
-#define XS_CONNECT_REQ_SIZE    64
+
+#define XS_CONNECT_REQ_SIZE    (XSYNC_CLIENTID_MAXLEN + XSYNC_PASSWORD_MAXLEN + 36)
+
 
 #ifdef _MSC_VER
 #  pragma pack(1)
 #endif
+
 
 typedef struct XSConnectReq_t
 {
@@ -195,8 +206,12 @@ typedef struct XSConnectReq_t
 
             ub8 client_utctime;     /* 64 bits time */
 
-            /* 36 characters length of client id */
-            ub1 clientid[XSYNC_CLIENTID_MAXLEN];
+            /* 36 characters length of client id + end 2 bytes */
+            ub1 clientid[XSYNC_CLIENTID_MAXLEN + 2];
+
+            ub1 password[XSYNC_PASSWORD_MAXLEN + 2];
+
+            ub4 reserved;
 
             ub4 crc32_checksum;
         };
@@ -454,7 +469,8 @@ const char * parse_version_to_string (ub4 verno, XSVersion_t * version)
 
 __no_warning_unused(static)
 ub1 * XSConnectRequestBuild (XSConnectReq_t *req,
-    char clientid[XSYNC_CLIENTID_MAXLEN],
+    char *clientid,
+    char *password,
     uint32_t magic,
     ub8 utctime,
     ub4 randnum,
@@ -465,9 +481,10 @@ ub1 * XSConnectRequestBuild (XSConnectReq_t *req,
 
     XSVersion_t appver;
 
+    // clear input
     bzero(req, sizeof(*req));
 
-    /* XCON */
+    // XCON
     req->msgid = XS_MSGID_XCON.msgid;
 
     req->magic = magic;
@@ -476,7 +493,23 @@ ub1 * XSConnectRequestBuild (XSConnectReq_t *req,
     req->client_version = build_version_from_string(XSYNC_CLIENT_VERSION, &appver);
     req->client_utctime = utctime;
 
-    memcpy(req->clientid, clientid, XSYNC_CLIENTID_MAXLEN);
+    ub1 idlen = (ub1) strnlen((char *) clientid, XSYNC_CLIENTID_MAXLEN);
+    ub1 pwlen = (ub1) strnlen((char *) password, XSYNC_PASSWORD_MAXLEN);
+
+    memcpy(req->clientid, clientid, idlen + 1);
+    memcpy(req->password, password, pwlen + 1);
+
+    req->clientid[XSYNC_CLIENTID_MAXLEN] = '\0';
+    req->password[XSYNC_PASSWORD_MAXLEN] = '\0';
+
+    req->clientid[XSYNC_CLIENTID_MAXLEN + 1] = idlen;
+    req->password[XSYNC_PASSWORD_MAXLEN + 1] = pwlen;
+
+    b = snprintf((char *) chunk, XS_CONNECT_REQ_SIZE, "%ju", req->client_utctime ^ req->client_version ^ req->randnum);
+
+    RC4_encrypt_string((char *) req->password, pwlen, (char *) chunk, b);
+
+    req->reserved = 0;
 
     /**
      * write to send buffer
@@ -484,8 +517,9 @@ ub1 * XSConnectRequestBuild (XSConnectReq_t *req,
     do {
         ub1 *pbuf = chunk;
 
-        memcpy(pbuf, &req->msgid, sizeof(req->msgid));
-        pbuf += sizeof(req->msgid);
+        b = BO_i32_htobe(req->msgid);
+        memcpy(pbuf, &b, sizeof(b));
+        pbuf += sizeof(b);
 
         b = BO_i32_htobe(req->magic);
         memcpy(pbuf, &b, sizeof(b));
@@ -495,23 +529,29 @@ ub1 * XSConnectRequestBuild (XSConnectReq_t *req,
         memcpy(pbuf, &b, sizeof(b));
         pbuf += sizeof(b);
 
-        memcpy(pbuf, &req->client_version, sizeof(req->client_version));
-        pbuf += sizeof(req->client_version);
+        b = BO_i32_htobe(req->client_version);
+        memcpy(pbuf, &b, sizeof(b));
+        pbuf += sizeof(b);
 
-        b2 = BO_i64_htole(req->client_utctime);
+        b2 = BO_i64_htobe(req->client_utctime);
         memcpy(pbuf, &b2, sizeof(b2));
         pbuf += sizeof(b2);
 
-        memcpy(pbuf, req->clientid, XSYNC_CLIENTID_MAXLEN);
-        pbuf += XSYNC_CLIENTID_MAXLEN;
+        memcpy(pbuf, req->clientid, XSYNC_CLIENTID_MAXLEN + 2);
+        pbuf += XSYNC_CLIENTID_MAXLEN + 2;
+
+        memcpy(pbuf, req->password, XSYNC_PASSWORD_MAXLEN + 2);
+        pbuf += XSYNC_PASSWORD_MAXLEN + 2;
+
+        b = BO_i32_htobe(req->reserved);
+        memcpy(pbuf, &b, sizeof(b));
+        pbuf += sizeof(b);
 
         req->crc32_checksum = (ub4) crc32(0L, (const unsigned char *) chunk, XS_CONNECT_REQ_SIZE - sizeof(req->crc32_checksum));
 
         b = BO_i32_htobe(req->crc32_checksum);
         memcpy(pbuf, &b, sizeof(b));
         pbuf += sizeof(b);
-
-        assert(pbuf - chunk == XS_CONNECT_REQ_SIZE);
     } while(0);
 
     return chunk;
@@ -531,7 +571,10 @@ inline XS_BOOL XSConnectRequestParse (ub1 *chunk, XSConnectReq_t *req)
         return XS_FALSE;
     }
 
-    memcpy(&req->msgid, pbuf, sizeof(req->msgid));
+    // clear output
+    bzero(req, sizeof(* req));
+
+    req->msgid = (ub4) BO_bytes_betoh_i32(pbuf);
     pbuf += sizeof(ub4);
 
     req->magic = (ub4) BO_bytes_betoh_i32(pbuf);
@@ -540,48 +583,88 @@ inline XS_BOOL XSConnectRequestParse (ub1 *chunk, XSConnectReq_t *req)
     req->randnum = (ub4) BO_bytes_betoh_i32(pbuf);
     pbuf += sizeof(ub4);
 
-    memcpy(&req->client_version, pbuf, sizeof(ub4));
+    req->client_version = (ub4) BO_bytes_betoh_i32(pbuf);
     pbuf += sizeof(ub4);
 
     req->client_utctime = (ub8) BO_bytes_betoh_i64(pbuf);
     pbuf += sizeof(ub8);
 
-    memcpy(req->clientid, pbuf, XSYNC_CLIENTID_MAXLEN);
-    pbuf += XSYNC_CLIENTID_MAXLEN;
+    do {
+        // password
+        int pwlen, keylen;
+
+        pbuf += XSYNC_CLIENTID_MAXLEN + 2;
+
+        memcpy(req->password, pbuf, XSYNC_PASSWORD_MAXLEN);
+        pbuf += XSYNC_PASSWORD_MAXLEN;
+
+        req->password[XSYNC_PASSWORD_MAXLEN] = '\0';
+        pbuf += 1;
+
+        pwlen = *pbuf++;
+
+        req->password[XSYNC_PASSWORD_MAXLEN + 1] = pwlen;
+
+        keylen = snprintf((char *) req->clientid, XSYNC_CLIENTID_MAXLEN, "%ju", req->client_utctime ^ req->client_version ^ req->randnum);
+
+        RC4_encrypt_string((char *) req->password, pwlen, (char *) req->clientid, keylen);
+    } while (0);
+
+    do {
+        // clientid
+        pbuf = chunk + sizeof(ub4) * 4 + sizeof(ub8);
+
+        memcpy(req->clientid, pbuf, XSYNC_CLIENTID_MAXLEN);
+        pbuf += XSYNC_CLIENTID_MAXLEN;
+
+        req->clientid[XSYNC_CLIENTID_MAXLEN] = '\0';
+        pbuf += 1;
+
+        req->clientid[XSYNC_CLIENTID_MAXLEN + 1] = *pbuf++;
+    } while (0);
+
+    pbuf = chunk + sizeof(ub4) * 4 + sizeof(ub8) + XSYNC_CLIENTID_MAXLEN + XSYNC_PASSWORD_MAXLEN + 4 * sizeof(ub1);
+
+    // reserved
+    req->reserved = (ub4) BO_bytes_betoh_i32(pbuf);
+    pbuf += sizeof(ub4);
 
     /* crcsum */
     pbuf += sizeof(ub4);
-
-    assert(pbuf - chunk == XS_CONNECT_REQ_SIZE);
 
     return XS_TRUE;
 }
 
 
 __no_warning_unused(static)
-inline const char * XSConnectRequestPrint (const XSConnectReq_t *req, char *buffer, int bufsize)
+inline const char * XSConnectRequestOutput (const XSConnectReq_t *req, void * password, char *output, int outsize)
 {
-    char clientid[XSYNC_CLIENTID_MAXLEN + 1];
-    memcpy(clientid, req->clientid, XSYNC_CLIENTID_MAXLEN);
-    clientid[XSYNC_CLIENTID_MAXLEN] = 0;
-
     XSVersion_t ver;
+
+    parse_version_to_string(req->client_version, &ver);
 
     /* printf for uint32 or uint64
      *   https://blog.csdn.net/nullzhou/article/details/38703095
      */
-    snprintf(buffer, bufsize, "\n  clientid='%s'\n  msgid='%c%c%c%c'\n  magic=%d\n  randnum=%u\n  version=%s (%u)\n  utctime=%ju",
-        clientid,
+    snprintf(output, outsize, "\n"
+        "  msgid    = [%c%c%c%c]\n"
+        "  magic    = [%d]\n"
+        "  randnum  = [%u]\n"
+        "  version  = [%s]\n"
+        "  utctime  = [%ju]\n"
+        "  clientid = [%s]\n"
+        "  password = [%s]\n",
         req->head[0], req->head[1], req->head[2], req->head[3],
         req->magic,
         req->randnum,
-        parse_version_to_string(req->client_version, &ver),
-        req->client_version,
-        req->client_utctime);
+        ver.verstring,
+        req->client_utctime,
+        req->clientid,
+        (password ? (const char *) password : "(null)"));
 
-    buffer[bufsize - 1] = 0;
+    output[outsize - 1] = 0;
 
-    return buffer;
+    return output;
 }
 
 

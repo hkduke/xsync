@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.4
+ * @version: 0.3.8
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-29 10:24:55
+ * @update: 2018-11-01 12:46:38
  */
 
 #ifndef SERVER_OPTS_H_INCLUDED
@@ -64,6 +64,8 @@ typedef struct xs_server_opts
     struct sockconn_opts sockopts;
 
     char clientid[XSYNC_CLIENTID_MAXLEN + 1];
+    char password[XSYNC_PASSWORD_MAXLEN + 1];
+
 } xs_server_opts;
 
 

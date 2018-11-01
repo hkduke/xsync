@@ -103,17 +103,10 @@ int RC4_encrypt_file( char *source, char* dest, char* key, size_t keylen, char *
     size_t sizeRead = 1;
 
 	/* Reading crypted file and decrypt content */
-	if (source==dest){
-
-#ifndef WINCE
-		FILE  *fp = 0;
-		if (0 != fopen_s(&fp, source, "rb+"))
-			return 0;
-#else
+	if (source == dest) {
 		FILE  *fp = fopen(source, "rb+");
 		if (!fp)
 			return 0;
-#endif
 
 		while (sizeRead){
 			if (0 != fseek(fp, (long)totalRead, SEEK_SET)){
@@ -141,15 +134,6 @@ int RC4_encrypt_file( char *source, char* dest, char* key, size_t keylen, char *
 		FILE *fpr = 0;
 		FILE *fpw = 0;
 
-	#ifndef WINCE
-		if (0 != fopen_s(&fpr, source, "rb" ))
-			return 0;
-
-		if (0 != fopen_s(&fpw, dest, "rb" )){
-			fclose(fpr);
-			return 0;
-		}
-	#else
 		fpr = fopen( source, "rb" );
 		if (!fpr)
 			return 0;
@@ -159,88 +143,6 @@ int RC4_encrypt_file( char *source, char* dest, char* key, size_t keylen, char *
 			fclose(fpr);
 			return 0;
 		}
-	#endif
-		
-		while (!feof(fpr)){
-			sizeRead = fread( buffer, sizeof(char), buffer_size, fpr );
-			RC4_encrypt_string(buffer, sizeRead, key, keylen);
-			totalRead += sizeRead;
-			totalWrite += fwrite(buffer, sizeof(char), sizeRead, fpw);
-		}
-		fclose(fpr);
-		fclose(fpw);
-	}
-
-	if (totalRead==totalWrite)
-		return (int) totalWrite;
-	assert(0);
-	return 0;
-}
-
-int RC4_encrypt_file_w(wchar_t *source, wchar_t* dest, char* key, size_t keylen, char *buffer, size_t buffer_size)
-{
-	size_t totalWrite = 0;
-	size_t totalRead = 0;
-    size_t sizeRead = 1;
-
-	/* Reading crypted file and decrypt content */
-	if (source==dest){
-
-#ifndef WINCE
-		FILE  *fp = 0;
-		if (0 != _wfopen_s(&fp, source, L"rb+"))
-			return 0;
-#else
-		FILE  *fp = _wfopen(source, L"rb+");
-		if (!fp)
-			return 0;
-#endif
-
-		while (sizeRead){
-			if (0 != fseek(fp, (long)totalRead, SEEK_SET)){
-				fclose(fp);
-				return 0;
-			}
-
-			sizeRead = fread( buffer, sizeof(char), buffer_size, fp );
-			if (sizeRead==0)
-				break;
-			totalRead += sizeRead;
-
-			RC4_encrypt_string(buffer, sizeRead, key, keylen);
-			
-			if (0 != fseek(fp, (long)totalWrite, SEEK_SET)){
-				fclose(fp);
-				return 0;
-			}
-
-			totalWrite += fwrite(buffer, sizeof(char), sizeRead, fp);
-		}
-		fclose(fp);
-	}
-	else{
-		FILE *fpr = 0;
-		FILE *fpw = 0;
-
-	#ifndef WINCE
-		if (0 != _wfopen_s(&fpr, source, L"rb" ))
-			return 0;
-
-		if (0 != _wfopen_s(&fpw, dest, L"rb" )){
-			fclose(fpr);
-			return 0;
-		}
-	#else
-		fpr = _wfopen( source, L"rb" );
-		if (!fpr)
-			return 0;
-
-		fpw = _wfopen( dest, L"wb" );
-		if (!fpw){
-			fclose(fpr);
-			return 0;
-		}
-	#endif
 		
 		while (!feof(fpr)){
 			sizeRead = fread( buffer, sizeof(char), buffer_size, fpr );

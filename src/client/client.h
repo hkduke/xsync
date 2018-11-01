@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.4
+ * @version: 0.3.8
  *
  * @create: 2018-01-24
  *
- * @update: 2018-10-29 10:34:58
+ * @update: 2018-11-01 14:44:46
  */
 
 #ifndef CLIENT_H_INCLUDED
@@ -118,6 +118,7 @@ void print_usage(void)
         "\t-q, --queues=<QUEUES>        \033[35m specify total queues for all threads. %d (default)\033[0m\n"
         "\n"
         "\t-N, --clientid=<CLIENTID>    \033[35m CAUTION: replace clientid in file CLIENTID\033[0m\n"
+        "\t-p, --password=<PASSWORD>    \033[35m specify password for the clientid\033[0m\n"
         "\n"
         "\t-D, --daemon                 \033[35m run as daemon process.\033[0m\n"
         "\t-K, --kill                   \033[35m kill all processes for this program.\033[0m\n"
@@ -179,6 +180,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
         {"threads", required_argument, 0, 't'},
         {"queues", required_argument, 0, 'q'},
         {"clientid", required_argument, 0, 'N'},
+        {"password", required_argument, 0, 'p'},
         {"daemon", no_argument, 0, 'D'},
         {"kill", no_argument, 0, 'K'},
         {"list", no_argument, 0, 'L'},
@@ -221,7 +223,7 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
     }
 
     /* parse command arguments */
-    while ((ret = getopt_long(argc, argv, "hVC:WO:k::P:A:t:q:s:N:DKLS::Im:", lopts, 0)) != EOF) {
+    while ((ret = getopt_long(argc, argv, "hVC:WO:k::P:A:t:q:s:N:p:DKLS::Im:", lopts, 0)) != EOF) {
         switch (ret) {
         case 'D':
             opts->isdaemon = 1;
@@ -341,6 +343,11 @@ void xs_appopts_initiate (int argc, char *argv[], xs_appopts_t *opts)
         case 'N':
             strncpy(opts->clientid, optarg, XSYNC_CLIENTID_MAXLEN);
             opts->clientid[XSYNC_CLIENTID_MAXLEN] = '\0';
+            break;
+
+        case 'p':
+            strncpy(opts->password, optarg, XSYNC_PASSWORD_MAXLEN);
+            opts->password[XSYNC_PASSWORD_MAXLEN] = '\0';
             break;
 
         case 'm':

@@ -25,11 +25,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.4
+ * @version: 0.3.8
  *
  * @create: 2018-02-10
  *
- * @update: 2018-10-29 10:24:55
+ * @update: 2018-10-29 17:11:05
  *
  */
 
@@ -175,7 +175,7 @@ int RedisParseHosts(const char *hpstr, ssize_t len, char **hpstrOut)
         // 输出列表
         hpout = malloc(sizeof(char) * (outlen + 1));
         *hpout = '\0';
-        
+
         // 复制 hpstr
         memcpy(buf, hpstr, len);
         buf[len] = 0;
@@ -213,7 +213,7 @@ int RedisParseHosts(const char *hpstr, ssize_t len, char **hpstrOut)
 
         // 去掉末尾的 ','
         hpout[outlen - 1] = '\0';
-        
+
         *hpstrOut = hpout;
 
         return nodes;

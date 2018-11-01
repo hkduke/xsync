@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.4
+ * @version: 0.3.8
  *
  * @create: 2018-01-25
  *
- * @update: 2018-10-29 12:17:11
+ * @update: 2018-11-01 14:50:33
  */
 
 /******************************************************************************
@@ -791,13 +791,22 @@ XS_RESULT XS_client_create (xs_appopts_t *opts, XS_client *outClient)
     client->kafka = opts->kafka;
 
     if (opts->clientid[0]) {
-        // 通过命令行参数设置 clientid
-        memcpy(client->clientid, opts->clientid, sizeof(client->clientid));
+        // 通过命令行参数设置了 clientid
+        memcpy(client->clientid, opts->clientid, XSYNC_CLIENTID_MAXLEN);
     } else {
         // TODO: 从本地磁盘得到 clientid
         LOGGER_WARN("TODO: no CLIENTID specified");
     }
-    client->clientid[sizeof(client->clientid) - 1] = '\0';
+    client->clientid[XSYNC_CLIENTID_MAXLEN] = '\0';
+
+    if (opts->password[0]) {
+        // 通过命令行参数设置了 password
+        memcpy(client->password, opts->password, XSYNC_PASSWORD_MAXLEN);
+    } else {
+        // TODO: 从本地磁盘得到 password
+        LOGGER_WARN("TODO: no PASSWORD specified");
+    }
+    client->password[XSYNC_PASSWORD_MAXLEN] = '\0';
 
     __interlock_release(&client->task_counter);
 
@@ -1226,7 +1235,7 @@ XS_VOID XS_client_bootstrap (XS_client client)
             for (sid = 1; sid <= XS_client_get_server_maxid(client); sid++) {
                 xs_server_opts * srv = XS_client_get_server_opts(client, sid);
 
-                XS_server_conn_create(srv, client->clientid, &perdata->server_conns[sid]);
+                XS_server_conn_create(srv, client->clientid, client->password, &perdata->server_conns[sid]);
 
                 if (perdata->server_conns[sid]->sockfd == -1) {
                     LOGGER_ERROR("[thread_%d] connect server-%d (%s:%d)",

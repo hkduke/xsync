@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.epcb_event_peer_open
  *
- * @version: 0.3.4
+ * @version: 0.3.8
  *
  * @create: 2018-01-29
  *
- * @update: 2018-10-29 10:24:55
+ * @update: 2018-11-01 16:25:38
  */
 
 #include "server_api.h"
@@ -51,7 +51,7 @@ static void handle_peer_connect2 (perthread_data *perdata)
 
     off_t total = 0;
     off_t offset = 0;
-    
+
     ssize_t count;
 
     // read-up all bytes
@@ -64,7 +64,7 @@ static void handle_peer_connect2 (perthread_data *perdata)
             LOGGER_WARN("(thread-%d) TODO: read %ju bytes (total %ju bytes)", perdata->threadid, offset, total);
 
             // 重头开始再次读
-            offset = 0;            
+            offset = 0;
         }
     }
 
@@ -92,7 +92,7 @@ static void handle_peer_connect2 (perthread_data *perdata)
             } else {
                 connected = 1;
                 LOGGER_INFO("RedisHashMultiSet(%s) success connected", perdata->buffer);
-            }            
+            }
         } else {
             // 无效的连接请求
             LOGGER_WARN("(thread-%d) sock(%d): invalid connect request(=%d)", perdata->threadid, clientfd, total);
@@ -112,7 +112,7 @@ static void handle_peer_connect2 (perthread_data *perdata)
         return;
     }
 
-    
+
     // Re-arm the socket 添加到 epollet 中
     if (epollet_ctl_mod(epollfd, &perdata->pollin.epevent, perdata->buffer, XSYNC_BUFSIZE - 1) == -1) {
         LOGGER_ERROR("(thread-%d) sock(%d): epollet_ctl_mod error: %s", perdata->threadid, clientfd, perdata->buffer);
@@ -349,9 +349,9 @@ extern XS_RESULT XS_server_create (xs_appopts_t *opts, XS_server *outServer)
         server->epconf.epcb_new_peer = epcb_event_new_peer;
         server->epconf.epcb_accept = epcb_event_accept;
         server->epconf.epcb_reject = epcb_event_reject;
-        server->epconf.epcb_pollin = epcb_event_pollin;
-        server->epconf.epcb_pollout = epcb_event_pollout;
         */
+        server->epconf.epcb_pollin = epcb_event_pollin;
+        //server->epconf.epcb_pollout = epcb_event_pollout;
 
         LOGGER_INFO("epollet_conf_init: %s", server->msgbuf);
     } while (0);

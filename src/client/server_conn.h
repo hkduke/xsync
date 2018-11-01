@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.4
+ * @version: 0.3.8
  *
  * @create: 2018-02-12
  *
- * @update: 2018-10-29 10:24:55
+ * @update: 2018-11-01 15:30:32
  */
 
 #ifndef SERVER_CONN_H_INCLUDED
@@ -78,7 +78,8 @@ inline void server_conn_delete (void *pv)
 }
 
 
-extern XS_RESULT XS_server_conn_create (const xs_server_opts *servOpts, char clientid[40], XS_server_conn *outSConn);
+extern XS_RESULT XS_server_conn_create ( const xs_server_opts *servOpts, char* clientid, char* password, XS_server_conn *outSConn);
+
 
 extern XS_VOID XS_server_conn_release (XS_server_conn *inSConn);
 

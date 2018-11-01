@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.4
+ * @version: 0.3.8
  *
  * @create: 2018-01-24
  *
- * @update: 2018-10-29 11:51:14
+ * @update: 2018-11-01 17:31:51
  */
 
 #ifndef XSYNC_CONFIG_H_
@@ -48,7 +48,7 @@ extern "C"
 /**
  * DO NOT CHANGE BELOW VALUE
  */
-#define XSYNC_VERSION    "0.3.4"
+#define XSYNC_VERSION    "0.3.8"
 
 #ifndef XSYNC_CLIENT_VERSION
 #  define XSYNC_CLIENT_VERSION          XSYNC_VERSION
@@ -165,6 +165,7 @@ extern "C"
  *   系统支持的最大长度客户 ID, 必须最大为: 36 个ANSI字符
  */
 #define XSYNC_CLIENTID_MAXLEN           36
+#define XSYNC_PASSWORD_MAXLEN           16
 
 
 /**

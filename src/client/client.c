@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.4
+ * @version: 0.3.8
  *
  * @create: 2018-01-24
  *
- * @update: 2018-10-29 10:24:55
+ * @update: 2018-11-01 15:33:06
  */
 
 #include "client.h"
@@ -308,10 +308,10 @@ static void * thread_func (void *arg)
 
     int tid = pthread_self();
 
-    printf("thread#%lld start ...\n", (long long) tid);
+    printf("thread#%lld start (clientid='%s' password='%s')...\n", (long long) tid, xsrvopts->clientid, xsrvopts->password);
 
     do {
-        xres = XS_server_conn_create(xsrvopts, xsrvopts->clientid, &xcon);
+        xres = XS_server_conn_create(xsrvopts, xsrvopts->clientid, xsrvopts->password, &xcon);
 
         if (xres != XS_SUCCESS) {
             printf("failed to connect server.\n");
@@ -338,6 +338,8 @@ void run_interactive (int threads)
     bzero(&srvopts, sizeof(srvopts));
 
     strcpy(srvopts.clientid, "xsync-test");
+    strcpy(srvopts.password, "hello");
+
     strcpy(srvopts.host, "localhost");
     strcpy(srvopts.sport, XSYNC_PORT_DEFAULT);
 
@@ -345,9 +347,15 @@ void run_interactive (int threads)
 
     result = getinputline(XSCLIAPP CSH_CYAN_MSG("Input clientid [xsync-test]: "), msg, sizeof(msg));
     if (result) {
-        strncpy(srvopts.clientid, result, sizeof(srvopts.clientid) - 1);
+        strncpy(srvopts.clientid, result, XSYNC_CLIENTID_MAXLEN);
     }
-    srvopts.clientid[sizeof(srvopts.clientid) - 1] = '\0';
+    srvopts.clientid[XSYNC_CLIENTID_MAXLEN] = '\0';
+
+    result = getinputline(XSCLIAPP CSH_CYAN_MSG("Input password [hello]: "), msg, sizeof(msg));
+    if (result) {
+        strncpy(srvopts.password, result, XSYNC_PASSWORD_MAXLEN);
+    }
+    srvopts.password[XSYNC_PASSWORD_MAXLEN] = '\0';
 
     result = getinputline(XSCLIAPP CSH_CYAN_MSG("Input server ip [localhost]: "), msg, sizeof(msg));
     if (result) {

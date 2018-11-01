@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.4
+ * @version: 0.3.8
  *
  * @create: 2018-01-24
  *
- * @update: 2018-10-29 10:24:55
+ * @update: 2018-11-01 14:45:45
  */
 
 #ifndef CLIENT_API_H_INCLUDED
@@ -84,6 +84,7 @@ typedef struct xs_appopts_t
     int from_watch;
 
     char clientid[XSYNC_CLIENTID_MAXLEN + 1];
+    char password[XSYNC_PASSWORD_MAXLEN + 1];
 
     int apphome_len;
     char apphome[FILENAME_MAXLEN + 1];

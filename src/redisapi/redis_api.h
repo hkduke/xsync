@@ -35,11 +35,11 @@
  * 异步:
  *    https://blog.csdn.net/l1902090/article/details/38583663
  *
- * @version: 0.3.4
+ * @version: 0.3.8
  *
  * @create: 2018-02-10
  *
- * @update: 2018-10-29 10:24:55
+ * @update: 2018-10-29 17:11:04
  *
  */
 #ifndef REDIS_CONN_SYN_H_INCLUDED
@@ -179,7 +179,7 @@ extern void RedisMemFree(void *pbuf);
  * 同步 API
  * low level functions
  */
- 
+
 extern int RedisConnInit(RedisConn_t * redconn, int nodesNum, const char * password, int conn_timeo_ms, int data_timeo_ms);
 
 extern int RedisConnInit2(RedisConn_t * redconn, const char * parsed_hosts, int nodes, const char * password, int conn_timeo_ms, int data_timeo_ms);

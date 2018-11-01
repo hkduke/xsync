@@ -55,6 +55,114 @@ EOT
 }   # ----------  end of function usage  ----------
 
 
+function install_autoconf()
+{
+    appname=$(autoconf --version | awk 'NR==1{print $1}')
+    appverno=$(autoconf --version | awk 'NR==1{print $4}')
+
+    pkgver="2.69"
+    installpkg="no"
+
+    echoinfo "package: autoconf-$pkgver.tar.gz"
+
+    if [ "$appname" != "autoconf" ]; then
+        installpkg="yes"
+
+        echowarn "not found: autoconf"
+    elif [ `echo "$appverno < $pkgver" | bc` -ne 0 ]; then
+        installpkg="yes"
+
+        echowarn "update: autoconf-$appverno"
+    else
+        echowarn "found existed: autoconf-$appverno"
+    fi
+
+    if [ "$installpkg" == "yes" ]; then
+        echoinfo "installing: $appname-$pkgver ..."
+
+        cd ${_cdir}
+        tar -zxf ${_cdir}/autoconf-2.69.tar.gz
+        cd ${_cdir}/autoconf-2.69
+        ./configure
+        make && sudo make install
+        rm -rf "${_cdir}/autoconf-2.69"
+        cd ${_cdir}
+    fi
+}
+
+
+function install_automake()
+{
+    appname=$(automake --version | awk 'NR==1{print $1}')
+    appverno=$(automake --version | awk 'NR==1{print $4}')
+
+    pkgver="1.15"
+    installpkg="no"
+
+    echoinfo "package: automake-$pkgver.tar.gz"
+
+    if [ "$appname" != "automake" ]; then
+        installpkg="yes"
+        
+        echowarn "not found: automake"
+    elif [ `echo "$appverno < $pkgver" | bc` -ne 0 ]; then
+        installpkg="yes"
+        
+        echowarn "update: automake-$appverno"
+    else
+        echowarn "found existed: automake-$appverno"
+    fi
+
+    if [ "$installpkg" == "yes" ]; then
+        echoinfo "installing: $appname-$pkgver ..."
+
+        cd ${_cdir}
+        tar -zxf ${_cdir}/automake-1.15.tar.gz
+        cd ${_cdir}/automake-1.15
+        ./configure
+        make && sudo make install
+        rm -rf "${_cdir}/automake-1.15"
+        cd ${_cdir}
+    fi
+}
+
+
+function install_libtool()
+{
+    appname=$(libtool --version | awk 'NR==1{print $1}')
+    appverno=$(libtool --version | awk 'NR==1{print $4}')
+
+    pkgver="2.2.6b"
+    installpkg="no"
+
+    echoinfo "package: libtool-$pkgver.tar.gz"
+
+    if [ "$appname" != "ltmain.sh" ]; then
+        installpkg="yes"
+
+        echowarn "not found: libtool"
+    elif [ "$appverno" \< "$pkgver" ]; then
+        installpkg="yes"
+
+        echowarn "update: libtool-$appverno"
+    else
+        echowarn "found existed: libtool-$appverno"
+    fi
+
+    if [ "$installpkg" == "yes" ]; then
+        echoinfo "installing: $appname-$pkgver ..."
+
+        cd ${_cdir}
+        tar -zxf ${_cdir}/libtool-2.2.6b.tar.gz
+        cd ${_cdir}/libtool-2.2.6b
+        ./configure
+        make && sudo make install
+        rm -rf "${_cdir}/libtool-2.2.6b"
+        cd ${_cdir}
+    fi
+}
+
+
 function prep_install()
 {
     # check supported os and verno
@@ -82,7 +190,7 @@ function prep_install()
             exit -1
         fi
 
-        sudo yum install -y make gcc gcc-c++ tcl kernel-devel libtool zlib-devel openssl-devel readline-devel pcre-devel ncurses-devel libxml2 libxml2-devel
+        sudo yum install -y make gcc gcc-c++ tcl kernel-devel libtool zlib-devel openssl-devel readline-devel pcre-devel ncurses-devel libxml2 libxml2-devel cairo cairo-devel
 
     elif [ "$osid" = "ubuntu" ]; then
         if [ "$major_ver" -lt 14 ]; then
@@ -90,8 +198,17 @@ function prep_install()
             exit -1
         fi
 
-        sudo apt-get install -y build-essential autoconf libtool tcl openssl libssl-dev libpcre3 libpcre3-dev zlib1g-dev libreadline-dev libncurses-dev libxml2 libxml2-dev
+        sudo apt-get install -y build-essential autoconf libtool tcl openssl libssl-dev libpcre3 libpcre3-dev zlib1g-dev libreadline-dev libncurses-dev libxml2 libxml2-dev cairo cairo-dev
     fi
+
+    echoinfo "check and install autoconf (http://ftp.gnu.org/gnu/autoconf/autoconf-2.69.tar.gz)"
+    install_autoconf;
+
+    echoinfo "check and install automake (http://ftp.gnu.org/gnu/automake/automake-1.15.tar.gz)"
+    install_automake;
+
+    echoinfo "check and install libtool (http://ftp.gnu.org/gnu/libtool/libtool-2.2.6b.tar.gz)"
+    install_libtool;
 }
 
 
@@ -192,6 +309,15 @@ function install_libs()
     ./configure --prefix=${INSTALLDIR}
     make && make install
     rm -rf "${_cdir}/igraph-0.7.1"
+    cd ${_cdir}
+
+    echoinfo "---- build and install <json-c-20180305> https://github.com/json-c/json-c"
+    tar -zxf ${_cdir}/json-c-20180305.tar.gz
+    cd ${_cdir}/json-c-20180305/
+    sh autogen.sh
+    ./configure --prefix=${INSTALLDIR} --enable-threading
+    make && make USE_VALGRIND=0 check && make install
+    rm -rf "${_cdir}/json-c-20180305"
     cd ${_cdir}
 
     echoinfo "all packages successfully installed at: ${INSTALLDIR}"

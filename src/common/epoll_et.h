@@ -21,7 +21,7 @@
 ***********************************************************************/
 
 /**
- * @file: epollet.h
+ * @file: epoll_et.h
  *
  *  A frame using epoll() on linux with maximum functionality including:
  *   - Asynchronous I/O
@@ -40,11 +40,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.4
+ * @version: 0.3.8
  *
  * @create: 2018-09-04
  *
- * @update: 2018-10-29 10:24:55
+ * @update: 2018-10-31 11:10:38
  *
  *
  *----------------------------------------------------------------------

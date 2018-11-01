@@ -40,11 +40,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.4
+ * @version: 0.3.8
  *
  * @create: 2018-09-04
  *
- * @update: 2018-10-29 10:24:55
+ * @update: 2018-11-01 16:12:09
  *
  *
  *----------------------------------------------------------------------
@@ -527,9 +527,9 @@ __attribute__((unused)) static int epollet_loop_events (struct epollet_conf_t *e
             snprintf(event->msg, len, "epoll_wait fail: %s", strerror(errno));
             event->msg[len] = 0;
 
-            if (! ON_EPCB_ERROR(event, epconf)) {
-                return (-1);
-            }
+            ON_EPCB_ERROR(event, epconf);
+
+            return (-1);
         }
 
         // For each event that the epoll instance just gave us
@@ -601,7 +601,7 @@ __attribute__((unused)) static int epollet_loop_events (struct epollet_conf_t *e
                             snprintf(event->msg, len, "accept(%d): %s", errno, strerror(errno));
                             event->msg[len] = 0;
 
-                            ON_EPCB_TRACE(event, epconf);                          
+                            ON_EPCB_TRACE(event, epconf);
                         } else {
                             // unexpected error
                             snprintf(event->msg, len, "accept error(%d): %s", errno, strerror(errno));
@@ -667,9 +667,8 @@ __attribute__((unused)) static int epollet_loop_events (struct epollet_conf_t *e
 
                 // rearm the listening socket
                 if (epollin_mod(epollfd, listenfd, event->msg, sizeof event->msg) == -1) {
-                    if (! ON_EPCB_ERROR(event, epconf)) {
-                        return (-1);
-                    }
+                    ON_EPCB_ERROR(event, epconf);
+                    return (-1);
                 }
             } else if (events[i].events & EPOLLIN) {
                 // The event was on a client socket:
@@ -677,7 +676,9 @@ __attribute__((unused)) static int epollet_loop_events (struct epollet_conf_t *e
                 // We must read whatever data is available completely, as we are running in
                 //  edge-triggered mode and we won't get a notification again for the same data.
 
-                if (! ON_EPCB_POLLIN(event, epconf)) {
+                err = ON_EPCB_POLLIN(event, epconf);
+
+                if (! err) {
                     // 读光缓冲区
                     off_t total = 0;
                     int next = 1;
@@ -705,23 +706,23 @@ __attribute__((unused)) static int epollet_loop_events (struct epollet_conf_t *e
                         ON_EPCB_WARN(event, epconf);
 
                         close(sfd);
+
                         continue;
                     }
 
                     // rearm the socket. 注册事件用于 write
                     if (epollout_mod(epollfd, sfd, event->msg, sizeof event->msg) == -1) {
 
-                        close(sfd);
+                        ON_EPCB_ERROR(event, epconf);
 
-                        if (! ON_EPCB_ERROR(event, epconf)) {                            
-                            return (-1);
-                        }
+                        close(sfd);
+                        return (-1);
                     }
                 }
             } else if (events[i].events & EPOLLOUT) {
+                err = ON_EPCB_POLLOUT(event, epconf);
 
-                if (! ON_EPCB_POLLOUT(event, epconf)) {
-
+                if (! err) {
                     // 如果回调未实现
 
                     snprintf(event->msg, sizeof event->msg, "TODO: EPOLLOUT");
@@ -730,11 +731,11 @@ __attribute__((unused)) static int epollet_loop_events (struct epollet_conf_t *e
 
                     if (epollin_mod(epollfd, sfd, event->msg, sizeof event->msg) == -1) {
 
+                        ON_EPCB_ERROR(event, epconf);
+
                         close(sfd);
 
-                        if (! ON_EPCB_ERROR(event, epconf)) {
-                            return (-1);
-                        }
+                        return (-1);
                     }
                 }
             }
