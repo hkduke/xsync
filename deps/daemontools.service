@@ -1,0 +1,41 @@
+#######################################################################
+# daemontools.service
+#
+#   daemontools service config only for el7+
+#
+# 2018-11-02
+#
+#   This file should be at:
+#      /etc/systemd/system/daemontools.service
+#
+#   Comment out line in '/etc/inittab' as below:
+#
+#      # 删除下面的行, 因为不起作用了:
+#      # SV:123456:respawn:/command/svscanboot
+#
+# refer:
+#   https://blog.csdn.net/superbfly/article/details/52877954
+#   https://blog.csdn.net/ubuntu64fan/article/details/80641365
+#
+# service commands:
+#
+#  $ sudo systemctl start daemontools.service
+#  $ sudo systemctl status daemontools.service
+#  $ sudo systemctl enable daemontools.service
+#
+#######################################################################
+
+[Unit]
+Description=daemontools Start supervise
+After=getty.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+Restart=always
+ExecStart=/command/svscanboot /dev/ttyS0
+TimeoutSec=0
+
+[Install]
+WantedBy=multi-user.target

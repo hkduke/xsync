@@ -47,15 +47,54 @@ function install_daemontools()
     cd "$prefix/daemontools-0.76"
     sh ./package/install
 
-    cd ${_cdir}    
+    cd ${_cdir}
+
+    if [ -d "/etc/systemd/system/" ]; then
+        # el7 and later
+
+        if [ -f "/etc/systemd/system/daemontools.service" ]; then
+            rm -rf "/etc/systemd/system/daemontools.service.backup"
+            mv "/etc/systemd/system/daemontools.service" "/etc/systemd/system/daemontools.service.backup"
+        fi
+
+        copy "${_cdir}/daemontools.service" "/etc/systemd/system/"
+    fi
 }
 
 
 function start_daemontools()
 {
-    echoinfo "csh -cf '/command/svscanboot &'"
+    local pid=$(pids_of_proc "svscanboot")
 
-    csh -cf '/command/svscanboot &'
+    if [ -z "$pid" ]; then
+        if [ -f "/command/svscanboot" ]; then
+            if [ -f "/etc/systemd/system/daemontools.service" ]; then
+                echoinfo "starting service: 'systemctl start daemontools.service'"
+
+                systemctl start daemontools.service
+
+                sleep 3
+
+                systemctl status daemontools.service
+            else
+                echoinfo "starting command: '/command/svscanboot &'"
+
+                csh -cf '/command/svscanboot &'
+            fi
+
+            sleep 3
+        else
+            echoerror "svscanboot not found: /command/svscanboot"
+            exit -1
+        fi
+    fi
+
+    openfds=$(openfd_of_pid "$pid")
+    echoinfo "svscanboot (pid=$pid, openfds=$openfds)"
+    echo "----------------------------------------------------------------------"
+    echo " pid    pcpu  res  virt  stime  user    uid    comm              args"
+    echo "----------------------------------------------------------------------"
+    ps -e -o 'pid,pcpu,rsz,vsz,stime,user,uid,comm,args' | grep "svscanboot" | grep -v grep | sort -nrk5
 }
 
 
@@ -83,3 +122,5 @@ else
 
     exit -1
 fi
+
+start_daemontools;
