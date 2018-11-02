@@ -56,6 +56,7 @@ DISTROOT="${_cdir}/dist"
 XCLIENT_HOME=${DISTROOT}/xclient-$verno
 XSERVER_HOME=${DISTROOT}/xserver-$verno
 
+xclient_testlogs="/tmp/xclient/testlogs"
 
 function update_xserver_dist() {
     echoinfo "update xsync-server to: ${DISTROOT}/xserver-$verno"
@@ -98,14 +99,14 @@ function update_xclient_dist() {
     echoinfo "update all xclient packages"
     mkdir -p ${XCLIENT_HOME}/{bin,conf,lib,sbin,service,watch-test}
 
-    echoinfo "create watch-test: /tmp/xclient/test-log/stash"
-    mkdir -p /tmp/xclient/test-log/stash
+    echoinfo "create watch-test: $xclient_testlogs"
+    mkdir -p "$xclient_testlogs"
 
     cd ${XCLIENT_HOME}
     ln -s watch-test watch
 
     cd ${XCLIENT_HOME}/watch/
-    ln -s /tmp/xclient/test-log test-log
+    ln -s "$xclient_testlogs" testlogs
 
     cp ${_cdir}/conf/log4crc ${XCLIENT_HOME}/conf/
     cp ${_cdir}/conf/xclient.cfg ${XCLIENT_HOME}/conf/    

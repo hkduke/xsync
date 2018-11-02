@@ -5,6 +5,8 @@
 # 2018-11-02
 #
 ########################################################################
+# 根据需要修改下面的值
+
 maxfile=10000
 
 interval_second=0.001
@@ -13,15 +15,17 @@ interval_second=0.001
 ##################################################
 # 下面的值不要更改 !
 
+outprefix="/tmp/xclient/testlogs"
+
 timeprefix=$(date +%s)
 
-outdir="/tmp/xclient/test-log/$timeprefix"
+testoutdir="$outprefix/$timeprefix"
 
-mkdir -p "$outdir"
+mkdir -p "$testoutdir"
 
-logfile="/tmp/xclient/ddtest.log.$timeprefix"
+logfile="$outprefix/ddtest-log.$timeprefix"
 
-echo "test xclient with dd test start ..."
+echo "start xclient dd test ..."
 
 echo `date` > "$logfile"
 
@@ -36,7 +40,7 @@ do
 
     randno=`head -1 /dev/urandom |od  -N 2 | head -1|awk '{print $2}'`
 
-    randfile="$outdir/ddtest.out.$randno"
+    randfile="$testoutdir/ddtest.out.$randno"
 
     dd if=/dev/zero of="$randfile" bs=1k count=1
 
@@ -47,4 +51,6 @@ done
 
 echo `date` >> "$logfile"
 
-echo "test xclient with dd test end."
+echo "xclient dd test output  : $testoutdir"
+echo "xclient dd test log file: $logfile"
+echo "xclient dd test end !"
