@@ -281,8 +281,6 @@ static void do_event_task (thread_context_t *thread_ctx)
         // 发送消息到日志文件. TODO: 得到 loglevel
         LOGGER_DEBUG("event(%d)=%s", msglen, message);
 
-        msglen = 0;
-
         // 使用完毕必须删除 !!
         event_rbtree_lock();
         {
@@ -290,12 +288,8 @@ static void do_event_task (thread_context_t *thread_ctx)
             watch_event_free(event);
 
             rbtree_remove_at(&client->event_rbtree, node);
-
-            msglen = rbtree_size(&client->event_rbtree);
         }
         event_rbtree_unlock();
-
-        LOGGER_DEBUG("rbtree_size=%d", msglen);
     } else {
         LOGGER_ERROR("unknown event task flags(=%d)", task->flags);
     }
@@ -702,7 +696,7 @@ int lscb_sweep_watch_path (const char *path, int pathlen, struct mydirent *myent
                 if (result > 0) {
                     // 添加任务到线程池, 如果任务队列忙, 则重试
                     while (client_add_inotify_event(client, &evbuf) == XS_E_POOL) {
-                        sleep_ms(LOOP_SLEEP_TIME_MS);
+                        sleep_ms(LOOP_SLEEP_TIME_MS * 10);
                     }
                 } else if (result == -1) {
                     // 要求重启服务
@@ -1178,6 +1172,8 @@ static void sweep_worker (void *arg)
 
             elapsed_seconds = 0;
             ready_time = __interlock_get(&client->ready_time);
+
+            // 保存刷新的时间点
             save_timepoint(client, ready_time, pathbuf, sizeof(pathbuf));
         }
 
@@ -1381,7 +1377,7 @@ XS_VOID XS_client_bootstrap (XS_client client)
 
                 err = lstat(pathbuf, &sbuf);
                 if (err) {
-                    LOGGER_FATAL("lstat fail(%d): %s. (%s)", errno, strerror(errno), pathbuf);
+                    LOGGER_WARN("lstat fail(%d): %s. (%s)", errno, strerror(errno), pathbuf);
                     continue;
                 }
 
