@@ -31,7 +31,7 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.8
+ * @version: 0.3.9
  *
  * @create: 2018-09-29
  *

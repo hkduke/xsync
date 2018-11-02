@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.3.8
+ * @version: 0.3.9
  *
  * @create: 2018-01-25
  *
- * @update: 2018-11-01 14:50:33
+ * @update: 2018-11-02 16:16:09
  */
 
 /******************************************************************************
@@ -306,7 +306,7 @@ XS_RESULT client_add_inotify_event (XS_client client, struct watch_event_buf_t *
     red_black_node_t *node;
 
     if (XS_client_threadpool_unused_queues(client) < 1) {
-        LOGGER_TRACE("threadpool queues is full");
+        LOGGER_WARN("threadpool queues is full");
         return XS_E_POOL;
     }
 
@@ -338,7 +338,7 @@ XS_RESULT client_add_inotify_event (XS_client client, struct watch_event_buf_t *
                     rbtree_remove_at(&client->event_rbtree, node);
                     result = XS_E_POOL;
                 } else {
-                    LOGGER_DEBUG("threadpool_add node(=%p) success", node);
+                    //!-- LOGGER_DEBUG("threadpool_add node(=%p) success", node);
                     result = XS_SUCCESS;
                 }
             } else {
