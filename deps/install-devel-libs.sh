@@ -5,7 +5,7 @@
 #   install devel lib for building both xsync-client and xsync-server
 #
 # @create: 2018-01-19
-# @update: 2018-10-25
+# @update: 2018-11-02
 #
 ########################################################################
 # NOTE: readlink -f not support by MaxOS-X
@@ -316,7 +316,8 @@ function install_libs()
     cd ${_cdir}/json-c-20180305/
     sh autogen.sh
     ./configure --prefix=${INSTALLDIR} --enable-threading
-    make && make USE_VALGRIND=0 check && make install
+    make && make install
+    make USE_VALGRIND=0 check
     rm -rf "${_cdir}/json-c-20180305"
     cd ${_cdir}
 
