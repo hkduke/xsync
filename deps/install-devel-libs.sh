@@ -69,7 +69,7 @@ function install_autoconf()
         installpkg="yes"
 
         echowarn "not found: autoconf"
-    elif [ `echo "$appverno < $pkgver" | bc` -ne 0 ]; then
+    elif [ "appverno" \< "pkgver" ]; then
         installpkg="yes"
 
         echowarn "update: autoconf-$appverno"
@@ -105,7 +105,7 @@ function install_automake()
         installpkg="yes"
         
         echowarn "not found: automake"
-    elif [ `echo "$appverno < $pkgver" | bc` -ne 0 ]; then
+    elif [ "$appverno" \< "$pkgver" ]; then
         installpkg="yes"
         
         echowarn "update: automake-$appverno"
@@ -190,7 +190,7 @@ function prep_install()
             exit -1
         fi
 
-        sudo yum install -y make gcc gcc-c++ tcl kernel-devel libtool zlib-devel openssl-devel readline-devel pcre-devel ncurses-devel libxml2 libxml2-devel cairo cairo-devel
+        sudo yum install -y bc make gcc gcc-c++ tcl kernel-devel libtool zlib-devel openssl-devel readline-devel pcre-devel ncurses-devel libxml2 libxml2-devel cairo cairo-devel
 
     elif [ "$osid" = "ubuntu" ]; then
         if [ "$major_ver" -lt 14 ]; then
