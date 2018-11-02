@@ -26,7 +26,7 @@
  *
  * @author: master@pepstack.epcb_event_peer_open
  *
- * @version: 0.3.9
+ * @version: 0.4.0
  *
  * @create: 2018-01-29
  *

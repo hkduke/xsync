@@ -1,28 +1,37 @@
 #!/bin/bash
 #
 ########################################################################
-maxfileno=1000
+maxfile=10000
 
-interval_second=0.01
+interval_second=0.001
 
-stash_prefix="/tmp/xclient/test-log/stash"
+outdir="/tmp/xclient/test-log"
+logfile="/tmp/xclient/dd_test.log"
+
+echo "test xclient with dd test start ..."
+
+echo `date` > "$logfile"
 
 i=0
-j=0
 while :
 do
     ((i++))
-    ((j++))
 
-    if [ "$j" -lt "$maxfileno" ]; then
-        mkdir -p "${stash_prefix}/$j"
+    if [ "$i" -gt "$maxfile" ]; then
+        break
     fi
 
-    echo "hello $i" > "${stash_prefix}/$i/hello_kitty.log.$i"
+    randno=`head -1 /dev/urandom |od  -N 2 | head -1|awk '{print $2}'`
 
-    if [ "$i" -gt "$maxfileno" ]; then
-        i=0
-    fi
+    randfile="$outdir/dd_test.out.$randno"
+
+    dd if=/dev/zero of="$randfile" bs=1k count=1
 
     sleep "$interval_second"
+
+    echo "$randfile" >> "$logfile"
 done
+
+echo `date` >> "$logfile"
+
+echo "test xclient with dd test end."
