@@ -190,7 +190,7 @@ function prep_install()
             exit -1
         fi
 
-        sudo yum install -y bc make gcc gcc-c++ tcl kernel-devel libtool zlib-devel openssl-devel readline-devel pcre-devel ncurses-devel libxml2 libxml2-devel cairo cairo-devel
+        sudo yum install -y bc lsof make gcc gcc-c++ tcl kernel-devel libtool zlib-devel openssl-devel readline-devel pcre-devel ncurses-devel libxml2 libxml2-devel cairo cairo-devel
 
     elif [ "$osid" = "ubuntu" ]; then
         if [ "$major_ver" -lt 14 ]; then
