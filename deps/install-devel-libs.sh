@@ -69,7 +69,7 @@ function install_autoconf()
         installpkg="yes"
 
         echowarn "not found: autoconf"
-    elif [ "appverno" \< "pkgver" ]; then
+    elif [ "$appverno" \< "$pkgver" ]; then
         installpkg="yes"
 
         echowarn "update: autoconf-$appverno"
