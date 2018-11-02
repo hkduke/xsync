@@ -24,6 +24,9 @@ LANG=zh_CN.UTF-8;export LANG
 # Treat unset variables as an error
 set -o nounset
 
+# Treat any error as exit
+set -o errexit
+
 #######################################################################
 
 _proj=$(basename $_cdir)
@@ -61,7 +64,7 @@ function update_xserver_dist() {
     echowarn "TODO: build xserver packages"
 
     echoinfo "TODO: update all xserver packages"
-    mkdir -p ${XSHOME}/{bin,conf,lib,sbin,stash-local}
+    mkdir -p ${XSHOME}/{bin,conf,lib,sbin,service,stash-local}
 
     echoinfo "TODO: package all xserver packages: ${DISTROOT}/xserver-dist-$verno.tar.gz"
     cd ${DISTROOT}
@@ -69,6 +72,11 @@ function update_xserver_dist() {
 
     ln -sf xserver-$verno xserver-current
 
+    echoinfo "create daemontools service script: ${XCHOME}/service/run"
+    cp ${_cdir}/bin/run ${XCHOME}/service/
+    chmod 1755 ${XCHOME}/service
+    chmod 755 ${XCHOME}/service/run
+    
     cd "$olddir"
 }
 
@@ -88,7 +96,7 @@ function update_xclient_dist() {
     cd ${_cdir}
 
     echoinfo "update all xclient packages"
-    mkdir -p ${XCHOME}/{bin,conf,lib,sbin,watch-test}
+    mkdir -p ${XCHOME}/{bin,conf,lib,sbin,service,watch-test}
 
     echoinfo "create watch-test: /tmp/xclient/test-log/stash"
     mkdir -p /tmp/xclient/test-log/stash
@@ -129,6 +137,11 @@ function update_xclient_dist() {
     tar -zcf xclient-dist-$verno.tar.gz ./xclient-$verno/
 
     ln -s xclient-$verno xclient-current
+
+    echoinfo "create daemontools service script: ${XCHOME}/service/run"
+    cp ${_cdir}/bin/run ${XCHOME}/service/
+    chmod 1755 ${XCHOME}/service
+    chmod 755 ${XCHOME}/service/run
 
     echoinfo "clean all"
     cd ${_cdir}/src/

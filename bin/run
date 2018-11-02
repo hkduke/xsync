@@ -1,0 +1,30 @@
+#!/bin/sh
+# @file: run
+#   A daemontools required start run script !
+#
+# refer:
+#   https://blog.csdn.net/ubuntu64fan/article/details/80641365
+#   https://blog.csdn.net/superbfly/article/details/52877954
+#
+# @author: zhangliang
+# @create: 2018-11-02
+# @update: 2018-11-02
+###############################################################
+_file=$(readlink -f $0)
+_cdir=$(dirname $_file)
+_name=$(basename $_file)
+
+# Set characters encodeing
+#   LANG=en_US.UTF-8;export LANG
+LANG=zh_CN.UTF-8;export LANG
+
+# Treat unset variables as an error
+set -o nounset
+
+# Treat any error as exit
+set -o errexit
+
+# 在下面增加服务启动命令 !
+# Add start command below !
+
+# exec
