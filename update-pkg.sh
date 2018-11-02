@@ -53,8 +53,8 @@ buildno="build$(date +%Y%m%d%H%M)"
 
 DISTROOT="${_cdir}/dist"
 
-XCHOME=${DISTROOT}/xclient-$verno
-XSHOME=${DISTROOT}/xserver-$verno
+XCLIENT_HOME=${DISTROOT}/xclient-$verno
+XSERVER_HOME=${DISTROOT}/xserver-$verno
 
 
 function update_xserver_dist() {
@@ -64,7 +64,7 @@ function update_xserver_dist() {
     echowarn "TODO: build xserver packages"
 
     echoinfo "TODO: update all xserver packages"
-    mkdir -p ${XSHOME}/{bin,conf,lib,sbin,service,stash-local}
+    mkdir -p ${XSERVER_HOME}/{bin,conf,lib,sbin,service,stash-local}
 
     echoinfo "TODO: package all xserver packages: ${DISTROOT}/xserver-dist-$verno.tar.gz"
     cd ${DISTROOT}
@@ -72,10 +72,10 @@ function update_xserver_dist() {
 
     ln -sf xserver-$verno xserver-current
 
-    echoinfo "create daemontools service script: ${XCHOME}/service/run"
-    cp ${_cdir}/bin/run ${XCHOME}/service/
-    chmod 1755 ${XCHOME}/service
-    chmod 755 ${XCHOME}/service/run
+    echoinfo "create daemontools service script: ${XCLIENT_HOME}/service/run"
+    cp ${_cdir}/bin/run ${XSERVER_HOME}/service/
+    chmod 1755 ${XSERVER_HOME}/service
+    chmod 755 ${XSERVER_HOME}/service/run
     
     cd "$olddir"
 }
@@ -96,40 +96,40 @@ function update_xclient_dist() {
     cd ${_cdir}
 
     echoinfo "update all xclient packages"
-    mkdir -p ${XCHOME}/{bin,conf,lib,sbin,service,watch-test}
+    mkdir -p ${XCLIENT_HOME}/{bin,conf,lib,sbin,service,watch-test}
 
     echoinfo "create watch-test: /tmp/xclient/test-log/stash"
     mkdir -p /tmp/xclient/test-log/stash
 
-    cd ${XCHOME}
+    cd ${XCLIENT_HOME}
     ln -s watch-test watch
 
-    cd ${XCHOME}/watch/
+    cd ${XCLIENT_HOME}/watch/
     ln -s /tmp/xclient/test-log test-log
 
-    cp ${_cdir}/conf/log4crc ${XCHOME}/conf/
-    cp ${_cdir}/conf/xclient.cfg ${XCHOME}/conf/    
-    cp ${_cdir}/bin/test-stash.sh ${XCHOME}/bin/
-    cp ${_cdir}/bin/common.sh ${XCHOME}/bin/
-    cp ${_cdir}/bin/__trycall.lua ${XCHOME}/bin/
-    cp ${_cdir}/bin/path-filter-1.lua ${XCHOME}/bin/
-    cp ${_cdir}/bin/event-task-1.lua ${XCHOME}/bin/
-    cp ${_cdir}/bin/watch-events-filter.lua ${XCHOME}/bin/
-    cp ${_cdir}/bin/xclient-status.sh ${XCHOME}/bin/
-    cp ${_cdir}/target/xsync-client-$verno ${XCHOME}/sbin/
-    cp ${_cdir}/target/libkafkatools.so.1.0.0 ${XCHOME}/sbin/
-    cp ${_cdir}/libs/lib/librdkafka.so.1 ${XCHOME}/lib/
+    cp ${_cdir}/conf/log4crc ${XCLIENT_HOME}/conf/
+    cp ${_cdir}/conf/xclient.cfg ${XCLIENT_HOME}/conf/    
+    cp ${_cdir}/bin/test-stash.sh ${XCLIENT_HOME}/bin/
+    cp ${_cdir}/bin/common.sh ${XCLIENT_HOME}/bin/
+    cp ${_cdir}/bin/__trycall.lua ${XCLIENT_HOME}/bin/
+    cp ${_cdir}/bin/path-filter-1.lua ${XCLIENT_HOME}/bin/
+    cp ${_cdir}/bin/event-task-1.lua ${XCLIENT_HOME}/bin/
+    cp ${_cdir}/bin/watch-events-filter.lua ${XCLIENT_HOME}/bin/
+    cp ${_cdir}/bin/xclient-status.sh ${XCLIENT_HOME}/bin/
+    cp ${_cdir}/target/xsync-client-$verno ${XCLIENT_HOME}/sbin/
+    cp ${_cdir}/target/libkafkatools.so.1.0.0 ${XCLIENT_HOME}/sbin/
+    cp ${_cdir}/libs/lib/librdkafka.so.1 ${XCLIENT_HOME}/lib/
 
     echoinfo "update xclient links"
 
-    cd ${XCHOME}/lib/
+    cd ${XCLIENT_HOME}/lib/
     ln -s librdkafka.so.1 librdkafka.so
 
-    cd ${XCHOME}/sbin/
+    cd ${XCLIENT_HOME}/sbin/
     ln -s xsync-client-$verno xsync-client
     ln -s libkafkatools.so.1.0.0 libkafkatools.so.1
 
-    cd ${XCHOME}/watch/
+    cd ${XCLIENT_HOME}/watch/
     ln -s ../bin/watch-events-filter.lua events-filter.lua
 
     echoinfo "package all xclient packages: ${DISTROOT}/xclient-dist-$verno.tar.gz"
@@ -138,10 +138,10 @@ function update_xclient_dist() {
 
     ln -s xclient-$verno xclient-current
 
-    echoinfo "create daemontools service script: ${XCHOME}/service/run"
-    cp ${_cdir}/bin/run ${XCHOME}/service/
-    chmod 1755 ${XCHOME}/service
-    chmod 755 ${XCHOME}/service/run
+    echoinfo "create daemontools service script: ${XCLIENT_HOME}/service/run"
+    cp ${_cdir}/bin/run ${XCLIENT_HOME}/service/
+    chmod 1755 ${XCLIENT_HOME}/service
+    chmod 755 ${XCLIENT_HOME}/service/run
 
     echoinfo "clean all"
     cd ${_cdir}/src/
