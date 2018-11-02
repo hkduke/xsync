@@ -109,7 +109,7 @@ function update_xclient_dist() {
 
     cp ${_cdir}/conf/log4crc ${XCLIENT_HOME}/conf/
     cp ${_cdir}/conf/xclient.cfg ${XCLIENT_HOME}/conf/    
-    cp ${_cdir}/bin/test-stash.sh ${XCLIENT_HOME}/bin/
+    cp ${_cdir}/bin/ddtest.sh ${XCLIENT_HOME}/bin/
     cp ${_cdir}/bin/common.sh ${XCLIENT_HOME}/bin/
     cp ${_cdir}/bin/__trycall.lua ${XCLIENT_HOME}/bin/
     cp ${_cdir}/bin/path-filter-1.lua ${XCLIENT_HOME}/bin/
