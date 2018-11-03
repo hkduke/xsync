@@ -5,7 +5,7 @@
 #   install daemontools for linux (el5+, ubuntu12+) and tested on el6, 7.
 #
 # @create: 2018-11-02
-# @update: 2018-11-02
+# @update: 2018-11-03
 #
 ########################################################################
 # NOTE: readlink -f not support by MaxOS-X
@@ -33,11 +33,23 @@ set -o errexit
 # 安装路径
 INSTALLPREFIX="/usr/local/lib"
 
+
 ###########################################################
 # 安装 daemontools 到 $INSTALLPREFIX
 
 function install_daemontools()
 {
+	# !!不可以修改下面的值!!
+    INITTAB="/etc/inittab"
+    TEMPINITTAB="no"
+
+    if [ -f  "$INITTAB" ]; then
+        echoinfo "found: $INITTAB"
+	else
+        TEMPINITTAB="yes"
+        echo "#!--temporary file for installation of daemontools--#" >> "$INITTAB"
+	fi
+
     local pkgname="daemontools-0.76.tar.gz"
 
     echoinfo "installing: $pkgname at: $INSTALLPREFIX/daemontools"
@@ -57,13 +69,19 @@ function install_daemontools()
 
         sed -i '/svscanboot/d' /etc/inittab
 
-        # for el7 and later
+        # for systemd (el7) and later
         if [ -f "/etc/systemd/system/daemontools.service" ]; then
             rm -rf "/etc/systemd/system/daemontools.service.backup"
             mv "/etc/systemd/system/daemontools.service" "/etc/systemd/system/daemontools.service.backup"
         fi
 
         cp "${_cdir}/daemontools.service" "/etc/systemd/system/"
+    fi
+
+    if [ "$TEMPINITTAB" = "yes" ]; then
+        rm -f "$INITTAB"-delete
+        mv "$INITTAB" "$INITTAB"-delete
+        echowarn "The temporary file '"$INITTAB"' has been moved to '"$INITTAB-delete"', and you might delete it by hand !"
     fi
 }
 
@@ -101,6 +119,15 @@ function start_daemontools()
     echo " pid    pcpu  res  virt  stime  user    uid    comm              args"
     echo "----------------------------------------------------------------------"
     ps -e -o 'pid,pcpu,rsz,vsz,stime,user,uid,comm,args' | grep "svscanboot" | grep -v grep | sort -nrk5
+    
+    echo "----------------------------------------------------------------------"
+
+    # warning to delete installation temp file
+    if [ -f "/etc/inittab-delete" ]; then
+		echowarn "found temporary file: '/etc/inittab-delete', you should delete it by hand !"
+		echo "/etc/inittab-delete:"
+        cat "/etc/inittab-delete"
+    fi
 }
 
 

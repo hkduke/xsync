@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.4.0
+ * @version: 0.4.1
  *
  * @create: 2013-06-19
  *
- * @update: 2018-10-29 10:24:55
+ * @update: 2018-11-03 11:06:04
  *
  *---------------------------------------------------------------------
  *  Big Endian: XDR (big endian) encoding of numeric types

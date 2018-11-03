@@ -190,7 +190,25 @@ function prep_install()
             exit -1
         fi
 
-        sudo yum install -y bc lsof make gcc gcc-c++ tcl tcsh kernel-devel libtool zlib-devel openssl-devel readline-devel pcre-devel ncurses-devel libxml2 libxml2-devel cairo cairo-devel
+        sudo yum install -y \
+			bc \
+			lsof \
+			make \
+			gcc \
+			gcc-c++ \
+			tcl \
+			tcsh \
+			kernel-devel \
+			libtool \
+			zlib-devel \
+			openssl-devel \
+			readline-devel \
+			pcre-devel \
+			ncurses-devel \
+			libxml2 \
+			libxml2-devel \
+			cairo \
+			cairo-devel
 
     elif [ "$osid" = "ubuntu" ]; then
         if [ "$major_ver" -lt 14 ]; then
@@ -198,7 +216,22 @@ function prep_install()
             exit -1
         fi
 
-        sudo apt-get install -y build-essential autoconf libtool tcl openssl libssl-dev libpcre3 libpcre3-dev zlib1g-dev libreadline-dev libncurses-dev libxml2 libxml2-dev cairo cairo-dev
+        sudo apt-get install -y \
+			build-essential \
+			autoconf \
+			libtool \
+			tcl \
+			openssl \
+			libssl-dev \
+			libpcre3 \
+			libpcre3-dev \
+			zlib1g-dev \
+			libreadline-dev \
+			libncurses-dev \
+			libxml2 \
+			libxml2-dev \
+			libcairo2 \
+			libcairo2-dev
     fi
 
     echoinfo "check and install autoconf (http://ftp.gnu.org/gnu/autoconf/autoconf-2.69.tar.gz)"

@@ -1,14 +1,14 @@
 #######################################################################
 # @file: server.mk
 #
-# @version: 0.4.0
+# @version: 0.4.1
 # @create: 2018-05-18 14:00:00
-# @update: 2018-11-02 17:13:32
+# @update: 2018-11-03 11:06:04
 #######################################################################
 
 # !!! DO NOT change APPNAME and VERSION only when you make sure do that !
 APPNAME := xsync-server
-VERSION := 0.4.0
+VERSION := 0.4.1
 
 TARGET := ${APPNAME}-${VERSION}
 
