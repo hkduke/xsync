@@ -7,7 +7,7 @@
 # @author: master@pepstack.com
 #
 # @create: 2018-06-21 23:11:00
-# @update: 2018-10-23
+# @update: 2018-11-07
 #
 #######################################################################
 # will cause error on macosx
@@ -98,6 +98,7 @@ function update_xclient_dist() {
 
     echoinfo "update all xclient packages"
     mkdir -p ${XCLIENT_HOME}/{bin,conf,lib,sbin,service,watch-test}
+    mkdir -p ${XCLIENT_HOME}/lib/lua/5.3
 
     echoinfo "create watch-test: $xclient_testlogs"
     mkdir -p "$xclient_testlogs"
@@ -116,10 +117,14 @@ function update_xclient_dist() {
     cp ${_cdir}/bin/path-filter-1.lua ${XCLIENT_HOME}/bin/
     cp ${_cdir}/bin/event-task-1.lua ${XCLIENT_HOME}/bin/
     cp ${_cdir}/bin/watch-events-filter.lua ${XCLIENT_HOME}/bin/
+    cp ${_cdir}/bin/cjson-filter.lua ${XCLIENT_HOME}/bin/
     cp ${_cdir}/bin/xclient-status.sh ${XCLIENT_HOME}/bin/
     cp ${_cdir}/target/xsync-client-$verno ${XCLIENT_HOME}/sbin/
     cp ${_cdir}/target/libkafkatools.so.1.0.0 ${XCLIENT_HOME}/sbin/
     cp ${_cdir}/libs/lib/librdkafka.so.1 ${XCLIENT_HOME}/lib/
+    cp ${_cdir}/libs/lib/lua/5.3/cjson.so ${XCLIENT_HOME}/lib/lua/5.3/
+    cp ${_cdir}/libs/bin/lua ${XCLIENT_HOME}/bin/
+    cp ${_cdir}/libs/bin/luac ${XCLIENT_HOME}/bin/
 
     echoinfo "update xclient links"
 

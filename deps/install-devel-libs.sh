@@ -305,6 +305,14 @@ function install_libs()
     rm -rf "${_cdir}/lua-5.3.5"
     cd ${_cdir}
 
+    echoinfo "---- build and install <cjson-2.1.0> https://www.kyne.com.au/~mark/software/lua-cjson-manual.html"
+    tar -zxf ${_cdir}/lua-cjson-2.1.0.tar.gz
+    cd ${_cdir}/lua-cjson-2.1.0/
+    make -e PREFIX=${INSTALLDIR}
+    cp ${_cdir}/lua-cjson-2.1.0/cjson.so ${INSTALLDIR}/lib/lua/5.3/
+    rm -rf "${_cdir}/lua-cjson-2.1.0"
+    cd ${_cdir}
+
     echoinfo "---- build and install <libiconv-1.15> ..."
     tar -zxf ${_cdir}/libiconv-1.15.tar.gz
     cd ${_cdir}/libiconv-1.15/
@@ -377,7 +385,7 @@ while true; do
         -h | --help ) usage; exit 1;;
 
         --prepare ) prep_install; exit 0;;
-	--install ) install_libs; exit 0;;
+        --install ) install_libs; exit 0;;
 
         -- ) shift; break ;;
         * ) break ;;
