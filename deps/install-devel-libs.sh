@@ -15,6 +15,7 @@ _cdir=$(dirname $_file)
 _name=$(basename $_file)
 _ver=0.0.1
 
+PROJBINDIR=$(dirname $_cdir)/bin
 INSTALLDIR=$(dirname $_cdir)/libs
 
 . $_cdir/common.sh
@@ -360,6 +361,13 @@ function install_libs()
     make && make install
     make USE_VALGRIND=0 check
     rm -rf "${_cdir}/json-c-20180305"
+    cd ${_cdir}
+
+    echoinfo "---- update lua: cp ${INSTALLDIR}/bin/lua => ${PROJBINDIR}"
+    rm -f ${PROJBINDIR}/lua
+    rm -f ${PROJBINDIR}/luac
+    cp ${INSTALLDIR}/bin/lua ${PROJBINDIR}/
+    cp ${INSTALLDIR}/bin/luac ${PROJBINDIR}/
     cd ${_cdir}
 
     echoinfo "all packages successfully installed at: ${INSTALLDIR}"
