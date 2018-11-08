@@ -32,7 +32,25 @@ set -o nounset
 set -o errexit
 
 ###########################################################
+# 当前安装的 lib 列表
 
+LIB_JEMALLOC="jemalloc-5.1.0"
+LIB_EXPAT="expat-2.1.0"
+LIB_LOG4C="log4c-1.2.4"
+LIB_OPENSSL="openssl-1.0.2e"
+LIB_ZLIB="zlib-1.2.11"
+LIB_LIBEVENT="libevent-2.1.8-stable"
+LIB_LUA="lua-5.3.5"
+LIB_LUA_CJSON="lua-cjson-2.1.1"
+LIB_LIBICONV="libiconv-1.15"
+LIB_INOTIFY_TOOLS="inotify-tools-3.20.4"
+LIB_LIBRDKAFKA="librdkafka-master"
+LIB_HIREDIS="hiredis-1.0.1"
+LIB_IGRAPH="igraph-0.7.1"
+LIB_JSON_C="json-c-20180305"
+
+
+###########################################################
 usage()
 {
     cat << EOT
@@ -250,117 +268,117 @@ function install_libs()
 {
     cd ${_cdir}
 
-    echoinfo "---- build and install <jemalloc-5.1.0> ..."
-    tar -zxf ${_cdir}/jemalloc-5.1.0.tar.gz
-    cd ${_cdir}/jemalloc-5.1.0/
+    echoinfo "---- build and install <$LIB_JEMALLOC> ..."
+    tar -zxf ${_cdir}/$LIB_JEMALLOC.tar.gz
+    cd ${_cdir}/$LIB_JEMALLOC/
     ./autogen.sh --with-jemalloc-prefix=je_ --prefix=${INSTALLDIR}
     # rhel: make dist && make && make install
     make && make install
-    rm -rf "${_cdir}/jemalloc-5.1.0"
+    rm -rf "${_cdir}/$LIB_JEMALLOC"
     cd ${_cdir}
 
-    echoinfo "---- build and install <expat-2.1.0> ..."
-    tar -zxf ${_cdir}/expat-2.1.0.tgz
-    cd ${_cdir}/expat-2.1.0/
+    echoinfo "---- build and install <$LIB_EXPAT> ..."
+    tar -zxf ${_cdir}/$LIB_EXPAT.tgz
+    cd ${_cdir}/$LIB_EXPAT/
     ./configure --prefix=${INSTALLDIR}
     make && make install
-    rm -rf "${_cdir}/expat-2.1.0"
+    rm -rf "${_cdir}/$LIB_EXPAT"
     cd ${_cdir}
 
-    echoinfo "---- build and install <log4c-1.2.4>..."
-    tar -zxf ${_cdir}/log4c-1.2.4.tgz
-    cd ${_cdir}/log4c-1.2.4/
+    echoinfo "---- build and install <$LIB_LOG4C>..."
+    tar -zxf ${_cdir}/$LIB_LOG4C.tgz
+    cd ${_cdir}/$LIB_LOG4C/
     ./configure --prefix=${INSTALLDIR} --without-expat
     make && make install
-    rm -rf "${_cdir}/log4c-1.2.4"
+    rm -rf "${_cdir}/$LIB_LOG4C"
     cd ${_cdir}
 
-    echoinfo "---- build and install <openssl-1.0.2e> ..."
-    tar -zxf ${_cdir}/openssl-1.0.2e.tgz
-    cd ${_cdir}/openssl-1.0.2e/
+    echoinfo "---- build and install <$LIB_OPENSSL> ..."
+    tar -zxf ${_cdir}/$LIB_OPENSSL.tgz
+    cd ${_cdir}/$LIB_OPENSSL/
     ./config --prefix=${INSTALLDIR}
     make && make install
-    rm -rf "${_cdir}/openssl-1.0.2e"
+    rm -rf "${_cdir}/$LIB_OPENSSL"
     cd ${_cdir}
 
-    echoinfo "---- build and install <zlib-1.2.11> ..."
-    tar -zxf ${_cdir}/zlib-1.2.11.tar.gz
-    cd ${_cdir}/zlib-1.2.11/
+    echoinfo "---- build and install <$LIB_ZLIB> ..."
+    tar -zxf ${_cdir}/$LIB_ZLIB.tar.gz
+    cd ${_cdir}/$LIB_ZLIB/
     ./configure --prefix=${INSTALLDIR}
     make && make install
-    rm -rf "${_cdir}/zlib-1.2.11"
+    rm -rf "${_cdir}/$LIB_ZLIB"
     cd ${_cdir}
 
-    echoinfo "---- build and install <libevent-2.1.8-stable> ..."
-    tar -zxf ${_cdir}/libevent-2.1.8-stable.tar.gz
-    cd ${_cdir}/libevent-2.1.8-stable/
+    echoinfo "---- build and install <$LIB_LIBEVENT> ..."
+    tar -zxf ${_cdir}/$LIB_LIBEVENT.tar.gz
+    cd ${_cdir}/$LIB_LIBEVENT/
     ./configure --prefix=${INSTALLDIR}
     make && make install
-    rm -rf "${_cdir}/libevent-2.1.8-stable"
+    rm -rf "${_cdir}/$LIB_LIBEVENT"
     cd ${_cdir}
 
-    echoinfo "---- build and install <lua-5.3.5r> http://troubleshooters.com/codecorn/lua/lua_c_calls_lua.htm ..."
-    tar -zxf ${_cdir}/lua-5.3.5.tar.gz
-    cd ${_cdir}/lua-5.3.5/
+    echoinfo "---- build and install <$LIB_LUA> http://troubleshooters.com/codecorn/lua/lua_c_calls_lua.htm ..."
+    tar -zxf ${_cdir}/$LIB_LUA.tar.gz
+    cd ${_cdir}/$LIB_LUA/
     make linux test && make install INSTALL_TOP=${INSTALLDIR}
-    rm -rf "${_cdir}/lua-5.3.5"
+    rm -rf "${_cdir}/$LIB_LUA"
     cd ${_cdir}
 
-    echoinfo "---- build and install <cjson-2.1.0> https://www.kyne.com.au/~mark/software/lua-cjson-manual.html"
-    tar -zxf ${_cdir}/lua-cjson-2.1.0.tar.gz
-    cd ${_cdir}/lua-cjson-2.1.0/
+    echoinfo "---- build and install <$LIB_LUA_CJSON> https://www.kyne.com.au/~mark/software/lua-cjson-manual.html"
+    tar -zxf ${_cdir}/$LIB_LUA_CJSON.tar.gz
+    cd ${_cdir}/$LIB_LUA_CJSON/
     make -e PREFIX=${INSTALLDIR}
-    cp ${_cdir}/lua-cjson-2.1.0/cjson.so ${INSTALLDIR}/lib/lua/5.3/
-    rm -rf "${_cdir}/lua-cjson-2.1.0"
+    cp ${_cdir}/$LIB_LUA_CJSON/cjson.so ${INSTALLDIR}/lib/lua/5.3/
+    rm -rf "${_cdir}/$LIB_LUA_CJSON"
     cd ${_cdir}
 
-    echoinfo "---- build and install <libiconv-1.15> ..."
-    tar -zxf ${_cdir}/libiconv-1.15.tar.gz
-    cd ${_cdir}/libiconv-1.15/
+    echoinfo "---- build and install <$LIB_LIBICONV> ..."
+    tar -zxf ${_cdir}/$LIB_LIBICONV.tar.gz
+    cd ${_cdir}/$LIB_LIBICONV/
     ./configure --prefix=${INSTALLDIR}
     make && make install
-    rm -rf "${_cdir}/libiconv-1.15"
+    rm -rf "${_cdir}/$LIB_LIBICONV"
     cd ${_cdir}
 
-    echoinfo "---- build and install <inotify-tools-3.20.4> ..."
-    tar -zxf ${_cdir}/inotify-tools-3.20.4.tar.gz
-    cd ${_cdir}/inotify-tools-3.20.4/
+    echoinfo "---- build and install <$LIB_INOTIFY_TOOLS> ..."
+    tar -zxf ${_cdir}/$LIB_INOTIFY_TOOLS.tar.gz
+    cd ${_cdir}/$LIB_INOTIFY_TOOLS/
     ./configure --prefix=${INSTALLDIR}
     make && make install
-    rm -rf "${_cdir}/inotify-tools-3.20.4"
+    rm -rf "${_cdir}/$LIB_INOTIFY_TOOLS"
     cd ${_cdir}
 
-    echoinfo "---- build and install <librdkafka-master> https://github.com/edenhill/librdkafka ..."
-    tar -zxf ${_cdir}/librdkafka-master.tar.gz
-    cd ${_cdir}/librdkafka-master/
+    echoinfo "---- build and install <$LIB_LIBRDKAFKA> https://github.com/edenhill/librdkafka ..."
+    tar -zxf ${_cdir}/$LIB_LIBRDKAFKA.tar.gz
+    cd ${_cdir}/$LIB_LIBRDKAFKA/
     ./configure --prefix=${INSTALLDIR}
     make && make install
-    rm -rf "${_cdir}/librdkafka-master"
+    rm -rf "${_cdir}/$LIB_LIBRDKAFKA"
     cd ${_cdir}
 
-    echoinfo "---- build and install <hiredis-1.0.1> ..."
-    tar -zxf ${_cdir}/hiredis-1.0.1.tar.gz
-    cd ${_cdir}/hiredis-1.0.1/
+    echoinfo "---- build and install <$LIB_HIREDIS> ..."
+    tar -zxf ${_cdir}/$LIB_HIREDIS.tar.gz
+    cd ${_cdir}/$LIB_HIREDIS/
     make PREFIX=${INSTALLDIR} install
-    rm -rf "${_cdir}/hiredis-1.0.1"
+    rm -rf "${_cdir}/$LIB_HIREDIS"
     cd ${_cdir}
 
-    echoinfo "---- build and install <igraph-0.7.1> http://igraph.org/nightly/get/c/igraph-0.7.1.tar.gz"
-    tar -zxf ${_cdir}/igraph-0.7.1.tar.gz
-    cd ${_cdir}/igraph-0.7.1/
+    echoinfo "---- build and install <$LIB_IGRAPH> http://igraph.org/nightly/get/c/$LIB_IGRAPH.tar.gz"
+    tar -zxf ${_cdir}/$LIB_IGRAPH.tar.gz
+    cd ${_cdir}/$LIB_IGRAPH/
     ./configure --prefix=${INSTALLDIR}
     make && make install
-    rm -rf "${_cdir}/igraph-0.7.1"
+    rm -rf "${_cdir}/$LIB_IGRAPH"
     cd ${_cdir}
 
-    echoinfo "---- build and install <json-c-20180305> https://github.com/json-c/json-c"
-    tar -zxf ${_cdir}/json-c-20180305.tar.gz
-    cd ${_cdir}/json-c-20180305/
+    echoinfo "---- build and install <$LIB_JSON_C> https://github.com/json-c/json-c"
+    tar -zxf ${_cdir}/$LIB_JSON_C.tar.gz
+    cd ${_cdir}/$LIB_JSON_C/
     sh autogen.sh
     ./configure --prefix=${INSTALLDIR} --enable-threading
     make && make install
     make USE_VALGRIND=0 check
-    rm -rf "${_cdir}/json-c-20180305"
+    rm -rf "${_cdir}/$LIB_JSON_C"
     cd ${_cdir}
 
     echoinfo "---- update lua: cp ${INSTALLDIR}/bin/lua => ${PROJBINDIR}"
@@ -370,7 +388,21 @@ function install_libs()
     cp ${INSTALLDIR}/bin/luac ${PROJBINDIR}/
     cd ${_cdir}
 
-    echoinfo "all packages successfully installed at: ${INSTALLDIR}"
+    echoinfo "---- below packages successfully installed at: ${INSTALLDIR}"
+    echoinfo "    $LIB_JEMALLOC"
+    echoinfo "    $LIB_EXPAT"
+    echoinfo "    $LIB_LOG4C"
+    echoinfo "    $LIB_OPENSSL"
+    echoinfo "    $LIB_ZLIB"
+    echoinfo "    $LIB_LIBEVENT"
+    echoinfo "    $LIB_LUA"
+    echoinfo "    $LIB_LUA_CJSON"
+    echoinfo "    $LIB_LIBICONV"
+    echoinfo "    $LIB_INOTIFY_TOOLS"
+    echoinfo "    $LIB_LIBRDKAFKA"
+    echoinfo "    $LIB_HIREDIS"
+    echoinfo "    $LIB_IGRAPH"
+    echoinfo "    $LIB_JSON_C"
 }
 
 
