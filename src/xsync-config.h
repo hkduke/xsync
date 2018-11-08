@@ -30,7 +30,7 @@
  *
  * @create: 2018-01-24
  *
- * @update: 2018-11-08 16:27:54
+ * @update: 2018-11-08 16:31:52
  */
 
 #ifndef XSYNC_CONFIG_H_

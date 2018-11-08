@@ -2,24 +2,23 @@
 -- xsync-client 目录过滤脚本
 -- version: 0.1
 -- create: 2018-10-16
--- update: 2018-10-16
+-- update: 2018-11-08
 
 
 -- 仅路径(path)过滤: 路径是绝对路径的全路径名, 以 '/' 结尾 !
 --
 function filter_path(intab)
     local outab = {
-        result = "REJECT"
+        result = "ERROR"
     }
 
-    -- TODO:
+    local msg = table.concat("path-filter.lua::filter_path: {",
+            "path=", intab.path,
+        "}")
 
-    io.write("path-filter.lua::filter_path: {path=")
-    io.write(intab.path);
-    io.write("}");
-    print()
+    print(msg)
 
-    outab.result = "ACCEPT"
+    outab.result = "SUCCESS"
 
     return outab
 end
@@ -29,23 +28,19 @@ end
 --
 function filter_file(intab)
     local outab = {
-        result = "REJECT"
+        result = "ERROR"
     }
 
-    -- TODO:
+    local msg = table.concat("path-filter.lua::filter_file: {",
+            "path=", intab.path,
+            ";file=", intab.file,
+            ";mtime=", intab.mtime,
+            ";size=", intab.size,
+        "}")
 
-    io.write("path-filter.lua::filter_file: {path=")
-    io.write(intab.path);
-    io.write(";file=");
-    io.write(intab.file);
-    io.write(";mtime=");
-    io.write(intab.mtime);
-    io.write(";size=");
-    io.write(intab.size);
-    io.write("}");
-    print()
+    print(msg)
 
-    outab.result = "ACCEPT"
+    outab.result = "SUCCESS"
 
     return outab
 end
@@ -55,15 +50,16 @@ end
 --
 function inotify_watch_on_query(intab)
     local outab = {
-        result = "REJECT"
+        result = "ERROR"
     }
 
-    io.write("path-filter.lua::inotify_watch_on_query: {wpath=")
-    io.write(intab.wpath);
-    io.write("}");
-    print()
+    local msg = table.concat("path-filter.lua::inotify_watch_on_query: {",
+            "wpath=", intab.wpath,
+        "}")
 
-    outab.result = "ACCEPT"
+    print(msg)
+
+    outab.result = "SUCCESS"
 
     return outab
 end
@@ -76,10 +72,11 @@ function inotify_watch_on_ready(intab)
         result = "ERROR"
     }
 
-    io.write("path-filter.lua::inotify_watch_on_ready: {wpath=")
-    io.write(intab.wpath);
-    io.write("}");
-    print()
+    local msg = table.concat("path-filter.lua::inotify_watch_on_ready: {",
+            "wpath=", intab.wpath,
+        "}")
+
+    print(msg)
 
     outab.result = "SUCCESS"
 
@@ -94,10 +91,11 @@ function inotify_watch_on_error(intab)
         result = "ERROR"
     }
 
-    io.write("path-filter.lua::inotify_watch_on_query: {wpath=")
-    io.write(intab.wpath);
-    io.write("}");
-    print()
+    local msg = table.concat("path-filter.lua::inotify_watch_on_error: {",
+            "wpath=", intab.wpath,
+        "}")
+
+    print(msg)
 
     outab.result = "SUCCESS"
 

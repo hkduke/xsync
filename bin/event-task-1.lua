@@ -33,7 +33,7 @@ local function get_topic(fn)
         return errday
     end
 
-    a=string.find(fn, ".log.")
+    a = string.find(fn, ".log.")
     if (a == nil)
     then
         return errday
@@ -62,34 +62,28 @@ function on_event_task(intab)
     local outab = {
         result = "ERROR",
         loglevel = "INFO",
-        kafka_topic = intab.clientid .. "_" .. intab.pathid,
+        kafka_topic = table.concat(intab.clientid, "_", intab.pathid, "_", get_topic(intab.file)),
         kafka_partition = "0"
     }
 
-    message = string.format("{%s|%s|%s|%s|%s|%s|%s|%s|%s|%s}",
-        intab.type,
-        intab.time,
-        intab.clientid,
-        intab.thread,
-        intab.sid,
-        intab.event,
-        intab.pathid,
-        intab.path,
-        intab.file,
-        intab.route)
+    -- 指定输出的消息
+    outab.message = table.concat("{",
+            intab.type, "|",
+            intab.time, "|",
+            intab.clientid, "|",
+            intab.thread, "|",
+            intab.sid, "|",
+            intab.event, "|",
+            intab.pathid, "|",
+            intab.path, "|",
+            intab.file, "|",
+            intab.route,
+        "}")
 
     --[[ 调试输出
-    print(message)
-    --]]
-
-    local topic = get_topic(intab.file)
-
-    -- 指定输出的消息
-    outab.message = message
-
-    outab.kafka_topic = string.format("%s_%s_%s", intab.clientid, intab.pathid, topic);
-
     print(outab.kafka_topic)
+    print(outab.message)
+    --]]
 
     outab.result = "SUCCESS"
     return outab
