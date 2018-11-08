@@ -148,7 +148,7 @@ function dump_qiuqiu_jsonfile(intab)
             nc = 0
 
             local els = os.time() - tstart + 1
-            print(string.format("total %d lines has processed (output lines=%d. input speed=%d lps. output speed=%d lps.)",
+            print(string.format("input %d lines done. (output %d lines. input speed=%d lps. output speed=%d lps.)",
                 lc, lw, math.modf(lc / els), math.modf(lw / els)))
         end
         --]]
@@ -165,7 +165,7 @@ function dump_qiuqiu_jsonfile(intab)
 
     local els = os.time() - tstart + 1
 
-    print(string.format("total %d lines has processed (input speed=%d lps. output speed=%d lps.)", lc, math.modf(lc / els), math.modf(lw / els)))
+    print(string.format("input %d lines done. (input speed=%d lps. output speed=%d lps.)", lc, math.modf(lc / els), math.modf(lw / els)))
 
     print("------------------- SUMMARY BEGIN -------------------")
     print("NOTES: speed = N lps. - N lines per second")

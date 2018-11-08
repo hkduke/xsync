@@ -2,7 +2,7 @@
 # @file: main.mk
 #   see: "client.mk.another" for another style of client.mk
 #
-# @version: 0.4.2
+# @version: 0.4.3
 # @create: 2018-05-18 14:00:00
 # @update: 2018-11-07 10:20:15
 #######################################################################

@@ -26,7 +26,7 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.4.2
+ * @version: 0.4.3
  *
  * @create: 2013-06-19
  *
