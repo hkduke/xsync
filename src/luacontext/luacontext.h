@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.4.3
+ * @version: 0.4.4
  *
  * @create: 2018-10-15
  *
- * @update: 2018-11-07 10:20:15
+ * @update: 2018-11-09 14:24:00
  *
  */
 #ifndef LUACTX_H_INCLUDED
@@ -95,6 +95,20 @@ extern "C" {
 #endif
 
 
+typedef int (* luaopen_libname_func) (lua_State *);
+
+typedef struct luareglib_t
+{
+    char libname[128];
+
+    luaopen_libname_func openlibfunc;
+
+    int isglobal;
+
+    struct luareglib_t *nextlib;
+} luareglib_t;
+
+
 /**
  * Creating a single lua_State per thread is a good solution
  *  to having multiple threads of Lua execution.
@@ -102,7 +116,7 @@ extern "C" {
 typedef struct lua_context_t * lua_context;
 
 
-extern int LuaCtxNew (const char *scriptfile, int threadmode, lua_context *outctx);
+extern int LuaCtxNew (const char *scriptfile, int threadmode, luareglib_t *reglib, lua_context *outctx);
 
 extern void LuaCtxFree (lua_context *pctx);
 

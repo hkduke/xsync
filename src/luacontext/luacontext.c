@@ -25,11 +25,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.4.3
+ * @version: 0.4.4
  *
  * @create: 2018-10-15
  *
- * @update: 2018-11-07 10:20:15
+ * @update: 2018-11-09 14:22:46
  *
  */
 
@@ -95,7 +95,7 @@ typedef struct lua_context_t
 } lua_context_t;
 
 
-int LuaCtxNew (const char *scriptfile, int threadmode, lua_context *outctx)
+int LuaCtxNew (const char *scriptfile, int threadmode, luareglib_t *reglib, lua_context *outctx)
 {
     int err;
     lua_State * L;
@@ -119,8 +119,14 @@ int LuaCtxNew (const char *scriptfile, int threadmode, lua_context *outctx)
         return LUACTX_E_L_NEWSTATE;
     }
 
-    /*load Lua base libraries*/
+    /* load Lua base libraries */
     luaL_openlibs(L);
+
+    /* register lua extend libs */
+    while (reglib) {
+        luaL_requiref(L, reglib->libname, reglib->openlibfunc, reglib->isglobal);
+        reglib = reglib->nextlib;
+    }
 
     /* luaL_loadfile
      *   PANIC: unprotected error in call to Lua API (attempt to call a nil value)

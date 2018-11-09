@@ -26,11 +26,11 @@
  *
  * @author: master@pepstack.com
  *
- * @version: 0.4.3
+ * @version: 0.4.4
  *
  * @create: 2018-01-26
  *
- * @update: 2018-11-07 10:20:15
+ * @update: 2018-11-09 14:31:18
  */
 
 #include "client_api.h"
@@ -47,12 +47,25 @@ void * perthread_data_create (XS_client client, int servers, int threadid, const
     if (events_lua) {
         LOGGER_NOTICE("[thread-%d] loading: %s", threadid, events_lua);
 
-        if (LuaCtxNew(events_lua, LUACTX_THREAD_MODE_SINGLE, &perdata->luactx) != LUACTX_SUCCESS) {
-            LOGGER_FATAL("LuaCtxNew fail");
+        do {
+            luareglib_t lib_cjson;
 
-            mem_free(perdata);
-            exit(-1);
-        }
+            strcpy(lib_cjson.libname, "cjson");
+
+            // 定义加载函数, 需要链接: cjson.so
+            LUALIB_API int luaopen_cjson (lua_State * L);
+
+            lib_cjson.openlibfunc = luaopen_cjson;
+            lib_cjson.isglobal = 1;
+            lib_cjson.nextlib = 0;
+
+            if (LuaCtxNew(events_lua, LUACTX_THREAD_MODE_SINGLE, &lib_cjson, &perdata->luactx) != LUACTX_SUCCESS) {
+                LOGGER_FATAL("LuaCtxNew fail");
+
+                mem_free(perdata);
+                exit(-1);
+            }
+        } while (0);
     }
 
     if (client->kafka) {
@@ -464,7 +477,7 @@ XS_RESULT XS_client_conf_from_watch (XS_client client, const char *watch_root)
 
             LOGGER_NOTICE("loading: events-filter.lua -> %s", pathbuf);
 
-            if (LuaCtxNew(pathbuf, LUACTX_THREAD_MODE_MULTI, &client->luactx) != LUACTX_SUCCESS) {
+            if (LuaCtxNew(pathbuf, LUACTX_THREAD_MODE_MULTI, NULL, &client->luactx) != LUACTX_SUCCESS) {
                 LOGGER_FATAL("LuaCtxNew fail");
                 return XS_ERROR;
             }

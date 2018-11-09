@@ -17,5 +17,6 @@ require("__trycall")
 
 require("path-filter-1")
 require("event-task-1")
+require("cjson-filter")
 
 --]]

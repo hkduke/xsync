@@ -45,9 +45,8 @@ local function process_json_line (line, js, outfd)
     local rekey = jstab.redis_key
     local rkval = jstab[rekey]
     
-    if rkval ~= nil then
-
-        if type(rkval) == "string" then
+    if (rkval ~= nil) then
+        if (type(rkval) == "string") then
             local jsobjects = js.decode(rkval)
 
             for k, v in pairs(jsobjects) do
@@ -116,42 +115,55 @@ function dump_qiuqiu_jsonfile(intab)
 
         local genid = jstab.gen_id
         local rekey = jstab.redis_key
-        local rkval = jstab[rekey]
 
-        if rkval ~= nil then
-            if type(rkval) == "string" then
-                local jsobjects = js.decode(rkval)
+        if rekey then
+            local objflag = "0"
 
-                for k, v in pairs(jsobjects) do
-                    local msg = table.concat({genid, "|", v.obj, "|", math.modf(v.t), "\n"})
-                    outfd:write(msg)
-                    nw = nw + 1
-                end
-            else
-                for k, v in pairs(rkval) do
-                    local msg = table.concat({genid, "|", v.obj, "|", math.modf(v.t), "\n"})
-                    outfd:write(msg)
-                    nw = nw + 1
+            if (rekey == "activeobjects") then
+                objflag = "1"
+            elseif (rekey == "addobjects") then
+                objflag = "2"
+            end
+
+            local rkval = jstab[rekey]
+
+            -- { genid | objflag | objid | objtype }
+
+            if (rkval ~= nil) then
+                if (type(rkval) == "string") then
+                    local jsobjects = js.decode(rkval)
+
+                    for k, v in pairs(jsobjects) do
+                        local msg = table.concat({genid, "|", objflag, "|", v.obj, "|", math.modf(v.t), "\n"})
+                        outfd:write(msg)
+                        nw = nw + 1
+                    end
+                else
+                    for k, v in pairs(rkval) do
+                        local msg = table.concat({genid, "|", objflag, "|", v.obj, "|", math.modf(v.t), "\n"})
+                        outfd:write(msg)
+                        nw = nw + 1
+                    end
                 end
             end
-        end
 
-        if nw >= flush_batch_msgs then
-            outfd:flush()
-            lw = lw + nw
-            nw = 0
-        end
+            if (nw >= flush_batch_msgs) then
+                outfd:flush()
+                lw = lw + nw
+                nw = 0
+            end
 
-        ---[[
-        if nc >= print_read_lines then
-            lc = lc + nc
-            nc = 0
+            ---[[
+            if (nc >= print_read_lines) then
+                lc = lc + nc
+                nc = 0
 
-            local els = os.time() - tstart + 1
-            print(string.format("input %d lines done. (output %d lines. input speed=%d lps. output speed=%d lps.)",
-                lc, lw, math.modf(lc / els), math.modf(lw / els)))
+                local els = os.time() - tstart + 1
+                print(string.format("input %d lines done. (output %d lines. input speed=%d lps. output speed=%d lps.)",
+                    lc, lw, math.modf(lc / els), math.modf(lw / els)))
+            end
+            --]]
         end
-        --]]
     end
 
     lc = lc + nc

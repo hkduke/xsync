@@ -8,18 +8,25 @@
  设置 kafka 连接参数
 --]]
 function kafka_config(intab)
-    io.write("event-task.lua::kafka_config::intab: {kafkalib=")
-    io.write(intab.kafkalib);
-    io.write("}");
-    print()
-
     local outab = {
-        result = "SUCCESS",
-
+        result = "ERROR",
         bootstrap_servers = "localhost:9092",
         socket_timeout_ms = "1000"
     }
 
+    ---[[
+    local msg = table.concat({
+            "event-task-1.lua"
+            ,"::"
+            ,"kafka_config("
+            ,"kafkalib="
+            ,intab.kafkalib
+            ,")"
+        })
+    print(msg)
+    --]]
+
+    outab.result = "SUCCESS"
     return outab
 end
 
@@ -62,28 +69,44 @@ function on_event_task(intab)
     local outab = {
         result = "ERROR",
         loglevel = "INFO",
-        kafka_topic = table.concat(intab.clientid, "_", intab.pathid, "_", get_topic(intab.file)),
+        kafka_topic = table.concat({intab.clientid, "_", intab.pathid, "_", get_topic(intab.file)}),
         kafka_partition = "0"
     }
 
     -- 指定输出的消息
-    outab.message = table.concat("{",
-            intab.type, "|",
-            intab.time, "|",
-            intab.clientid, "|",
-            intab.thread, "|",
-            intab.sid, "|",
-            intab.event, "|",
-            intab.pathid, "|",
-            intab.path, "|",
-            intab.file, "|",
-            intab.route,
-        "}")
-
-    --[[ 调试输出
+    outab.message = table.concat({
+        "{"
+        ,intab.type
+        ,"|"
+        ,intab.time
+        ,"|"
+        ,intab.clientid
+        ,"|"
+        ,intab.thread
+        ,"|"
+        ,intab.sid
+        ,"|"
+        ,intab.event
+        ,"|"
+        ,intab.pathid
+        ,"|"
+        ,intab.path
+        ,"|"
+        ,intab.file
+        ,"|"
+        ,intab.route
+        ,"}"
+    })
+        
+    ---[[ 调试输出
     print(outab.kafka_topic)
     print(outab.message)
     --]]
+
+    dump_qiuqiu_jsonfile({
+        jsonfile = intab.path .. intab.file,
+        jsonoutfile = "/tmp/" .. intab.file .. ".csv"
+    })
 
     outab.result = "SUCCESS"
     return outab

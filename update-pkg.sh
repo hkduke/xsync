@@ -7,7 +7,7 @@
 # @author: master@pepstack.com
 #
 # @create: 2018-06-21 23:11:00
-# @update: 2018-11-07
+# @update: 2018-11-09
 #
 #######################################################################
 # will cause error on macosx
@@ -137,6 +137,9 @@ function update_xclient_dist() {
 
     cd ${XCLIENT_HOME}/watch/
     ln -s ../bin/watch-events-filter.lua events-filter.lua
+
+    cd ${XCLIENT_HOME}/lib/lua/5.3/
+    ln -s cjson.so libcjson.so
 
     echoinfo "package all xclient packages: ${DISTROOT}/xclient-dist-$verno.tar.gz"
     cd ${DISTROOT}

@@ -324,14 +324,6 @@ function install_libs()
     rm -rf "${_cdir}/$LIB_LUA"
     cd ${_cdir}
 
-    echoinfo "---- build and install <$LIB_LUA_CJSON> https://www.kyne.com.au/~mark/software/lua-cjson-manual.html"
-    tar -zxf ${_cdir}/$LIB_LUA_CJSON.tar.gz
-    cd ${_cdir}/$LIB_LUA_CJSON/
-    make -e PREFIX=${INSTALLDIR}
-    cp ${_cdir}/$LIB_LUA_CJSON/cjson.so ${INSTALLDIR}/lib/lua/5.3/
-    rm -rf "${_cdir}/$LIB_LUA_CJSON"
-    cd ${_cdir}
-
     echoinfo "---- build and install <$LIB_LIBICONV> ..."
     tar -zxf ${_cdir}/$LIB_LIBICONV.tar.gz
     cd ${_cdir}/$LIB_LIBICONV/
@@ -381,11 +373,21 @@ function install_libs()
     rm -rf "${_cdir}/$LIB_JSON_C"
     cd ${_cdir}
 
+    echoinfo "---- build and install <$LIB_LUA_CJSON> https://www.kyne.com.au/~mark/software/lua-cjson-manual.html"
+    tar -zxf ${_cdir}/$LIB_LUA_CJSON.tar.gz
+    cd ${_cdir}/$LIB_LUA_CJSON/
+    make -e PREFIX=${INSTALLDIR}
+    cp ${_cdir}/$LIB_LUA_CJSON/cjson.so ${INSTALLDIR}/lib/lua/5.3/
+    rm -rf "${_cdir}/$LIB_LUA_CJSON"
+    cd ${_cdir}
+
     echoinfo "---- update lua: cp ${INSTALLDIR}/bin/lua => ${PROJBINDIR}"
     rm -f ${PROJBINDIR}/lua
     rm -f ${PROJBINDIR}/luac
     cp ${INSTALLDIR}/bin/lua ${PROJBINDIR}/
     cp ${INSTALLDIR}/bin/luac ${PROJBINDIR}/
+    cd ${INSTALLDIR}/lib/lua/5.3/
+    ln -s cjson.so libcjson.so
     cd ${_cdir}
 
     echoinfo "---- below packages successfully installed at: ${INSTALLDIR}"

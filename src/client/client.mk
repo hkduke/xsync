@@ -2,22 +2,28 @@
 # @file: client.mk
 #   see: "client.mk.another" for another style of client.mk
 #
-# @version: 0.4.3
+# @version: 0.4.4
 # @create: 2018-05-18 14:00:00
-# @update: 2018-11-08 16:31:52
+# @update: 2018-11-09 17:06:23
 #######################################################################
+prefix = .
 
 # !!! DO NOT change APPNAME and VERSION only when you make sure do that !
 APPNAME := xsync-client
-VERSION := 0.4.3
+VERSION := 0.4.4
 
 TARGET := ${APPNAME}-${VERSION}
 
 
 LIB_PREFIX := ${TARGET_DIR}/../libs/lib
 
-TGT_LDFLAGS := -L${TARGET_DIR}
+TGT_LDFLAGS := -L${TARGET_DIR} -L${LIB_PREFIX}/lua/5.3 \
+	-Wl,--soname=cjson.so \
+	-Wl,--rpath='./lib:../lib/lua/5.3:${LIB_PREFIX}/lua/5.3'
 
+# ldd xsync-client
+# readelf -d xsync-client
+#
 TGT_LDLIBS  := \
 	${LIB_PREFIX}/libcommon.a \
 	${LIB_PREFIX}/liblog4c.a \
@@ -29,10 +35,12 @@ TGT_LDLIBS  := \
 	${LIB_PREFIX}/libluacontext.a \
 	${LIB_PREFIX}/liblua.a \
 	${LIB_PREFIX}/libjemalloc.a \
+	-lcjson \
 	-lm \
 	-lrt \
 	-ldl \
 	-lpthread
+
 
 SOURCES := \
 	inotifyapi.c \
